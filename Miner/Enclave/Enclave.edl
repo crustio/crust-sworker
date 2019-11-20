@@ -1,0 +1,9 @@
+enclave {
+    include "sgx_tcrypto.h"
+    
+    from "PlotDisk/PlotDisk.edl" import *;
+
+    untrusted {
+        void ocall_print_string([in, string] const char *str);
+    };
+};
