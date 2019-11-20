@@ -1,0 +1,7 @@
+enclave {
+
+    trusted {
+        public void ecall_plot_disk([in, string] const char* pub_data);            
+    };
+
+};
