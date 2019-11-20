@@ -1,5 +1,6 @@
 #include "App.h"
 #include "OCalls/OCalls.h"
+#include <pthread.h>
 
 sgx_enclave_id_t global_eid = 1;
 
@@ -14,7 +15,9 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
 
-    ecall_plot_disk(global_eid, "ss");
+    size_t size = 15;
+    ecall_plot_disk(global_eid, "", &size);
+    ecall_plot_disk(global_eid, "", &size);
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);

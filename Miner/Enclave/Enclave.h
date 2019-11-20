@@ -19,4 +19,4 @@ int eprintf(const char* fmt, ...);
 }
 #endif
 
-#endif /* !_ENCLAVE_H_ */
+#endif /* !_CRUST_ENCLAVE_H_ */
