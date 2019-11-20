@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# User
+/Miner/Enclave/EnclavePrivate.pem
