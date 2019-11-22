@@ -14,7 +14,8 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
 
-    size_t num_g = 10;
+    // TODO: config part
+    size_t num_g = 4;
     std::string dir_path = "store";
 
     #pragma omp parallel for
