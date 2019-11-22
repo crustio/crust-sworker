@@ -2,6 +2,7 @@
 #define _CRUST_PLOT_DISK_H_
 
 #include "../Enclave.h"
+#include "../Utils/FormatHelper.h"
 #include <vector>
 #include <string>
 #include "sgx_trts.h"
