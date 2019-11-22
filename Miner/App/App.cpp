@@ -1,6 +1,5 @@
 #include "App.h"
 #include "OCalls/OCalls.h"
-#include <pthread.h>
 
 sgx_enclave_id_t global_eid = 1;
 
@@ -15,10 +14,15 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
 
-    size_t size = 15;
-    ecall_plot_disk(global_eid, "", &size);
-    ecall_plot_disk(global_eid, "", &size);
+    size_t num_g = 1;
+    std::string dir_path = "store";
 
+    #pragma omp parallel for
+    for (size_t i = 0; i < num_g; i++)
+    {
+        ecall_plot_disk(global_eid, dir_path.c_str());
+    }
+    
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
     
