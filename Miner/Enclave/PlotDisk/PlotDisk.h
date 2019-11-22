@@ -9,7 +9,7 @@
 #include "sgx_thread.h"
 
 #define PLOT_RAND_DATA_LENGTH 1048576
-#define PLOT_RAND_DATA_NUM 10
+#define PLOT_RAND_DATA_NUM 1024
 #define PLOT_HASH_LENGTH 32
 
 sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
