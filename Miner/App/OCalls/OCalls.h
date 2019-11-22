@@ -68,13 +68,11 @@ unsigned char *hex_char_array_to_unsigned_char_array(const char *data)
     return result;
 }
 
-void ocall_save_file(const char *file_path, const char *data)
+void ocall_save_file(const char *file_path, const char *data, const size_t *size)
 {
-    //printf("OCALL: %s\n", data);
-    // unsigned char *data_bytes = hex_char_array_to_unsigned_char_array(data);
     std::ofstream out;
     out.open(file_path, std::ios::out | std::ios::binary);
-    out.write(data, strlen(data));
+    out.write(data, *size);
     out.close();
 }
 

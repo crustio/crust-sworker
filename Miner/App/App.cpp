@@ -14,7 +14,7 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
 
-    size_t num_g = 10;
+    size_t num_g = 1;
     std::string dir_path = "store";
 
     for (size_t i = 0; i < num_g; i++)

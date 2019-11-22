@@ -19,6 +19,11 @@ void ecall_plot_disk(const char *path)
     {
         unsigned char rand_data[PLOT_RAND_DATA_LENGTH];
         sgx_read_rand(reinterpret_cast<unsigned char *>(&rand_data), sizeof(rand_data));
+        for (size_t j = 0; j < PLOT_RAND_DATA_LENGTH; j++)
+        {
+            if(rand_data[j] ==0) rand_data[j] = 1;
+        }
+        
         sgx_sha256_hash_t out_hash256;
         sgx_sha256_msg(rand_data, sizeof(rand_data), &out_hash256);
 
@@ -27,7 +32,7 @@ void ecall_plot_disk(const char *path)
             hashs[i * PLOT_HASH_LENGTH + j] = out_hash256[j];
         }
 
-        save_file(dir_path.c_str(), i+1, out_hash256, rand_data, sizeof(rand_data));
+        save_file(dir_path.c_str(), i + 1, out_hash256, rand_data, sizeof(rand_data));
     }
 
     // Generate G hashs
@@ -47,8 +52,6 @@ void save_file(const char *dir_path, size_t index, sgx_sha256_hash_t hash, const
     std::string file_path(dir_path);
     std::string hash_hex_string = unsigned_char_array_to_hex_string(hash, PLOT_HASH_LENGTH);
     file_path += '/' + std::to_string(index) + '-' + hash_hex_string;
-    eprintf("Store file: %s\n", file_path.c_str());
-    std::string data_hex_string = unsigned_char_array_to_hex_string(data, data_size);
-    ocall_save_file(file_path.c_str(), data_hex_string.c_str());
+    ocall_save_file(file_path.c_str(), reinterpret_cast<const char *>(data), &data_size);
     eprintf("Save file: %s success.\n", file_path.c_str());
 }
