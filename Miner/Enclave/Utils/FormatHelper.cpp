@@ -1,14 +1,14 @@
 #include "FormatHelper.h"
 
-std::string unsiged_char_array_to_hex_string(const unsigned char *in, size_t size)
+std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size)
 {
-    char *hex_char_array = unsiged_char_array_to_hex_char_array(in, size);
+    char *hex_char_array = unsigned_char_array_to_hex_char_array(in, size);
     std::string result(hex_char_array);
     delete[] hex_char_array;
     return result;
 }
 
-char *unsiged_char_array_to_hex_char_array(const unsigned char *in, size_t size)
+char *unsigned_char_array_to_hex_char_array(const unsigned char *in, size_t size)
 {
     char *result = new char[size * 2 + 1];
     size_t now_pos = 0;

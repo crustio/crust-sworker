@@ -53,28 +53,13 @@ std::string hash_to_hex_string(const unsigned char *hash)
     return hex_string;
 }
 
-void ocall_save_file(const char *path, const unsigned char *hash, const size_t *index, const unsigned char *data, const size_t *size)
+void ocall_save_file(const char *file_path, const char *data)
 {
-    std::string file_path(path);
-    std::string hex_string = hash_to_hex_string(hash);
-    file_path += '/' + std::to_string(*index) + '-' + hex_string;
-    printf("Into: %s\n", file_path.c_str());
-
-    unsigned char *data_out = new unsigned char[*size];
-
-    for (size_t i = 0; i < *size; i++)
-    {
-        printf("%02x", data[i]);
-        data_out[i] = data[i];
-    }
-    printf("\n");
-
+    printf("Into: %s\n", file_path);
     std::ofstream out;
     out.open(file_path, std::ios::out | std::ios::binary);
-    out.write(reinterpret_cast<char *>(data_out), *size);
+    out.write(data, 100);
     out.close();
-
-    delete[] data_out;
 }
 
 #endif /* !_OCALLS_APP_H_ */

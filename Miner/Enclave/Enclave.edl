@@ -6,6 +6,6 @@ enclave {
     untrusted {
         void ocall_print_string([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
-        void ocall_save_file([in, string] const char *path, [in, string] const unsigned char *hash, [in] const size_t *index, [in, string] const unsigned char *data, [in] const size_t *size);
+        void ocall_save_file([in, string] const char *file_path, [in, string] const char *data);
     };
 };

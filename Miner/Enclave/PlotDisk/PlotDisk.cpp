@@ -1,14 +1,5 @@
 #include "PlotDisk.h"
 
-sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-
-std::vector<unsigned char *> all_g_hashs;
-
-std::string get_file_path(const char *path, const size_t now_index)
-{
-    return std::string(path) + "/" + std::to_string(now_index + 1);
-}
-
 void ecall_plot_disk(const char *path)
 {
     // New and get now G hash index
@@ -36,44 +27,25 @@ void ecall_plot_disk(const char *path)
             hashs[i * PLOT_HASH_LENGTH + j] = out_hash256[j];
         }
 
-        /*
-        eprintf("Hash %luM: '", i + 1);
-
-        for (size_t j = 0; j < PLOT_HASH_LENGTH; j++)
-        {
-            eprintf("%02x", out_hash256[j]);
-        }
-
-        eprintf("'\n");
-*/
-        eprintf("EC data: '");
-
-        for (size_t j = 0; j < PLOT_RAND_DATA_LENGTH; j++)
-        {
-            eprintf("%02x", rand_data[j]);
-        }
-
-        eprintf("'\n");
-        
-
-        size_t size_of_rand_data = sizeof(rand_data);
-        size_t j = i + 1;
-        ocall_save_file(dir_path.c_str(), out_hash256, &j, rand_data, &size_of_rand_data);
+        save_file(dir_path.c_str(), i+1, out_hash256, rand_data, sizeof(rand_data));
     }
 
     // Generate G hashs
     sgx_sha256_hash_t g_out_hash256;
     sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &g_out_hash256);
 
-    /*
-    eprintf("Hash %luG: '", now_index + 1);
-    for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
-    {
-        all_g_hashs[now_index][i] = g_out_hash256[i];
-        eprintf("%02x", all_g_hashs[now_index][i]);
-    }
-    eprintf("'\n");
-    */
-
     delete[] hashs;
+}
+
+std::string get_file_path(const char *path, const size_t now_index)
+{
+    return std::string(path) + "/" + std::to_string(now_index + 1);
+}
+
+void save_file(const char *dir_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
+{
+    std::string file_path(dir_path);
+    std::string hex_string = unsigned_char_array_to_hex_string(hash, PLOT_HASH_LENGTH);
+    file_path += '/' + std::to_string(index) + '-' + hex_string;
+    eprintf("Into: %s\n", file_path.c_str());
 }
