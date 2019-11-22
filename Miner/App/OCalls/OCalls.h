@@ -30,27 +30,14 @@ void ocall_create_dir(const char *path)
 
         current_path += fields[i] + "/";
     }
-
-    printf("Store files into: '%s'\n", path);
 }
 
-std::string hash_to_hex_string(const unsigned char *hash)
+void ocall_rename_dir(const char *old_path, const char *new_path)
 {
-    char *hex_char_array = new char[65];
-
-    for (size_t i = 0; i < 32; i++)
+    if (access(old_path, 0) != -1)
     {
-        char temp[3];
-        sprintf(temp, "%02x", hash[i]);
-        hex_char_array[i * 2] = temp[0];
-        hex_char_array[i * 2 + 1] = temp[1];
+        rename(old_path, new_path);
     }
-
-    hex_char_array[64] = '\0';
-    std::string hex_string(hex_char_array);
-    delete[] hex_char_array;
-
-    return hex_string;
 }
 
 unsigned char *hex_char_array_to_unsigned_char_array(const char *data)
