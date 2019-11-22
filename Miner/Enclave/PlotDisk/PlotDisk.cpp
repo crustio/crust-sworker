@@ -38,6 +38,8 @@ void ecall_plot_disk(const char *path)
     // Generate G hashs
     sgx_sha256_hash_t g_out_hash256;
     sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &g_out_hash256);
+    std::string new_path = dir_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, PLOT_HASH_LENGTH);
+    ocall_rename_dir(dir_path.c_str(), new_path.c_str());
 
     delete[] hashs;
 }
