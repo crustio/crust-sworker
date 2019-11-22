@@ -23,6 +23,8 @@ int SGX_CDECL main(int argc, char *argv[])
     {
         ecall_plot_disk(global_eid, dir_path.c_str());
     }
+
+    ecall_generate_root(global_eid);
     
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);

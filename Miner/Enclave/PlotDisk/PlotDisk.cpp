@@ -21,9 +21,10 @@ void ecall_plot_disk(const char *path)
         sgx_read_rand(reinterpret_cast<unsigned char *>(&rand_data), sizeof(rand_data));
         for (size_t j = 0; j < PLOT_RAND_DATA_LENGTH; j++)
         {
-            if(rand_data[j] ==0) rand_data[j] = 1;
+            if (rand_data[j] == 0)
+                rand_data[j] = 1;
         }
-        
+
         sgx_sha256_hash_t out_hash256;
         sgx_sha256_msg(rand_data, sizeof(rand_data), &out_hash256);
 
@@ -38,10 +39,41 @@ void ecall_plot_disk(const char *path)
     // Generate G hashs
     sgx_sha256_hash_t g_out_hash256;
     sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &g_out_hash256);
+
+    sgx_thread_mutex_lock(&g_mutex);
+    for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
+    {
+        all_g_hashs[now_index][i] = g_out_hash256[i];
+    }
+    sgx_thread_mutex_unlock(&g_mutex);
+
+    // Change G path name
     std::string new_path = dir_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, PLOT_HASH_LENGTH);
     ocall_rename_dir(dir_path.c_str(), new_path.c_str());
 
     delete[] hashs;
+}
+
+void ecall_generate_root()
+{
+    unsigned char *hashs = new unsigned char[all_g_hashs.size() * PLOT_HASH_LENGTH];
+    for (size_t i = 0; i < all_g_hashs.size(); i++)
+    {
+        for (size_t j = 0; j < PLOT_HASH_LENGTH; j++)
+        {
+            hashs[i * 32 + j] = all_g_hashs[i][j];
+        }
+    }
+
+    // Generate G hashs
+    sgx_sha256_hash_t hash256;
+    sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &hash256);
+    eprintf("Root hash: \n");
+    for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
+    {
+        eprintf("%02x", hash256[i]);
+    }
+    eprintf("\n");
 }
 
 std::string get_file_path(const char *path, const size_t now_index)
