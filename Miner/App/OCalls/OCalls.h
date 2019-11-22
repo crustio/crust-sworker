@@ -53,12 +53,28 @@ std::string hash_to_hex_string(const unsigned char *hash)
     return hex_string;
 }
 
+unsigned char *hex_char_array_to_unsigned_char_array(const char *data)
+{
+    std::string hex(data);
+    unsigned char *result = new unsigned char[strlen(data) / 2];
+    size_t len_t = 0;
+    for (size_t i = 0; i < strlen(data); i += 2)
+    {
+        std::string byte = hex.substr(i, 2);
+        char chr = (char)(int)strtol(byte.c_str(), NULL, 16);
+        result[len_t++] = (unsigned char)chr;
+    }
+
+    return result;
+}
+
 void ocall_save_file(const char *file_path, const char *data)
 {
-    printf("Into: %s\n", file_path);
+    //printf("OCALL: %s\n", data);
+    // unsigned char *data_bytes = hex_char_array_to_unsigned_char_array(data);
     std::ofstream out;
     out.open(file_path, std::ios::out | std::ios::binary);
-    out.write(data, 100);
+    out.write(data, strlen(data));
     out.close();
 }
 

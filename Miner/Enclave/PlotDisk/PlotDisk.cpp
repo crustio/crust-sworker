@@ -45,7 +45,10 @@ std::string get_file_path(const char *path, const size_t now_index)
 void save_file(const char *dir_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
 {
     std::string file_path(dir_path);
-    std::string hex_string = unsigned_char_array_to_hex_string(hash, PLOT_HASH_LENGTH);
-    file_path += '/' + std::to_string(index) + '-' + hex_string;
-    eprintf("Into: %s\n", file_path.c_str());
+    std::string hash_hex_string = unsigned_char_array_to_hex_string(hash, PLOT_HASH_LENGTH);
+    file_path += '/' + std::to_string(index) + '-' + hash_hex_string;
+    eprintf("Store file: %s\n", file_path.c_str());
+    std::string data_hex_string = unsigned_char_array_to_hex_string(data, data_size);
+    ocall_save_file(file_path.c_str(), data_hex_string.c_str());
+    eprintf("Save file: %s success.\n", file_path.c_str());
 }

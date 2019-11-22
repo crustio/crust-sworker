@@ -14,10 +14,9 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
 
-    size_t num_g = 1;
+    size_t num_g = 10;
     std::string dir_path = "store";
 
-    #pragma omp parallel for
     for (size_t i = 0; i < num_g; i++)
     {
         ecall_plot_disk(global_eid, dir_path.c_str());
