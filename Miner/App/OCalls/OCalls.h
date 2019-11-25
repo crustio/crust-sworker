@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "../Utils/FileUtils.h"
 #include <boost/algorithm/string.hpp>
 
 void ocall_print_string(const char *str)
@@ -40,21 +41,6 @@ void ocall_rename_dir(const char *old_path, const char *new_path)
     }
 }
 
-unsigned char *hex_char_array_to_unsigned_char_array(const char *data)
-{
-    std::string hex(data);
-    unsigned char *result = new unsigned char[strlen(data) / 2];
-    size_t len_t = 0;
-    for (size_t i = 0; i < strlen(data); i += 2)
-    {
-        std::string byte = hex.substr(i, 2);
-        char chr = (char)(int)strtol(byte.c_str(), NULL, 16);
-        result[len_t++] = (unsigned char)chr;
-    }
-
-    return result;
-}
-
 void ocall_save_file(const char *file_path, const char *data, const size_t *size)
 {
     std::ofstream out;
@@ -63,12 +49,24 @@ void ocall_save_file(const char *file_path, const char *data, const size_t *size
     out.close();
 }
 
-unsigned char* ocall_get_m_hashs(const char *path)
+void ocall_get_folders_number_under_path(const char *path, size_t *number)
+{
+    if (access(path, 0) != -1)
+    {
+        *number = get_folders_under_path(std::string(path)).size();
+    }
+    else
+    {
+        *number = 0;
+    }
+}
+
+unsigned char *ocall_get_m_hashs(const char *path)
 {
     return NULL;
 }
 
-unsigned char* ocall_get_file(const char *file_path)
+unsigned char *ocall_get_file(const char *file_path)
 {
     return NULL;
 }

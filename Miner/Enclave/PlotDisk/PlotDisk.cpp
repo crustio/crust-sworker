@@ -78,7 +78,17 @@ void ecall_generate_root()
 
 void ecall_validate_empty_disk(const char *path)
 {
-    for (size_t i = 0; i < all_g_hashs.size(); i++)
+    size_t current_capacity = 0;
+    ocall_get_folders_number_under_path(path, &current_capacity);
+
+    /*    for (size_t i = all_g_hashs.size() - 1; i > current_capacity - 1; i--)
+    {
+        delete[] all_g_hashs[i];
+        all_g_hashs.pop_back();
+    }
+    */
+
+    for (size_t i = 0; i < min(all_g_hashs.size(), current_capacity); i++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
@@ -92,6 +102,14 @@ void ecall_validate_empty_disk(const char *path)
             size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
         }
     }
+
+    
+}
+
+std::string get_g_path_with_hash(const char *path, const size_t now_index, const unsigned char *hash)
+{
+    std::string g_path = std::string(path) + "/" + std::to_string(now_index + 1);
+    return g_path + '-' + unsigned_char_array_to_hex_string(hash, PLOT_HASH_LENGTH);
 }
 
 std::string get_g_path(const char *path, const size_t now_index)
