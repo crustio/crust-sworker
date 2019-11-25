@@ -5,7 +5,6 @@
 #include "../Utils/FormatHelper.h"
 #include <vector>
 #include <string>
-#include<cmath>
 #include "sgx_trts.h"
 #include "sgx_thread.h"
 

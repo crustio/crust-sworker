@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "../Utils/FileUtils.h"
+#include "../Utils/FormatUtils.h"
 #include <boost/algorithm/string.hpp>
 
 void ocall_print_string(const char *str)
@@ -61,9 +62,30 @@ void ocall_get_folders_number_under_path(const char *path, size_t *number)
     }
 }
 
-unsigned char *ocall_get_m_hashs(const char *path)
+
+
+unsigned char *ocall_get_m_hashs(const char *path, const size_t *number)
 {
-    return NULL;
+    printf("PATH: %s\n", path);
+    if (access(path, 0) == -1)
+    {
+        return NULL;
+    }
+
+    std::vector<std::string> files = get_files_under_path(std::string(path));
+    if (*number != files.size())
+    {
+        return NULL;
+    }
+
+    unsigned char *hashs = new unsigned char[*number * 32];
+
+    for (size_t i = 0; i < files.size(); i++)
+    {
+        hex_string_to_bytes(files[i].c_str() + files[i].size() - 64, hashs+ i * 32);
+    }
+
+    return hashs;
 }
 
 unsigned char *ocall_get_file(const char *file_path)

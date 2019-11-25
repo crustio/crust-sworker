@@ -88,22 +88,28 @@ void ecall_validate_empty_disk(const char *path)
     }
     */
 
-    for (size_t i = 0; i < min(all_g_hashs.size(), current_capacity); i++)
+    for (size_t i = 0; i < (all_g_hashs.size() < current_capacity ? all_g_hashs.size() : current_capacity); i++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
+
         if (rand_val < 256 * VALIDATE_RATE)
         {
-            //unsigned char *out = NULL;
-            // ocall_block_get(&out, std::string(nodes->ns[i].hash).c_str(), &size);
+            unsigned char *m_hashs = NULL;
+            size_t m_number = PLOT_RAND_DATA_NUM;
+            ocall_get_m_hashs(&m_hashs, get_g_path_with_hash(path, i, all_g_hashs[i]).c_str(), &m_number);
+
+            if (m_hashs == NULL)
+            {
+                eprintf("\n!!!!USER CHEAT!!!!\n\n");
+                return;
+            }
 
             unsigned int rand_val_m;
             sgx_read_rand((unsigned char *)&rand_val_m, 4);
             size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
         }
     }
-
-    
 }
 
 std::string get_g_path_with_hash(const char *path, const size_t now_index, const unsigned char *hash)
