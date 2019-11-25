@@ -15,7 +15,7 @@ void hex_string_to_bytes(const char *src, unsigned char *target)
 {
     while (*src && src[1])
     {
-        *(target++) = char_to_int(*src) * 16 + char_to_int(src[1]);
+        *(target++) = (unsigned char)(char_to_int(*src) * 16 + char_to_int(src[1]));
         src += 2;
     }
 }

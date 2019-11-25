@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include "../Utils/FileUtils.h"
 #include "../Utils/FormatUtils.h"
 #include <boost/algorithm/string.hpp>
@@ -42,11 +43,11 @@ void ocall_rename_dir(const char *old_path, const char *new_path)
     }
 }
 
-void ocall_save_file(const char *file_path, const char *data, const size_t *size)
+void ocall_save_file(const char *file_path, const unsigned char *data, size_t len)
 {
     std::ofstream out;
     out.open(file_path, std::ios::out | std::ios::binary);
-    out.write(data, *size);
+    out.write(reinterpret_cast<const char *>(data), len);
     out.close();
 }
 
@@ -62,35 +63,22 @@ void ocall_get_folders_number_under_path(const char *path, size_t *number)
     }
 }
 
-
-
-unsigned char *ocall_get_m_hashs(const char *path, const size_t *number)
+unsigned char *ocall_get_file(const char *file_path, size_t len)
 {
-    printf("PATH: %s\n", path);
-    if (access(path, 0) == -1)
+    printf("PATH: %s\n", file_path);
+    if (access(file_path, 0) == -1)
     {
         return NULL;
     }
 
-    std::vector<std::string> files = get_files_under_path(std::string(path));
-    if (*number != files.size())
-    {
-        return NULL;
-    }
+    unsigned char *m_hashs = new unsigned char[len];
+    std::ifstream in;
 
-    unsigned char *hashs = new unsigned char[*number * 32];
+    in.open(file_path, std::ios::out | std::ios::binary);
+    in.read(reinterpret_cast<char *>(m_hashs), len);
+    in.close();
 
-    for (size_t i = 0; i < files.size(); i++)
-    {
-        hex_string_to_bytes(files[i].c_str() + files[i].size() - 64, hashs+ i * 32);
-    }
-
-    return hashs;
-}
-
-unsigned char *ocall_get_file(const char *file_path)
-{
-    return NULL;
+    return m_hashs;
 }
 
 #endif /* !_OCALLS_APP_H_ */
