@@ -63,4 +63,14 @@ void ocall_save_file(const char *file_path, const char *data, const size_t *size
     out.close();
 }
 
+unsigned char* ocall_get_m_hashs(const char *path)
+{
+    return NULL;
+}
+
+unsigned char* ocall_get_file(const char *file_path)
+{
+    return NULL;
+}
+
 #endif /* !_OCALLS_APP_H_ */

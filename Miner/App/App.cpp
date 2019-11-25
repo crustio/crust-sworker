@@ -25,6 +25,12 @@ int SGX_CDECL main(int argc, char *argv[])
     }
 
     ecall_generate_root(global_eid);
+
+    while(true)
+    {
+        ecall_validate_empty_disk(global_eid, dir_path.c_str());
+        break;
+    }
     
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);

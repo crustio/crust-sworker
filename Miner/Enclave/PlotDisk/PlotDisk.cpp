@@ -10,7 +10,7 @@ void ecall_plot_disk(const char *path)
     sgx_thread_mutex_unlock(&g_mutex);
 
     // Create directory
-    std::string dir_path = get_file_path(path, now_index);
+    std::string dir_path = get_g_path(path, now_index);
     ocall_create_dir(dir_path.c_str());
 
     // Generate all M hashs and store file to disk
@@ -65,6 +65,7 @@ void ecall_generate_root()
         }
     }
 
+    empty_disk_capacity = all_g_hashs.size();
     sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &root_hash);
     eprintf("Root hash: \n");
     for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
@@ -72,9 +73,28 @@ void ecall_generate_root()
         eprintf("%02x", root_hash[i]);
     }
     eprintf("\n");
+    eprintf("Root capacity: %lu\n", empty_disk_capacity);
 }
 
-std::string get_file_path(const char *path, const size_t now_index)
+void ecall_validate_empty_disk(const char *path)
+{
+    for (size_t i = 0; i < all_g_hashs.size(); i++)
+    {
+        unsigned char rand_val;
+        sgx_read_rand((unsigned char *)&rand_val, 1);
+        if (rand_val < 256 * VALIDATE_RATE)
+        {
+            //unsigned char *out = NULL;
+            // ocall_block_get(&out, std::string(nodes->ns[i].hash).c_str(), &size);
+
+            unsigned int rand_val_m;
+            sgx_read_rand((unsigned char *)&rand_val_m, 4);
+            size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
+        }
+    }
+}
+
+std::string get_g_path(const char *path, const size_t now_index)
 {
     return std::string(path) + "/" + std::to_string(now_index + 1);
 }
