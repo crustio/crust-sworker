@@ -65,13 +65,11 @@ void ecall_generate_root()
         }
     }
 
-    // Generate G hashs
-    sgx_sha256_hash_t hash256;
-    sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &hash256);
+    sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &root_hash);
     eprintf("Root hash: \n");
     for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
     {
-        eprintf("%02x", hash256[i]);
+        eprintf("%02x", root_hash[i]);
     }
     eprintf("\n");
 }
