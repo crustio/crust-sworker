@@ -4,7 +4,6 @@ enclave {
     
     trusted {
         public void ecall_plot_disk([in, string] const char* path); 
-        public void ecall_validate_empty_disk([in, string] const char* path); 
         public void ecall_generate_root();           
     };
 
