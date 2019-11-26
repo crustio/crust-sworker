@@ -65,20 +65,19 @@ void ocall_get_folders_number_under_path(const char *path, size_t *number)
 
 unsigned char *ocall_get_file(const char *file_path, size_t len)
 {
-    printf("PATH: %s\n", file_path);
     if (access(file_path, 0) == -1)
     {
         return NULL;
     }
 
-    unsigned char *m_hashs = new unsigned char[len];
+    unsigned char *data = new unsigned char[len];
     std::ifstream in;
 
     in.open(file_path, std::ios::out | std::ios::binary);
-    in.read(reinterpret_cast<char *>(m_hashs), len);
+    in.read(reinterpret_cast<char *>(data), len);
     in.close();
 
-    return m_hashs;
+    return data;
 }
 
 #endif /* !_OCALLS_APP_H_ */
