@@ -62,7 +62,7 @@ void ecall_generate_root()
     }
 
     empty_disk_capacity = all_g_hashs.size();
-    sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &root_hash);
+    sgx_sha256_msg(hashs, (uint32_t)empty_disk_capacity * PLOT_HASH_LENGTH, &root_hash);
     eprintf("Root hash: \n");
     for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
     {
@@ -70,6 +70,8 @@ void ecall_generate_root()
     }
     eprintf("\n");
     eprintf("Root capacity: %lu\n", empty_disk_capacity);
+
+    delete[] hashs;
 }
 
 void ecall_validate_empty_disk(const char *path)
@@ -144,7 +146,7 @@ void ecall_validate_empty_disk(const char *path)
         delete[] all_g_hashs[i];
         all_g_hashs.pop_back();
     }
-    
+
     ecall_generate_root();
 }
 
