@@ -77,13 +77,6 @@ void ecall_validate_empty_disk(const char *path)
     size_t current_capacity = 0;
     ocall_get_folders_number_under_path(path, &current_capacity);
 
-    /*    for (size_t i = all_g_hashs.size() - 1; i > current_capacity - 1; i--)
-    {
-        delete[] all_g_hashs[i];
-        all_g_hashs.pop_back();
-    }
-    */
-
     for (size_t i = 0; i < (all_g_hashs.size() < current_capacity ? all_g_hashs.size() : current_capacity); i++)
     {
         unsigned char rand_val;
@@ -145,6 +138,14 @@ void ecall_validate_empty_disk(const char *path)
             }
         }
     }
+
+    for (size_t i = all_g_hashs.size() - 1; i > current_capacity - 1; i--)
+    {
+        delete[] all_g_hashs[i];
+        all_g_hashs.pop_back();
+    }
+    
+    ecall_generate_root();
 }
 
 std::string get_m_hashs_file_path(const char *g_path)
