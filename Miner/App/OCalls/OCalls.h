@@ -11,6 +11,7 @@
 #include <algorithm>
 #include "../Utils/FileUtils.h"
 #include "../Utils/FormatUtils.h"
+#include "../Ipfs/Ipfs.h"
 #include <boost/algorithm/string.hpp>
 
 void ocall_print_string(const char *str)
@@ -78,6 +79,11 @@ unsigned char *ocall_get_file(const char *file_path, size_t len)
     in.close();
 
     return data;
+}
+
+MerkleTree* ocall_get_merkle_tree(const char *root_cid)
+{
+    return get_ipfs()->get_merkle_tree(root_cid);
 }
 
 #endif /* !_OCALLS_APP_H_ */

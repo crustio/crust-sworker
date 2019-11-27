@@ -1,5 +1,12 @@
 #include "Ipfs.h"
 
+Ipfs *ipfs = new Ipfs();
+
+Ipfs* get_ipfs()
+{
+    return ipfs;
+}
+
 Ipfs::Ipfs()
 {
     this->files = NULL;
@@ -42,6 +49,14 @@ Node *Ipfs::get_files()
     files[1].size = 105;
 
     return files;
+}
+
+MerkleTree* Ipfs::get_merkle_tree(const char* root_cid)
+{
+    MerkleTree* root = new MerkleTree();
+    root->cid = strdup(root_cid);
+    root->children = NULL;
+    return root;
 }
 
 size_t Ipfs::get_files_num()

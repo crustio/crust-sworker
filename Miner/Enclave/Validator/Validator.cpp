@@ -11,7 +11,7 @@ void ecall_validate_empty_disk(const char *path)
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
 
-        if (rand_val < 256 * VALIDATE_RATE)
+        if (rand_val < 256 * EMPTY_VALIDATE_RATE)
         {
             // Get m hashs
             unsigned char *m_hashs = NULL;
@@ -79,8 +79,19 @@ void ecall_validate_empty_disk(const char *path)
 
 void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t files_space_size)
 {
+    (void)(files_space_size);
+
     for (size_t i = 0; i < files_num; i++)
     {
         eprintf("File%lu: cid->%s, size->%lu\n", i, files[i].cid, files[i].size);
+        unsigned char rand_val;
+        sgx_read_rand((unsigned char *)&rand_val, 1);
+        MerkleTree* tree = NULL;
+        ocall_get_merkle_tree(&tree, files[i].cid);
+
+        if (rand_val < 256 * MEANINGFUL_VALIDATE_RATE)
+        {
+
+        }
     }
 }

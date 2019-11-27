@@ -33,7 +33,7 @@ int SGX_CDECL main(int argc, char *argv[])
         break;
     }
 
-    Ipfs *ipfs = new Ipfs();
+    Ipfs* ipfs = get_ipfs();
     Node *files = ipfs->get_files();
     ecall_validate_meaningful_disk(global_eid, files, ipfs->get_files_num(), ipfs->get_files_space_size());
 

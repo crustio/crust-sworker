@@ -6,22 +6,26 @@
 #include <string.h>
 #include <vector>
 #include "Node.h"
+#include "MerkleTree.h"
 
 class Ipfs
 {
 private:
-    Node* files;
+    Node *files;
     size_t files_num;
     size_t files_space_size;
     void clear_files();
+
 public:
     Ipfs();
     ~Ipfs();
-    Node* get_files();
+    Node *get_files();
     size_t get_files_num();
     size_t get_files_space_size();
-    void get_merkle_tree(const char* root_cid);
-    unsigned char* get_block_data(const char* cid, size_t *len);
+    MerkleTree *get_merkle_tree(const char *root_cid);
+    unsigned char *get_block_data(const char *cid, size_t *len);
 };
+
+Ipfs* get_ipfs();
 
 #endif /* !_CRUST_APP_H_ */
