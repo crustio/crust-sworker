@@ -2,7 +2,7 @@
 
 void ecall_validate_empty_disk(const char *path)
 {
-    Workload* workload = get_workload();
+    Workload *workload = get_workload();
     size_t current_capacity = 0;
     ocall_get_folders_number_under_path(path, &current_capacity);
 
@@ -75,4 +75,9 @@ void ecall_validate_empty_disk(const char *path)
     }
 
     ecall_generate_root();
+}
+
+void ecall_validate_meaningful_disk(const char *hashs, const size_t *sizes, size_t sizes_len)
+{
+
 }
