@@ -10,15 +10,16 @@ int SGX_CDECL main(int argc, char *argv[])
     (void)(argv);
 
     /* Initialize the enclave */
-    if(initialize_enclave() < 0){
-        return -1; 
+    if (initialize_enclave() < 0)
+    {
+        return -1;
     }
 
     // TODO: config part
     size_t num_g = 4;
     std::string dir_path = "store";
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (size_t i = 0; i < num_g; i++)
     {
         ecall_plot_disk(global_eid, dir_path.c_str());
@@ -26,24 +27,30 @@ int SGX_CDECL main(int argc, char *argv[])
 
     ecall_generate_root(global_eid);
 
-    while(true)
+    while (true)
     {
         ecall_validate_empty_disk(global_eid, dir_path.c_str());
         break;
     }
-    
+
+    Ipfs *ipfs = new Ipfs();
+    Node *files = ipfs->get_files();
+    ecall_validate_meaningful_disk(global_eid, files, ipfs->get_files_num(), ipfs->get_files_space_size());
+
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
-    
+    delete ipfs;
+
     return 0;
 }
 
 int initialize_enclave(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    
+
     ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
-    if (ret != SGX_SUCCESS) {
+    if (ret != SGX_SUCCESS)
+    {
         printf("Init enclave failed\n");
         return -1;
     }

@@ -77,7 +77,10 @@ void ecall_validate_empty_disk(const char *path)
     ecall_generate_root();
 }
 
-void ecall_validate_meaningful_disk(const char *hashs, const size_t *sizes, size_t sizes_len)
+void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t files_space_size)
 {
-
+    for (size_t i = 0; i < files_num; i++)
+    {
+        eprintf("File%lu: cid->%s, size->%lu\n", i, files[i].cid, files[i].size);
+    }
 }
