@@ -1,22 +1,41 @@
 #include "Ipfs.h"
 
-Ipfs *ipfs = new Ipfs();
+Ipfs *ipfs = NULL;
 
-Ipfs *get_ipfs()
+Ipfs *get_ipfs(const char *url)
 {
+    if(ipfs != NULL)
+    {
+       delete ipfs;
+    }
+
+    ipfs = new Ipfs(url);
     return ipfs;
 }
 
-Ipfs::Ipfs()
+Ipfs *get_ipfs()
+{
+    if(ipfs == NULL)
+    {
+        printf("Please use get_ipfs(url) frist.\n");
+        exit(-1);
+    }
+
+    return ipfs;
+}
+
+Ipfs::Ipfs(const char *url)
 {
     this->files = NULL;
     this->files_num = 0;
     this->files_space_size = 0;
+    this->ipfs_client = new web::http::client::http_client(url);
 }
 
 Ipfs::~Ipfs()
 {
     clear_files();
+    delete this->ipfs_client;
 }
 
 void Ipfs::clear_files()

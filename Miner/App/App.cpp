@@ -33,7 +33,8 @@ int SGX_CDECL main(int argc, char *argv[])
         break;
     }
 
-    Ipfs* ipfs = get_ipfs();
+    Ipfs* ipfs = get_ipfs("http://127.0.0.1:5001/api/v0");
+
     Node *files = ipfs->get_files();
     ecall_validate_meaningful_disk(global_eid, files, ipfs->get_files_num(), ipfs->get_files_space_size());
 
