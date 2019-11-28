@@ -57,15 +57,27 @@ void Ipfs::clear_files()
 Node *Ipfs::get_files()
 {
     this->clear_files();
-    // TODO: get files from ipfs
-    this->files_num = 2;
-    this->files_space_size = 55 * 2;
+    web::uri_builder builder(U("/work"));
+    web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
+    
+    if(response.status_code() != web::http::status_codes::OK)
+    {
+        return NULL;
+    }
+
+    std::string work_data = response.extract_utf8string().get();
+    web::json::value work = web::json::value::parse(work_data);
+    web::json::array filesRawArray = work["Files"].as_array();
+    this->files_num = filesRawArray.size();
+    this->files_space_size = this->files_num * NODE_STRUCT_SPACE;
     this->files = new Node[this->files_num];
 
-    files[0].cid = strdup("QmT2vLA4N6L1c9SzG64PS4FZd87tS21Lo9yxaXYwdYpL67");
-    files[0].size = 3246;
-    files[1].cid = strdup("QmeZ5exiEb7d9RCMiwVBQFUPcQh5tvLaxgsUXi4iE2HPKE");
-    files[1].size = 105;
+    for (size_t i = 0; i < this->files_num; i++)
+	{
+		web::json::value fileRaw = filesRawArray[i];
+        files[i].cid = strdup(fileRaw["Cid"].as_string().c_str());
+        files[i].size = fileRaw["Size"].as_integer();
+	}
 
     return files;
 }

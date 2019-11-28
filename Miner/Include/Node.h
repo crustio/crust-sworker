@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#define NODE_STRUCT_SPACE 55
+
 typedef struct NodeStruct
 {
     char* cid;
