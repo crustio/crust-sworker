@@ -86,4 +86,9 @@ MerkleTree* ocall_get_merkle_tree(const char *root_cid)
     return get_ipfs()->get_merkle_tree(root_cid);
 }
 
+unsigned char* ocall_get_block(const char* cid, size_t* len)
+{
+    return get_ipfs()->get_block_data(cid, len);
+}
+
 #endif /* !_OCALLS_APP_H_ */

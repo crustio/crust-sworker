@@ -6,6 +6,7 @@
 typedef struct MerkleTreeStruct
 {
     char* cid;
+    size_t size;
     struct MerkleTreeStruct* children;
 } MerkleTree;
 

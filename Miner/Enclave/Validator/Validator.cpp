@@ -1,5 +1,7 @@
 #include "Validator.h"
 
+bool validate_merkle_tree(MerkleTree *root);
+
 void ecall_validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
@@ -86,12 +88,55 @@ void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t 
         eprintf("File%lu: cid->%s, size->%lu\n", i, files[i].cid, files[i].size);
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
-        MerkleTree* tree = NULL;
-        ocall_get_merkle_tree(&tree, files[i].cid);
 
-        if (rand_val < 256 * MEANINGFUL_VALIDATE_RATE)
+        if (rand_val < 256 * MEANINGFUL_FILE_VALIDATE_RATE)
         {
+            MerkleTree *tree = NULL;
+            // Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave?
+            ocall_get_merkle_tree(&tree, std::string(files[i].cid).c_str());
 
+            if (tree == NULL)
+            {
+                eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", files[i].cid);
+                return;
+            }
+
+            if (!validate_merkle_tree(tree))
+            {
+                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", files[i].cid);
+                return;
+            }
         }
+    }
+}
+
+bool validate_merkle_tree(MerkleTree *root)
+{
+    if (root == NULL)
+    {
+        return true;
+    }
+
+    // TODO: validate path
+    if (root->children == NULL)
+    {
+        unsigned char rand_val;
+        sgx_read_rand((unsigned char *)&rand_val, 1);
+        if (rand_val < 256 * MEANINGFUL_LEAF_VALIDATE_RATE)
+        {
+            size_t block_size = 0;
+            unsigned char *block_data = NULL;
+            ocall_get_block(&block_data, std::string(root->cid).c_str(), &block_size);
+            if(block_data == NULL|| block_size != root->size)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    else
+    {
+        return true;
     }
 }

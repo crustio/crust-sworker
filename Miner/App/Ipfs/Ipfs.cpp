@@ -2,7 +2,7 @@
 
 Ipfs *ipfs = new Ipfs();
 
-Ipfs* get_ipfs()
+Ipfs *get_ipfs()
 {
     return ipfs;
 }
@@ -51,12 +51,18 @@ Node *Ipfs::get_files()
     return files;
 }
 
-MerkleTree* Ipfs::get_merkle_tree(const char* root_cid)
+MerkleTree *Ipfs::get_merkle_tree(const char *root_cid)
 {
-    MerkleTree* root = new MerkleTree();
+    MerkleTree *root = new MerkleTree();
     root->cid = strdup(root_cid);
+    root->size = 1000;
     root->children = NULL;
     return root;
+}
+
+unsigned char *Ipfs::get_block_data(const char *cid, size_t *len)
+{
+    return NULL;
 }
 
 size_t Ipfs::get_files_num()
