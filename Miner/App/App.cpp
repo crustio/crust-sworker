@@ -33,13 +33,13 @@ int SGX_CDECL main(int argc, char *argv[])
         break;
     }
 
-    Ipfs* ipfs = get_ipfs("http://127.0.0.1:5001/api/v0");
+    Ipfs *ipfs = get_ipfs("http://127.0.0.1:5001/api/v0");
 
-    Node *files = ipfs->get_files();
-    ecall_validate_meaningful_disk(global_eid, files, ipfs->get_files_num(), ipfs->get_files_space_size());
-
-    Node *files2 = ipfs->get_files();
-    ecall_validate_meaningful_disk(global_eid, files2, ipfs->get_files_num(), ipfs->get_files_space_size());
+    for (size_t i = 0; i < 10; i++)
+    {
+        Node *files = ipfs->get_files();
+        ecall_validate_meaningful_disk(global_eid, files, ipfs->get_files_num(), ipfs->get_files_space_size());
+    }
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);

@@ -1,6 +1,6 @@
 #include "Validator.h"
 
-bool validate_merkle_tree(MerkleTree *root);
+bool validate_merkle_tree(MerkleTree *root, size_t *size);
 
 void ecall_validate_empty_disk(const char *path)
 {
@@ -85,7 +85,6 @@ void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t 
 
     for (size_t i = 0; i < files_num; i++)
     {
-        eprintf("File%lu: cid->%s, size->%lu\n", i, files[i].cid, files[i].size);
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
 
@@ -101,23 +100,29 @@ void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t 
                 return;
             }
 
-            if (!validate_merkle_tree(tree))
+            size_t merkle_tree_size = 0;
+            if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != files[i].size)
             {
                 eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", files[i].cid);
                 return;
             }
         }
     }
+
+    eprintf("Total work is \n");
+    for (size_t i = 0; i < files_num; i++)
+    {
+        eprintf("   File%lu: cid->%s, size->%lu\n", i + 1, files[i].cid, files[i].size);
+    }
 }
 
-bool validate_merkle_tree(MerkleTree *root)
+bool validate_merkle_tree(MerkleTree *root, size_t *size)
 {
     if (root == NULL)
     {
         return true;
     }
 
-    // TODO: validate path
     if (root->links == NULL)
     {
         unsigned char rand_val;
@@ -127,16 +132,31 @@ bool validate_merkle_tree(MerkleTree *root)
             size_t block_size = 0;
             unsigned char *block_data = NULL;
             ocall_get_block(&block_data, std::string(root->cid).c_str(), &block_size);
-            if(block_data == NULL|| block_size != root->size)
+            if (block_data == NULL || block_size != root->size)
+            {
+                return false;
+            }
+            else
+            {
+                sgx_sha256_hash_t block_data_hash256;
+                sgx_sha256_msg(block_data, (uint32_t)block_size, &block_data_hash256);
+                *size += block_size;
+                return is_cid_equal_hash(root->cid, block_data_hash256);
+            }
+        }
+    }
+    else
+    {
+        // TODO: validate path
+        *size += root->size;
+        for (size_t i = 0; i < root->links_num; i++)
+        {
+            if (!validate_merkle_tree(root->links[i], size))
             {
                 return false;
             }
         }
+    }
 
-        return true;
-    }
-    else
-    {
-        return true;
-    }
+    return true;
 }
