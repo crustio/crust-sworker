@@ -7,7 +7,8 @@ typedef struct MerkleTreeStruct
 {
     char* cid;
     size_t size;
-    struct MerkleTreeStruct* children;
+    size_t links_num;
+    struct MerkleTreeStruct** links;
 } MerkleTree;
 
 #endif /* !_CRUST_MERKLE_TREE_H_ */

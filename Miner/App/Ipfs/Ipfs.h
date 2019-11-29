@@ -5,6 +5,7 @@
 #include <string>
 #include <string.h>
 #include <vector>
+#include <map>
 #include "Node.h"
 #include "MerkleTree.h"
 
@@ -18,8 +19,12 @@ private:
     size_t files_num;
     size_t files_space_size;
     web::http::client::http_client *ipfs_client;
+    unsigned char* block_data;
+    MerkleTree *merkle_tree;
+    void clear_merkle_tree(MerkleTree *&root);
     void clear_files();
-
+    void clear_block_data();
+    void fill_merkle_tree(MerkleTree *&root, const char *root_cid, web::json::array blocks_raw_array, std::map<std::string, size_t> blocks_map);
 public:
     Ipfs(const char *url);
     ~Ipfs();

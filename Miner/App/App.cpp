@@ -38,6 +38,9 @@ int SGX_CDECL main(int argc, char *argv[])
     Node *files = ipfs->get_files();
     ecall_validate_meaningful_disk(global_eid, files, ipfs->get_files_num(), ipfs->get_files_space_size());
 
+    Node *files2 = ipfs->get_files();
+    ecall_validate_meaningful_disk(global_eid, files2, ipfs->get_files_num(), ipfs->get_files_space_size());
+
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
     delete ipfs;

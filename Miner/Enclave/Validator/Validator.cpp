@@ -118,7 +118,7 @@ bool validate_merkle_tree(MerkleTree *root)
     }
 
     // TODO: validate path
-    if (root->children == NULL)
+    if (root->links == NULL)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
