@@ -822,8 +822,6 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 			hexstring(&q->basename, sizeof(sgx_basename_t)));
 		eprintf("msg3.quote.report_body   = %s\n",
 			hexstring(&q->report_body, sizeof(sgx_report_body_t)));
-		eprintf("msg3.quote.report_body.report_data   = %s\n",
-			hexstring(&q->report_body.report_data, sizeof(sgx_report_data_t)));
 		eprintf("msg3.quote.signature_len = %s\n",
 			hexstring(&q->signature_len, sizeof(uint32_t)));
 		eprintf("msg3.quote.signature     = %s\n",

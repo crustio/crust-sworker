@@ -32,7 +32,7 @@ enclave {
 #endif
 
 		public sgx_status_t get_report([out] sgx_report_t *report,
-			[in] sgx_target_info_t *target_info, [out] unsigned char *tmpBuffer);
+			[in] sgx_target_info_t *target_info);
 
 		public size_t get_pse_manifest_size();
 

@@ -704,9 +704,6 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		fprintf(fplog, "\nmsg3.quote       = ");
 		print_hexstring(stderr, msg3->quote, msg3_sz-sizeof(sgx_ra_msg3_t));
 		print_hexstring(fplog, msg3->quote, msg3_sz-sizeof(sgx_ra_msg3_t));
-        sgx_quote_t *msg3quote = (sgx_quote_t*)msg3->quote;
-		fprintf(fplog, "\nmsg3.quote.report_body.mr_enclave       = ");
-		print_hexstring(fplog, msg3quote->report_body.mr_enclave.m, 32);
 		fprintf(fplog, "\n");
 		fprintf(stderr, "\n");
 		fprintf(fplog, "\n");
@@ -959,10 +956,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 		exit(0);
 	}
 
-    unsigned char *tmpBuffer = (unsigned char*)malloc(128*sizeof(char));
-    memset(tmpBuffer, 0, 128);
-	status= get_report(eid, &sgxrv, &report, &target_info, tmpBuffer);
-    delete tmpBuffer;
+	status= get_report(eid, &sgxrv, &report, &target_info);
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "get_report: %08x\n", status);
 		return 1;

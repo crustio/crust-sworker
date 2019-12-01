@@ -77,16 +77,13 @@ static const sgx_ec256_public_t def_service_public_key = {
  * to deal with that.
  */
 
-sgx_status_t get_report(sgx_report_t *report, sgx_target_info_t *target_info, unsigned char* tmpBuffer)
+sgx_status_t get_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
-    sgx_status_t ret_status;
 #ifdef SGX_HW_SIM
-	ret_status = sgx_create_report(NULL, NULL, report);
+	return sgx_create_report(NULL, NULL, report);
 #else
-	ret_status = sgx_create_report(target_info, NULL, report);
+	return sgx_create_report(target_info, NULL, report);
 #endif
-    memcpy(tmpBuffer, "21323423423412312412312412332323", 32);
-    return ret_status;
 }
 
 size_t get_pse_manifest_size ()
