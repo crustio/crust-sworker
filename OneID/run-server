@@ -1,0 +1,135 @@
+#! /bin/bash
+
+#----------------------------------------------------------------------------
+# Get our program name
+#----------------------------------------------------------------------------
+
+PROG=`basename $0`
+
+
+#----------------------------------------------------------------------------
+# Environment setup.
+#----------------------------------------------------------------------------
+
+# Where is OpenSSL 1.1.x?
+
+OPENSSL_LIBDIR=/opt/openssl/1.1.0i/lib
+if [ "$OPENSSL_LIBDIR" != "" ]
+then
+	if [ "$LD_LIBRARY_PATH" = "" ]
+	then
+		export LD_LIBRARY_PATH=$OPENSSL_LIBDIR
+	else
+		export LD_LIBRARY_PATH=$OPENSSL_LIBDIR:$LD_LIBRARY_PATH
+	fi
+fi
+
+# Do we need to add curl's libdir?
+
+CURL_LIBDIR=
+if [ "$CURL_LIBDIR" != "" ]
+then
+	if [ "$LD_LIBRARY_PATH" = "" ]
+	then
+		export LD_LIBRARY_PATH=$OPENSSL_LIBDIR
+	else
+		export LD_LIBRARY_PATH=$OPENSSL_LIBDIR:$LD_LIBRARY_PATH
+	fi
+fi
+
+#----------------------------------------------------------------------------
+# Parse our settings file
+#----------------------------------------------------------------------------
+
+. ./settings
+. ./policy
+
+# Optional settings
+
+if [ "$QUERY_IAS_PRODUCTION" != "" -a "0$QUERY_IAS_PRODUCTION" -ne 0 ]; then
+	sp_production=-P
+fi
+
+if [ "$LINKABLE" != "" -a "0$LINKABLE" -ne 0 ]; then
+	flag_linkable=-l
+fi
+
+# Optional client settings
+
+if [ "$RANDOM_NONCE" != "" -a "0$RANDOM_NONCE" -ne 0 ]; then
+	cl_nonce=-r
+fi
+
+if [ "$USE_PLATFORM_SERVICES" != "" -a "0$USE_PLATFORM_SERVICES" -ne 0 ]; then
+	cl_pse=-m
+fi
+
+# Optional service provider/server settings
+
+if [ "$IAS_CLIENT_KEY_FILE" != "" ]; then
+	sp_cert_key="--ias-cert-key=$IAS_CLIENT_KEY_FILE"
+fi
+
+if [ "$IAS_CLIENT_CERT_KEY_PASSWORD_FILE" != "" ]; then
+	sp_cert_passwd="--ias-cert-passwd=$IAS_CLIENT_CERT_KEY_PASSWORD_FILE"
+fi
+
+if [ "$IAS_CLIENT_CERT_TYPE" != "" ]; then
+	sp_cert_type="--ias-cert-type=$IAS_CLIENT_CERT_TYPE"
+fi
+
+if [ "$IAS_DISABLE_PROXY" != "" -a "0$IAS_DISABLE_PROXY" -ne 0 ]; then
+	sp_noproxy="-x"
+elif [ "$IAS_PROXY_URL" != "" ]; then
+	sp_proxy="--proxy=$IAS_PROXY_URL"
+fi
+
+if [ "$POLICY_STRICT_TRUST" != "" -a "0$POLICY_STRICT_TRUST" -ne 0 ]; then
+	sp_strict_trust="-X"
+fi
+
+if [ "$ALLOW_DEBUG_ENCLAVE" != "" -a "0$ALLOW_DEBUG_ENCLAVE" -eq 0 ]; then
+	flag_no_debug_enclave=-D
+fi
+
+# Debugging options
+
+if [ "$VERBOSE" != "" -a "0$VERBOSE" -ne 0 ]; then
+	flag_verbose=-v
+fi
+
+if [ "$DEBUG" != "" -a "0$DEBUG" -ne 0 ]; then
+	flag_debug=-d
+fi
+
+
+#----------------------------------------------------------------------------
+# Execute
+#----------------------------------------------------------------------------
+
+if [ "$PROG" = "run-client" ]
+then
+	./client \
+		-s $SPID \
+		$cl_nonce $cl_pse \
+		$flag_linkable $flag_debug $flag_verbose \
+		"$@"
+elif [ "$PROG" = "run-server" ]
+then
+	./sp \
+		-s $SPID \
+		-i $IAS_PRIMARY_SUBSCRIPTION_KEY \
+		-j $IAS_SECONDARY_SUBSCRIPTION_KEY \
+		-A "$IAS_REPORT_SIGNING_CA_FILE" \
+		-N $MRSIGNER \
+		-V $MIN_ISVSVN \
+		-R $PRODID \
+		$sp_noproxy $sp_proxy  \
+		$flag_linkable $sp_strict_trust $flag_debug $flag_verbose \
+                $sp_production $flag_no_debug_enclave \
+		"$@" 
+else
+	echo "$PROG: unrecognized instance (expected run-client or run-server)" >&2
+	exit 1
+fi
+

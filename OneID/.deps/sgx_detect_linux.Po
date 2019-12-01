@@ -1,0 +1,58 @@
+sgx_detect_linux.o: sgx_detect_linux.c /usr/include/stdc-predef.h \
+ config.h /home/user/sgx/sgxsdk/include/sgx_urts.h \
+ /home/user/sgx/sgxsdk/include/sgx_attributes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
+ /usr/include/features.h /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /home/user/sgx/sgxsdk/include/sgx_error.h \
+ /home/user/sgx/sgxsdk/include/sgx_eid.h \
+ /home/user/sgx/sgxsdk/include/sgx_defs.h \
+ /home/user/sgx/sgxsdk/include/sgx_key.h \
+ /home/user/sgx/sgxsdk/include/sgx_report.h \
+ /usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h \
+ /home/user/sgx/sgxsdk/include/sgx_capable.h sgx_stub.h sgx_detect.h
+
+/usr/include/stdc-predef.h:
+
+config.h:
+
+/home/user/sgx/sgxsdk/include/sgx_urts.h:
+
+/home/user/sgx/sgxsdk/include/sgx_attributes.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h:
+
+/usr/include/stdint.h:
+
+/usr/include/features.h:
+
+/usr/include/x86_64-linux-gnu/sys/cdefs.h:
+
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
+
+/usr/include/x86_64-linux-gnu/bits/wchar.h:
+
+/home/user/sgx/sgxsdk/include/sgx_error.h:
+
+/home/user/sgx/sgxsdk/include/sgx_eid.h:
+
+/home/user/sgx/sgxsdk/include/sgx_defs.h:
+
+/home/user/sgx/sgxsdk/include/sgx_key.h:
+
+/home/user/sgx/sgxsdk/include/sgx_report.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h:
+
+/home/user/sgx/sgxsdk/include/sgx_capable.h:
+
+sgx_stub.h:
+
+sgx_detect.h:
