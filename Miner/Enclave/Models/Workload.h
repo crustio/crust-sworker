@@ -10,8 +10,8 @@
 class Workload
 {
 public:
-    std::vector<unsigned char *> all_g_hashs;
-    sgx_sha256_hash_t root_hash;
+    std::vector<unsigned char *> empty_g_hashs;
+    sgx_sha256_hash_t empty_root_hash;
     size_t empty_disk_capacity;
     Workload();
     ~Workload();

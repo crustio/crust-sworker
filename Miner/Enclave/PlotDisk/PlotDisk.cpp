@@ -10,8 +10,8 @@ void ecall_plot_disk(const char *path)
 {
     // New and get now G hash index
     sgx_thread_mutex_lock(&g_mutex);
-    size_t now_index = workload->all_g_hashs.size();
-    workload->all_g_hashs.push_back(new unsigned char[PLOT_HASH_LENGTH]);
+    size_t now_index = workload->empty_g_hashs.size();
+    workload->empty_g_hashs.push_back(new unsigned char[PLOT_HASH_LENGTH]);
     sgx_thread_mutex_unlock(&g_mutex);
 
     // Create directory
@@ -47,7 +47,7 @@ void ecall_plot_disk(const char *path)
     sgx_thread_mutex_lock(&g_mutex);
     for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
     {
-        workload->all_g_hashs[now_index][i] = g_out_hash256[i];
+        workload->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
     sgx_thread_mutex_unlock(&g_mutex);
 
@@ -58,24 +58,24 @@ void ecall_plot_disk(const char *path)
 
 void ecall_generate_root()
 {
-    unsigned char *hashs = new unsigned char[workload->all_g_hashs.size() * PLOT_HASH_LENGTH];
-    for (size_t i = 0; i < workload->all_g_hashs.size(); i++)
+    unsigned char *hashs = new unsigned char[workload->empty_g_hashs.size() * PLOT_HASH_LENGTH];
+    for (size_t i = 0; i < workload->empty_g_hashs.size(); i++)
     {
         for (size_t j = 0; j < PLOT_HASH_LENGTH; j++)
         {
-            hashs[i * 32 + j] = workload->all_g_hashs[i][j];
+            hashs[i * 32 + j] = workload->empty_g_hashs[i][j];
         }
     }
 
-    workload->empty_disk_capacity = workload->all_g_hashs.size();
-    sgx_sha256_msg(hashs, (uint32_t)workload->empty_disk_capacity * PLOT_HASH_LENGTH, &workload->root_hash);
-    eprintf("Root hash: \n");
+    workload->empty_disk_capacity = workload->empty_g_hashs.size();
+    sgx_sha256_msg(hashs, (uint32_t)workload->empty_disk_capacity * PLOT_HASH_LENGTH, &workload->empty_root_hash);
+    eprintf("Empty root hash: \n");
     for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
     {
-        eprintf("%02x", workload->root_hash[i]);
+        eprintf("%02x", workload->empty_root_hash[i]);
     }
     eprintf("\n");
-    eprintf("Root capacity: %lu\n", workload->empty_disk_capacity);
+    eprintf("Empty capacity: %luG\n", workload->empty_disk_capacity);
 
     delete[] hashs;
 }

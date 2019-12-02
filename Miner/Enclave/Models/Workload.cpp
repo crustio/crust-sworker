@@ -7,10 +7,10 @@ Workload::Workload()
 
 Workload::~Workload()
 {
-    for (size_t i = 0; i < all_g_hashs.size(); i++)
+    for (size_t i = 0; i < empty_g_hashs.size(); i++)
     {
-        delete[] all_g_hashs[i];
+        delete[] empty_g_hashs[i];
     }
 
-    all_g_hashs.clear();
+    empty_g_hashs.clear();
 }
