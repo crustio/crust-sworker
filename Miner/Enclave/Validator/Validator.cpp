@@ -144,6 +144,8 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
                 return is_cid_equal_hash(root->cid, block_data_hash256);
             }
         }
+
+        *size += root->size;
     }
     else
     {
