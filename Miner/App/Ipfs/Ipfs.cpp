@@ -110,7 +110,7 @@ Node *Ipfs::get_files()
         files[i].size = file_raw["Size"].as_integer();
     }
 
-    return files;
+    return this->files;
 }
 
 void Ipfs::fill_merkle_tree(MerkleTree *&root, const char *root_cid, web::json::array blocks_raw_array, std::map<std::string, size_t> blocks_map)
