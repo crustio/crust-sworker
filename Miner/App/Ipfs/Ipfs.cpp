@@ -2,7 +2,7 @@
 
 Ipfs *ipfs = NULL;
 
-Ipfs *get_ipfs(const char *url)
+Ipfs *new_ipfs(const char *url)
 {
     if (ipfs != NULL)
     {
