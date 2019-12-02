@@ -12,7 +12,6 @@
 #define PLOT_RAND_DATA_LENGTH 1048576
 #define PLOT_RAND_DATA_NUM 1024
 #define PLOT_HASH_LENGTH 32
-#define VALIDATE_RATE 0.25
 
 Workload *get_workload();
 

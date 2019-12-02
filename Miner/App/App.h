@@ -8,6 +8,7 @@
 #include "sgx_urts.h"
 #include "Enclave_u.h"
 #include "OCalls/OCalls.h"
+#include "Ipfs/Ipfs.h"
 
 # define TOKEN_FILENAME   "enclave.token"
 # define ENCLAVE_FILENAME "enclave.signed.so"
