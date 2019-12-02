@@ -36,7 +36,7 @@ public:
     void set_ipfs_client_url(const char *url);
 };
 
-Ipfs *get_ipfs(const char *url);
+Ipfs *new_ipfs(const char *url);
 Ipfs *get_ipfs();
 
-#endif /* !_CRUST_APP_H_ */
+#endif /* !_CRUST_IPFS_H_ */

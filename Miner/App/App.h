@@ -9,13 +9,11 @@
 #include "Enclave_u.h"
 #include "OCalls/OCalls.h"
 #include "Ipfs/Ipfs.h"
+#include "Config/Config.h"
 
 # define TOKEN_FILENAME   "enclave.token"
 # define ENCLAVE_FILENAME "enclave.signed.so"
 
 extern sgx_enclave_id_t global_eid;    /* global enclave id */
-
-/* Normal functions */
-int initialize_enclave(void);
 
 #endif /* !_CRUST_APP_H_ */
