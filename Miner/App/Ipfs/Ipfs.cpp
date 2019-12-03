@@ -34,7 +34,7 @@ Ipfs::Ipfs(const char *url)
 Ipfs::~Ipfs()
 {
     this->diff_files.clear();
-    this->file_cids.clear();
+    this->files.clear();
     this->clear_block_data();
     this->clear_merkle_tree(this->merkle_tree);
     delete this->ipfs_client;
@@ -90,27 +90,27 @@ bool Ipfs::generate_diff_files()
         size_t size = (size_t)file_raw["Size"].as_integer();
 
         new_files.insert(std::pair<std::string, size_t>(cid, size));
-        if (this->file_cids.find(cid) == this->file_cids.end())
+        if (this->files.find(cid) == this->files.end())
         {
             Node node;
             node.cid = strdup(cid.c_str());
             node.size = size;
             node.exist = 1;
             this->diff_files.push_back(node);
-            this->file_cids.insert(cid);
+            this->files.insert(std::pair<std::string, size_t>(cid, size));
         }
     }
 
-    for (auto it = this->file_cids.begin(); it != this->file_cids.end();)
+    for (auto it = this->files.begin(); it != this->files.end();)
     {
-        if (new_files.find(*it) == new_files.end())
+        if (new_files.find(it->first) == new_files.end())
         {
             Node node;
-            node.cid = strdup(it->c_str());
-            node.size = file_cids[*it];
+            node.cid = strdup(it->first.c_str());
+            node.size = it->second;
             node.exist = 0;
             this->diff_files.push_back(node);
-            this->file_cids.erase(it++);
+            this->files.erase(it++);
         }
         else
         {

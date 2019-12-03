@@ -16,7 +16,7 @@
 class Ipfs
 {
 private:
-    std::set<std::string> file_cids;
+    std::map<std::string, size_t> files;
     std::vector<Node> diff_files;
     web::http::client::http_client *ipfs_client;
     unsigned char *block_data;
