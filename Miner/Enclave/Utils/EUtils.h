@@ -16,6 +16,8 @@
 #define MEANINGFUL_FILE_VALIDATE_RATE 0.10
 #define MEANINGFUL_LEAF_VALIDATE_RATE 0.05
 
+#define MAIN_LOOP_WAIT_TIME 10000000
+
 int eprintf(const char* fmt, ...);
 
 #endif /* !_CRUST_E_UTILS_H_ */

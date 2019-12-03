@@ -73,6 +73,8 @@ void validate_empty_disk(const char *path)
         delete[] workload->empty_g_hashs[i];
         workload->empty_g_hashs.pop_back();
     }
+
+    ecall_generate_empty_root();
 }
 
 // Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave?

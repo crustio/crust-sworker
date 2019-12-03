@@ -102,4 +102,9 @@ size_t ocall_get_diff_files_num()
     return get_ipfs()->get_diff_files_num();
 }
 
+void ocall_usleep(int u)
+{
+    usleep(u);
+}
+
 #endif /* !_OCALLS_APP_H_ */

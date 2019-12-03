@@ -52,7 +52,7 @@ void ecall_plot_disk(const char *path)
     ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
 }
 
-void ecall_generate_root()
+void ecall_generate_empty_root()
 {
     unsigned char *hashs = new unsigned char[get_workload()->empty_g_hashs.size() * PLOT_HASH_LENGTH];
     for (size_t i = 0; i < get_workload()->empty_g_hashs.size(); i++)

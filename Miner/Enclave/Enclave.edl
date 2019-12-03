@@ -20,5 +20,6 @@ enclave {
         unsigned char *ocall_get_block([in, string] const char* cid, [in, out] size_t* len);
         Node *ocall_get_diff_files();
         size_t ocall_get_diff_files_num();
+        void ocall_usleep(int u);
     };
 };

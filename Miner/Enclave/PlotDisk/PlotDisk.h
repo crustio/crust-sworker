@@ -10,7 +10,6 @@
 #include "../Utils/FormatHelper.h"
 #include "../Utils/PathHelper.h"
 
-
 void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size);
 void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size);
 

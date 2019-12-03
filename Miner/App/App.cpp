@@ -56,7 +56,7 @@ int SGX_CDECL main(int argc, char *argv[])
         ecall_plot_disk(global_eid, get_config()->empty_path.c_str());
     }
 
-    ecall_generate_root(global_eid);
+    ecall_generate_empty_root(global_eid);
 
     // TODO: Identity access
 
