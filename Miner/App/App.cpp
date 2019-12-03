@@ -63,13 +63,9 @@ int SGX_CDECL main(int argc, char *argv[])
     /* Main loop */
     while (true)
     {
+        get_ipfs()->generate_diff_files();
+        ecall_validate_meaningful_disk(global_eid, get_ipfs()->get_diff_files(), get_ipfs()->get_diff_files_num(), get_ipfs()->get_diff_files_space_size());
         ecall_validate_empty_disk(global_eid, get_config()->empty_path.c_str());
-
-        if (get_ipfs()->generate_diff_files())
-        {
-            ecall_validate_meaningful_disk(global_eid, get_ipfs()->get_diff_files(), get_ipfs()->get_diff_files_num(), get_ipfs()->get_diff_files_space_size());
-        }
-
         usleep(1000 * 1000 * 10);
     }
 
