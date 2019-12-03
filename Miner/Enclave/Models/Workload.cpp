@@ -32,6 +32,6 @@ void Workload::show()
     eprintf("Meaningful work is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        eprintf("   Cid->%s, Size->%luB\n", it->first.c_str(), it->second);
+        eprintf("Cid->%s, Size->%luB\n", it->first.c_str(), it->second);
     }
 }

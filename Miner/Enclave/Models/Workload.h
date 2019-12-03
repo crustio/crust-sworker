@@ -1,12 +1,12 @@
 #ifndef _CRUST_WORKLOAD_H_
 #define _CRUST_WORKLOAD_H_
 
-#include "../Enclave.h"
-#include "../Utils/FormatHelper.h"
 #include <vector>
 #include <string>
 #include <map>
 #include "sgx_trts.h"
+#include "../Utils/EUtils.h"
+#include "../Utils/FormatHelper.h"
 
 class Workload
 {

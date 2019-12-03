@@ -1,7 +1,7 @@
 #ifndef _CRUST_FORMAT_HELPER_H_
 #define _CRUST_FORMAT_HELPER_H_
 
-#include "../Enclave.h"
+#include "EUtils.h"
 #include <string>
 #include <string.h>
 

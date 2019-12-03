@@ -61,13 +61,7 @@ int SGX_CDECL main(int argc, char *argv[])
     // TODO: Identity access
 
     /* Main loop */
-    while (true)
-    {
-        get_ipfs()->generate_diff_files();
-        ecall_validate_meaningful_disk(global_eid, get_ipfs()->get_diff_files(), get_ipfs()->get_diff_files_num(), get_ipfs()->get_diff_files_space_size());
-        ecall_validate_empty_disk(global_eid, get_config()->empty_path.c_str());
-        usleep(1000 * 1000 * 10);
-    }
+    ecall_main_loop(global_eid, get_config()->empty_path.c_str());
 
     /* End */
     sgx_destroy_enclave(global_eid);

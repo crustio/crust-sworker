@@ -81,14 +81,25 @@ unsigned char *ocall_get_file(const char *file_path, size_t len)
     return data;
 }
 
-MerkleTree* ocall_get_merkle_tree(const char *root_cid)
+MerkleTree *ocall_get_merkle_tree(const char *root_cid)
 {
     return get_ipfs()->get_merkle_tree(root_cid);
 }
 
-unsigned char* ocall_get_block(const char* cid, size_t* len)
+unsigned char *ocall_get_block(const char *cid, size_t *len)
 {
     return get_ipfs()->get_block_data(cid, len);
+}
+
+Node *ocall_get_diff_files()
+{
+    get_ipfs()->generate_diff_files();
+    return get_ipfs()->get_diff_files();
+}
+
+size_t ocall_get_diff_files_num()
+{
+    return get_ipfs()->get_diff_files_num();
 }
 
 #endif /* !_OCALLS_APP_H_ */

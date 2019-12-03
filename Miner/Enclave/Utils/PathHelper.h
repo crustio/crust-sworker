@@ -2,6 +2,7 @@
 #define _CRUST_PATH_HELPER_H_
 
 #include <string>
+#include "EUtils.h"
 #include "FormatHelper.h"
 
 #define PLOT_M_HASHS "m-hashs.bin"
