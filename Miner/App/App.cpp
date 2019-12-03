@@ -49,8 +49,8 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1;
     }
 
-/* Plot empty disk */
-#pragma omp parallel for
+    /* Plot empty disk */
+    #pragma omp parallel for
     for (size_t i = 0; i < get_config()->empty_capacity; i++)
     {
         ecall_plot_disk(global_eid, get_config()->empty_path.c_str());
@@ -64,7 +64,7 @@ int SGX_CDECL main(int argc, char *argv[])
     while (true)
     {
         ecall_validate_empty_disk(global_eid, get_config()->empty_path.c_str());
-        
+
         if (get_ipfs()->generate_diff_files())
         {
             ecall_validate_meaningful_disk(global_eid, get_ipfs()->get_diff_files(), get_ipfs()->get_diff_files_num(), get_ipfs()->get_diff_files_space_size());
