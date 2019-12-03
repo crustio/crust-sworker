@@ -3,17 +3,18 @@
 
 #include <stdio.h>
 #include <string>
-#include "sgx_error.h"       /* sgx_status_t */
-#include "sgx_eid.h"     /* sgx_enclave_id_t */
+#include <unistd.h>
+#include "sgx_error.h"
+#include "sgx_eid.h"
 #include "sgx_urts.h"
 #include "Enclave_u.h"
-#include "OCalls/OCalls.h"
-#include "Ipfs/Ipfs.h"
 #include "Config/Config.h"
+#include "Ipfs/Ipfs.h"
+#include "OCalls/OCalls.h"
 
 # define TOKEN_FILENAME   "enclave.token"
 # define ENCLAVE_FILENAME "enclave.signed.so"
 
-extern sgx_enclave_id_t global_eid;    /* global enclave id */
+extern sgx_enclave_id_t global_eid;
 
 #endif /* !_CRUST_APP_H_ */

@@ -1,8 +1,0 @@
-enclave {
-    include "Node.h"
-    trusted {
-        public void ecall_validate_empty_disk([in, string] const char* path);  
-        public void ecall_validate_meaningful_disk([in, size=files_space_size] const Node* files, size_t files_num, size_t files_space_size);        
-    };
-    
-};

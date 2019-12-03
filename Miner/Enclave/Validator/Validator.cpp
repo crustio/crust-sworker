@@ -1,14 +1,12 @@
 #include "Validator.h"
 
-bool validate_merkle_tree(MerkleTree *root, size_t *size);
-
-void ecall_validate_empty_disk(const char *path)
+void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
     size_t current_capacity = 0;
     ocall_get_folders_number_under_path(path, &current_capacity);
 
-    for (size_t i = 0; i < (workload->all_g_hashs.size() < current_capacity ? workload->all_g_hashs.size() : current_capacity); i++)
+    for (size_t i = 0; i < (workload->empty_g_hashs.size() < current_capacity ? workload->empty_g_hashs.size() : current_capacity); i++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
@@ -17,7 +15,7 @@ void ecall_validate_empty_disk(const char *path)
         {
             // Get m hashs
             unsigned char *m_hashs = NULL;
-            std::string g_path = get_g_path_with_hash(path, i, workload->all_g_hashs[i]);
+            std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
             ocall_get_file(&m_hashs, get_m_hashs_file_path(g_path.c_str()).c_str(), PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH);
 
             if (m_hashs == NULL)
@@ -32,7 +30,7 @@ void ecall_validate_empty_disk(const char *path)
 
             for (size_t j = 0; j < PLOT_HASH_LENGTH; j++)
             {
-                if (workload->all_g_hashs[i][j] != m_hashs_hash256[j])
+                if (workload->empty_g_hashs[i][j] != m_hashs_hash256[j])
                 {
                     eprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
                     return;
@@ -44,7 +42,7 @@ void ecall_validate_empty_disk(const char *path)
             sgx_read_rand((unsigned char *)&rand_val_m, 4);
             size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
             std::string leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
-            eprintf("Select path: %s\n", leaf_path.c_str());
+            // eprintf("Select path: %s\n", leaf_path.c_str());
 
             unsigned char *leaf_data = NULL;
             ocall_get_file(&leaf_data, leaf_path.c_str(), PLOT_RAND_DATA_LENGTH);
@@ -70,20 +68,35 @@ void ecall_validate_empty_disk(const char *path)
         }
     }
 
-    for (size_t i = workload->all_g_hashs.size() - 1; i > current_capacity - 1; i--)
+    for (size_t i = workload->empty_g_hashs.size() - 1; i > current_capacity - 1; i--)
     {
-        delete[] workload->all_g_hashs[i];
-        workload->all_g_hashs.pop_back();
+        delete[] workload->empty_g_hashs[i];
+        workload->empty_g_hashs.pop_back();
     }
 
-    ecall_generate_root();
+    ecall_generate_empty_root();
 }
 
-void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t files_space_size)
+// Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave?
+void validate_meaningful_disk(const Node *files, size_t files_num)
 {
-    (void)(files_space_size);
+    Workload *workload = get_workload();
 
     for (size_t i = 0; i < files_num; i++)
+    {
+        if(files[i].exist == 0)
+        {
+            eprintf("Delete: Cid->%s, Size->%luB\n", files[i].cid, files[i].size);
+            workload->files.erase(files[i].cid);
+        }
+        else
+        {
+            eprintf("Add: Cid->%s, Size->%luB\n", files[i].cid, files[i].size);
+            workload->files.insert(std::pair<std::string, size_t>(files[i].cid, files[i].size));
+        }   
+    }
+
+    for (auto it = workload->files.begin(); it != workload->files.end(); it++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
@@ -91,28 +104,21 @@ void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t 
         if (rand_val < 256 * MEANINGFUL_FILE_VALIDATE_RATE)
         {
             MerkleTree *tree = NULL;
-            // Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave?
-            ocall_get_merkle_tree(&tree, std::string(files[i].cid).c_str());
+            ocall_get_merkle_tree(&tree, it->first.c_str());
 
             if (tree == NULL)
             {
-                eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", files[i].cid);
+                eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", it->first.c_str());
                 return;
             }
 
             size_t merkle_tree_size = 0;
-            if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != files[i].size)
+            if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != it->second)
             {
-                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", files[i].cid);
+                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", it->first.c_str());
                 return;
             }
         }
-    }
-
-    eprintf("Total work is \n");
-    for (size_t i = 0; i < files_num; i++)
-    {
-        eprintf("   File%lu: cid->%s, size->%lu\n", i + 1, files[i].cid, files[i].size);
     }
 }
 

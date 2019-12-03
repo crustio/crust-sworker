@@ -1,16 +1,19 @@
 #include "Enclave.h"
 
-/* 
- * eprintf: 
- *   Invokes OCALL to display the enclave buffer to the terminal.
- */
-int eprintf(const char* fmt, ...)
+void ecall_main_loop(const char *empty_path)
 {
-    char buf[100000] = { '\0' };
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, 100000, fmt, ap);
-    va_end(ap);
-    ocall_print_string(buf);
-    return (int)strnlen(buf, 100000 - 1) + 1;
+    while (true)
+    {
+        /* Meaningful */
+        Node *diff_files = NULL;
+        ocall_get_diff_files(&diff_files);
+        size_t diff_files_num = 0;
+        ocall_get_diff_files_num(&diff_files_num);
+        validate_meaningful_disk(diff_files, diff_files_num);
+        /* Empty */
+        validate_empty_disk(empty_path);
+        /* Show result */
+        get_workload()->show();
+        ocall_usleep(MAIN_LOOP_WAIT_TIME);
+    }
 }

@@ -26,9 +26,6 @@ Ipfs *get_ipfs()
 
 Ipfs::Ipfs(const char *url)
 {
-    this->files = NULL;
-    this->files_num = 0;
-    this->files_space_size = 0;
     this->block_data = NULL;
     this->merkle_tree = NULL;
     this->ipfs_client = new web::http::client::http_client(url);
@@ -36,7 +33,8 @@ Ipfs::Ipfs(const char *url)
 
 Ipfs::~Ipfs()
 {
-    this->clear_files();
+    this->diff_files.clear();
+    this->files.clear();
     this->clear_block_data();
     this->clear_merkle_tree(this->merkle_tree);
     delete this->ipfs_client;
@@ -48,22 +46,6 @@ void Ipfs::clear_block_data()
     {
         delete block_data;
         this->block_data = NULL;
-    }
-}
-
-void Ipfs::clear_files()
-{
-    if (this->files != NULL)
-    {
-        for (size_t i = 0; i < this->files_num; i++)
-        {
-            delete[] this->files[i].cid;
-        }
-
-        delete this->files;
-        this->files = NULL;
-        this->files_num = 0;
-        this->files_space_size = 0;
     }
 }
 
@@ -86,31 +68,72 @@ void Ipfs::clear_merkle_tree(MerkleTree *&root)
     }
 }
 
-Node *Ipfs::get_files()
+bool Ipfs::generate_diff_files()
 {
-    this->clear_files();
+    this->diff_files.clear();
     web::uri_builder builder(U("/work"));
     web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
 
     if (response.status_code() != web::http::status_codes::OK)
     {
-        return NULL;
+        return false;
     }
 
     std::string work_data = response.extract_utf8string().get();
     web::json::array files_raw_array = web::json::value::parse(work_data)["Files"].as_array();
-    this->files_num = files_raw_array.size();
-    this->files_space_size = this->files_num * NODE_STRUCT_SPACE;
-    this->files = new Node[this->files_num];
 
-    for (size_t i = 0; i < this->files_num; i++)
+    std::map<std::string, size_t> new_files;
+    for (size_t i = 0; i < files_raw_array.size(); i++)
     {
         web::json::value file_raw = files_raw_array[i];
-        files[i].cid = strdup(file_raw["Cid"].as_string().c_str());
-        files[i].size = file_raw["Size"].as_integer();
+        std::string cid = file_raw["Cid"].as_string();
+        size_t size = (size_t)file_raw["Size"].as_integer();
+
+        new_files.insert(std::pair<std::string, size_t>(cid, size));
+        if (this->files.find(cid) == this->files.end())
+        {
+            Node node;
+            node.cid = strdup(cid.c_str());
+            node.size = size;
+            node.exist = 1;
+            this->diff_files.push_back(node);
+            this->files.insert(std::pair<std::string, size_t>(cid, size));
+        }
     }
 
-    return files;
+    for (auto it = this->files.begin(); it != this->files.end();)
+    {
+        if (new_files.find(it->first) == new_files.end())
+        {
+            Node node;
+            node.cid = strdup(it->first.c_str());
+            node.size = it->second;
+            node.exist = 0;
+            this->diff_files.push_back(node);
+            this->files.erase(it++);
+        }
+        else
+        {
+            it++;
+        }
+    }
+
+    return !this->diff_files.empty();
+}
+
+Node *Ipfs::get_diff_files()
+{
+    return &this->diff_files[0];
+}
+
+size_t Ipfs::get_diff_files_num()
+{
+    return this->diff_files.size();
+}
+
+size_t Ipfs::get_diff_files_space_size()
+{
+    return this->diff_files.size() * NODE_STRUCT_SPACE;
 }
 
 void Ipfs::fill_merkle_tree(MerkleTree *&root, const char *root_cid, web::json::array blocks_raw_array, std::map<std::string, size_t> blocks_map)
@@ -181,14 +204,4 @@ unsigned char *Ipfs::get_block_data(const char *cid, size_t *len)
     }
 
     return this->block_data;
-}
-
-size_t Ipfs::get_files_num()
-{
-    return this->files_num;
-}
-
-size_t Ipfs::get_files_space_size()
-{
-    return this->files_space_size;
 }
