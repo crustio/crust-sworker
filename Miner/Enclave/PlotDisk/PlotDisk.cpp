@@ -69,13 +69,6 @@ void ecall_generate_root()
 
     workload->empty_disk_capacity = workload->empty_g_hashs.size();
     sgx_sha256_msg(hashs, (uint32_t)workload->empty_disk_capacity * PLOT_HASH_LENGTH, &workload->empty_root_hash);
-    eprintf("Empty root hash: \n");
-    for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
-    {
-        eprintf("%02x", workload->empty_root_hash[i]);
-    }
-    eprintf("\n");
-    eprintf("Empty capacity: %luG\n", workload->empty_disk_capacity);
 
     delete[] hashs;
 }
