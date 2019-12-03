@@ -9,10 +9,10 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <boost/algorithm/string.hpp>
+#include "../Ipfs/Ipfs.h"
 #include "../Utils/FileUtils.h"
 #include "../Utils/FormatUtils.h"
-#include "../Ipfs/Ipfs.h"
-#include <boost/algorithm/string.hpp>
 
 void ocall_print_string(const char *str)
 {

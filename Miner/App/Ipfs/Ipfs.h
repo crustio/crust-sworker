@@ -7,11 +7,10 @@
 #include <vector>
 #include <map>
 #include <set>
-#include "Node.h"
-#include "MerkleTree.h"
-
 #include <cpprest/http_client.h>
 #include <cpprest/json.h>
+#include "Node.h"
+#include "MerkleTree.h"
 
 class Ipfs
 {
