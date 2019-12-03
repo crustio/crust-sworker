@@ -87,6 +87,7 @@ void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t 
 
     for (size_t i = 0; i < files_num; i++)
     {
+        eprintf("Cid->%s, Size->%luB, Exist->%d\n", files[i].cid, files[i].size, files[i].exist);
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
 

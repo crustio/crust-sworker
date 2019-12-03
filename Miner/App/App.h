@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <unistd.h>
 #include "sgx_error.h"   /* sgx_status_t */
 #include "sgx_eid.h"     /* sgx_enclave_id_t */
 #include "sgx_urts.h"

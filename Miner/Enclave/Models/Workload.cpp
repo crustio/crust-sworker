@@ -2,17 +2,17 @@
 
 Workload::Workload()
 {
-    empty_disk_capacity = 0;
+    this->empty_disk_capacity = 0;
 }
 
 Workload::~Workload()
 {
-    for (size_t i = 0; i < empty_g_hashs.size(); i++)
+    for (size_t i = 0; i < this->empty_g_hashs.size(); i++)
     {
-        delete[] empty_g_hashs[i];
+        delete[] this->empty_g_hashs[i];
     }
 
-    empty_g_hashs.clear();
+    this->empty_g_hashs.clear();
 }
 
 void Workload::show()
@@ -26,7 +26,7 @@ void Workload::show()
     eprintf("Empty capacity: %luG\n", this->empty_disk_capacity);
 
     eprintf("Meaningful work is: \n");
-    for (auto it = this->files.begin(); it != files.end(); it++)
+    for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
         eprintf("   Cid->%s, Size->%luB\n", it->first, it->second);
     }

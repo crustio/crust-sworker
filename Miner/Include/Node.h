@@ -3,12 +3,13 @@
 
 #include <stddef.h>
 
-#define NODE_STRUCT_SPACE 55
+#define NODE_STRUCT_SPACE 56
 
 typedef struct NodeStruct
 {
     char* cid;
     size_t size;
+    char exist;
 } Node;
 
 #endif /* !_CRUST_NODE_H_ */
