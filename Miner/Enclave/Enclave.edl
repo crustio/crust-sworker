@@ -5,6 +5,10 @@ enclave {
     from "PlotDisk/PlotDisk.edl" import *;
     from "Validator/Validator.edl" import *;
 
+    trusted {
+        public void ecall_main_loop([in, string] const char* empty_path);  
+    };
+
     untrusted {
         void ocall_print_string([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);

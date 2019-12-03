@@ -3,6 +3,10 @@
 Workload::Workload()
 {
     this->empty_disk_capacity = 0;
+    for (size_t i = 0; i < 32; i++)
+    {
+        this->empty_root_hash[i] = 0;
+    }
 }
 
 Workload::~Workload()
