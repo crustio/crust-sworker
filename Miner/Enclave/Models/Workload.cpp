@@ -1,5 +1,12 @@
 #include "Workload.h"
 
+Workload *workload = new Workload();
+
+Workload *get_workload()
+{
+    return workload;
+}
+
 Workload::Workload()
 {
     this->empty_disk_capacity = 0;

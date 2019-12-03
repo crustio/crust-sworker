@@ -20,4 +20,6 @@ public:
     void show();
 };
 
+Workload *get_workload();
+
 #endif /* !_CRUST_WORKLOAD_H_ */

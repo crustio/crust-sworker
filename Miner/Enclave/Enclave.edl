@@ -1,9 +1,9 @@
 enclave {
     include "sgx_tcrypto.h"
     include "MerkleTree.h"
+    include "Node.h"
 
     from "PlotDisk/PlotDisk.edl" import *;
-    from "Validator/Validator.edl" import *;
 
     trusted {
         public void ecall_main_loop([in, string] const char* empty_path);  

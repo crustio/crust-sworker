@@ -1,8 +1,6 @@
 #include "Validator.h"
 
-bool validate_merkle_tree(MerkleTree *root, size_t *size);
-
-void ecall_validate_empty_disk(const char *path)
+void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
     size_t current_capacity = 0;
@@ -75,15 +73,11 @@ void ecall_validate_empty_disk(const char *path)
         delete[] workload->empty_g_hashs[i];
         workload->empty_g_hashs.pop_back();
     }
-
-    ecall_generate_root();
-    workload->show();
 }
 
 // Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave?
-void ecall_validate_meaningful_disk(const Node *files, size_t files_num, size_t files_space_size)
+void validate_meaningful_disk(const Node *files, size_t files_num)
 {
-    (void)(files_space_size);
     Workload *workload = get_workload();
 
     for (size_t i = 0; i < files_num; i++)

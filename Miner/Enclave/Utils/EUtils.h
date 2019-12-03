@@ -8,14 +8,14 @@
 #include <string.h>
 #include "Enclave_t.h" /* print_string */
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#define PLOT_RAND_DATA_LENGTH 1048576
+#define PLOT_RAND_DATA_NUM 10
+#define PLOT_HASH_LENGTH 32
+
+#define EMPTY_VALIDATE_RATE 0.25
+#define MEANINGFUL_FILE_VALIDATE_RATE 0.10
+#define MEANINGFUL_LEAF_VALIDATE_RATE 0.05
 
 int eprintf(const char* fmt, ...);
-
-#if defined(__cplusplus)
-}
-#endif
 
 #endif /* !_CRUST_E_UTILS_H_ */

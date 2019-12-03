@@ -1,17 +1,13 @@
 #include "PlotDisk.h"
 
 sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-Workload *workload = new Workload();
-
-void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size);
-void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size);
 
 void ecall_plot_disk(const char *path)
 {
     // New and get now G hash index
     sgx_thread_mutex_lock(&g_mutex);
-    size_t now_index = workload->empty_g_hashs.size();
-    workload->empty_g_hashs.push_back(new unsigned char[PLOT_HASH_LENGTH]);
+    size_t now_index = get_workload()->empty_g_hashs.size();
+    get_workload()->empty_g_hashs.push_back(new unsigned char[PLOT_HASH_LENGTH]);
     sgx_thread_mutex_unlock(&g_mutex);
 
     // Create directory
@@ -47,7 +43,7 @@ void ecall_plot_disk(const char *path)
     sgx_thread_mutex_lock(&g_mutex);
     for (size_t i = 0; i < PLOT_HASH_LENGTH; i++)
     {
-        workload->empty_g_hashs[now_index][i] = g_out_hash256[i];
+        get_workload()->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
     sgx_thread_mutex_unlock(&g_mutex);
 
@@ -58,17 +54,17 @@ void ecall_plot_disk(const char *path)
 
 void ecall_generate_root()
 {
-    unsigned char *hashs = new unsigned char[workload->empty_g_hashs.size() * PLOT_HASH_LENGTH];
-    for (size_t i = 0; i < workload->empty_g_hashs.size(); i++)
+    unsigned char *hashs = new unsigned char[get_workload()->empty_g_hashs.size() * PLOT_HASH_LENGTH];
+    for (size_t i = 0; i < get_workload()->empty_g_hashs.size(); i++)
     {
         for (size_t j = 0; j < PLOT_HASH_LENGTH; j++)
         {
-            hashs[i * 32 + j] = workload->empty_g_hashs[i][j];
+            hashs[i * 32 + j] = get_workload()->empty_g_hashs[i][j];
         }
     }
 
-    workload->empty_disk_capacity = workload->empty_g_hashs.size();
-    sgx_sha256_msg(hashs, (uint32_t)workload->empty_disk_capacity * PLOT_HASH_LENGTH, &workload->empty_root_hash);
+    get_workload()->empty_disk_capacity = get_workload()->empty_g_hashs.size();
+    sgx_sha256_msg(hashs, (uint32_t)get_workload()->empty_disk_capacity * PLOT_HASH_LENGTH, &get_workload()->empty_root_hash);
 
     delete[] hashs;
 }
@@ -83,9 +79,4 @@ void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t dat
 {
     std::string file_path = get_m_hashs_file_path(g_path);
     ocall_save_file(file_path.c_str(), data, data_size);
-}
-
-Workload *get_workload()
-{
-    return workload;
 }
