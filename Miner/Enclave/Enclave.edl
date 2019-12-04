@@ -2,11 +2,13 @@ enclave {
     include "sgx_tcrypto.h"
     include "MerkleTree.h"
     include "Node.h"
+    include "ValidationStatus.h"
 
     from "PlotDisk/PlotDisk.edl" import *;
 
     trusted {
-        public void ecall_main_loop([in, string] const char* empty_path);  
+        public void ecall_main_loop([in, string] const char* empty_path);
+        public enum ValidationStatus ecall_return_validation_status();  
     };
 
     untrusted {
