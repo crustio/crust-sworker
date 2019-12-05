@@ -38,3 +38,5 @@
 /OneID/Enclave/Makefile.in
 /OneID/Makefile.in
 /OneID/aclocal.m4
+
+.vscode/
