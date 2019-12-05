@@ -10,6 +10,8 @@
 
 class Workload
 {
+private:
+    char* work;
 public:
     std::vector<unsigned char *> empty_g_hashs;
     sgx_sha256_hash_t empty_root_hash;
@@ -18,6 +20,7 @@ public:
     Workload();
     ~Workload();
     void show();
+    char* serialize(const char* block_hash);
 };
 
 Workload *get_workload();
