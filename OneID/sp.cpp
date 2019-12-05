@@ -1069,8 +1069,8 @@ int process_quote (MsgIO *msg, IAS_Connection *ias, sgx_quote_t *quote,
 
 	payload.insert(make_pair("isvEnclaveQuote", b64quote));
 	
-	//status= req->report(payload, content, messages, &response);
-	status= req->report(payload, content, messages);
+	status= req->report(payload, content, messages, &response);
+	//status= req->report(payload, content, messages);
 	if ( status == IAS_OK ) {
 		JSON reportObj = JSON::Load(content);
 
@@ -1198,7 +1198,7 @@ int process_quote (MsgIO *msg, IAS_Connection *ias, sgx_quote_t *quote,
     
     /* Send IAS report to client */
 
-    struct ias_report_struct {
+    /*struct ias_report_struct {
         uint32_t size;
         char content[IAS_REPORT_SIZE];
         //char *content;
@@ -1212,7 +1212,24 @@ int process_quote (MsgIO *msg, IAS_Connection *ias, sgx_quote_t *quote,
     ias_report.size = rs;
 
     msgio->send(&ias_report, rs);
-	eprintf("ias report send successfully!\n");
+	eprintf("ias report send successfully!\n");*/
+
+
+    /* Verify IAS report in enclave */
+    
+    sgx_status_t report_ret = enclave_verify_iasReport(response);
+
+    if(SGX_SUCCESS != report_ret) {
+
+	    eprintf("Verify ias report successfully!\n");
+
+        // Send a verification request to chain
+        
+    } else {
+
+	    eprintf("Verify ias report failed!\n");
+
+    }
 
 
 	delete req;

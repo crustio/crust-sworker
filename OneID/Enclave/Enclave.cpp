@@ -223,7 +223,7 @@ sgx_status_t enclave_ra_close(sgx_ra_context_t ctx)
     return ret;
 }
 
-//sgx_status_t enclave_verify_iasReport(Response response)
-//{
-//    return verify_ias_report(response);
-//}
+sgx_status_t enclave_verify_iasReport(Response response)
+{
+    return verify_ias_report(response);
+}
