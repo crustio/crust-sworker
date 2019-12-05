@@ -1,12 +1,28 @@
 enclave {
     include "sgx_tcrypto.h"
+    include "MerkleTree.h"
+    include "Node.h"
+    include "ValidationStatus.h"
 
     from "PlotDisk/PlotDisk.edl" import *;
+
+    trusted {
+        public void ecall_main_loop([in, string] const char* empty_path);
+        public enum ValidationStatus ecall_return_validation_status();
+        public char *ecall_get_validation_report([in, string]const char *block_hash);  
+    };
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
         void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
-        void ocall_save_file([in, string] const char *file_path, [in, string] const char *data, [in] const size_t *size);
+        void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
+        void ocall_get_folders_number_under_path([in, string] const char *path, [in, out] size_t *number);
+        unsigned char *ocall_get_file([in, string] const char *file_path, size_t len);
+        MerkleTree *ocall_get_merkle_tree([in, string] const char *root_cid);
+        unsigned char *ocall_get_block([in, string] const char* cid, [in, out] size_t* len);
+        Node *ocall_get_diff_files();
+        size_t ocall_get_diff_files_num();
+        void ocall_usleep(int u);
     };
 };

@@ -50,7 +50,7 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-App_Cpp_Files := App/App.cpp
+App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) $(wildcard App/Config/*.cpp)
 App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
@@ -68,7 +68,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags)
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lboost_system -lssl -lcrypto -fopenmp
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lcpprest -lboost_system -lssl -lcrypto -fopenmp
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -91,7 +91,7 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp)
+Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp) $(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Cid/*.cpp)
 Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections

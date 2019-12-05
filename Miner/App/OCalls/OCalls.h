@@ -8,7 +8,11 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <boost/algorithm/string.hpp>
+#include "../Ipfs/Ipfs.h"
+#include "../Utils/FileUtils.h"
+#include "../Utils/FormatUtils.h"
 
 void ocall_print_string(const char *str)
 {
@@ -40,27 +44,67 @@ void ocall_rename_dir(const char *old_path, const char *new_path)
     }
 }
 
-unsigned char *hex_char_array_to_unsigned_char_array(const char *data)
-{
-    std::string hex(data);
-    unsigned char *result = new unsigned char[strlen(data) / 2];
-    size_t len_t = 0;
-    for (size_t i = 0; i < strlen(data); i += 2)
-    {
-        std::string byte = hex.substr(i, 2);
-        char chr = (char)(int)strtol(byte.c_str(), NULL, 16);
-        result[len_t++] = (unsigned char)chr;
-    }
-
-    return result;
-}
-
-void ocall_save_file(const char *file_path, const char *data, const size_t *size)
+void ocall_save_file(const char *file_path, const unsigned char *data, size_t len)
 {
     std::ofstream out;
     out.open(file_path, std::ios::out | std::ios::binary);
-    out.write(data, *size);
+    out.write(reinterpret_cast<const char *>(data), len);
     out.close();
+}
+
+void ocall_get_folders_number_under_path(const char *path, size_t *number)
+{
+    if (access(path, 0) != -1)
+    {
+        *number = get_folders_under_path(std::string(path)).size();
+    }
+    else
+    {
+        *number = 0;
+    }
+}
+
+unsigned char *ocall_get_file(const char *file_path, size_t len)
+{
+    if (access(file_path, 0) == -1)
+    {
+        return NULL;
+    }
+
+    unsigned char *data = new unsigned char[len];
+    std::ifstream in;
+
+    in.open(file_path, std::ios::out | std::ios::binary);
+    in.read(reinterpret_cast<char *>(data), len);
+    in.close();
+
+    return data;
+}
+
+MerkleTree *ocall_get_merkle_tree(const char *root_cid)
+{
+    return get_ipfs()->get_merkle_tree(root_cid);
+}
+
+unsigned char *ocall_get_block(const char *cid, size_t *len)
+{
+    return get_ipfs()->get_block_data(cid, len);
+}
+
+Node *ocall_get_diff_files()
+{
+    get_ipfs()->generate_diff_files();
+    return get_ipfs()->get_diff_files();
+}
+
+size_t ocall_get_diff_files_num()
+{
+    return get_ipfs()->get_diff_files_num();
+}
+
+void ocall_usleep(int u)
+{
+    usleep(u);
 }
 
 #endif /* !_OCALLS_APP_H_ */
