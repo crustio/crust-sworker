@@ -50,6 +50,18 @@ enclave {
 
 		public sgx_status_t enclave_ra_close(sgx_ra_context_t ctx);
 
+		//public sgx_status_t enclave_verify_iasReport([in] char *ias_report, int size);
+
+        /*
+        public sgx_status_t sgx_ra_proc_msg2_crust(sgx_ra_context_t context,
+            [in] const sgx_ra_msg2_t *p_msg2,[in] const sgx_target_info_t *p_qe_target,
+            [out] sgx_report_t *p_report,[out] sgx_quote_nonce_t* p_nonce);
+
+        public sgx_status_t sgx_ra_get_msg3_crust(sgx_ra_context_t context,
+            uint32_t quote_size,[in] sgx_report_t* qe_report, 
+            [out] sgx_ra_msg3_t *emp_msg3, uint32_t msg3_size);
+        */
+
 	};
 
 	untrusted {

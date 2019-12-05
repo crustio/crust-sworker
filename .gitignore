@@ -33,3 +33,8 @@
 
 # User
 /Miner/Enclave/EnclavePrivate.pem
+
+# OneID
+/OneID/Enclave/Makefile.in
+/OneID/Makefile.in
+/OneID/aclocal.m4

@@ -90,3 +90,7 @@ VERBOSE=1
 
 DEBUG=0
 
+# Set to non-zero for output quote directly
+
+ATTMODE=1
+

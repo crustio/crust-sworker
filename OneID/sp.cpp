@@ -65,6 +65,8 @@ using namespace std;
 #define strdup(x) _strdup(x)
 #endif
 
+#define IAS_REPORT_SIZE 1024*4
+
 static const unsigned char def_service_private_key[32] = {
 	0x90, 0xe7, 0x6c, 0xbb, 0x2d, 0x52, 0xa1, 0xce,
 	0x3b, 0x66, 0xde, 0x11, 0x43, 0x9c, 0x87, 0xec,
@@ -110,6 +112,9 @@ void cleanup_and_exit(int signo);
 
 int derive_kdk(EVP_PKEY *Gb, unsigned char kdk[16], sgx_ec256_public_t g_a,
 	config_t *config);
+
+int process_quote (MsgIO *msg, IAS_Connection *ias, sgx_quote_t *quote,
+	config_t *config, ra_session_t *session);
 
 int process_msg01 (MsgIO *msg, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	sgx_ra_msg2_t *msg2, char **sigrl, config_t *config,
@@ -215,7 +220,7 @@ int main(int argc, char *argv[])
 		unsigned long val;
 
 		c = getopt_long(argc, argv,
-			"A:B:DGI:J:K:N:PR:S:V:X:dg:hk:lp:r:s:i:j:vxz",
+			"A:B:DGI:J:K:N:PR:S:V:X:dg:hk:lp:r:s:i:j:vxzQ:",
 			long_opt, &opt_index);
 		if (c == -1) break;
 
@@ -643,20 +648,27 @@ int main(int argc, char *argv[])
 
 	while ( msgio->server_loop() ) {
 		ra_session_t session;
+        sgx_quote_t quote;
 		sgx_ra_msg1_t msg1;
 		sgx_ra_msg2_t msg2;
 		ra_msg4_t msg4;
 
 		memset(&session, 0, sizeof(ra_session_t));
 
+        /* Read quote from comming node */
+        if( ! process_quote(msgio, ias, &quote, &config, &session) ) {
+			eprintf("error processing msg1\n");
+			goto disconnect;
+        }
+
 		/* Read message 0 and 1, then generate message 2 */
 
-		if ( ! process_msg01(msgio, ias, &msg1, &msg2, &sigrl, &config,
+		/*if ( ! process_msg01(msgio, ias, &msg1, &msg2, &sigrl, &config,
 			&session) ) {
 
 			eprintf("error processing msg1\n");
 			goto disconnect;
-		}
+		}*/
 
 		/* Send message 2 */
 
@@ -669,7 +681,7 @@ int main(int argc, char *argv[])
 	 	* portion and the array portion by hand.
 	 	*/
 
-		dividerWithText(stderr, "Copy/Paste Msg2 Below to Client");
+		/*dividerWithText(stderr, "Copy/Paste Msg2 Below to Client");
 		dividerWithText(fplog, "Msg2 (send to Client)");
 
 		msgio->send_partial((void *) &msg2, sizeof(sgx_ra_msg2_t));
@@ -678,14 +690,14 @@ int main(int argc, char *argv[])
 		msgio->send(&msg2.sig_rl, msg2.sig_rl_size);
 		fsend_msg(fplog, &msg2.sig_rl, msg2.sig_rl_size);
 
-		edivider();
+		edivider();*/
 
 		/* Read message 3, and generate message 4 */
 
-		if ( ! process_msg3(msgio, ias, &msg1, &msg4, &config, &session) ) {
+		/*if ( ! process_msg3(msgio, ias, &msg1, &msg4, &config, &session) ) {
 			eprintf("error processing msg3\n");
 			goto disconnect;
-		}
+		}*/
 
 disconnect:
 		msgio->disconnect();
@@ -1012,6 +1024,200 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	free(msg3);
 
 	return 1;
+}
+
+/*
+ * Read quote from comming node
+ * */
+
+int process_quote (MsgIO *msg, IAS_Connection *ias, sgx_quote_t *quote,
+	config_t *config, ra_session_t *session)
+{
+    int rv;
+    size_t sz = 1116;
+    //sgx_quote_t *quote_r;
+    rv = msgio->read((void **) &quote, NULL);
+	if ( rv == -1 ) {
+		eprintf("system error reading quote\n");
+		return 0;
+	} else if ( rv == 0 ) {
+		eprintf("protocol error reading quote\n");
+		return 0;
+	}
+
+	fprintf(stderr, "quote size: %d, quote report_data: %s\n", sz, hexstring((const void*)(quote->report_body.report_data.d),
+            sizeof(quote->report_body.report_data.d)));
+
+	IAS_Request *req = NULL;
+	map<string,string> payload;
+	vector<string> messages;
+	ias_error_t status;
+	string content;
+    Response response;
+    int version = config->apiver;
+
+	try {
+		req= new IAS_Request(ias, (uint16_t) version);
+	}
+	catch (...) {
+		eprintf("Exception while creating IAS request object\n");
+		if ( req != NULL ) delete req;
+		return 0;
+	}
+
+	char * b64quote= base64_encode((char *) quote, sz);
+
+	payload.insert(make_pair("isvEnclaveQuote", b64quote));
+	
+	//status= req->report(payload, content, messages, &response);
+	status= req->report(payload, content, messages);
+	if ( status == IAS_OK ) {
+		JSON reportObj = JSON::Load(content);
+
+		if ( verbose ) {
+			edividerWithText("Report Body");
+			eprintf("%s\n", content.c_str());
+			edivider();
+			if ( messages.size() ) {
+				edividerWithText("IAS Advisories");
+				for (vector<string>::const_iterator i = messages.begin();
+					i != messages.end(); ++i ) {
+
+					eprintf("%s\n", i->c_str());
+				}
+				edivider();
+			}
+		}
+
+		if ( verbose ) {
+			edividerWithText("IAS Report - JSON - Required Fields");
+			if ( version >= 3 ) {
+				eprintf("version               = %d\n",
+					reportObj["version"].ToInt());
+			}
+			eprintf("id:                   = %s\n",
+				reportObj["id"].ToString().c_str());
+			eprintf("timestamp             = %s\n",
+				reportObj["timestamp"].ToString().c_str());
+			eprintf("isvEnclaveQuoteStatus = %s\n",
+				reportObj["isvEnclaveQuoteStatus"].ToString().c_str());
+			eprintf("isvEnclaveQuoteBody   = %s\n",
+				reportObj["isvEnclaveQuoteBody"].ToString().c_str());
+            string iasQuoteStr = reportObj["isvEnclaveQuoteBody"].ToString();
+            //size_t qs = iasQuoteStr.size();
+            size_t qs;
+            char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
+            sgx_quote_t *ias_quote = (sgx_quote_t *) malloc(qs);
+            memset(ias_quote, 0, qs);
+            memcpy(ias_quote, ppp, qs);
+            eprintf("========== ias quote report data:%s\n",hexstring(ias_quote->report_body.report_data.d,
+                    sizeof(ias_quote->report_body.report_data.d)));
+            eprintf("ias quote report version:%d\n",ias_quote->version);
+            eprintf("ias quote report signtype:%d\n",ias_quote->sign_type);
+            eprintf("ias quote report basename:%d\n",ias_quote->basename);
+
+			edividerWithText("IAS Report - JSON - Optional Fields");
+
+			eprintf("platformInfoBlob  = %s\n",
+				reportObj["platformInfoBlob"].ToString().c_str());
+			eprintf("revocationReason  = %s\n",
+				reportObj["revocationReason"].ToString().c_str());
+			eprintf("pseManifestStatus = %s\n",
+				reportObj["pseManifestStatus"].ToString().c_str());
+			eprintf("pseManifestHash   = %s\n",
+				reportObj["pseManifestHash"].ToString().c_str());
+			eprintf("nonce             = %s\n",
+				reportObj["nonce"].ToString().c_str());
+			eprintf("epidPseudonym     = %s\n",
+				reportObj["epidPseudonym"].ToString().c_str());
+			edivider();
+		}
+
+        /*
+         * If the report returned a version number (API v3 and above), make
+         * sure it matches the API version we used to fetch the report.
+    	 *
+    	 * For API v3 and up, this field MUST be in the report.
+         */
+    
+    	if ( reportObj.hasKey("version") ) {
+    		unsigned int rversion= (unsigned int) reportObj["version"].ToInt();
+    		if ( verbose )
+    			eprintf("+++ Verifying report version against API version\n");
+    		if ( version != rversion ) {
+    			eprintf("Report version %u does not match API version %u\n",
+    				rversion , version);
+    			delete req;
+    			return 0;
+    		}
+    	} else if ( version >= 3 ) {
+    		eprintf("attestation report version required for API version >= 3\n");
+    		delete req;
+    		return 0;
+    	}
+
+    } else {
+
+	    eprintf("attestation query returned %lu: \n", status);
+    
+	    switch(status) {
+	    	case IAS_QUERY_FAILED:
+	    		eprintf("Could not query IAS\n");
+	    		break;
+	    	case IAS_BADREQUEST:
+	    		eprintf("Invalid payload\n");
+	    		break;
+	    	case IAS_UNAUTHORIZED:
+	    		eprintf("Failed to authenticate or authorize request\n");
+	    		break;
+	    	case IAS_SERVER_ERR:
+	    		eprintf("An internal error occurred on the IAS server\n");
+	    		break;
+	    	case IAS_UNAVAILABLE:
+	    		eprintf("Service is currently not able to process the request. Try again later.\n");
+	    		break;
+	    	case IAS_INTERNAL_ERROR:
+	    		eprintf("An internal error occurred while processing the IAS response\n");
+	    		break;
+	    	case IAS_BAD_CERTIFICATE:
+	    		eprintf("The signing certificate could not be validated\n");
+	    		break;
+	    	case IAS_BAD_SIGNATURE:
+	    		eprintf("The report signature could not be validated\n");
+	    		break;
+	    	default:
+	    		if ( status >= 100 && status < 600 ) {
+	    			eprintf("Unexpected HTTP response code\n");
+	    		} else {
+				eprintf("An unknown error occurred.\n");
+			}
+	    }
+
+    }
+
+    
+    /* Send IAS report to client */
+
+    struct ias_report_struct {
+        uint32_t size;
+        char content[IAS_REPORT_SIZE];
+        //char *content;
+    } ias_report;
+
+    uint32_t cs = content.size();
+    uint32_t rs = cs + sizeof(ias_report.size);
+    memset(ias_report.content, 0, IAS_REPORT_SIZE);
+    memcpy(ias_report.content, content.c_str(), cs);
+
+    ias_report.size = rs;
+
+    msgio->send(&ias_report, rs);
+	eprintf("ias report send successfully!\n");
+
+
+	delete req;
+
+	return 0;
 }
 
 /*

@@ -344,6 +344,7 @@ ias_error_t IAS_Request::sigrl(uint32_t gid, string &sigrl)
 }
 
 ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
+	//vector<string> &messages, Response response)
 	vector<string> &messages)
 {
 	Response response;

@@ -25,6 +25,11 @@ in the License.
 #include <sgx_tkey_exchange.h>
 #include <sgx_tcrypto.h>
 
+#include <sgx_uae_service.h>
+#include <sgx_ecp_types.h>
+#include "sgx_spinlock.h"
+
+
 static const sgx_ec256_public_t def_service_public_key = {
     {
         0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
@@ -38,6 +43,10 @@ static const sgx_ec256_public_t def_service_public_key = {
         0x24, 0xb7, 0xbd, 0xc9, 0x03, 0xf2, 0x9a, 0x28,
         0xa8, 0x3c, 0xc8, 0x10, 0x11, 0x14, 0x5e, 0x06
     }
+
+};
+
+static const char intelSGXAttRCAPEM[] = {
 
 };
 
@@ -79,10 +88,32 @@ static const sgx_ec256_public_t def_service_public_key = {
 
 sgx_status_t get_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
+    // generate public and private key
+    sgx_ec256_public_t pub_key;
+    sgx_ec256_private_t pri_key;
+    memset(&pub_key, 0, sizeof(pub_key));
+    memset(&pri_key, 0, sizeof(pri_key));
+    sgx_status_t se_ret;
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    se_ret = sgx_ecc256_open_context(&ecc_state);
+    if(SGX_SUCCESS != se_ret) {
+        return se_ret;
+    }
+    se_ret = sgx_ecc256_create_key_pair(&pri_key, &pub_key, ecc_state);
+    if(SGX_SUCCESS != se_ret) {
+        return se_ret;
+    }
+    if(ecc_state != NULL) {
+        sgx_ecc256_close_context(ecc_state);
+    }
+    // copy public key to report data
+    sgx_report_data_t report_data;
+    memset(report_data.d, 0, sizeof(report_data.d));
+    memcpy(report_data.d, &pub_key, sizeof(pub_key));
 #ifdef SGX_HW_SIM
-	return sgx_create_report(NULL, NULL, report);
+	return sgx_create_report(NULL, &report_data, report);
 #else
-	return sgx_create_report(target_info, NULL, report);
+	return sgx_create_report(target_info, &report_data, report);
 #endif
 }
 
@@ -187,7 +218,12 @@ sgx_status_t enclave_ra_get_key_hash(sgx_status_t *get_keys_ret,
 
 sgx_status_t enclave_ra_close(sgx_ra_context_t ctx)
 {
-        sgx_status_t ret;
-        ret = sgx_ra_close(ctx);
-        return ret;
+    sgx_status_t ret;
+    ret = sgx_ra_close(ctx);
+    return ret;
 }
+
+//sgx_status_t enclave_verify_iasReport(Response response)
+//{
+//    return verify_ias_report(response);
+//}

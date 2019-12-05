@@ -79,6 +79,8 @@ using namespace std;
 #define DEF_LIB_SEARCHPATH "/lib:/usr/lib"
 #endif
 
+#define IAS_REPORT_SIZE 1024*4
+
 typedef struct config_struct {
 	char mode;
 	uint32_t flags;
@@ -171,7 +173,8 @@ int main (int argc, char *argv[])
 
 
 	memset(&config, 0, sizeof(config));
-	config.mode= MODE_ATTEST;
+	//config.mode= MODE_ATTEST;
+	config.mode= MODE_QUOTE;
 
 	static struct option long_opt[] =
 	{
@@ -201,7 +204,8 @@ int main (int argc, char *argv[])
 		int opt_index= 0;
 		unsigned char keyin[64];
 
-		c= getopt_long(argc, argv, "N:P:S:dehlmn:p:qrs:vz", long_opt,
+		//c= getopt_long(argc, argv, "N:P:S:dehlmn:p:qrs:vz", long_opt,
+		c= getopt_long(argc, argv, "N:P:S:dehlmn:p:rs:vzq", long_opt,
 			&opt_index);
 		if ( c == -1 ) break;
 
@@ -659,6 +663,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 
 	status = sgx_ra_proc_msg2(ra_ctx, eid,
 		sgx_ra_proc_msg2_trusted, sgx_ra_get_msg3_trusted, msg2, 
+		//sgx_ra_proc_msg2_crust, sgx_ra_get_msg3_crust, msg2, 
 		sizeof(sgx_ra_msg2_t) + msg2->sig_rl_size,
 	    &msg3, &msg3_sz);
 
@@ -892,6 +897,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 
 int do_quote(sgx_enclave_id_t eid, config_t *config)
 {
+	fprintf(stderr, "======== just do quote:\n", 10);
 	sgx_status_t status, sgxrv;
 	sgx_quote_t *quote;
 	sgx_report_t report;
@@ -904,6 +910,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	sgx_ps_cap_t ps_cap;
 	char *pse_manifest = NULL;
 	size_t pse_manifest_sz;
+	MsgIO *msgio;
 #ifdef _WIN32
 	LPTSTR b64quote = NULL;
 	DWORD sz_b64quote = 0;
@@ -914,6 +921,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	char *b64manifest = NULL;
 #endif
 
+
  	if (OPT_ISSET(flags, OPT_LINK)) linkable= SGX_LINKABLE_SIGNATURE;
 
 	/* Platform services info */
@@ -922,6 +930,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 		if (status != SGX_SUCCESS) {
 			fprintf(stderr, "get_pse_manifest_size: %08x\n",
 				status);
+            delete msgio;
 			return 1;
 		}
 
@@ -931,11 +940,13 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 		if (status != SGX_SUCCESS) {
 			fprintf(stderr, "get_pse_manifest: %08x\n",
 				status);
+            delete msgio;
 			return 1;
 		}
 		if (sgxrv != SGX_SUCCESS) {
 			fprintf(stderr, "get_sec_prop_desc_ex: %08x\n",
 				sgxrv);
+            delete msgio;
 			return 1;
 		}
 	}
@@ -947,6 +958,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	status= sgx_init_quote(&target_info, &epid_gid);
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "sgx_init_quote: %08x\n", status);
+        delete msgio;
 		return 1;
 	}
 
@@ -959,10 +971,12 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	status= get_report(eid, &sgxrv, &report, &target_info);
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "get_report: %08x\n", status);
+        delete msgio;
 		return 1;
 	}
 	if ( sgxrv != SGX_SUCCESS ) {
 		fprintf(stderr, "sgx_create_report: %08x\n", sgxrv);
+        delete msgio;
 		return 1;
 	}
 
@@ -971,31 +985,44 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 
 	if (! get_quote_size(&status, &sz)) {
 		fprintf(stderr, "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+        delete msgio;
 		return 1;
 	}
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "SGX error while getting quote size: %08x\n", status);
+        delete msgio;
 		return 1;
 	}
 
 	quote= (sgx_quote_t *) malloc(sz);
 	if ( quote == NULL ) {
 		fprintf(stderr, "out of memory\n");
+        delete msgio;
 		return 1;
 	}
 
 	memset(quote, 0, sz);
 	status= sgx_get_quote(&report, linkable, &config->spid,
-		(OPT_ISSET(flags, OPT_NONCE)) ? &config->nonce : NULL,
+		//(OPT_ISSET(flags, OPT_NONCE)) ? &config->nonce : NULL,
+        &config->nonce,
 		NULL, 0,
-		(OPT_ISSET(flags, OPT_NONCE)) ? &qe_report : NULL, 
+		//(OPT_ISSET(flags, OPT_NONCE)) ? &qe_report : NULL, 
+        &qe_report,
 		quote, sz);
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "sgx_get_quote: %08x\n", status);
+        delete msgio;
 		return 1;
 	}
 
 	/* Print our quote */
+	//fprintf(stderr, "report report_data: %s\n", hexstring((const void*)(report.body.report_data.d),
+    //        sizeof(quote->report_body.report_data.d)));
+	eprintf("quote report_data: %s\n", hexstring((const void*)(quote->report_body.report_data.d),
+            sizeof(quote->report_body.report_data.d)));
+    eprintf("ias quote report version:%d\n",quote->version);
+    eprintf("ias quote report signtype:%d\n",quote->sign_type);
+    eprintf("ias quote report basename:%d\n",quote->basename);
 
 #ifdef _WIN32
 	// We could also just do ((4 * sz / 3) + 3) & ~3
@@ -1003,22 +1030,26 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 
 	if (CryptBinaryToString((BYTE *) quote, sz, CRYPT_STRING_BASE64|CRYPT_STRING_NOCRLF, NULL, &sz_b64quote) == FALSE) {
 		fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded quote length\n");
+        delete msgio;
 		return 1;
 	}
 
 	b64quote = (LPTSTR)(malloc(sz_b64quote));
 	if (b64quote == NULL) {
 		perror("malloc");
+        delete msgio;
 		return 1;
 	}
 	if (CryptBinaryToString((BYTE *) quote, sz, CRYPT_STRING_BASE64|CRYPT_STRING_NOCRLF, b64quote, &sz_b64quote) == FALSE) {
 		fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded quote length\n");
+        delete msgio;
 		return 1;
 	}
 
 	if (OPT_ISSET(flags, OPT_PSE)) {
 		if (CryptBinaryToString((BYTE *)pse_manifest, (uint32_t)(pse_manifest_sz), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &sz_b64manifest) == FALSE) {
 			fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded manifest length\n");
+            delete msgio;
 			return 1;
 		}
 
@@ -1026,11 +1057,13 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 		if (b64manifest == NULL) {
 			free(b64quote);
 			perror("malloc");
+            delete msgio;
 			return 1;
 		}
 
 		if (CryptBinaryToString((BYTE *)pse_manifest, (uint32_t)(pse_manifest_sz), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, b64manifest, &sz_b64manifest) == FALSE) {
 			fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded manifest length\n");
+            delete msgio;
 			return 1;
 		}
 	}
@@ -1039,6 +1072,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	b64quote= base64_encode((char *) quote, sz);
 	if ( b64quote == NULL ) {
 		eprintf("Could not base64 encode quote\n");
+        delete msgio;
 		return 1;
 	}
 
@@ -1047,6 +1081,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 		if ( b64manifest == NULL ) {
 			free(b64quote);
 			eprintf("Could not base64 encode manifest\n");
+            delete msgio;
 			return 1;
 		}
 	}
@@ -1065,6 +1100,40 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	}
 	printf("\n}\n");
 
+
+    /* send quote to validation node */
+	if ( config->server == NULL ) {
+		msgio = new MsgIO();
+	} else {
+		try {
+			msgio = new MsgIO(config->server, (config->port == NULL) ?
+				DEFAULT_PORT : config->port);
+		}
+		catch(...) {
+			exit(1);
+		}
+	}
+    //msgio->send(b64quote, sz);
+    msgio->send(quote, sz);
+	eprintf("quote size:%d\n", sz);
+
+
+    /* Read IAS report */
+    struct ias_report_struct {
+        uint32_t size;
+        char content[IAS_REPORT_SIZE];
+        //char *content;
+    } *ias_report;
+
+    size_t rs;
+    msgio->read((void **) &ias_report, &rs);
+
+    uint32_t cs = ias_report->size - sizeof(ias_report->size);
+	eprintf("ias report: %s\n", ias_report->content);
+
+    free(ias_report);
+
+
 #ifdef SGX_HW_SIM
 	fprintf(stderr, "WARNING! Built in h/w simulation mode. This quote will not be verifiable.\n");
 #endif
@@ -1072,6 +1141,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
 	free(b64quote);
 	if ( b64manifest != NULL ) free(b64manifest);
 
+    delete msgio;
 	return 0;
 
 }
