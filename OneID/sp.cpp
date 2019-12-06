@@ -1115,6 +1115,7 @@ int process_quote (MsgIO *msg, IAS_Connection *ias, sgx_quote_t *quote,
             eprintf("ias quote report version:%d\n",ias_quote->version);
             eprintf("ias quote report signtype:%d\n",ias_quote->sign_type);
             eprintf("ias quote report basename:%d\n",ias_quote->basename);
+            eprintf("ias quote report mr_enclave:%s\n",hexstring((void *)&ias_quote->report_body.mr_enclave,32));
 
 			edividerWithText("IAS Report - JSON - Optional Fields");
 

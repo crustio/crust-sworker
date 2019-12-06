@@ -1023,6 +1023,7 @@ int do_quote(sgx_enclave_id_t eid, config_t *config)
     eprintf("ias quote report version:%d\n",quote->version);
     eprintf("ias quote report signtype:%d\n",quote->sign_type);
     eprintf("ias quote report basename:%d\n",quote->basename);
+    eprintf("ias quote mr_enclave :%s\n",hexstring((void *)&quote->report_body.mr_enclave,32));
 
 #ifdef _WIN32
 	// We could also just do ((4 * sz / 3) + 3) & ~3
