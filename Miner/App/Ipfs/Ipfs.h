@@ -15,13 +15,18 @@
 class Ipfs
 {
 private:
-    std::map<std::string, size_t> files;
+    bool files_a_is_old;
+    std::map<std::vector<unsigned char>, size_t> files_a;
+    std::map<std::vector<unsigned char>, size_t> files_b;
     std::vector<Node> diff_files;
     web::http::client::http_client *ipfs_client;
     unsigned char *block_data;
     MerkleTree *merkle_tree;
+    std::vector<unsigned char> get_hash_from_json_array(web::json::array hash_array);
+    unsigned char *bytes_dup(std::vector<unsigned char> in);
     void clear_merkle_tree(MerkleTree *&root);
     void clear_block_data();
+    void clear_diff_files();
     void fill_merkle_tree(MerkleTree *&root, const char *root_cid, web::json::array blocks_raw_array, std::map<std::string, size_t> blocks_map);
 
 public:

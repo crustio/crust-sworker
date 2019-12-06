@@ -29,12 +29,14 @@ Ipfs::Ipfs(const char *url)
     this->block_data = NULL;
     this->merkle_tree = NULL;
     this->ipfs_client = new web::http::client::http_client(url);
+    this->files_a_is_old = true;
 }
 
 Ipfs::~Ipfs()
 {
     this->diff_files.clear();
-    this->files.clear();
+    this->files_a.clear();
+    this->files_b.clear();
     this->clear_block_data();
     this->clear_merkle_tree(this->merkle_tree);
     delete this->ipfs_client;
@@ -68,9 +70,65 @@ void Ipfs::clear_merkle_tree(MerkleTree *&root)
     }
 }
 
+std::vector<unsigned char> Ipfs::get_hash_from_json_array(web::json::array hash_array)
+{
+    std::vector<unsigned char> result(hash_array.size());
+
+    for (size_t i = 0; i < hash_array.size(); i++)
+    {
+        result[i] = (unsigned char)hash_array[i].as_integer();
+    }
+
+    return result;
+}
+
+unsigned char *Ipfs::bytes_dup(std::vector<unsigned char> in)
+{
+    unsigned char *out = new unsigned char[in.size()];
+
+    for (size_t i = 0; i < in.size(); i++)
+    {
+        out[i] = in[i];
+    }
+
+    return out;
+}
+
+void Ipfs::clear_diff_files()
+{
+    if (!this->diff_files.empty())
+    {
+        for (size_t i = 0; i < this->diff_files.size(); i++)
+        {
+            delete[] this->diff_files[i].hash;
+        }
+
+        diff_files.clear();
+    }
+}
+
 bool Ipfs::generate_diff_files()
 {
-    this->diff_files.clear();
+    // Get contain for storing files
+    this->clear_diff_files();
+    std::map<std::vector<unsigned char>, size_t> *new_files;
+    std::map<std::vector<unsigned char>, size_t> *old_files;
+
+    if (this->files_a_is_old)
+    {
+        new_files = &this->files_b;
+        old_files = &this->files_a;
+    }
+    else
+    {
+        new_files = &this->files_a;
+        old_files = &this->files_b;
+    }
+
+    new_files->clear();
+    this->files_a_is_old = !this->files_a_is_old;
+
+    // Get work from ipfs
     web::uri_builder builder(U("/work"));
     web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
 
@@ -82,39 +140,34 @@ bool Ipfs::generate_diff_files()
     std::string work_data = response.extract_utf8string().get();
     web::json::array files_raw_array = web::json::value::parse(work_data)["Files"].as_array();
 
-    std::map<std::string, size_t> new_files;
+    // Generate diff files
     for (size_t i = 0; i < files_raw_array.size(); i++)
     {
         web::json::value file_raw = files_raw_array[i];
-        std::string cid = file_raw["Cid"].as_string();
+        std::vector<unsigned char> hash = get_hash_from_json_array(file_raw["Hash"].as_array());
         size_t size = (size_t)file_raw["Size"].as_integer();
 
-        new_files.insert(std::pair<std::string, size_t>(cid, size));
-        if (this->files.find(cid) == this->files.end())
+        new_files->insert(std::pair<std::vector<unsigned char>, size_t>(hash, size));
+        if (old_files->find(hash) == old_files->end())
         {
             Node node;
-            node.cid = strdup(cid.c_str());
+            node.hash = bytes_dup(hash);
             node.size = size;
             node.exist = 1;
             this->diff_files.push_back(node);
-            this->files.insert(std::pair<std::string, size_t>(cid, size));
+            old_files->insert(std::pair<std::vector<unsigned char>, size_t>(hash, size));
         }
     }
 
-    for (auto it = this->files.begin(); it != this->files.end();)
+    for (auto it = old_files->begin(); it != old_files->end(); it++)
     {
-        if (new_files.find(it->first) == new_files.end())
+        if (new_files->find(it->first) == new_files->end())
         {
             Node node;
-            node.cid = strdup(it->first.c_str());
+            node.hash = bytes_dup(it->first);
             node.size = it->second;
             node.exist = 0;
             this->diff_files.push_back(node);
-            this->files.erase(it++);
-        }
-        else
-        {
-            it++;
         }
     }
 

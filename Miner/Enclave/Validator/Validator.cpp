@@ -86,13 +86,13 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
     {
         if(files[i].exist == 0)
         {
-            eprintf("Delete: Cid->%s, Size->%luB\n", files[i].cid, files[i].size);
-            workload->files.erase(files[i].cid);
+            eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
+            //workload->files.erase(files[i].hash);
         }
         else
         {
-            eprintf("Add: Cid->%s, Size->%luB\n", files[i].cid, files[i].size);
-            workload->files.insert(std::pair<std::string, size_t>(files[i].cid, files[i].size));
+            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
+            //workload->files.insert(std::pair<std::string, size_t>(files[i].hash, files[i].size));
         }   
     }
 

@@ -7,7 +7,7 @@
 
 typedef struct NodeStruct
 {
-    char* cid;
+    unsigned char *hash;
     size_t size;
     char exist;
 } Node;
