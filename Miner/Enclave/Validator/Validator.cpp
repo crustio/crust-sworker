@@ -84,17 +84,19 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
 
     for (size_t i = 0; i < files_num; i++)
     {
-        if(files[i].exist == 0)
+        if (files[i].exist == 0)
         {
             eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
-            //workload->files.erase(files[i].hash);
+            workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, PLOT_HASH_LENGTH));
         }
         else
         {
             eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
-            //workload->files.insert(std::pair<std::string, size_t>(files[i].hash, files[i].size));
-        }   
+            workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, PLOT_HASH_LENGTH), files[i].size));
+        }
     }
+
+    /*
 
     for (auto it = workload->files.begin(); it != workload->files.end(); it++)
     {
@@ -120,6 +122,7 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
             }
         }
     }
+    */
 }
 
 bool validate_merkle_tree(MerkleTree *root, size_t *size)

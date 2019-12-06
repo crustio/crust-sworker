@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#define NODE_STRUCT_SPACE 56
+#define NODE_STRUCT_SPACE 40
 
 typedef struct NodeStruct
 {
