@@ -16,7 +16,7 @@ public:
     std::vector<unsigned char *> empty_g_hashs;
     sgx_sha256_hash_t empty_root_hash;
     size_t empty_disk_capacity;    
-    std::map<std::string, size_t> files;
+    std::map<std::vector<unsigned char>, size_t> files;
     Workload();
     ~Workload();
     void show();

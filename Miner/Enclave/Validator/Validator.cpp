@@ -84,16 +84,16 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
 
     for (size_t i = 0; i < files_num; i++)
     {
-        if(files[i].exist == 0)
+        if (files[i].exist == 0)
         {
-            eprintf("Delete: Cid->%s, Size->%luB\n", files[i].cid, files[i].size);
-            workload->files.erase(files[i].cid);
+            eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
+            workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, PLOT_HASH_LENGTH));
         }
         else
         {
-            eprintf("Add: Cid->%s, Size->%luB\n", files[i].cid, files[i].size);
-            workload->files.insert(std::pair<std::string, size_t>(files[i].cid, files[i].size));
-        }   
+            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
+            workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, PLOT_HASH_LENGTH), files[i].size));
+        }
     }
 
     for (auto it = workload->files.begin(); it != workload->files.end(); it++)
@@ -104,22 +104,25 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
         if (rand_val < 256 * MEANINGFUL_FILE_VALIDATE_RATE)
         {
             MerkleTree *tree = NULL;
-            ocall_get_merkle_tree(&tree, it->first.c_str());
+            std::string root_hash = unsigned_char_array_to_hex_string(it->first.data(), PLOT_HASH_LENGTH);
+            ocall_get_merkle_tree(&tree, root_hash.c_str());
 
             if (tree == NULL)
             {
-                eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", it->first.c_str());
+                eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", root_hash.c_str());
                 return;
             }
 
+            
             size_t merkle_tree_size = 0;
             if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != it->second)
             {
-                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", it->first.c_str());
+                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
                 return;
             }
         }
     }
+    
 }
 
 bool validate_merkle_tree(MerkleTree *root, size_t *size)
@@ -137,7 +140,7 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
         {
             size_t block_size = 0;
             unsigned char *block_data = NULL;
-            ocall_get_block(&block_data, std::string(root->cid).c_str(), &block_size);
+            ocall_get_block(&block_data, std::string(root->hash).c_str(), &block_size);
             if (block_data == NULL || block_size != root->size)
             {
                 return false;
@@ -147,7 +150,9 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
                 sgx_sha256_hash_t block_data_hash256;
                 sgx_sha256_msg(block_data, (uint32_t)block_size, &block_data_hash256);
                 *size += block_size;
-                return is_cid_equal_hash(root->cid, block_data_hash256);
+
+                std::string block_data_hash256_string = unsigned_char_array_to_hex_string(block_data_hash256, PLOT_HASH_LENGTH);
+                return !strcmp(root->hash, block_data_hash256_string.c_str());
             }
         }
 

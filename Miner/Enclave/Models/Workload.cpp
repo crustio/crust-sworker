@@ -46,7 +46,7 @@ void Workload::show()
     eprintf("Meaningful work is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        eprintf("Cid->%s, Size->%luB\n", it->first.c_str(), it->second);
+        eprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(it->first.data(), PLOT_HASH_LENGTH), it->second);
     }
 }
 
@@ -59,7 +59,7 @@ char *Workload::serialize(const char *block_hash)
     result += "files:[";
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        result += "{'cid':'" + it->first + "','size':" + std::to_string(it->second) + "},";
+        result += "{'hash':'" + unsigned_char_array_to_hex_string(it->first.data(), PLOT_HASH_LENGTH) + "','size':" + std::to_string(it->second) + "},";
     }
     result += "]}";
 
