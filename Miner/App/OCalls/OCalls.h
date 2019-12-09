@@ -81,9 +81,9 @@ unsigned char *ocall_get_file(const char *file_path, size_t len)
     return data;
 }
 
-MerkleTree *ocall_get_merkle_tree(const char *root_cid)
+MerkleTree *ocall_get_merkle_tree(const char *root_hash)
 {
-    return get_ipfs()->get_merkle_tree(root_cid);
+    return get_ipfs()->get_merkle_tree(root_hash);
 }
 
 unsigned char *ocall_get_block(const char *cid, size_t *len)

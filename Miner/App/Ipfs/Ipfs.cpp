@@ -55,7 +55,7 @@ void Ipfs::clear_merkle_tree(MerkleTree *&root)
 {
     if (root != NULL)
     {
-        delete[] root->cid;
+        delete[] root->hash;
         if (root->links != NULL)
         {
             for (size_t i = 0; i < root->links_num; i++)
@@ -189,13 +189,13 @@ size_t Ipfs::get_diff_files_space_size()
     return this->diff_files.size() * NODE_STRUCT_SPACE;
 }
 
-void Ipfs::fill_merkle_tree(MerkleTree *&root, const char *root_cid, web::json::array blocks_raw_array, std::map<std::string, size_t> blocks_map)
+void Ipfs::fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data)
 {
     root = new MerkleTree();
-    root->cid = strdup(blocks_raw_array[blocks_map[root_cid]]["Cid"].as_string().c_str());
-    root->size = blocks_raw_array[blocks_map[root_cid]]["Size"].as_integer();
+    root->hash = strdup(merkle_data["Hash"].as_string().c_str());
+    root->size = merkle_data["Size"].as_integer();
 
-    web::json::array links_array = blocks_raw_array[blocks_map[root_cid]]["Links"].as_array();
+    web::json::array links_array = merkle_data["Links"].as_array();
     root->links_num = links_array.size();
     if (root->links_num == 0)
     {
@@ -207,15 +207,15 @@ void Ipfs::fill_merkle_tree(MerkleTree *&root, const char *root_cid, web::json::
 
     for (size_t i = 0; i < links_array.size(); i++)
     {
-        this->fill_merkle_tree(root->links[i], links_array[i].as_string().c_str(), blocks_raw_array, blocks_map);
+        this->fill_merkle_tree(root->links[i], links_array[i]);
     }
 }
 
-MerkleTree *Ipfs::get_merkle_tree(const char *root_cid)
+MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
 {
     this->clear_merkle_tree(this->merkle_tree);
     web::uri_builder builder(U("/merkle"));
-    builder.append_query(U("arg"), U(root_cid));
+    builder.append_query(U("arg"), U(root_hash));
     web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
 
     if (response.status_code() != web::http::status_codes::OK)
@@ -223,16 +223,9 @@ MerkleTree *Ipfs::get_merkle_tree(const char *root_cid)
         return NULL;
     }
 
-    std::string merkle_data = response.extract_utf8string().get();
-    web::json::array blocks_raw_array = web::json::value::parse(merkle_data)["Blocks"].as_array();
-    std::map<std::string, size_t> blocks_map;
+    web::json::value merkle_data = response.extract_json().get();
+    this->fill_merkle_tree(this->merkle_tree, merkle_data);
 
-    for (size_t i = 0; i < blocks_raw_array.size(); i++)
-    {
-        blocks_map.insert(std::pair<std::string, size_t>(blocks_raw_array[i]["Cid"].as_string(), i));
-    }
-
-    this->fill_merkle_tree(this->merkle_tree, root_cid, blocks_raw_array, blocks_map);
     return this->merkle_tree;
 }
 
