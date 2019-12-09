@@ -229,11 +229,11 @@ MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
     return this->merkle_tree;
 }
 
-unsigned char *Ipfs::get_block_data(const char *cid, size_t *len)
+unsigned char *Ipfs::get_block_data(const char *hash, size_t *len)
 {
     this->clear_block_data();
-    web::uri_builder builder(U("/block/get"));
-    builder.append_query(U("arg"), U(cid));
+    web::uri_builder builder(U("/block/hashget"));
+    builder.append_query(U("arg"), U(hash));
     web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
 
     if (response.status_code() != web::http::status_codes::OK)

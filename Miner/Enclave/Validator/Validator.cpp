@@ -96,17 +96,15 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
         }
     }
 
-   
-
     for (auto it = workload->files.begin(); it != workload->files.end(); it++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
 
-        if (rand_val < 256 * 1)
+        if (rand_val < 256 * MEANINGFUL_FILE_VALIDATE_RATE)
         {
             MerkleTree *tree = NULL;
-            std::string  root_hash = unsigned_char_array_to_hex_string(it->first.data(), PLOT_HASH_LENGTH);
+            std::string root_hash = unsigned_char_array_to_hex_string(it->first.data(), PLOT_HASH_LENGTH);
             ocall_get_merkle_tree(&tree, root_hash.c_str());
 
             if (tree == NULL)
@@ -115,13 +113,13 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
                 return;
             }
 
-            /*
+            
             size_t merkle_tree_size = 0;
             if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != it->second)
             {
-                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", it->first.c_str());
+                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
                 return;
-            }*/
+            }
         }
     }
     
@@ -152,7 +150,9 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
                 sgx_sha256_hash_t block_data_hash256;
                 sgx_sha256_msg(block_data, (uint32_t)block_size, &block_data_hash256);
                 *size += block_size;
-                return is_cid_equal_hash(root->hash, block_data_hash256);
+
+                std::string block_data_hash256_string = unsigned_char_array_to_hex_string(block_data_hash256, PLOT_HASH_LENGTH);
+                return !strcmp(root->hash, block_data_hash256_string.c_str());
             }
         }
 

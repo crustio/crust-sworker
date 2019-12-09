@@ -4,7 +4,6 @@
 #include "sgx_trts.h"
 #include "Node.h"
 #include "MerkleTree.h"
-#include "../Cid/Cid.h"
 #include "../Models/Workload.h"
 #include "../Utils/PathHelper.h"
 

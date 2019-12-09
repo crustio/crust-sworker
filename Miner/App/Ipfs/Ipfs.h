@@ -38,7 +38,7 @@ public:
     size_t get_diff_files_num();
     size_t get_diff_files_space_size();
     MerkleTree *get_merkle_tree(const char *root_hash);
-    unsigned char *get_block_data(const char *cid, size_t *len);
+    unsigned char *get_block_data(const char *hash, size_t *len);
     void set_ipfs_client_url(const char *url);
 };
 
