@@ -86,12 +86,12 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
     {
         if (files[i].exist == 0)
         {
-            eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
+            eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, PLOT_HASH_LENGTH).c_str(), files[i].size);
             workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, PLOT_HASH_LENGTH));
         }
         else
         {
-            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(files[i].hash, PLOT_HASH_LENGTH), files[i].size);
+            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, PLOT_HASH_LENGTH).c_str(), files[i].size);
             workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, PLOT_HASH_LENGTH), files[i].size));
         }
     }
@@ -113,7 +113,6 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
                 return;
             }
 
-            
             size_t merkle_tree_size = 0;
             if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != it->second)
             {
@@ -122,7 +121,6 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
             }
         }
     }
-    
 }
 
 bool validate_merkle_tree(MerkleTree *root, size_t *size)
@@ -132,36 +130,50 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
         return true;
     }
 
-    if (root->links == NULL)
+    size_t block_size = 0;
+    unsigned char *block_data = NULL;
+    unsigned char rand_val;
+    sgx_read_rand((unsigned char *)&rand_val, 1);
+
+    if (rand_val < 256 * MEANINGFUL_BLOCK_VALIDATE_RATE)
     {
-        unsigned char rand_val;
-        sgx_read_rand((unsigned char *)&rand_val, 1);
-        if (rand_val < 256 * MEANINGFUL_LEAF_VALIDATE_RATE)
+        ocall_get_block(&block_data, std::string(root->hash).c_str(), &block_size);
+        if (block_data == NULL || block_size != root->size)
         {
-            size_t block_size = 0;
-            unsigned char *block_data = NULL;
-            ocall_get_block(&block_data, std::string(root->hash).c_str(), &block_size);
-            if (block_data == NULL || block_size != root->size)
+            return false;
+        }
+        else
+        {
+            sgx_sha256_hash_t block_data_hash256;
+            sgx_sha256_msg(block_data, (uint32_t)block_size, &block_data_hash256);
+
+            std::string block_data_hash256_string = unsigned_char_array_to_hex_string(block_data_hash256, PLOT_HASH_LENGTH);
+            if (strcmp(root->hash, block_data_hash256_string.c_str()))
             {
                 return false;
             }
-            else
-            {
-                sgx_sha256_hash_t block_data_hash256;
-                sgx_sha256_msg(block_data, (uint32_t)block_size, &block_data_hash256);
-                *size += block_size;
+        }
+    }
 
-                std::string block_data_hash256_string = unsigned_char_array_to_hex_string(block_data_hash256, PLOT_HASH_LENGTH);
-                return !strcmp(root->hash, block_data_hash256_string.c_str());
+    if (root->links != NULL)
+    {
+        if (block_size != 0)
+        {
+            std::vector<std::string> hashs = get_hashs_from_block(block_data, block_size);
+            if (hashs.size() !=  root->links_num)
+            {
+                return false;
+            }
+
+            for (size_t i = 0; i < hashs.size(); i++)
+            {
+                if(hashs[i] != root->links[i]->hash)
+                {
+                    return false;
+                }
             }
         }
 
-        *size += root->size;
-    }
-    else
-    {
-        // TODO: validate path
-        *size += root->size;
         for (size_t i = 0; i < root->links_num; i++)
         {
             if (!validate_merkle_tree(root->links[i], size))
@@ -171,5 +183,28 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
         }
     }
 
+    *size += root->size;
     return true;
+}
+
+std::vector<std::string> get_hashs_from_block(unsigned char *block_data, size_t block_size)
+{
+    std::vector<std::string> hashs;
+    if (block_data == NULL)
+    {
+        return hashs;
+    }
+
+    std::string block_data_str = unsigned_char_array_to_hex_string(block_data, block_size);
+
+    std::string flag = "0a221220";
+    size_t position = 0;
+    
+    while ((position = block_data_str.find(flag, position)) != std::string::npos)
+    {
+        hashs.push_back(block_data_str.substr(position + flag.length(), PLOT_HASH_LENGTH * 2));
+        position += flag.length() + PLOT_HASH_LENGTH * 2;
+    }
+    
+    return hashs;
 }
