@@ -12,7 +12,7 @@ class ApiHandler
 {
 public:
     ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in);
-    ~ApiHandler() { m_listener.close().wait(); }
+    ~ApiHandler();
 
 private:
     sgx_enclave_id_t *p_global_eid;

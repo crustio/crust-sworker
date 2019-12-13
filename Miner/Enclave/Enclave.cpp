@@ -33,7 +33,13 @@ enum ValidationStatus ecall_return_validation_status()
     return validation_status;
 }
 
-char *ecall_get_validation_report(const char *block_hash)
+size_t ecall_generate_validation_report(const char *block_hash)
 {
-    return get_workload()->serialize(block_hash);
+    return get_workload()->serialize(block_hash).size() + 1;
+}
+
+void ecall_get_validation_report(char *report, size_t len)
+{
+    std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
+    report[len - 1] = '\0';
 }
