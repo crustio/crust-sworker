@@ -32,12 +32,12 @@ bool initialize_component(void)
         return false;
     }
 
-    if(new_api_handler(get_config()->api_base_url.c_str(), &global_eid) == NULL)
+    if (new_api_handler(get_config()->api_base_url.c_str(), &global_eid) == NULL)
     {
         printf("Init api handler failed.\n");
         return false;
     }
-    
+
     return true;
 }
 
@@ -48,8 +48,8 @@ int main_daemon()
         return -1;
     }
 
-    /* Plot empty disk */
-    #pragma omp parallel for
+/* Plot empty disk */
+#pragma omp parallel for
     for (size_t i = 0; i < get_config()->empty_capacity; i++)
     {
         ecall_plot_disk(global_eid, get_config()->empty_path.c_str());
@@ -71,11 +71,34 @@ int main_daemon()
 
 int main_status()
 {
+    if (new_config("Config.json") == NULL)
+    {
+        printf("Init config failed.\n");
+        return false;
+    }
+
+    web::http::client::http_client* self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str());
+    web::uri_builder builder(U("/status"));
+    web::http::http_response response = self_api_client->request(web::http::methods::GET, builder.to_string()).get();
+    printf("%s", response.extract_utf8string().get().c_str());
+    delete self_api_client;
     return 0;
 }
 
 int main_report(const char *block_hash)
 {
+    if (new_config("Config.json") == NULL)
+    {
+        printf("Init config failed.\n");
+        return false;
+    }
+
+    web::http::client::http_client* self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str());
+    web::uri_builder builder(U("/report"));
+    builder.append_query("block_hash", block_hash);
+    web::http::http_response response = self_api_client->request(web::http::methods::GET, builder.to_string()).get();
+    printf("%s", response.extract_utf8string().get().c_str());
+    delete self_api_client;
     return 0;
 }
 
