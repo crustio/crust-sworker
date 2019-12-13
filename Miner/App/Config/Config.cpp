@@ -33,6 +33,7 @@ Config::Config(std::string path)
 
     this->empty_path  = config_value["emptyPath"].as_string();
     this->ipfs_api_base_url = config_value["ipfsApiBaseUrl"].as_string();
+    this->api_base_url = config_value["apiBaseUrl"].as_string();
     this->empty_capacity = (size_t)config_value["emptyCapacity"].as_integer();
 }
 

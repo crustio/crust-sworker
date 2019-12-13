@@ -32,7 +32,7 @@ bool initialize_component(void)
         return false;
     }
 
-    if(new_api_handler("http://0.0.0.0:12222", &global_eid) == NULL)
+    if(new_api_handler(get_config()->api_base_url.c_str(), &global_eid) == NULL)
     {
         printf("Init api handler failed.\n");
         return false;

@@ -9,9 +9,7 @@ ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid)
         delete api_handler;
     }
 
-    utility::string_t address = U(url);
-    web::uri_builder uri(address);
-    api_handler = new ApiHandler(uri.to_uri().to_string(), p_global_eid);
+    api_handler = new ApiHandler(url, p_global_eid);
     return api_handler;
 }
 
