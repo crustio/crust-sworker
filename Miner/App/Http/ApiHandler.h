@@ -5,6 +5,7 @@
 #include <cpprest/uri.h>
 #include <cpprest/http_listener.h>
 #include <cpprest/asyncrt_utils.h>
+#include "Enclave_u.h"
 #include "sgx_eid.h"
 
 class ApiHandler

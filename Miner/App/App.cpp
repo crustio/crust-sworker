@@ -71,21 +71,6 @@ int main_daemon()
 
 int main_status()
 {
-    if (!(initialize_enclave() && initialize_component()))
-    {
-        return -1;
-    }
-
-    const char *validationStatusStrings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
-    enum ValidationStatus validation_status = ValidateStop;
-
-    if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
-    {
-        printf("Get validation failed. Try running daemon frist.\n");
-        return -1;
-    }
-
-    printf("Validation status: %s\n", validationStatusStrings[validation_status]);
     return 0;
 }
 
