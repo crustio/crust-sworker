@@ -9,8 +9,10 @@
 #include "sgx_urts.h"
 #include "Enclave_u.h"
 #include "Config/Config.h"
+#include "Http/ApiHandler.h"
 #include "Ipfs/Ipfs.h"
 #include "OCalls/OCalls.h"
+#include "ValidationStatus.h"
 
 # define TOKEN_FILENAME   "enclave.token"
 # define ENCLAVE_FILENAME "enclave.signed.so"

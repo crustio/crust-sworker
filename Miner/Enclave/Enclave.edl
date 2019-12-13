@@ -9,7 +9,8 @@ enclave {
     trusted {
         public void ecall_main_loop([in, string] const char* empty_path);
         public enum ValidationStatus ecall_return_validation_status();
-        public char *ecall_get_validation_report([in, string]const char *block_hash);  
+        public void ecall_get_validation_report([out, size=len] char *report, size_t len);
+        public size_t ecall_generate_validation_report([in, string] const char *block_hash); 
     };
 
     untrusted {

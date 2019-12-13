@@ -12,6 +12,7 @@ public:
     std::string empty_path;
     size_t empty_capacity;
     std::string ipfs_api_base_url;
+    std::string api_base_url;
     Config(std::string path);
     void show();
 };

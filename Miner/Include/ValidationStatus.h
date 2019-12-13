@@ -3,6 +3,7 @@
 
 enum ValidationStatus
 {
+    ValidateStop = 0,
     ValidateWaiting = 1,
     ValidateMeaningful = 2,
     ValidateEmpty = 3
