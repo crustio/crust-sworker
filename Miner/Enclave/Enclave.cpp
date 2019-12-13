@@ -1,6 +1,6 @@
 #include "Enclave.h"
 
-enum ValidationStatus validation_status = ValidateWaiting;
+enum ValidationStatus validation_status = ValidateStop;
 
 void ecall_main_loop(const char *empty_path)
 {

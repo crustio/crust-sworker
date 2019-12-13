@@ -15,6 +15,12 @@ Config *new_config(const char *path)
 
 Config *get_config()
 {
+    if (config == NULL)
+    {
+        printf("Please use new_config(path) frist.\n");
+        exit(-1);
+    }
+
     return config;
 }
 
