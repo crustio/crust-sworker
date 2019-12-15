@@ -9,7 +9,8 @@ enclave {
     trusted {
         public void ecall_main_loop([in, string] const char* empty_path);
         public enum ValidationStatus ecall_return_validation_status();
-        public char *ecall_get_validation_report([in, string]const char *block_hash);  
+        public void ecall_get_validation_report([out, size=len] char *report, size_t len);
+        public size_t ecall_generate_validation_report([in, string] const char *block_hash); 
     };
 
     untrusted {
@@ -19,7 +20,7 @@ enclave {
         void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
         void ocall_get_folders_number_under_path([in, string] const char *path, [in, out] size_t *number);
         unsigned char *ocall_get_file([in, string] const char *file_path, size_t len);
-        MerkleTree *ocall_get_merkle_tree([in, string] const char *root_cid);
+        MerkleTree *ocall_get_merkle_tree([in, string] const char *root_hash);
         unsigned char *ocall_get_block([in, string] const char* cid, [in, out] size_t* len);
         Node *ocall_get_diff_files();
         size_t ocall_get_diff_files_num();
