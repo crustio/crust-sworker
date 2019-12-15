@@ -1,5 +1,6 @@
 {
     "emptyPath" : "empty_store",
     "emptyCapacity" : 4,
-    "ipfsApiBaseUrl" : "http://127.0.0.1:5001/api/v0"
+    "ipfsApiBaseUrl" : "http://127.0.0.1:5001/api/v0",
+    "apiBaseUrl": "http://0.0.0.0:12222/api/v0"
 }

@@ -8,6 +8,13 @@ std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t si
     return result;
 }
 
+std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size)
+{
+    std::vector<unsigned char> out(size);
+    std::copy(in, in + size, out.begin());
+    return out;
+}
+
 char *unsigned_char_array_to_hex_char_array(const unsigned char *in, size_t size)
 {
     char *result = new char[size * 2 + 1];

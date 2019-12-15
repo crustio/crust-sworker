@@ -10,17 +10,16 @@
 
 class Workload
 {
-private:
-    char* work;
 public:
+    std::string report;
     std::vector<unsigned char *> empty_g_hashs;
     sgx_sha256_hash_t empty_root_hash;
     size_t empty_disk_capacity;    
-    std::map<std::string, size_t> files;
+    std::map<std::vector<unsigned char>, size_t> files;
     Workload();
     ~Workload();
     void show();
-    char* serialize(const char* block_hash);
+    std::string serialize(const char *block_hash);
 };
 
 Workload *get_workload();
