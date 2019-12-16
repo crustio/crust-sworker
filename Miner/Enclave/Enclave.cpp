@@ -4,6 +4,8 @@ enum ValidationStatus validation_status = ValidateStop;
 
 void ecall_main_loop(const char *empty_path)
 {
+    ecall_generate_empty_root();
+    
     while (true)
     {
         eprintf("\n-----Meaningful Validation-----\n");

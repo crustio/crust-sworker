@@ -54,6 +54,13 @@ void ecall_plot_disk(const char *path)
 
 void ecall_generate_empty_root()
 {
+    if(get_workload()->empty_g_hashs.size() == 0)
+    {
+        get_workload()->empty_disk_capacity = 0;
+        get_workload()->empty_root_hash[0] = 0;
+        return;
+    }
+
     unsigned char *hashs = new unsigned char[get_workload()->empty_g_hashs.size() * PLOT_HASH_LENGTH];
     for (size_t i = 0; i < get_workload()->empty_g_hashs.size(); i++)
     {
