@@ -4,7 +4,7 @@ void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
     size_t current_capacity = 0;
-    ocall_get_folders_number_under_path(path, &current_capacity);
+    ocall_get_folders_number_under_path(&current_capacity, path);
 
     for (size_t i = 0; i < (workload->empty_g_hashs.size() < current_capacity ? workload->empty_g_hashs.size() : current_capacity); i++)
     {

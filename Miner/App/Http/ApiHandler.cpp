@@ -6,8 +6,8 @@ const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "V
 
 /**
  * @description: new a global API handler
- * @param url API base url 
- * @param p_global_eid The point for sgx global eid 
+ * @param url -> API base url 
+ * @param p_global_eid -> The point for sgx global eid 
  * @return: the point of API handler
  */
 ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid)
@@ -38,7 +38,7 @@ ApiHandler *get_api_handler(void)
 
 /**
  * @description: constructor
- * @param url API base url 
+ * @param url -> API base url 
  * @param p_global_eid The point for sgx global eid  
  */
 ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in) : m_listener(url)
@@ -59,7 +59,7 @@ ApiHandler::~ApiHandler()
 
 /**
  * @description: handle get requests
- * @param message http request message
+ * @param message -> http request message
  */
 void ApiHandler::handle_get(web::http::http_request message)
 {

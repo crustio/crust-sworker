@@ -4,7 +4,7 @@ Config *config = NULL;
 
 /**
  * @description: new a global config
- * @param path configurations file path
+ * @param path -> configurations file path
  * @return: new config point
  */
 Config *new_config(const char *path)
@@ -35,7 +35,7 @@ Config *get_config(void)
 
 /**
  * @description: constructor
- * @param path configurations file path 
+ * @param path -> configurations file path 
  */
 Config::Config(std::string path)
 {
