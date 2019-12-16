@@ -3,6 +3,12 @@
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 1;
 
+bool initialize_enclave(void);
+bool initialize_components(void);
+int main_daemon(void);
+int main_status(void);
+int main_report(const char *block_hash);
+
 /* Application entry:
  *    use './app deamon' or './app' to start main progress
  *    use './app status' to get and printf validation status
@@ -49,8 +55,8 @@ bool initialize_enclave(void)
 
 /* Initialize the components:
  *   config -> user configurations and const configurations
- *   ipfs -> ipfs is used to store meaningful files, please make sure ipfs is running before running daemon
- *   api handler -> external api interface 
+ *   ipfs -> used to store meaningful files, please make sure IPFS is running before running daemon
+ *   api handler -> external API interface 
  */
 bool initialize_components(void)
 {
