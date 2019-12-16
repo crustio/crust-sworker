@@ -20,7 +20,9 @@ private:
     web::http::experimental::listener::http_listener m_listener;
 };
 
+/* New api handler */
 ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid);
-ApiHandler *get_api_handler();
+/* Get api handler */ 
+ApiHandler *get_api_handler(); 
 
 #endif /* !_CRUST_API_HANDLER_H_ */

@@ -39,6 +39,8 @@ int SGX_CDECL main(int argc, char *argv[])
 /* Initialize the enclave:
  *   call sgx_create_enclave to initialize an enclave instance
  */
+
+
 bool initialize_enclave(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
