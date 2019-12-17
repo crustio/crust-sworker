@@ -49,7 +49,7 @@ enum ValidationStatus ecall_return_validation_status(void)
  * @param block_hash -> used to generate validation report
  * @return: the length of validation report
  */
-size_t ecall_(const char *block_hash)
+size_t ecall_generate_validation_report(const char *block_hash)
 {
     return get_workload()->serialize(block_hash).size() + 1;
 }
