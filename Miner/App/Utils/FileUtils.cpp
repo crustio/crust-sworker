@@ -1,5 +1,10 @@
 #include "FileUtils.h"
 
+/**
+ * @description: get all files' name in directory
+ * @param path -> the directory path
+ * @return: file's name vector
+ */
 std::vector<std::string> get_files_under_path(std::string path)
 {
     std::vector<std::string> files;
@@ -9,7 +14,7 @@ std::vector<std::string> get_files_under_path(std::string path)
     if ((dir = opendir(path.c_str())) == NULL)
     {
         perror("Open dir error...");
-        exit(1);
+        exit(-1);
     }
 
     while ((ptr = readdir(dir)) != NULL)
@@ -28,6 +33,11 @@ std::vector<std::string> get_files_under_path(std::string path)
     return files;
 }
 
+/**
+ * @description: get all folders' name in directory
+ * @param path -> the directory path
+ * @return: folder's name vector
+ */
 std::vector<std::string> get_folders_under_path(std::string path)
 {
     std::vector<std::string> folders;

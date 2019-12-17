@@ -3,8 +3,6 @@
 
 #include <stddef.h>
 
-#define NODE_STRUCT_SPACE 40
-
 typedef struct NodeStruct
 {
     unsigned char *hash;

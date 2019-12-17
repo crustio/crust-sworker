@@ -2,6 +2,11 @@
 
 Ipfs *ipfs = NULL;
 
+/**
+ * @description: new a global IPFS handler to access IPFS node
+ * @param url -> ipfs API base url 
+ * @return: the point of IPFS handler
+ */
 Ipfs *new_ipfs(const char *url)
 {
     if (ipfs != NULL)
@@ -13,7 +18,11 @@ Ipfs *new_ipfs(const char *url)
     return ipfs;
 }
 
-Ipfs *get_ipfs()
+/**
+ * @description: get the global IPFS handler to access IPFS node 
+ * @return: the point of IPFS handle
+ */
+Ipfs *get_ipfs(void)
 {
     if (ipfs == NULL)
     {
@@ -24,6 +33,10 @@ Ipfs *get_ipfs()
     return ipfs;
 }
 
+/**
+ * @description: constructor
+ * @param url -> API base url 
+ */
 Ipfs::Ipfs(const char *url)
 {
     this->block_data = NULL;
@@ -32,6 +45,9 @@ Ipfs::Ipfs(const char *url)
     this->files_a_is_old = true;
 }
 
+/**
+ * @description: destructor
+ */
 Ipfs::~Ipfs()
 {
     this->diff_files.clear();
@@ -42,7 +58,10 @@ Ipfs::~Ipfs()
     delete this->ipfs_client;
 }
 
-void Ipfs::clear_block_data()
+/**
+ * @description: release block_data
+ */
+void Ipfs::clear_block_data(void)
 {
     if (this->block_data != NULL)
     {
@@ -51,6 +70,10 @@ void Ipfs::clear_block_data()
     }
 }
 
+/**
+ * @description: release merkle_tree
+ * @param root -> the root of merkle tree 
+ */
 void Ipfs::clear_merkle_tree(MerkleTree *&root)
 {
     if (root != NULL)
@@ -70,6 +93,11 @@ void Ipfs::clear_merkle_tree(MerkleTree *&root)
     }
 }
 
+/**
+ * @description: convert integer json array to byte vector
+ * @param hash_array -> json array
+ * @return: byte vector
+ */
 std::vector<unsigned char> Ipfs::get_hash_from_json_array(web::json::array hash_array)
 {
     std::vector<unsigned char> result(hash_array.size());
@@ -82,6 +110,11 @@ std::vector<unsigned char> Ipfs::get_hash_from_json_array(web::json::array hash_
     return result;
 }
 
+/**
+ * @description: create new byte vector from byte array
+ * @param in -> byte vector
+ * @return: byte array
+ */
 unsigned char *Ipfs::bytes_dup(std::vector<unsigned char> in)
 {
     unsigned char *out = new unsigned char[in.size()];
@@ -94,7 +127,10 @@ unsigned char *Ipfs::bytes_dup(std::vector<unsigned char> in)
     return out;
 }
 
-void Ipfs::clear_diff_files()
+/**
+ * @description: release diff_files
+ */
+void Ipfs::clear_diff_files(void)
 {
     if (!this->diff_files.empty())
     {
@@ -107,9 +143,13 @@ void Ipfs::clear_diff_files()
     }
 }
 
-bool Ipfs::generate_diff_files()
+/**
+ * @description: generate changed files
+ * @return: whether the changed files is empty
+ */
+bool Ipfs::generate_diff_files(void)
 {
-    // Get contain for storing files
+    /* Get contain for storing files */
     this->clear_diff_files();
     std::map<std::vector<unsigned char>, size_t> *new_files;
     std::map<std::vector<unsigned char>, size_t> *old_files;
@@ -128,7 +168,7 @@ bool Ipfs::generate_diff_files()
     new_files->clear();
     this->files_a_is_old = !this->files_a_is_old;
 
-    // Get work from ipfs
+    /* Get files' information from ipfs */
     web::uri_builder builder(U("/work"));
     web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
 
@@ -140,7 +180,7 @@ bool Ipfs::generate_diff_files()
     std::string work_data = response.extract_utf8string().get();
     web::json::array files_raw_array = web::json::value::parse(work_data)["Files"].as_array();
 
-    // Generate diff files
+    /* Generate diff files */
     for (size_t i = 0; i < files_raw_array.size(); i++)
     {
         web::json::value file_raw = files_raw_array[i];
@@ -174,23 +214,32 @@ bool Ipfs::generate_diff_files()
     return !this->diff_files.empty();
 }
 
-Node *Ipfs::get_diff_files()
+/**
+ * @description: get changed files
+ * @return: changed files
+ */
+Node *Ipfs::get_diff_files(void)
 {
     return &this->diff_files[0];
 }
 
-size_t Ipfs::get_diff_files_num()
+/**
+ * @description: get the number of changed files
+ * @return: the number of changed files
+ */
+size_t Ipfs::get_diff_files_num(void)
 {
     return this->diff_files.size();
 }
 
-size_t Ipfs::get_diff_files_space_size()
-{
-    return this->diff_files.size() * NODE_STRUCT_SPACE;
-}
-
+/**
+ * @description: populate merkle tree recursively with data
+ * @param root -> the root of merkle tree
+ * @param merkle_data -> merkle data of json format
+ */
 void Ipfs::fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data)
 {
+    /* Fill root */
     root = new MerkleTree();
     root->hash = strdup(merkle_data["Hash"].as_string().c_str());
     root->size = merkle_data["Size"].as_integer();
@@ -203,14 +252,19 @@ void Ipfs::fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data)
         return;
     }
 
+    /* Fill links */
     root->links = new MerkleTree *[root->links_num];
-
     for (size_t i = 0; i < links_array.size(); i++)
     {
         this->fill_merkle_tree(root->links[i], links_array[i]);
     }
 }
 
+/**
+ * @description: get merkle tree from ipfs by file root hash
+ * @param root_hash -> the root hash of merkle tree
+ * @return: whole merkle tree
+ */
 MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
 {
     this->clear_merkle_tree(this->merkle_tree);
@@ -229,8 +283,15 @@ MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
     return this->merkle_tree;
 }
 
+/**
+ * @description: get block data from ipfs by block hash
+ * @param hash -> the block hash
+ * @param len(out) -> the length of block data 
+ * @return: the block data
+ */
 unsigned char *Ipfs::get_block_data(const char *hash, size_t *len)
 {
+    /* Get block data from ipfs */ 
     this->clear_block_data();
     web::uri_builder builder(U("/block/hashget"));
     builder.append_query(U("arg"), U(hash));
