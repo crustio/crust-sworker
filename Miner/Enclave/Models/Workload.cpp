@@ -52,7 +52,7 @@ void Workload::show(void)
     eprintf("Meaningful work is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        eprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(it->first.data(), PLOT_HASH_LENGTH), it->second);
+        eprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(it->first.data(), HASH_LENGTH), it->second);
     }
 }
 
@@ -65,12 +65,12 @@ std::string Workload::serialize(const char *block_hash)
 {
     this->report = "{";
     this->report += "'block_hash':'" + std::string(block_hash) + "',";
-    this->report += "'empty_root_hash':'" + unsigned_char_array_to_hex_string(this->empty_root_hash, PLOT_HASH_LENGTH) + "',";
+    this->report += "'empty_root_hash':'" + unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH) + "',";
     this->report += "'empty_disk_capacity':" + std::to_string(this->empty_disk_capacity) + ",";
     this->report += "files:[";
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        report += "{'hash':'" + unsigned_char_array_to_hex_string(it->first.data(), PLOT_HASH_LENGTH) + "','size':" + std::to_string(it->second) + "},";
+        report += "{'hash':'" + unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH) + "','size':" + std::to_string(it->second) + "},";
     }
     this->report += "]}";
 

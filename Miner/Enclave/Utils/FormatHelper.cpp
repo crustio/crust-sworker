@@ -1,5 +1,11 @@
 #include "FormatHelper.h"
 
+/**
+ * @description: convert byte array to hex string
+ * @param in -> byte array
+ * @param size -> the size of byte array
+ * @return: hex string
+ */
 std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size)
 {
     char *hex_char_array = unsigned_char_array_to_hex_char_array(in, size);
@@ -8,6 +14,12 @@ std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t si
     return result;
 }
 
+/**
+ * @description: convert byte array to byte vector
+ * @param in -> byte array
+ * @param size -> the size of byte array
+ * @return: byte vector
+ */
 std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size)
 {
     std::vector<unsigned char> out(size);
@@ -15,6 +27,12 @@ std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const uns
     return out;
 }
 
+/**
+ * @description: convert byte array to hex char array
+ * @param in -> byte array
+ * @param size -> the size of byte array
+ * @return: hex char array
+ */
 char *unsigned_char_array_to_hex_char_array(const unsigned char *in, size_t size)
 {
     char *result = new char[size * 2 + 1];
@@ -32,6 +50,11 @@ char *unsigned_char_array_to_hex_char_array(const unsigned char *in, size_t size
     return result;
 }
 
+/**
+ * @description: convert byte to hex char array
+ * @param in -> byte
+ * @return: hex char array
+ */
 char *unsigned_char_to_hex(const unsigned char in)
 {
     char *result = new char[2];

@@ -12,8 +12,8 @@
 #define PLOT_RAND_DATA_LENGTH 1048576
 /* The number of empty disk leaf files under a G path */
 #define PLOT_RAND_DATA_NUM 10
-/* The length of hash */
-#define PLOT_HASH_LENGTH 32
+/* Used to store all M hashs under G path */
+#define PLOT_M_HASHS "m-hashs.bin"
 
 /* Empty disk file verification ratio */
 #define EMPTY_VALIDATE_RATE 0.25
@@ -22,8 +22,10 @@
 /* The blocks of meaningful disk file verification ratio */
 #define MEANINGFUL_BLOCK_VALIDATE_RATE 0.05
 
-/* Main loop waiting time */
+/* Main loop waiting time (us) */
 #define MAIN_LOOP_WAIT_TIME 10000000
+/* The length of hash */
+#define HASH_LENGTH 32
 
 int eprintf(const char* fmt, ...);
 
