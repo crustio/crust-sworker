@@ -17,4 +17,10 @@
 # define TOKEN_FILENAME   "enclave.token"
 # define ENCLAVE_FILENAME "enclave.signed.so"
 
+bool initialize_enclave(void);
+bool initialize_components(void);
+int main_daemon(void);
+int main_status(void);
+int main_report(const char *block_hash);
+
 #endif /* !_CRUST_APP_H_ */

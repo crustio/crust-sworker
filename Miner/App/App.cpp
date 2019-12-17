@@ -3,16 +3,14 @@
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 1;
 
-bool initialize_enclave(void);
-bool initialize_components(void);
-int main_daemon(void);
-int main_status(void);
-int main_report(const char *block_hash);
-
-/* Application entry:
- *    use './app deamon' or './app' to start main progress
- *    use './app status' to get and printf validation status
- *    use './app report <block_hash>' to get and printf work report 
+/**
+ * @description: application entry:
+ *   use './app deamon' or './app' to start main progress
+ *   use './app status' to get and printf validation status
+ *   use './app report <block_hash>' to get and printf work report 
+ * @param argc -> the number of command parameters
+ * @param argv[] -> parameter array
+ * @return: exit flag
  */
 int SGX_CDECL main(int argc, char *argv[])
 {
@@ -36,11 +34,10 @@ int SGX_CDECL main(int argc, char *argv[])
     return 0;
 }
 
-/* Initialize the enclave:
- *   call sgx_create_enclave to initialize an enclave instance
+/**
+ * @description: call sgx_create_enclave to initialize an enclave instance
+ * @return: success or failure
  */
-
-
 bool initialize_enclave(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -55,10 +52,12 @@ bool initialize_enclave(void)
     return true;
 }
 
-/* Initialize the components:
+/**
+ * @description: initialize the components:
  *   config -> user configurations and const configurations
  *   ipfs -> used to store meaningful files, please make sure IPFS is running before running daemon
  *   api handler -> external API interface 
+ * @return: success or failure
  */
 bool initialize_components(void)
 {
@@ -88,9 +87,9 @@ bool initialize_components(void)
     return true;
 }
 
-/* Run main progress:
- *   use './app deamon' or './app' to start main progress  
- *   ps: please make sure ipfs is running before running daemon
+/**
+ * @description: run main progress
+ * @return: exit flag
  */
 int main_daemon(void)
 {
@@ -119,9 +118,9 @@ int main_daemon(void)
     return 0;
 }
 
-/* Run status cmd:
- *    use './app status' to get and printf validation status 
- *    ps: please make sure daemon is running before running this cmd
+/**
+ * @description: run status command  to get and printf validation status
+ * @return: exit flag
  */
 int main_status(void)
 {
@@ -141,9 +140,10 @@ int main_status(void)
     return 0;
 }
 
-/* Run report cmd:
- *    use './app report <block_hash>' to get and printf work report 
- *    ps: please make sure daemon is running before running this cmd
+/**
+ * @description: run report command to get and printf work report
+ * @param block_hash -> use this hash to create report
+ * @return: exit flag
  */
 int main_report(const char *block_hash)
 {

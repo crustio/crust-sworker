@@ -12,7 +12,6 @@
 #include <boost/algorithm/string.hpp>
 #include "../Ipfs/Ipfs.h"
 #include "../Utils/FileUtils.h"
-#include "../Utils/FormatUtils.h"
 
 /**
  * @description: ocall for printing string
