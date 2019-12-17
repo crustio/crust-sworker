@@ -1,20 +1,25 @@
 #include "PlotDisk.h"
 
+/* Used to update workload->empty_g_hashs multiple threads */
 sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
+/**
+ * @description: plot one G disk under directory, can be called from multiple threads
+ * @param path -> the directory path
+ */
 void ecall_plot_disk(const char *path)
 {
-    // New and get now G hash index
+    /* New and get now G hash index */
     sgx_thread_mutex_lock(&g_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
     get_workload()->empty_g_hashs.push_back(new unsigned char[PLOT_HASH_LENGTH]);
     sgx_thread_mutex_unlock(&g_mutex);
 
-    // Create directory
+    /* Create directory */
     std::string g_path = get_g_path(path, now_index);
     ocall_create_dir(g_path.c_str());
 
-    // Generate all M hashs and store file to disk
+    /* Generate all M hashs and store file to disk */
     unsigned char *hashs = new unsigned char[PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH];
     for (size_t i = 0; i < PLOT_RAND_DATA_NUM; i++)
     {
@@ -33,7 +38,7 @@ void ecall_plot_disk(const char *path)
         eprintf("Save file: %luG/%luM\n", now_index + 1, i + 1);
     }
 
-    // Generate G hashs
+    /* Generate G hashs */
     sgx_sha256_hash_t g_out_hash256;
     sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * PLOT_HASH_LENGTH, &g_out_hash256);
 
@@ -47,12 +52,15 @@ void ecall_plot_disk(const char *path)
     }
     sgx_thread_mutex_unlock(&g_mutex);
 
-    // Change G path name
+    /* Change G path name */
     std::string new_g_path = g_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, PLOT_HASH_LENGTH);
     ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
 }
 
-void ecall_generate_empty_root()
+/**
+ * @description: generate empty root hash by using workload->empty_g_hashs 
+ */
+void ecall_generate_empty_root(void)
 {
     if(get_workload()->empty_g_hashs.size() == 0)
     {
@@ -76,12 +84,25 @@ void ecall_generate_empty_root()
     delete[] hashs;
 }
 
+/**
+ * @description: call ocall_save_file to save file
+ * @param g_path -> g folder path
+ * @param index -> m file's index
+ * @param hash -> m file's hash
+ * @param data -> m file's data
+ * @param data_size -> the length of m file's data
+ */
 void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
 {
     std::string file_path = get_leaf_path(g_path, index, hash);
     ocall_save_file(file_path.c_str(), data, data_size);
 }
 
+/**
+ * @description: call ocall_save_file to save m_hashs.bin file
+ * @param data -> data
+ * @param data_size -> the length of data
+ */
 void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size)
 {
     std::string file_path = get_m_hashs_file_path(g_path);

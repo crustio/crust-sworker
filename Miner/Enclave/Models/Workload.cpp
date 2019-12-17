@@ -2,11 +2,18 @@
 
 Workload *workload = new Workload();
 
+/**
+ * @description: get the global workload
+ * @return: the global workload
+ */
 Workload *get_workload()
 {
     return workload;
 }
 
+/**
+ * @description: constructor
+ */
 Workload::Workload()
 {
     this->empty_disk_capacity = 0;
@@ -16,6 +23,9 @@ Workload::Workload()
     }
 }
 
+/**
+ * @description: destructor
+ */
 Workload::~Workload()
 {
     for (size_t i = 0; i < this->empty_g_hashs.size(); i++)
@@ -26,7 +36,10 @@ Workload::~Workload()
     this->empty_g_hashs.clear();
 }
 
-void Workload::show()
+/**
+ * @description: print work report
+ */
+void Workload::show(void)
 {
     eprintf("Empty root hash: \n");
     for (size_t i = 0; i < 32; i++)
@@ -43,6 +56,11 @@ void Workload::show()
     }
 }
 
+/**
+ * @description: use block hash to serialize work report
+ * @param block_hash -> use this hash to create report
+ * @return: the work report
+ */
 std::string Workload::serialize(const char *block_hash)
 {
     this->report = "{";
