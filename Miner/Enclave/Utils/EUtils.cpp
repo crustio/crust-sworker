@@ -1,5 +1,9 @@
 #include "EUtils.h"
 
+/**
+ * @description: use ocall_print_string to print format string
+ * @return: the length of printed string
+ */
 int eprintf(const char *fmt, ...)
 {
     char buf[100000] = {'\0'};

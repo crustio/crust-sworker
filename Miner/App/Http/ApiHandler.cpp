@@ -1,8 +1,15 @@
 #include "ApiHandler.h"
 
 ApiHandler *api_handler = NULL;
+/* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 
+/**
+ * @description: new a global API handler
+ * @param url -> API base url 
+ * @param p_global_eid -> The point for sgx global eid 
+ * @return: the point of API handler
+ */
 ApiHandler *new_api_handler(const char *url, const char *post_url, sgx_enclave_id_t *p_global_eid)
 {
     if (api_handler != NULL)
@@ -14,7 +21,11 @@ ApiHandler *new_api_handler(const char *url, const char *post_url, sgx_enclave_i
     return api_handler;
 }
 
-ApiHandler *get_api_handler()
+/**
+ * @description: get the global API handler
+ * @return: the point of API handler
+ */
+ApiHandler *get_api_handler(void)
 {
     if (api_handler == NULL)
     {
@@ -25,6 +36,11 @@ ApiHandler *get_api_handler()
     return api_handler;
 }
 
+/**
+ * @description: constructor
+ * @param url -> API base url 
+ * @param p_global_eid The point for sgx global eid  
+ */
 ApiHandler::ApiHandler(utility::string_t url, utility::string_t post_url, sgx_enclave_id_t *p_global_eid_in) : m_listener(url), m_post_listener(post_url)
 {
     this->p_global_eid = p_global_eid_in;
@@ -34,6 +50,9 @@ ApiHandler::ApiHandler(utility::string_t url, utility::string_t post_url, sgx_en
     this->m_post_listener.open().wait();
 }
 
+/**
+ * @description: destructor
+ */
 ApiHandler::~ApiHandler()
 {
     this->m_listener.close().wait();
@@ -41,8 +60,13 @@ ApiHandler::~ApiHandler()
     delete this->p_global_eid;
 }
 
+/**
+ * @description: handle get requests
+ * @param message -> http request message
+ */
 void ApiHandler::handle_get(web::http::http_request message)
 {
+    /* Handle status request */
     if (message.relative_uri().path() == "/status")
     {
         enum ValidationStatus validation_status = ValidateStop;
@@ -58,8 +82,10 @@ void ApiHandler::handle_get(web::http::http_request message)
         return;
     }
 
+    /* Handle report request */
     if (message.relative_uri().path() == "/report")
     {
+        /* Get block hash from url */
         auto arg_map = web::http::uri::split_query(message.request_uri().query());
 
         if (arg_map.find("block_hash") == arg_map.end())
@@ -68,6 +94,7 @@ void ApiHandler::handle_get(web::http::http_request message)
             return;
         }
 
+        /* Call ecall function to get work report */
         size_t report_len = 0;
         if (ecall_generate_validation_report(*this->p_global_eid, &report_len, arg_map["block_hash"].c_str()) != SGX_SUCCESS)
         {

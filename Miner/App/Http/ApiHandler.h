@@ -21,11 +21,11 @@ public:
     ~ApiHandler();
 
 private:
-    sgx_enclave_id_t *p_global_eid;
+    sgx_enclave_id_t *p_global_eid;                                     /* The point for sgx global eid*/
+    web::http::experimental::listener::http_listener m_listener;        /* External api listener*/
+    web::http::experimental::listener::http_listener m_post_listener;   /* Externel post api listener */
     void handle_get(web::http::http_request message);
     void handle_post(web::http::http_request message);
-    web::http::experimental::listener::http_listener m_listener;
-    web::http::experimental::listener::http_listener m_post_listener;
 };
 
 ApiHandler *new_api_handler(const char *url, const char *post_url, sgx_enclave_id_t *p_global_eid);

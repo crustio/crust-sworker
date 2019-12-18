@@ -11,14 +11,15 @@
 class Workload
 {
 public:
-    std::string report;
-    std::vector<unsigned char *> empty_g_hashs;
-    sgx_sha256_hash_t empty_root_hash;
-    size_t empty_disk_capacity;    
-    std::map<std::vector<unsigned char>, size_t> files;
+    std::string report;                                 /* used to store work report */
+    std::vector<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
+    sgx_sha256_hash_t empty_root_hash;                  /* used to store empty root hash */
+    size_t empty_disk_capacity;                         /* empty disk capacity */
+    std::map<std::vector<unsigned char>, size_t> files; /* meaningful files' information */
+
     Workload();
     ~Workload();
-    void show();
+    void show(void);
     std::string serialize(const char *block_hash);
 };
 
