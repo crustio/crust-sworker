@@ -30,8 +30,8 @@
 #define OPT_ISSET(x,y)	x&y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })
 
-# define TOKEN_FILENAME   "enclave.token"
-# define ENCLAVE_FILENAME "enclave.signed.so"
+#define TOKEN_FILENAME   "enclave.token"
+#define ENCLAVE_FILENAME "enclave.signed.so"
 
 #define OPT_PSE		0x01
 #define OPT_NONCE	0x02

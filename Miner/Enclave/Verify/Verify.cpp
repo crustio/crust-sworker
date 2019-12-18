@@ -21,6 +21,8 @@ using namespace std;
 
 extern unsigned char offChain_report_data[];
 
+extern sgx_measurement_t current_mr_enclave;
+
 /*----------------------------------------------------------------------
  * WARNING
  *----------------------------------------------------------------------
@@ -277,9 +279,6 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
     char *p_decode_quote_body = NULL;
     char *p_decode_ = NULL;
     size_t qbsz;
-    sgx_report_t verify_report;
-    sgx_target_info_t verify_target_info;
-    sgx_report_data_t verify_report_data;
     sgx_status_t sgx_status;
 
 	/*
@@ -415,8 +414,8 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
     memcpy(iasQuote, p_decode_quote_body, qbsz);
     iasReportBody = &iasQuote->report_body;
 
-    //eprintfhexstring("report_data    : %s\n", &iasReportBody->report_data);
-    //eprintfhexstring("report_data org: %s\n", offChain_report_data);
+    //eprintfHexString("report_data    : %s\n", &iasReportBody->report_data);
+    //eprintfHexString("report_data org: %s\n", offChain_report_data);
 
     // This report data is our ecc public key
     // should be equal to the one contained in IAS report
@@ -426,23 +425,13 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
     } else {
         status = IAS_VERIFY_SUCCESS;
     }
-
-    // Get report from current enclave
-    memset(&verify_report, 0, sizeof(sgx_report_t));
-    memset(&verify_report_data, 0, sizeof(sgx_report_data_t));
-    memset(&verify_target_info, 0, sizeof(sgx_target_info_t));
-    sgx_status = sgx_create_report(&verify_target_info, &verify_report_data, &verify_report);
-    if(SGX_SUCCESS != sgx_status) {
-        status = IAS_GET_REPORT_FAILED;
+    
+    // The mr_enclave should be equal to the one contained in IAS report
+    //eprintfHexString("%s", &current_mr_enclave);
+    if ( memcmp(&iasReportBody->mr_enclave, &current_mr_enclave, sizeof(sgx_measurement_t)) != 0 ) {
+        status = IAS_BADMEASUREMENT;
     } else {
-        //eprintfhexstring("%s", &verify_report.body.mr_enclave);
-        // The mr_enclave should be equal to the one contained in IAS report
-        if ( memcmp(&iasReportBody->mr_enclave, &verify_report.body.mr_enclave, 
-            sizeof(sgx_measurement_t)) != 0 ) {
-            status = IAS_BADMEASUREMENT;
-        } else {
-            status = IAS_VERIFY_SUCCESS;
-        }
+        status = IAS_VERIFY_SUCCESS;
     }
 
 

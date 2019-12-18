@@ -14,7 +14,7 @@
 #include "FileUtils.h"
 #include "FormatUtils.h"
 
-#define HEXSTRING_BUF   256
+#define HEXSTRING_BUF   32
 
 /**
  * @description: ocall for printing string
@@ -25,6 +25,10 @@ void ocall_print_string(const char *str)
     printf("%s", str);
 }
 
+/**
+ * @description: ocall for printing hexstring
+ * @param str -> string for printing
+ */
 void ocall_printhexstring(const char *str)
 {
     printf("%s", hexstring(str, HEXSTRING_BUF));

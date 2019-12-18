@@ -53,4 +53,6 @@ static const sgx_ec256_public_t def_service_public_key = {
 
 unsigned char offChain_report_data[REPORT_DATA_SIZE] = {'\0'};
 
+sgx_measurement_t current_mr_enclave;
+
 #endif /* !_CRUST_ENCLAVE_H_ */

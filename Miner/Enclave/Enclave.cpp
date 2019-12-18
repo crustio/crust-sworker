@@ -76,6 +76,11 @@ void ecall_get_validation_report(char *report, size_t len)
  * to deal with that.
  */
 
+/**
+ * @description: get sgx report, our generated public key contained
+ *  in report data
+ * @return: get sgx report status
+ * */
 sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
     // generate public and private key
@@ -107,6 +112,31 @@ sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_in
 #endif
 }
 
+sgx_status_t ecall_gen_sgx_measurement()
+{
+    sgx_status_t status;
+    sgx_report_t verify_report;
+    sgx_target_info_t verify_target_info;
+    sgx_report_data_t verify_report_data;
+
+    memset(&verify_report, 0, sizeof(sgx_report_t));
+    memset(&verify_report_data, 0, sizeof(sgx_report_data_t));
+    memset(&verify_target_info, 0, sizeof(sgx_target_info_t));
+
+    status = sgx_create_report(&verify_target_info, &verify_report_data, &verify_report);
+    if(SGX_SUCCESS != status)
+    {
+        return status;
+    }
+
+    memset(&current_mr_enclave, 0, sizeof(sgx_measurement_t));
+    memcpy(&current_mr_enclave, &verify_report.body.mr_enclave, sizeof(sgx_measurement_t));
+}
+
+/**
+ * @description: store off-chain node quote
+ * @return: store status
+ * */
 sgx_status_t ecall_store_quote(const char *quote, int len)
 {
     sgx_quote_t *offChain_quote = (sgx_quote_t*)malloc(len);
@@ -116,7 +146,12 @@ sgx_status_t ecall_store_quote(const char *quote, int len)
     memcpy(offChain_report_data, p_report_data, REPORT_DATA_SIZE);
 }
 
+/**
+ * @description: verify IAS report
+ * @return: verify status
+ * */
 ias_status_t ecall_verify_iasreport(const char ** IASReport, int len) 
 {
+    // TODO: send signed data to chain to proof
     return ecall_verify_iasreport_real(IASReport, len);
 }

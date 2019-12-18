@@ -18,6 +18,7 @@ enclave {
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
 		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, int len);
+		public sgx_status_t ecall_gen_sgx_measurement();
         public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, int len);
     };
 

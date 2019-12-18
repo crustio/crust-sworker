@@ -52,7 +52,7 @@ bool initialize_enclave(void)
 
 	/* Can we run SGX? */
 
-    printf("[INFO] Initial enclave...");
+    printf("[INFO] Initial enclave...\n");
 	sgx_support = get_sgx_support();
 	if (sgx_support & SGX_SUPPORT_NO) {
 		printf("This system does not support Intel SGX.\n");
@@ -81,7 +81,14 @@ bool initialize_enclave(void)
         printf("Init enclave failed.\n");
         return false;
     }
-    printf("success\n");
+
+    /* Generate code measurement */
+
+    if(SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
+    {
+        printf("Generate code measurement failed!\n");
+        return false;
+    }
 
     return true;
 }
@@ -102,7 +109,7 @@ bool initialize_components(void)
     }
 
     /* API handler component */
-    if (new_api_handler(get_config()->api_base_url.c_str(), get_config()->api_base_post_url.c_str(), &global_eid) == NULL)
+    if (new_api_handler(get_config()->api_base_url.c_str(), &global_eid) == NULL)
     {
         printf("Init api handler failed.\n");
         return false;
@@ -251,13 +258,14 @@ bool entry_network(void)
     printf("ias quote report basename:%s\n",hexstring(quote->basename.name,32));
     printf("ias quote mr enclave     :%s\n",hexstring(&quote->report_body.mr_enclave,32));
 
-    // get base64 quote
+    // Get base64 quote
 	b64quote= base64_encode((char *) quote, sz);
 	if ( b64quote == NULL ) {
 		printf("Could not base64 encode quote\n");
 		return false;
 	}
 
+    // TODO: PSE supported to avoid some attacks
 	if (OPT_ISSET(flags, OPT_PSE)) {
 		b64manifest= base64_encode((char *) pse_manifest, pse_manifest_sz);
 		if ( b64manifest == NULL ) {
@@ -281,28 +289,30 @@ bool entry_network(void)
 	printf("\n}\n");
 
 
-    /* send quote to validation node */
+    /* Send quote to validation node */
 
     printf("[INFO] Sending quote to on-chain node...\n");
     web::http::client::http_client_config cfg;
-    cfg.set_timeout(std::chrono::seconds(get_config()->timeout));
-    web::http::client::http_client* self_api_client = new web::http::client::http_client(get_config()->entry_base_url.c_str(), cfg);
-    web::uri_builder builder(U("/entryNetwork"));
+    cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
+    web::http::client::http_client* self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str(), cfg);
+    web::uri_builder builder(U("/entry/network"));
     web::http::http_response response;
 
-    int tryout = get_config()->tryout;
-    while(tryout >= 0) {
+    // Send quote to validation node, try out 3 times for network error.
+    int net_tryout = IAS_TRYOUT;
+    while(net_tryout >= 0) {
         try {
             response = self_api_client->request(web::http::methods::POST, builder.to_string(), b64quote).get();
             break;
         } catch(const web::http::http_exception& e) {
             printf("[ERROR] HTTP Exception: %s\n", e.what());
-            printf("[INFO] Trying agin:%d\n", tryout);
+            printf("[INFO] Trying agin:%d\n", net_tryout);
         } catch(const std::exception& e) {
             printf("[ERROR] HTTP throw: %s\n", e.what());
-            printf("[INFO] Trying agin:%d\n", tryout);
+            printf("[INFO] Trying agin:%d\n", net_tryout);
         }
-        tryout--;
+        usleep(3000);
+        net_tryout--;
     }
 
     if ( response.status_code() != web::http::status_codes::OK ) 

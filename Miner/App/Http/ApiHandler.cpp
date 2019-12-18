@@ -10,14 +10,14 @@ const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "V
  * @param p_global_eid -> The point for sgx global eid 
  * @return: the point of API handler
  */
-ApiHandler *new_api_handler(const char *url, const char *post_url, sgx_enclave_id_t *p_global_eid)
+ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid)
 {
     if (api_handler != NULL)
     {
         delete api_handler;
     }
 
-    api_handler = new ApiHandler(url, post_url, p_global_eid);
+    api_handler = new ApiHandler(url, p_global_eid);
     return api_handler;
 }
 
@@ -41,13 +41,12 @@ ApiHandler *get_api_handler(void)
  * @param url -> API base url 
  * @param p_global_eid The point for sgx global eid  
  */
-ApiHandler::ApiHandler(utility::string_t url, utility::string_t post_url, sgx_enclave_id_t *p_global_eid_in) : m_listener(url), m_post_listener(post_url)
+ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in) : m_listener(url)
 {
     this->p_global_eid = p_global_eid_in;
     this->m_listener.support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
-    this->m_post_listener.support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
+    this->m_listener.support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
     this->m_listener.open().wait();
-    this->m_post_listener.open().wait();
 }
 
 /**
@@ -56,7 +55,6 @@ ApiHandler::ApiHandler(utility::string_t url, utility::string_t post_url, sgx_en
 ApiHandler::~ApiHandler()
 {
     this->m_listener.close().wait();
-    this->m_post_listener.close().wait();
     delete this->p_global_eid;
 }
 
@@ -125,29 +123,37 @@ void ApiHandler::handle_get(web::http::http_request message)
     return;
 };
 
+/**
+ * @description: handle post requests
+ * @param message -> http request message
+ */
 void ApiHandler::handle_post(web::http::http_request message)
 {
     sgx_status_t status_ret = SGX_SUCCESS;
 
     /* Deal with entry network */
 
-    if (message.relative_uri().path().compare("/entryNetwork") == 0)
+    if (message.relative_uri().path().compare("/entry/network") == 0)
     {
         int version = IAS_API_DEF_VERSION;
+        uint32_t qsz;
         std::string b64quote = utility::conversions::to_utf8string(message.extract_string().get());
-        int qsz = 1116;
-        printf("[INFO] Recieve quote from client successfully!\n");
+	    if (! get_quote_size(&status_ret, &qsz)) {
+	    	printf("[ERROR] PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+            message.reply(web::http::status_codes::InternalError, "InternalError");
+	    	return;
+	    }
+        
+        if (b64quote.size() == 0) 
+        {
+            message.reply(web::http::status_codes::InternalError, "InternalError");
+            return;
+        }
 
         size_t dqsz = 0;
         sgx_quote_t *quote = (sgx_quote_t*)malloc(qsz);
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
-        
-        if (b64quote.size() == 0) 
-        {
-            message.reply(web::http::status_codes::BadRequest, "BadRequest");
-            return;
-        }
 
         printf("[INFO] Store quote in enclave\n");
         if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char*)quote, qsz) != SGX_SUCCESS) 
@@ -159,7 +165,7 @@ void ApiHandler::handle_post(web::http::http_request message)
 
         /* Request IAS verification */
         web::http::client::http_client_config cfg;
-        cfg.set_timeout(std::chrono::seconds(get_config()->timeout));
+        cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
         web::http::client::http_client *self_api_client = new web::http::client::http_client(get_config()->ias_base_url.c_str(), cfg);
         web::http::http_request ias_request(web::http::methods::POST);
         ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(get_config()->ias_primary_subscription_key));
@@ -178,28 +184,30 @@ void ApiHandler::handle_post(web::http::http_request message)
 
         // Send quote to IAS service
         printf("[INFO] Sending quote to IAS service...");
-        int tryout = get_config()->tryout;
-        while( tryout >= 0) 
+        int net_tryout = IAS_TRYOUT;
+        while(net_tryout >= 0) 
         {
-            response = self_api_client->request(ias_request).get();
-
-            if ( response.status_code() != IAS_OK )
-            {
-                printf("\n[WARN] Get quote verification from IAS failed! Trying again: %d\n", tryout);
-                tryout--;
-                continue;
-            } 
-
-            resStr = response.extract_utf8string().get();
-            res_json = response.extract_json().get();
-
-            break;
+            try {
+                response = self_api_client->request(ias_request).get();
+                resStr = response.extract_utf8string().get();
+                res_json = response.extract_json().get();
+                break;
+            } catch(const web::http::http_exception& e) {
+                printf("[ERROR] HTTP Exception: %s\n", e.what());
+                printf("[INFO] Trying agin:%d\n", net_tryout);
+            } catch(const std::exception& e) {
+                printf("[ERROR] HTTP throw: %s\n", e.what());
+                printf("[INFO] Trying agin:%d\n", net_tryout);
+            }
+            usleep(3000);
+            net_tryout--;
         }
 
         if (response.status_code() != IAS_OK)
         {
             printf("failed\n");
             printf("[ERROR] Request IAS failed!\n");
+            message.reply(web::http::status_codes::InternalError, "InternalError");
             delete self_api_client;
             return;
         }
@@ -210,6 +218,7 @@ void ApiHandler::handle_post(web::http::http_request message)
         ias_report.push_back(res_headers["X-IASReport-Signature"].c_str());
         ias_report.push_back(resStr.c_str());
 
+        // TODO:log file
 		if ( get_config()->verbose ) {
 			printf("\nIAS Report - JSON - Required Fields\n");
 			if ( version >= 3 ) {
@@ -260,17 +269,14 @@ void ApiHandler::handle_post(web::http::http_request message)
         {
             if(ias_status_ret == IAS_VERIFY_SUCCESS) 
             {
-                // Send a verification request to chain
+                // TODO:Send a verification request to chain
                 printf("success\n");
-                message.reply(web::http::status_codes::OK, std::to_string(IAS_VERIFY_SUCCESS));
-            
+                message.reply(web::http::status_codes::OK, "Entry network successfully!");
             } 
             else 
             {
                 printf("failed\n");
                 switch(ias_status_ret) {
-                    case IAS_VERIFY_SUCCESS:
-                        break;
                     case IAS_BADREQUEST:
                         printf("Verify IAS report failed! Bad request!!\n");
                         break;
@@ -310,13 +316,14 @@ void ApiHandler::handle_post(web::http::http_request message)
                     default:
                         printf("Unknow return status!\n");
                 }
+                message.reply(web::http::status_codes::InternalError, "Verify IAS report failed!");
             }
         } 
         else 
         {
             printf("failed\n");
-	        printf("Error: Invoke verify ias report failed!\n");
-            message.reply(web::http::status_codes::InternalError, "Verify IAS report failed!");
+	        printf("Error: Invoke SGX api failed!\n");
+            message.reply(web::http::status_codes::InternalError, "Invoke SGX api failed!");
         }   
         delete self_api_client;
     }
