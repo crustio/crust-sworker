@@ -15,103 +15,11 @@ in the License.
 
 */
 
-#ifndef _WIN32
-#include "config.h"
-#endif
-#include "Enclave_t.h"
-#include "Enclave.h"
-#include "tSgxSSL_api.h"
-#include <sgx_report.h>
-#include <string>
-#include <vector>
-
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
-#include <openssl/cmac.h>
-#include <openssl/conf.h>
-#include <openssl/ec.h>
-#include <openssl/ecdsa.h>
-//#include <openssl/err.h>
-#include <openssl/bn.h>
-#include <openssl/x509v3.h>
-
-#define BUFSIZE		            2048
-#define REPORT_DATA_SIZE		64
+#include "Verify.h"
 
 using namespace std;
 
-string url_decode(string str);
-int cert_load_size (X509 **cert, const char *pemdata, size_t sz);
-int cert_load (X509 **cert, const char *pemdata);
-STACK_OF(X509) * cert_stack_build (X509 **certs);
-int cert_verify (X509_STORE *store, STACK_OF(X509) *chain);
-void cert_stack_free (STACK_OF(X509) *chain);
-int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
-    size_t sigsz, EVP_PKEY *pkey, int *result);
-X509_STORE * cert_init_ca(X509 *cert);
-char *base64_decode(const char *msg, size_t *sz);
-ias_status_t verify_ias_report(const char ** IASReport, int len);
-
 extern unsigned char offChain_report_data[];
-
-static enum _error_type {
-	e_none,
-	e_crypto,
-	e_system,
-	e_api
-} error_type= e_none;
-
-static const sgx_ec256_public_t def_service_public_key = {
-    {
-        0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
-        0x85, 0xd0, 0x3a, 0x62, 0x37, 0x30, 0xae, 0xad,
-        0x3e, 0x3d, 0xaa, 0xee, 0x9c, 0x60, 0x73, 0x1d,
-        0xb0, 0x5b, 0xe8, 0x62, 0x1c, 0x4b, 0xeb, 0x38
-    },
-    {
-        0xd4, 0x81, 0x40, 0xd9, 0x50, 0xe2, 0x57, 0x7b,
-        0x26, 0xee, 0xb7, 0x41, 0xe7, 0xc6, 0x14, 0xe2,
-        0x24, 0xb7, 0xbd, 0xc9, 0x03, 0xf2, 0x9a, 0x28,
-        0xa8, 0x3c, 0xc8, 0x10, 0x11, 0x14, 0x5e, 0x06
-    }
-
-};
-
-static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
-"MIIFSzCCA7OgAwIBAgIJANEHdl0yo7CUMA0GCSqGSIb3DQEBCwUAMH4xCzAJBgNV" "\n"
-"BAYTAlVTMQswCQYDVQQIDAJDQTEUMBIGA1UEBwwLU2FudGEgQ2xhcmExGjAYBgNV" "\n"
-"BAoMEUludGVsIENvcnBvcmF0aW9uMTAwLgYDVQQDDCdJbnRlbCBTR1ggQXR0ZXN0" "\n"
-"YXRpb24gUmVwb3J0IFNpZ25pbmcgQ0EwIBcNMTYxMTE0MTUzNzMxWhgPMjA0OTEy" "\n"
-"MzEyMzU5NTlaMH4xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDQTEUMBIGA1UEBwwL" "\n"
-"U2FudGEgQ2xhcmExGjAYBgNVBAoMEUludGVsIENvcnBvcmF0aW9uMTAwLgYDVQQD" "\n"
-"DCdJbnRlbCBTR1ggQXR0ZXN0YXRpb24gUmVwb3J0IFNpZ25pbmcgQ0EwggGiMA0G" "\n"
-"CSqGSIb3DQEBAQUAA4IBjwAwggGKAoIBgQCfPGR+tXc8u1EtJzLA10Feu1Wg+p7e" "\n"
-"LmSRmeaCHbkQ1TF3Nwl3RmpqXkeGzNLd69QUnWovYyVSndEMyYc3sHecGgfinEeh" "\n"
-"rgBJSEdsSJ9FpaFdesjsxqzGRa20PYdnnfWcCTvFoulpbFR4VBuXnnVLVzkUvlXT" "\n"
-"L/TAnd8nIZk0zZkFJ7P5LtePvykkar7LcSQO85wtcQe0R1Raf/sQ6wYKaKmFgCGe" "\n"
-"NpEJUmg4ktal4qgIAxk+QHUxQE42sxViN5mqglB0QJdUot/o9a/V/mMeH8KvOAiQ" "\n"
-"byinkNndn+Bgk5sSV5DFgF0DffVqmVMblt5p3jPtImzBIH0QQrXJq39AT8cRwP5H" "\n"
-"afuVeLHcDsRp6hol4P+ZFIhu8mmbI1u0hH3W/0C2BuYXB5PC+5izFFh/nP0lc2Lf" "\n"
-"6rELO9LZdnOhpL1ExFOq9H/B8tPQ84T3Sgb4nAifDabNt/zu6MmCGo5U8lwEFtGM" "\n"
-"RoOaX4AS+909x00lYnmtwsDVWv9vBiJCXRsCAwEAAaOByTCBxjBgBgNVHR8EWTBX" "\n"
-"MFWgU6BRhk9odHRwOi8vdHJ1c3RlZHNlcnZpY2VzLmludGVsLmNvbS9jb250ZW50" "\n"
-"L0NSTC9TR1gvQXR0ZXN0YXRpb25SZXBvcnRTaWduaW5nQ0EuY3JsMB0GA1UdDgQW" "\n"
-"BBR4Q3t2pn680K9+QjfrNXw7hwFRPDAfBgNVHSMEGDAWgBR4Q3t2pn680K9+Qjfr" "\n"
-"NXw7hwFRPDAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0TAQH/BAgwBgEB/wIBADANBgkq" "\n"
-"hkiG9w0BAQsFAAOCAYEAeF8tYMXICvQqeXYQITkV2oLJsp6J4JAqJabHWxYJHGir" "\n"
-"IEqucRiJSSx+HjIJEUVaj8E0QjEud6Y5lNmXlcjqRXaCPOqK0eGRz6hi+ripMtPZ" "\n"
-"sFNaBwLQVV905SDjAzDzNIDnrcnXyB4gcDFCvwDFKKgLRjOB/WAqgscDUoGq5ZVi" "\n"
-"zLUzTqiQPmULAQaB9c6Oti6snEFJiCQ67JLyW/E83/frzCmO5Ru6WjU4tmsmy8Ra" "\n"
-"Ud4APK0wZTGtfPXU7w+IBdG5Ez0kE1qzxGQaL4gINJ1zMyleDnbuS8UicjJijvqA" "\n"
-"152Sq049ESDz+1rRGc2NVEqh1KaGXmtXvqxXcTB+Ljy5Bw2ke0v8iGngFBPqCTVB" "\n"
-"3op5KBG3RjbF6RRSzwzuWfL7QErNC8WEy5yDVARzTA5+xmBc388v9Dm21HGfcC8O" "\n"
-"DD+gT9sSpssq0ascmvH49MOgjt1yoysLtdCtJW/9FZpoOypaHx0R+mJTLwPXVMrv" "\n"
-"DaVzWh5aiEx+idkSGMnX" "\n"
-"-----END CERTIFICATE-----";
-
-
-#define PSE_RETRIES	5	/* Arbitrary. Not too long, not too short. */
 
 /*----------------------------------------------------------------------
  * WARNING
@@ -138,26 +46,6 @@ static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
  *
  *----------------------------------------------------------------------
  */
-
-void printf(const char *fmt, ...)
-{
-    char buf[BUFSIZE] = {'\0'};
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
-    va_end(ap);
-    uprintf(buf);
-}
-
-void printfHexString(const char *fmt, ...)
-{
-    char buf[BUFSIZE] = {'\0'};
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
-    va_end(ap);
-    uprintfHexString(buf);
-}
 
 string url_decode(string str)
 {
@@ -195,17 +83,17 @@ int cert_load_size (X509 **cert, const char *pemdata, size_t sz)
 
 	bmem= BIO_new(BIO_s_mem());
 	if ( bmem == NULL ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		goto cleanup;
 	}
 
 	if ( BIO_write(bmem, pemdata, (int) sz) != (int) sz ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		goto cleanup;
 	}
 
 	*cert= PEM_read_bio_X509(bmem, NULL, NULL, NULL);
-	//if ( *cert == NULL ) error_type= e_crypto;
+	if ( *cert == NULL ) error_type= e_crypto;
 
 cleanup:
 	if ( bmem != NULL ) BIO_free(bmem);
@@ -231,7 +119,7 @@ STACK_OF(X509) * cert_stack_build (X509 **certs)
 
 	stack= sk_X509_new_null();
 	if ( stack == NULL ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		return NULL;
 	}
 
@@ -256,16 +144,16 @@ int cert_verify (X509_STORE *store, STACK_OF(X509) *chain)
 
 	ctx= X509_STORE_CTX_new();
 	if ( ctx == NULL ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		return 0;
 	}
 
 	if ( X509_STORE_CTX_init(ctx, store, cert, chain) != 1 ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		goto cleanup;
 	}
 
-	//if ( X509_verify_cert(ctx) != 1 ) error_type=e_crypto;
+	if ( X509_verify_cert(ctx) != 1 ) error_type=e_crypto;
 
 cleanup:
 	if ( ctx != NULL ) X509_STORE_CTX_free(ctx);
@@ -291,21 +179,21 @@ int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
 
 	ctx= EVP_MD_CTX_new();
 	if ( ctx == NULL ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		goto cleanup;
 	}
 
 	if ( EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, pkey) != 1 ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		goto cleanup;
 	}
 
 	if ( EVP_DigestVerifyUpdate(ctx, msg, mlen) != 1 ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		goto cleanup;
 	}
 
-	//if ( EVP_DigestVerifyFinal(ctx, sig, sigsz) != 1 ) error_type= e_crypto;
+	if ( EVP_DigestVerifyFinal(ctx, sig, sigsz) != 1 ) error_type= e_crypto;
 
 cleanup:
 	if ( ctx != NULL ) EVP_MD_CTX_free(ctx);
@@ -320,13 +208,13 @@ X509_STORE * cert_init_ca(X509 *cert)
 
 	store= X509_STORE_new();
 	if ( store == NULL ) {
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		return NULL;
 	}
 
 	if ( X509_STORE_add_cert(store, cert) != 1 ) {
 		X509_STORE_free(store);
-		//error_type= e_crypto;
+		error_type= e_crypto;
 		return NULL;
 	}
 
@@ -361,7 +249,7 @@ char *base64_decode(const char *msg, size_t *sz)
 	return buf;
 }
 
-ias_status_t verify_ias_report(const char ** IASReport, int len)
+ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
 {
     string certchain;
     size_t cstart, cend, count, i;
@@ -374,7 +262,7 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
     size_t sigsz;
     X509 *sign_cert;
     EVP_PKEY *pkey= NULL;
-    ias_status_t status;
+    ias_status_t status = IAS_VERIFY_SUCCESS;
     unsigned char *sig= NULL;
     string content;
     BIO *bio_mem = BIO_new(BIO_s_mem());
@@ -408,7 +296,7 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
 
 	// Get the certificate chain from the headers 
 
-	certchain= response[1];
+	certchain= response[0];
 	if ( certchain == "" ) {
         return IAS_BAD_CERTIFICATE;
 	}
@@ -468,7 +356,7 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
 
 	// The signing cert is valid, so extract and verify the signature
 
-	sigstr= response[3];
+	sigstr= response[1];
 	if ( sigstr == "" ) {
 		status= IAS_BAD_SIGNATURE;
 		goto cleanup;
@@ -494,9 +382,10 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
 		goto cleanup;
 	}
 
-	content= response[5];
+	content= response[2];
 
     // verify IAS signature
+
 	if ( ! sha256_verify((const unsigned char *) content.c_str(),
 		content.length(), sig, sigsz, pkey, &rv) ) {
 
@@ -519,7 +408,6 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
     quoteSPos = content.find("\":\"",quoteSPos) + 3;
     quoteEPos = content.size() - 2;
     iasQuoteBodyStr = content.substr(quoteSPos, quoteEPos - quoteSPos);
-    printf("iasQuoteBody:%s\n", iasQuoteBodyStr.c_str());
 
     iasQuote = (sgx_quote_t*)malloc(sizeof(sgx_quote_t));
     memset(iasQuote, 0, sizeof(sgx_quote_t));
@@ -527,8 +415,8 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
     memcpy(iasQuote, p_decode_quote_body, qbsz);
     iasReportBody = &iasQuote->report_body;
 
-    //printfHexString("report_data    : %s\n", &iasReportBody->report_data);
-    //printfHexString("report_data org: %s\n", offChain_report_data);
+    //eprintfhexstring("report_data    : %s\n", &iasReportBody->report_data);
+    //eprintfhexstring("report_data org: %s\n", offChain_report_data);
 
     // This report data is our ecc public key
     // should be equal to the one contained in IAS report
@@ -547,7 +435,7 @@ ias_status_t verify_ias_report(const char ** IASReport, int len)
     if(SGX_SUCCESS != sgx_status) {
         status = IAS_GET_REPORT_FAILED;
     } else {
-        //printfHexString("%s", &verify_report.body.mr_enclave);
+        //eprintfhexstring("%s", &verify_report.body.mr_enclave);
         // The mr_enclave should be equal to the one contained in IAS report
         if ( memcmp(&iasReportBody->mr_enclave, &verify_report.body.mr_enclave, 
             sizeof(sgx_measurement_t)) != 0 ) {

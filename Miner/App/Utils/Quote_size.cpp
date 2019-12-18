@@ -21,7 +21,7 @@ in the License.
 # include "sgx_stub.h"
 #endif
 #include <sgx_urts.h>
-#include "quote_size.h"
+#include "Quote_size.h"
 
 #ifndef NULL
 # define NULL 0

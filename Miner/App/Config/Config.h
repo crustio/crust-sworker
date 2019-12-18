@@ -6,6 +6,8 @@
 #include <fstream>
 #include <cpprest/json.h>
 
+#define IAS_API_DEF_VERSION     3
+
 class Config
 {
 public:
@@ -13,8 +15,24 @@ public:
     size_t empty_capacity;
     std::string ipfs_api_base_url;
     std::string api_base_url;
+    std::string api_base_post_url;
     Config(std::string path);
     void show();
+    // entry network related
+    std::string spid;
+    int linkable;
+    int random_nonce;
+    int use_platform_services;
+    std::string ias_primary_subscription_key;
+    std::string ias_secondary_subscription_key;
+    std::string entry_base_url;
+    std::string ias_base_url;
+    std::string ias_base_path;
+    size_t flags;
+    int debug = 0;
+    int verbose = 0;
+    int timeout = 0;
+    int tryout = 0;
 };
 
 Config *new_config(const char *path);

@@ -11,12 +11,19 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include "../Ipfs/Ipfs.h"
-#include "../Utils/FileUtils.h"
-#include "../Utils/FormatUtils.h"
+#include "FileUtils.h"
+#include "FormatUtils.h"
+
+#define HEXSTRING_BUF   256
 
 void ocall_print_string(const char *str)
 {
     printf("%s", str);
+}
+
+void ocall_printhexstring(const char *str)
+{
+    printf("%s", hexstring(str, HEXSTRING_BUF));
 }
 
 void ocall_create_dir(const char *path)

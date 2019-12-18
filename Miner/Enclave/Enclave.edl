@@ -4,17 +4,26 @@ enclave {
     include "Node.h"
     include "ValidationStatus.h"
 
+	include "IASReport.h"
+
     from "PlotDisk/PlotDisk.edl" import *;
+
+    from "sgx_tsgxssl.edl" import *;
 
     trusted {
         public void ecall_main_loop([in, string] const char* empty_path);
         public enum ValidationStatus ecall_return_validation_status();
         public void ecall_get_validation_report([out, size=len] char *report, size_t len);
         public size_t ecall_generate_validation_report([in, string] const char *block_hash); 
+
+		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
+		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, int len);
+        public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, int len);
     };
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
+        void ocall_printhexstring([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
         void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
         void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);

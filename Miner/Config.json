@@ -2,5 +2,20 @@
     "emptyPath" : "empty_store",
     "emptyCapacity" : 4,
     "ipfsApiBaseUrl" : "http://127.0.0.1:5001/api/v0",
-    "apiBaseUrl": "http://0.0.0.0:12222/api/v0"
+    "apiBaseUrl": "http://0.0.0.0:12222/api/v0",
+    "apiBasePostUrl": "http://0.0.0.0:12222/api/v1",
+    "spid": "FEF23C7E73A379823CE71FF289CFBC07",
+    "linkable": 1,
+    "random_nonce": 1,
+    "use_platform_services": 0,
+    "ias_primary_subscription_key": "e2e08166ca0f41ef88af2797f007c7cd",
+    "ias_secondary_subscription_key": "2ecdd9cb7a004f3e8e0e45ed2ebd1fb4",
+    "entry_base_url": "http://0.0.0.0:12222/api/v1",
+    "ias_base_url": "https://api.trustedservices.intel.com/sgx/dev",
+    "ias_base_path": "/attestation/v3/report",
+    "flags": 4,
+    "debug": 0,
+    "verbose": 0,
+    "timeout": 30,
+    "tryout": 3
 }
