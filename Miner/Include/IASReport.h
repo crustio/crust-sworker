@@ -6,7 +6,7 @@
 #define IAS_TRYOUT          3
 #define IAS_TIMEOUT         30
 
-#define IAS_MK_ERROR(x)              (0x00000000|(x))
+#define IAS_MK_ERROR(x)     (0x00000000|(x))
 
 typedef enum _ias_status_t
 {
@@ -22,11 +22,23 @@ typedef enum _ias_status_t
     IAS_INTERNAL_ERROR      = IAS_MK_ERROR(1000),
     IAS_BAD_CERTIFICATE     = IAS_MK_ERROR(1001),
     IAS_BAD_SIGNATURE       = IAS_MK_ERROR(1002),
-    IAS_REPORTDATA_NE       = IAS_MK_ERROR(1003),
-    IAS_GET_REPORT_FAILED   = IAS_MK_ERROR(1004),
-    IAS_BADMEASUREMENT      = IAS_MK_ERROR(1005),
-    IAS_GETPUBKEY_FAILED    = IAS_MK_ERROR(1006),
+    IAS_BAD_BODY            = IAS_MK_ERROR(1003),
+    IAS_REPORTDATA_NE       = IAS_MK_ERROR(1004),
+    IAS_GET_REPORT_FAILED   = IAS_MK_ERROR(1005),
+    IAS_BADMEASUREMENT      = IAS_MK_ERROR(1006),
+    IAS_GETPUBKEY_FAILED    = IAS_MK_ERROR(1007),
+    CRUST_SIGN_PUBKEY_FAILED= IAS_MK_ERROR(1008),
 } ias_status_t;
+
+typedef struct _entry_network_signature {
+    uint8_t data[REPORT_DATA_SIZE];
+    sgx_ec256_signature_t signature;
+} entry_network_signature;
+
+typedef struct _ecc_key_pair {
+    sgx_ec256_public_t pub_key;
+    sgx_ec256_private_t pri_key;
+} ecc_key_pair;
 
 #endif /* !_CRUST_IASREPORTE_H_ */
 

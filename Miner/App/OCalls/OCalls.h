@@ -10,11 +10,11 @@
 #include <vector>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
-#include "../Ipfs/Ipfs.h"
+#include "Ipfs.h"
 #include "FileUtils.h"
 #include "FormatUtils.h"
 
-#define HEXSTRING_BUF   32
+#define HEXSTRING_BUF   128
 
 /**
  * @description: ocall for printing string

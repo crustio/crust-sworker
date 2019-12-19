@@ -90,6 +90,17 @@ bool initialize_enclave(void)
         return false;
     }
 
+    /* Generate ecc key pair */
+    if ( run_as_server )
+    {
+        if ( SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret) )
+        {
+            printf("Generate key pair failed!\n");
+            return false;
+        }
+    }
+
+
     return true;
 }
 
@@ -127,8 +138,8 @@ bool entry_network(void)
 {
 	sgx_quote_sign_type_t linkable= SGX_UNLINKABLE_SIGNATURE;
 	sgx_status_t status, sgxrv;
-	size_t pse_manifest_sz;
-	char *pse_manifest = NULL;
+	//size_t pse_manifest_sz;
+	//char *pse_manifest = NULL;
 	sgx_report_t report;
 	sgx_report_t qe_report;
 	sgx_quote_t *quote;
@@ -251,7 +262,7 @@ bool entry_network(void)
             sizeof(quote->report_body.report_data.d)));
     printf("ias quote report version :%d\n",quote->version);
     printf("ias quote report signtype:%d\n",quote->sign_type);
-    printf("ias quote report epid    :%d\n",quote->epid_group_id);
+    printf("ias quote report epid    :%d\n",*quote->epid_group_id);
     printf("ias quote report qe svn  :%d\n",quote->qe_svn);
     printf("ias quote report pce svn :%d\n",quote->pce_svn);
     printf("ias quote report xeid    :%d\n",quote->xeid);
@@ -266,14 +277,14 @@ bool entry_network(void)
 	}
 
     // TODO: PSE supported to avoid some attacks
-	if (OPT_ISSET(flags, OPT_PSE)) {
+	/*if (OPT_ISSET(flags, OPT_PSE)) {
 		b64manifest= base64_encode((char *) pse_manifest, pse_manifest_sz);
 		if ( b64manifest == NULL ) {
 			free(b64quote);
 			printf("Could not base64 encode manifest\n");
 			return false;
 		}
-	}
+	}*/
 
 	printf("{\n");
 	printf("\"isvEnclaveQuote\":\"%s\"", b64quote);

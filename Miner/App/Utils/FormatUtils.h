@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -21,10 +22,6 @@ char *hexstring(const void *src, size_t len);
 
 char *base64_encode(const char *msg, size_t sz);
 char *base64_decode(const char *msg, size_t *sz);
-
-static char *_hex_buffer= NULL;
-static size_t _hex_buffer_size= 0;
-const char _hextable[]= "0123456789abcdef";
 
 #ifdef __cplusplus
 };

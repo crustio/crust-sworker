@@ -1,5 +1,9 @@
 #include "FormatUtils.h"
 
+static char *_hex_buffer= NULL;
+static size_t _hex_buffer_size= 0;
+const char _hextable[]= "0123456789abcdef";
+
 int char_to_int(char input)
 {
     if (input >= '0' && input <= '9')
@@ -20,6 +24,9 @@ void hex_string_to_bytes(const char *src, unsigned char *target)
     }
 }
 
+/**
+ * @description: Print hexstring
+ * */
 void print_hexstring (FILE *fp, const void *vsrc, size_t len)
 {
 	const unsigned char *sp= (const unsigned char *) vsrc;
@@ -29,6 +36,10 @@ void print_hexstring (FILE *fp, const void *vsrc, size_t len)
 	}
 }
 
+/**
+ * @description: Dehexstring data
+ * @return: status
+ * */
 int from_hexstring (unsigned char *dest, const void *vsrc, size_t len)
 {
 	size_t i;
@@ -47,6 +58,10 @@ int from_hexstring (unsigned char *dest, const void *vsrc, size_t len)
 	return 1;
 }
 
+/**
+ * @description: Transform string to hexstring
+ * @return: Hexstringed data
+ * */
 char *hexstring (const void *vsrc, size_t len)
 {
 	size_t i, bsz;
@@ -65,9 +80,9 @@ char *hexstring (const void *vsrc, size_t len)
 	}
 
 	for(i= 0, bp= _hex_buffer; i< len; ++i) {
-		*bp= _hextable[src[i]>>4];
+		*bp= (uint8_t)_hextable[src[i]>>4];
 		++bp;
-		*bp= _hextable[src[i]&0xf];
+		*bp= (uint8_t)_hextable[src[i]&0xf];
 		++bp;
 	}
 	_hex_buffer[len*2]= 0;
@@ -75,11 +90,15 @@ char *hexstring (const void *vsrc, size_t len)
 	return _hex_buffer;
 }
 
+/**
+ * @description: Base64 encode data
+ * @return: Base64 encoded data
+ * */
 char *base64_encode(const char *msg, size_t sz)
 {
 	BIO *b64, *bmem;
 	char *bstr, *dup;
-	int len;
+	size_t len;
 
 	b64= BIO_new(BIO_f_base64());
 	bmem= BIO_new(BIO_s_mem());
@@ -97,7 +116,7 @@ char *base64_encode(const char *msg, size_t sz)
 
 	BIO_flush(b64);
 
-	len= BIO_get_mem_data(bmem, &bstr);
+	len= (size_t)BIO_get_mem_data(bmem, &bstr);
 	dup= (char *) malloc(len+1);
 	if ( dup == NULL ) {
 		BIO_free(bmem);
@@ -114,7 +133,10 @@ char *base64_encode(const char *msg, size_t sz)
 	return dup;
 }
 
-
+/**
+ * @description: Base64 decode data
+ * @return: Decoded data
+ * */
 char *base64_decode(const char *msg, size_t *sz)
 {
 	BIO *b64, *bmem;
@@ -132,14 +154,15 @@ char *base64_decode(const char *msg, size_t *sz)
 
 	BIO_push(b64, bmem);
 
-	*sz= BIO_read(b64, buf, (int) len);
-	if ( *sz == -1 ) {
+    int rsz = BIO_read(b64, buf, (int) len);
+	if ( rsz == -1 ) {
 		free(buf);
 		return NULL;
 	}
+
+    *sz = (size_t)rsz;
 
 	BIO_free_all(bmem);
 
 	return buf;
 }
-

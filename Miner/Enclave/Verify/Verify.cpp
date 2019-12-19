@@ -1,54 +1,24 @@
-/*
-
-Copyright 2018 Intel Corporation
-
-This software and the related documents are Intel copyrighted materials,
-and your use of them is governed by the express license under which they
-were provided to you (License). Unless the License provides otherwise,
-you may not use, modify, copy, publish, distribute, disclose or transmit
-this software or the related documents without Intel's prior written
-permission.
-
-This software and the related documents are provided as is, with no
-express or implied warranties, other than those that are expressly stated
-in the License.
-
-*/
-
 #include "Verify.h"
 
 using namespace std;
 
-extern unsigned char offChain_report_data[];
+extern uint8_t offChain_report_data[];
 
 extern sgx_measurement_t current_mr_enclave;
 
-/*----------------------------------------------------------------------
- * WARNING
- *----------------------------------------------------------------------
- *
- * End developers should not normally be calling these functions
- * directly when doing remote attestation:
- *
- *    sgx_get_ps_sec_prop()
- *    sgx_get_quote()
- *    sgx_get_quote_size()
- *    sgx_get_report()
- *    sgx_init_quote()
- *
- * These functions short-circuits the RA process in order
- * to generate an enclave quote directly!
- *
- * The high-level functions provided for remote attestation take
- * care of the low-level details of quote generation for you:
- *
- *   sgx_ra_init()
- *   sgx_ra_get_msg1
- *   sgx_ra_proc_msg2
- *
- *----------------------------------------------------------------------
- */
+extern ecc_key_pair id_key_pair;
 
+static enum _error_type {
+	e_none,
+	e_crypto,
+	e_system,
+	e_api
+} error_type = e_none;
+
+/**
+ * @description: used to decode url in cert
+ * @return: decoded url
+ * */
 string url_decode(string str)
 {
 	string decoded;
@@ -78,6 +48,10 @@ string url_decode(string str)
 	return decoded;
 }
 
+/**
+ * @description: Load cert
+ * @return: Load status
+ * */
 int cert_load_size (X509 **cert, const char *pemdata, size_t sz)
 {
 	BIO * bmem;
@@ -103,15 +77,19 @@ cleanup:
 	return (error_type == e_none);
 }
 
+/**
+ * @description: Load cert based on data size
+ * @return: Load status
+ * */
 int cert_load (X509 **cert, const char *pemdata)
 {
 	return cert_load_size(cert, pemdata, strlen(pemdata));
 }
 
-/*
- * Take an array of certificate pointers and build a stack.
+/**
+ * @description: Take an array of certificate pointers and build a stack.
+ * @return: x509 cert
  */
-
 STACK_OF(X509) * cert_stack_build (X509 **certs)
 {
 	X509 **pcert;
@@ -130,13 +108,13 @@ STACK_OF(X509) * cert_stack_build (X509 **certs)
 	return stack;
 }
 
-/*
- * Verify cert chain against our CA in store. Assume the first cert in
- * the chain is the one to validate. Note that a store context can only
- * be used for a single verification so we need to do this every time
- * we want to validate a cert.
+/**
+ * @description: Verify cert chain against our CA in store. Assume the first cert in
+ *   the chain is the one to validate. Note that a store context can only
+ *   be used for a single verification so we need to do this every time
+ *   we want to validate a cert.
+ * @return: Verify status
  */
-
 int cert_verify (X509_STORE *store, STACK_OF(X509) *chain)
 {
 	X509_STORE_CTX *ctx;
@@ -168,12 +146,12 @@ void cert_stack_free (STACK_OF(X509) *chain)
 	sk_X509_free(chain);
 }
 
-/*==========================================================================
- * HMAC
- *========================================================================== */
-
-int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
-    size_t sigsz, EVP_PKEY *pkey, int *result)
+/**
+ * @description: Verify content signature
+ * @return: Verify status
+ * */
+int sha256_verify(const uint8_t *msg, size_t mlen, uint8_t *sig,
+    size_t sigsz, EVP_PKEY *pkey)
 {
 	EVP_MD_CTX *ctx;
 
@@ -202,6 +180,10 @@ cleanup:
 	return (error_type == e_none);
 }
 
+/**
+ * @description: Init CA
+ * @return: x509 store
+ * */
 X509_STORE * cert_init_ca(X509 *cert)
 {
 	X509_STORE *store;
@@ -223,6 +205,10 @@ X509_STORE * cert_init_ca(X509 *cert)
 	return store;
 }
 
+/**
+ * @description: base64 decode function
+ * @return: Decoded result
+ * */
 char *base64_decode(const char *msg, size_t *sz)
 {
 	BIO *b64, *bmem;
@@ -240,18 +226,25 @@ char *base64_decode(const char *msg, size_t *sz)
 
 	BIO_push(b64, bmem);
 
-	*sz= BIO_read(b64, buf, (int) len);
-	if ( *sz == -1 ) {
+	int rsz = BIO_read(b64, buf, (int) len);
+	if ( rsz == -1 ) {
 		free(buf);
 		return NULL;
 	}
+
+    *sz = rsz;
 
 	BIO_free_all(bmem);
 
 	return buf;
 }
 
-ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
+/**
+ * @description: Verify IAS report
+ * @return: Verify status
+ * */
+ias_status_t ecall_verify_iasreport_real(const char ** IASReport, size_t size, 
+        entry_network_signature *p_ensig)
 {
     string certchain;
     size_t cstart, cend, count, i;
@@ -265,21 +258,23 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
     X509 *sign_cert;
     EVP_PKEY *pkey= NULL;
     ias_status_t status = IAS_VERIFY_SUCCESS;
-    unsigned char *sig= NULL;
+    uint8_t *sig= NULL;
     string content;
-    BIO *bio_mem = BIO_new(BIO_s_mem());
-    BIO_puts(bio_mem, INTELSGXATTROOTCA);
-    X509 * intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
-    vector<string> response(IASReport, IASReport + len);
     int quoteSPos = 0;
     int quoteEPos = 0;
     string iasQuoteBodyStr;
     sgx_quote_t *iasQuote;
     sgx_report_body_t *iasReportBody;
     char *p_decode_quote_body = NULL;
-    char *p_decode_ = NULL;
     size_t qbsz;
     sgx_status_t sgx_status;
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_ec256_signature_t ecc_signature;
+
+    BIO *bio_mem = BIO_new(BIO_s_mem());
+    BIO_puts(bio_mem, INTELSGXATTROOTCA);
+    X509 * intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
+    vector<string> response(IASReport, IASReport + size);
 
 	/*
 	 * The response body has the attestation report. The headers have
@@ -296,7 +291,8 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
 	// Get the certificate chain from the headers 
 
 	certchain= response[0];
-	if ( certchain == "" ) {
+	if ( certchain == "" ) 
+    {
         return IAS_BAD_CERTIFICATE;
 	}
 
@@ -330,8 +326,9 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
 	count= certvec.size();
 
 	certar= (X509**) malloc(sizeof(X509 *)*(count+1));
-	if ( certar == 0 ) {
-		return IAS_INTERNAL_ERROR;
+	if ( certar == 0 ) 
+    {
+        return IAS_INTERNAL_ERROR;
 	}
 	for (i= 0; i< count; ++i) certar[i]= certvec[i];
 	certar[count]= NULL;
@@ -339,30 +336,34 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
 	// Create a STACK_OF(X509) stack from our certs
 
 	stack= cert_stack_build(certar);
-	if ( stack == NULL ) {
-		status= IAS_INTERNAL_ERROR;
-		goto cleanup;
+	if ( stack == NULL ) 
+    {   
+        status= IAS_INTERNAL_ERROR;
+        goto cleanup;
 	}
 
 	// Now verify the signing certificate
 
 	rv= cert_verify(cert_init_ca(intelRootPemX509), stack);
 
-	if ( ! rv ) {
-		status= IAS_BAD_CERTIFICATE;
-		goto cleanup;
+	if ( ! rv ) 
+    {
+        status= IAS_BAD_CERTIFICATE;
+        goto cleanup;
 	}
 
 	// The signing cert is valid, so extract and verify the signature
 
 	sigstr= response[1];
-	if ( sigstr == "" ) {
+	if ( sigstr == "" ) 
+    {
 		status= IAS_BAD_SIGNATURE;
 		goto cleanup;
 	}
 
-	sig= (unsigned char *) base64_decode(sigstr.c_str(), &sigsz);
-	if ( sig == NULL ) {
+	sig= (uint8_t *) base64_decode(sigstr.c_str(), &sigsz);
+	if ( sig == NULL ) 
+    {
 		status= IAS_BAD_SIGNATURE;
 		goto cleanup;
 	}
@@ -376,7 +377,8 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
 	 */
 
 	pkey= X509_get_pubkey(sign_cert);
-	if ( pkey == NULL ) {
+	if ( pkey == NULL ) 
+    {
 		status= IAS_GETPUBKEY_FAILED;
 		goto cleanup;
 	}
@@ -385,54 +387,72 @@ ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len)
 
     // verify IAS signature
 
-	if ( ! sha256_verify((const unsigned char *) content.c_str(),
-		content.length(), sig, sigsz, pkey, &rv) ) {
-
-        // do sha256_verify failed
+	if ( ! sha256_verify((const uint8_t *)content.c_str(), content.length(), sig, sigsz, pkey) ) 
+    {
 		status= IAS_BAD_SIGNATURE;
         goto cleanup;
-	} else {
-		if ( rv ) {
-			status= IAS_VERIFY_SUCCESS;
-		} else {
-			status= IAS_BAD_SIGNATURE;
-            goto cleanup;
-		}
+	} 
+    else 
+    {
+		status= IAS_VERIFY_SUCCESS;
 	}
 
 
     /* Verify quote */
     
-    quoteSPos = content.find("\"isvEnclaveQuoteBody\":\"");
-    quoteSPos = content.find("\":\"",quoteSPos) + 3;
-    quoteEPos = content.size() - 2;
+    quoteSPos = (int)content.find("\"isvEnclaveQuoteBody\":\"");
+    quoteSPos = (int)content.find("\":\"",quoteSPos) + 3;
+    quoteEPos = (int)content.size() - 2;
     iasQuoteBodyStr = content.substr(quoteSPos, quoteEPos - quoteSPos);
+
+    p_decode_quote_body = base64_decode(iasQuoteBodyStr.c_str(), &qbsz);
+    if ( p_decode_quote_body == NULL )
+    {
+        status = IAS_BAD_BODY;
+        goto cleanup;
+    }
 
     iasQuote = (sgx_quote_t*)malloc(sizeof(sgx_quote_t));
     memset(iasQuote, 0, sizeof(sgx_quote_t));
-    p_decode_quote_body = base64_decode(iasQuoteBodyStr.c_str(), &qbsz);
     memcpy(iasQuote, p_decode_quote_body, qbsz);
     iasReportBody = &iasQuote->report_body;
 
-    //eprintfHexString("report_data    : %s\n", &iasReportBody->report_data);
-    //eprintfHexString("report_data org: %s\n", offChain_report_data);
-
-    // This report data is our ecc public key
+    // This report data is our ecc public key 
     // should be equal to the one contained in IAS report
-    if( memcmp(iasReportBody->report_data.d, offChain_report_data, REPORT_DATA_SIZE) != 0 ) {
+    if( memcmp(iasReportBody->report_data.d, offChain_report_data, REPORT_DATA_SIZE) != 0 ) 
+    {
         status = IAS_REPORTDATA_NE;
         goto cleanup;
-    } else {
-        status = IAS_VERIFY_SUCCESS;
-    }
+    } 
     
     // The mr_enclave should be equal to the one contained in IAS report
-    //eprintfHexString("%s", &current_mr_enclave);
-    if ( memcmp(&iasReportBody->mr_enclave, &current_mr_enclave, sizeof(sgx_measurement_t)) != 0 ) {
+    if ( memcmp(&iasReportBody->mr_enclave, &current_mr_enclave, sizeof(sgx_measurement_t)) != 0 ) 
+    {
         status = IAS_BADMEASUREMENT;
-    } else {
-        status = IAS_VERIFY_SUCCESS;
+        goto cleanup;
+    } 
+
+    // Sign entry network node's public key
+    sgx_status = sgx_ecc256_open_context(&ecc_state);
+    if ( SGX_SUCCESS != sgx_status )
+    {
+        status = CRUST_SIGN_PUBKEY_FAILED;
+        goto cleanup;
     }
+
+    sgx_status = sgx_ecdsa_sign((const uint8_t*)offChain_report_data, 
+                                REPORT_DATA_SIZE, 
+                                &id_key_pair.pri_key,
+                                &ecc_signature,
+                                ecc_state);
+    if ( SGX_SUCCESS != sgx_status )
+    {
+        status = CRUST_SIGN_PUBKEY_FAILED;
+        goto cleanup;
+    }
+
+    memcpy(&p_ensig->data, offChain_report_data, REPORT_DATA_SIZE);
+    memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
 
 
 cleanup:
@@ -442,6 +462,7 @@ cleanup:
 	for (i= 0; i<count; ++i) X509_free(certvec[i]);
 	free(sig);
     free(iasQuote);
+    if ( ecc_state != NULL ) sgx_ecc256_close_context(ecc_state);
 
 	return status;
 }

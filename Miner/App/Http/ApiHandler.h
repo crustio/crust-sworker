@@ -14,7 +14,7 @@
 #include "Config.h"
 #include "FormatUtils.h"
 #include "IASReport.h"
-#include "Quote_size.h"
+#include "sgx_support.h"
 
 class ApiHandler
 {

@@ -135,8 +135,10 @@ void ApiHandler::handle_post(web::http::http_request message)
 
     if (message.relative_uri().path().compare("/entry/network") == 0)
     {
-        int version = IAS_API_DEF_VERSION;
+        //int version = IAS_API_DEF_VERSION;
         uint32_t qsz;
+        size_t dqsz = 0;
+        sgx_quote_t *quote;
         std::string b64quote = utility::conversions::to_utf8string(message.extract_string().get());
 	    if (! get_quote_size(&status_ret, &qsz)) {
 	    	printf("[ERROR] PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
@@ -150,8 +152,7 @@ void ApiHandler::handle_post(web::http::http_request message)
             return;
         }
 
-        size_t dqsz = 0;
-        sgx_quote_t *quote = (sgx_quote_t*)malloc(qsz);
+        quote = (sgx_quote_t*)malloc(qsz);
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
@@ -219,7 +220,7 @@ void ApiHandler::handle_post(web::http::http_request message)
         ias_report.push_back(resStr.c_str());
 
         // TODO:log file
-		if ( get_config()->verbose ) {
+		/*if ( get_config()->verbose ) {
 			printf("\nIAS Report - JSON - Required Fields\n");
 			if ( version >= 3 ) {
 				printf("version               = %d\n",
@@ -259,18 +260,21 @@ void ApiHandler::handle_post(web::http::http_request message)
 				res_json["nonce"].as_string().c_str());
 			printf("epidPseudonym     = %s\n",
 				res_json["epidPseudonym"].as_string().c_str());
-		}
+		}*/
         printf("success\n");
 
         /* Verify IAS report in enclave */
         printf("[INFO] Verifying IAS report in enclave...");
         ias_status_t ias_status_ret;
-        if(ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, ias_report.data(), ias_report.size()) == SGX_SUCCESS)
+        entry_network_signature ensig;
+        status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char**)ias_report.data(), ias_report.size(), &ensig);
+        if ( SGX_SUCCESS == status_ret )
         {
-            if(ias_status_ret == IAS_VERIFY_SUCCESS) 
+            if ( ias_status_ret == IAS_VERIFY_SUCCESS ) 
             {
                 // TODO:Send a verification request to chain
                 printf("success\n");
+                printf("[INFO] pubkey:%s\n", hexstring((const void*)&ensig.data, sizeof(ensig.data)));
                 message.reply(web::http::status_codes::OK, "Entry network successfully!");
             } 
             else 
@@ -312,6 +316,9 @@ void ApiHandler::handle_post(web::http::http_request message)
                         break;
                     case IAS_GETPUBKEY_FAILED:
                         printf("Verify IAS report failed! Get public key from certificate failed!!\n");
+                        break;
+                    case CRUST_SIGN_PUBKEY_FAILED:
+                        printf("Sign public key failed!!\n");
                         break;
                     default:
                         printf("Unknow return status!\n");

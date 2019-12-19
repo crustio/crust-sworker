@@ -26,7 +26,7 @@ public:
     std::string ias_secondary_subscription_key;
     std::string ias_base_url;
     std::string ias_base_path;
-    size_t flags;
+    uint32_t flags;
     // debug related
     int debug = 0;
     int verbose = 0;

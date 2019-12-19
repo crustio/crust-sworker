@@ -5,8 +5,8 @@
 #include <string>
 #include <map>
 #include "sgx_trts.h"
-#include "../Utils/EUtils.h"
-#include "../Utils/FormatHelper.h"
+#include "EUtils.h"
+#include "FormatHelper.h"
 
 class Workload
 {

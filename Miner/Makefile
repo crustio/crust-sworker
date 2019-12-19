@@ -60,8 +60,9 @@ else
 endif
 
 App_C_Files := $(wildcard App/Utils/*.c)
-App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) $(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp)
-App_Include_Paths := -IInclude -IApp -IApp/OCalls -IApp/Utils -IApp/Config -IApp/OCalls -I$(SGX_SDK)/include
+App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) \
+	$(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp) $(wildcard App/OCalls/*.cpp)
+App_Include_Paths := -IInclude -IApp -IApp/Ipfs -IApp/Utils -IApp/Http -IApp/Config -IApp/OCalls -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
@@ -106,7 +107,9 @@ Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
 	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Verify/*.cpp)
-Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Verify -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
+Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Verify -IEnclave/Models \
+	-IEnclave/PlotDisk -IEnclave/Validator -I$(SGX_SDK)/include \
+	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections
 CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
@@ -212,19 +215,19 @@ App/Enclave_u.h: $(SGX_EDGER8R) Enclave/Enclave.edl
 App/Enclave_u.c: App/Enclave_u.h
 
 App/Enclave_u.o: App/Enclave_u.c
-	$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
 App/Utils/%.o: App/Utils/%.c
-	$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
 App/%.o: App/%.cpp  App/Enclave_u.h
-	$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 $(App_Name): App/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
-	$(CXX) -o $@ $^ $(App_Link_Flags)
+	@$(CXX) -o $@ $^ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
@@ -236,15 +239,15 @@ Enclave/Enclave_t.h: $(SGX_EDGER8R) Enclave/Enclave.edl
 Enclave/Enclave_t.c: Enclave/Enclave_t.h
 
 Enclave/Enclave_t.o: Enclave/Enclave_t.c
-	$(CC) $(SGX_COMMON_CFLAGS) $(Enclave_C_Flags) -c $< -o $@
+	@$(CC) $(SGX_COMMON_CFLAGS) $(Enclave_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
 Enclave/%.o: Enclave/%.cpp Enclave/Enclave_t.h
-	$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 $(Enclave_Name): Enclave/Enclave_t.o $(Enclave_Cpp_Objects)
-	$(CXX) $^ -o $@ $(Enclave_Link_Flags)
+	@$(CXX) $^ -o $@ $(Enclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_Enclave_Name): $(Enclave_Name)

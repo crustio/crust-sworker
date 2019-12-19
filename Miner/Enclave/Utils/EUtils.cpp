@@ -15,6 +15,9 @@ int eprintf(const char *fmt, ...)
     return (int)strnlen(buf, 100000 - 1) + 1;
 }
 
+/**
+ * @description: use ocall_printhexstring to print format string
+ */
 void eprintfHexString(const char *fmt, ...)
 {
     char buf[BUFSIZE] = {'\0'};

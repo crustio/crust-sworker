@@ -31,17 +31,9 @@
 #include <openssl/x509v3.h>
 
 
-#define PSE_RETRIES	5	/* Arbitrary. Not too long, not too short. */
-#define BUFSIZE		            2048
+#define PSE_RETRIES	        5	/* Arbitrary. Not too long, not too short. */
 
 using namespace std;
-
-static enum _error_type {
-	e_none,
-	e_crypto,
-	e_system,
-	e_api
-} error_type= e_none;
 
 static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
 "MIIFSzCCA7OgAwIBAgIJANEHdl0yo7CUMA0GCSqGSIb3DQEBCwUAMH4xCzAJBgNV" "\n"
@@ -85,6 +77,6 @@ int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
     size_t sigsz, EVP_PKEY *pkey, int *result);
 X509_STORE * cert_init_ca(X509 *cert);
 char *base64_decode(const char *msg, size_t *sz);
-ias_status_t ecall_verify_iasreport_real(const char ** IASReport, int len);
+ias_status_t ecall_verify_iasreport_real(const char ** IASReport, size_t size, entry_network_signature *p_ensig);
 
 #endif

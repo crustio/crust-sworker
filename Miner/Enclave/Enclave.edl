@@ -17,9 +17,11 @@ enclave {
         public size_t ecall_generate_validation_report([in, string] const char *block_hash); 
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
-		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, int len);
+		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, size_t len);
 		public sgx_status_t ecall_gen_sgx_measurement();
-        public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, int len);
+		public sgx_status_t ecall_gen_key_pair();
+        public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, size_t len,
+                                    [out] entry_network_signature *p_ensig);
     };
 
     untrusted {

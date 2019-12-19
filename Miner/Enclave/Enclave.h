@@ -5,7 +5,6 @@
 #include "config.h"
 #endif
 #include "Enclave_t.h"
-#include "Enclave.h"
 #include "tSgxSSL_api.h"
 #include "Verify.h"
 #include <string>
@@ -51,7 +50,9 @@ static const sgx_ec256_public_t def_service_public_key = {
 
 };
 
-unsigned char offChain_report_data[REPORT_DATA_SIZE] = {'\0'};
+ecc_key_pair id_key_pair;
+
+uint8_t offChain_report_data[REPORT_DATA_SIZE] = {'\0'};
 
 sgx_measurement_t current_mr_enclave;
 
