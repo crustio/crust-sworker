@@ -60,7 +60,7 @@ Config::Config(std::string path)
     this->ias_base_path = config_value["ias_base_path"].as_string();
     this->flags = config_value["flags"].as_integer();
     this->verbose = config_value["verbose"].as_integer();
-    this->debug = config_value["verbose"].as_integer();
+    this->debug = config_value["debug"].as_integer();
 
 }
 

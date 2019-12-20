@@ -5,6 +5,8 @@ sgx_enclave_id_t global_eid = 1;
 
 int run_as_server = 0;
 
+extern FILE *felog;
+
 /**
  * @description: application entry:
  *   use './app deamon' or './app' to start main progress
@@ -52,23 +54,23 @@ bool initialize_enclave(void)
 
 	/* Can we run SGX? */
 
-    printf("[INFO] Initial enclave...\n");
+    cfprintf(felog, CF_INFO "Initial enclave...\n");
 	sgx_support = get_sgx_support();
 	if (sgx_support & SGX_SUPPORT_NO) {
-		printf("This system does not support Intel SGX.\n");
+		cfprintf(felog, CF_ERROR "This system does not support Intel SGX.\n");
 		return -1;
 	} else {
 		if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED) {
-			printf("Intel SGX is supported on this system but disabled in the BIOS\n");
+			cfprintf(felog, CF_ERROR "Intel SGX is supported on this system but disabled in the BIOS\n");
 			return -1;
 		}
 		else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED) {
-			printf("Intel SGX will be enabled after the next reboot\n");
+			cfprintf(felog, CF_ERROR "Intel SGX will be enabled after the next reboot\n");
 			return -1;
 		}
 		else if (!(sgx_support & SGX_SUPPORT_ENABLED)) {
-			printf("Intel SGX is supported on this sytem but not available for use\n");
-			printf("The system may lock BIOS support, or the Platform Software is not available\n");
+			cfprintf(felog, CF_ERROR "Intel SGX is supported on this sytem but not available for use. \
+                    The system may lock BIOS support, or the Platform Software is not available\n");
 			return -1;
 		}
 	} 
@@ -78,7 +80,7 @@ bool initialize_enclave(void)
     ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
-        printf("Init enclave failed.\n");
+        cfprintf(felog, CF_ERROR "Init enclave failed.\n");
         return false;
     }
 
@@ -86,7 +88,7 @@ bool initialize_enclave(void)
 
     if(SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
     {
-        printf("Generate code measurement failed!\n");
+        cfprintf(felog, CF_ERROR "Generate code measurement failed!\n");
         return false;
     }
 
@@ -95,7 +97,7 @@ bool initialize_enclave(void)
     {
         if ( SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret) )
         {
-            printf("Generate key pair failed!\n");
+            cfprintf(felog, CF_ERROR "Generate key pair failed!\n");
             return false;
         }
     }
@@ -115,14 +117,14 @@ bool initialize_components(void)
 {
     if (new_ipfs(get_config()->ipfs_api_base_url.c_str()) == NULL)
     {
-        printf("Init ipfs failed.\n");
+        cfprintf(felog, CF_ERROR "Init ipfs failed.\n");
         return false;
     }
 
     /* API handler component */
     if (new_api_handler(get_config()->api_base_url.c_str(), &global_eid) == NULL)
     {
-        printf("Init api handler failed.\n");
+        cfprintf(felog, CF_ERROR "Init api handler failed.\n");
         return false;
     }
 
@@ -204,17 +206,17 @@ bool entry_network(void)
 
 	status= sgx_init_quote(&target_info, &epid_gid);
 	if ( status != SGX_SUCCESS ) {
-		printf("[ERROR] sgx_init_quote: %08x\n", status);
+		cfprintf(felog, CF_ERROR "sgx_init_quote: %08x\n", status);
 		return false;
 	}
 
 	status= ecall_get_report(global_eid, &sgxrv, &report, &target_info);
 	if ( status != SGX_SUCCESS ) {
-		printf("[ERROR] get_report: %08x\n", status);
+		cfprintf(felog, CF_ERROR "get_report: %08x\n", status);
 		return false;
 	}
 	if ( sgxrv != SGX_SUCCESS ) {
-		printf("[ERROR] sgx_create_report: %08x\n", sgxrv);
+		cfprintf(felog, CF_ERROR "sgx_create_report: %08x\n", sgxrv);
 		return false;
 	}
 
@@ -222,25 +224,24 @@ bool entry_network(void)
 	// so use a wrapper function.
 
 	if (! get_quote_size(&status, &sz)) {
-		printf("[ERROR] PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+		cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
 		return false;
 	}
 	if ( status != SGX_SUCCESS ) {
-		printf("[ERROR] SGX error while getting quote size: %08x\n", status);
+		cfprintf(felog, CF_ERROR "SGX error while getting quote size: %08x\n", status);
 		return false;
 	}
 
 	quote= (sgx_quote_t *) malloc(sz);
 	if ( quote == NULL ) {
-		printf("out of memory\n");
+		cfprintf(felog, CF_ERROR "out of memory\n");
 		return false;
 	}
 
 	memset(quote, 0, sz);
-    printf("========== generate quote:\n");
-    printf("========== linkable: %d\n", linkable);
-    printf("========== spid    : %s\n", hexstring(spid,sizeof(sgx_spid_t)));
-    printf("========== nonce   : %s\n", hexstring(&nonce,sizeof(sgx_quote_nonce_t)));
+    fprintf(felog, "========== linkable: %d\n", linkable);
+    fprintf(felog, "========== spid    : %s\n", hexstring(spid,sizeof(sgx_spid_t)));
+    fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce,sizeof(sgx_quote_nonce_t)));
 	status= sgx_get_quote(
         &report, 
         linkable, 
@@ -253,26 +254,26 @@ bool entry_network(void)
         sz
     );
 	if ( status != SGX_SUCCESS ) {
-		printf("sgx_get_quote: %08x\n", status);
+		cfprintf(felog, CF_ERROR "sgx_get_quote: %08x\n", status);
 		return false;
 	}
 
 	/* Print our quote */
-	printf("quote report_data: %s\n", hexstring((const void*)(quote->report_body.report_data.d),
+	fprintf(felog, "quote report_data: %s\n", hexstring((const void*)(quote->report_body.report_data.d),
             sizeof(quote->report_body.report_data.d)));
-    printf("ias quote report version :%d\n",quote->version);
-    printf("ias quote report signtype:%d\n",quote->sign_type);
-    printf("ias quote report epid    :%d\n",*quote->epid_group_id);
-    printf("ias quote report qe svn  :%d\n",quote->qe_svn);
-    printf("ias quote report pce svn :%d\n",quote->pce_svn);
-    printf("ias quote report xeid    :%d\n",quote->xeid);
-    printf("ias quote report basename:%s\n",hexstring(quote->basename.name,32));
-    printf("ias quote mr enclave     :%s\n",hexstring(&quote->report_body.mr_enclave,32));
+    fprintf(felog, "ias quote report version :%d\n",quote->version);
+    fprintf(felog, "ias quote report signtype:%d\n",quote->sign_type);
+    fprintf(felog, "ias quote report epid    :%d\n",*quote->epid_group_id);
+    fprintf(felog, "ias quote report qe svn  :%d\n",quote->qe_svn);
+    fprintf(felog, "ias quote report pce svn :%d\n",quote->pce_svn);
+    fprintf(felog, "ias quote report xeid    :%d\n",quote->xeid);
+    fprintf(felog, "ias quote report basename:%s\n",hexstring(quote->basename.name,32));
+    fprintf(felog, "ias quote mr enclave     :%s\n",hexstring(&quote->report_body.mr_enclave,32));
 
     // Get base64 quote
 	b64quote= base64_encode((char *) quote, sz);
 	if ( b64quote == NULL ) {
-		printf("Could not base64 encode quote\n");
+		cfprintf(felog, CF_ERROR "Could not base64 encode quote\n");
 		return false;
 	}
 
@@ -286,23 +287,23 @@ bool entry_network(void)
 		}
 	}*/
 
-	printf("{\n");
-	printf("\"isvEnclaveQuote\":\"%s\"", b64quote);
+	fprintf(felog, "{\n");
+	fprintf(felog, "\"isvEnclaveQuote\":\"%s\"", b64quote);
 	if ( OPT_ISSET(flags, OPT_NONCE) ) {
-		printf(",\n\"nonce\":\"");
+		fprintf(felog, ",\n\"nonce\":\"");
 		print_hexstring(stdout, &nonce, 16);
-		printf("\"");
+		fprintf(felog, "\"");
 	}
 
 	if (OPT_ISSET(flags, OPT_PSE)) {
-		printf(",\n\"pseManifest\":\"%s\"", b64manifest);	
+		fprintf(felog, ",\n\"pseManifest\":\"%s\"", b64manifest);	
 	}
-	printf("\n}\n");
+	fprintf(felog, "\n}\n");
 
 
     /* Send quote to validation node */
 
-    printf("[INFO] Sending quote to on-chain node...\n");
+    cfprintf(felog, CF_INFO "Sending quote to on-chain node...\n");
     web::http::client::http_client_config cfg;
     cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
     web::http::client::http_client* self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str(), cfg);
@@ -316,11 +317,11 @@ bool entry_network(void)
             response = self_api_client->request(web::http::methods::POST, builder.to_string(), b64quote).get();
             break;
         } catch(const web::http::http_exception& e) {
-            printf("[ERROR] HTTP Exception: %s\n", e.what());
-            printf("[INFO] Trying agin:%d\n", net_tryout);
+            cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+            cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
         } catch(const std::exception& e) {
-            printf("[ERROR] HTTP throw: %s\n", e.what());
-            printf("[INFO] Trying agin:%d\n", net_tryout);
+            cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+            cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
         }
         usleep(3000);
         net_tryout--;
@@ -328,12 +329,12 @@ bool entry_network(void)
 
     if ( response.status_code() != web::http::status_codes::OK ) 
     {
-        printf("[ERROR] Entry network application failed!\n");
+        cfprintf(felog, CF_ERROR "Entry network application failed!\n");
         entry_status = false;
         goto cleanup;
     }
 
-    printf("[INFO] Entry network application successfully!\n");
+    cfprintf(felog, CF_INFO "Entry network application successfully!\n");
 
 cleanup:
 
@@ -352,10 +353,13 @@ int main_daemon()
     // New configure
     if (new_config("Config.json") == NULL)
     {
-        printf("Init config failed.\n");
+        cfprintf(felog, CF_ERROR "Init config failed.\n");
         return -1;
     }
     get_config()->show();
+
+    // Create log file
+    felog = create_logfile("./logs/entry.log");
 
     // Init enclave
     if (! initialize_enclave())
@@ -366,10 +370,11 @@ int main_daemon()
     // Entry network
     if ( ! run_as_server && ! entry_network() ) 
     {
-        printf("\n[ERROR] Entry network failed!\n");
+        cfprintf(felog, CF_ERROR "Entry network failed!\n");
         return -1;
     }
 
+    // Init related components
     if (! initialize_components())
     {
         return -1;
@@ -392,6 +397,7 @@ int main_daemon()
     sgx_destroy_enclave(global_eid);
     delete get_config();
     delete get_ipfs();
+    close_logfile(felog);
     return 0;
 }
 
@@ -404,7 +410,7 @@ int main_status(void)
     /* Get configurations */
     if (new_config("Config.json") == NULL)
     {
-        printf("Init config failed.\n");
+        cfprintf(felog, CF_ERROR "Init config failed.\n");
         return false;
     }
 
@@ -427,7 +433,7 @@ int main_report(const char *block_hash)
     /* Get configurations */
     if (new_config("Config.json") == NULL)
     {
-        printf("Init config failed.\n");
+        cfprintf(felog, CF_ERROR "Init config failed.\n");
         return false;
     }
 

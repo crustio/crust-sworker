@@ -50,6 +50,10 @@ static void *h_libsgx_urts= NULL;
 static int l_libsgx_uae_service= 0;
 static int l_libsgx_urts= 0;
 
+/**
+ * @description: Check if current host supports SGX
+ * @return: support status
+ * */
 int get_sgx_support(void)
 {
 #ifdef SGX_HW_SIM
@@ -105,7 +109,10 @@ int get_sgx_support(void)
 #endif
 }
 
-
+/**
+ * @description: Check if SGX PSW support
+ * @return: Supported status
+ * */
 int have_sgx_psw()
 {
 	return ( 
@@ -114,6 +121,10 @@ int have_sgx_psw()
 	) ? 0 : 1;
 }
 
+/**
+ * @description: Load SGX uas service
+ * @return: Pointer to SGX uae service lib
+ * */
 static void *_load_libsgx_uae_service()
 {
 	if ( l_libsgx_uae_service == 0 ) {
@@ -128,6 +139,10 @@ static void *_load_libsgx_uae_service()
 	return h_libsgx_uae_service;
 }
 
+/**
+ * @description: Load SGX urts
+ * @return: Pointer to SGX urts lib
+ * */
 static void *_load_libsgx_urts()
 {
 	if ( l_libsgx_urts == 0 ) {
@@ -142,6 +157,10 @@ static void *_load_libsgx_urts()
 	return h_libsgx_urts;
 }
 
+/**
+ * @description: Load SGX urts
+ * @return: Pointer to related function
+ * */
 void *get_sgx_ufunction(const char *name)
 {
 	void *hsym= NULL;
@@ -154,6 +173,10 @@ void *get_sgx_ufunction(const char *name)
 	return (status == 1) ? hsym : NULL;
 }
 
+/**
+ * @description: Load indicated symbol
+ * @return: Pointer to related symbol
+ * */
 static void *_load_symbol(void *handle, const char *symbol, int *status)
 {
 	void *hsym;
@@ -171,6 +194,10 @@ static void *_load_symbol(void *handle, const char *symbol, int *status)
 	return hsym;
 }
 
+/**
+ * @description: Caculate quote size
+ * @return: Quote size
+ * */
 int get_quote_size(sgx_status_t *status, uint32_t *qsz)
 {
 	fp_sgx_get_quote_size_t fp_sgx_get_quote_size = NULL;

@@ -15,6 +15,7 @@
 #include "FormatUtils.h"
 #include "IASReport.h"
 #include "sgx_support.h"
+#include "Common.h"
 
 class ApiHandler
 {

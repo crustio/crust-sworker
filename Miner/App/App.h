@@ -18,12 +18,14 @@
 #include "sgx_capable.h"
 #include "sgx_support.h"
 #include "Enclave_u.h"
-#include "Config/Config.h"
+#include "Config.h"
 #include "ApiHandler.h"
 #include "Ipfs.h"
 #include "OCalls.h"
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
+#include "Common.h"
+#include "Logfile.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x,y)	x&y
