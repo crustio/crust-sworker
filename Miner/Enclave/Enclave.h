@@ -34,7 +34,8 @@
 #include "Verify/Verify.h"
 #include "ValidationStatus.h"
 
-static const sgx_ec256_public_t def_service_public_key = {
+static const sgx_ec256_public_t def_service_public_key = 
+{
     {
         0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
         0x85, 0xd0, 0x3a, 0x62, 0x37, 0x30, 0xae, 0xad,

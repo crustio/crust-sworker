@@ -8,14 +8,14 @@
 #include <sys/stat.h>
 #include "FormatUtils.h"
 
-
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-FILE *create_logfile(const char *filename);
+    FILE *create_logfile(const char *filename);
 
-void close_logfile (FILE *fp);
+    void close_logfile(FILE *fp);
 
 #ifdef __cplusplus
 };

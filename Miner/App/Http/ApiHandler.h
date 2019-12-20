@@ -11,11 +11,12 @@
 #include <cpprest/asyncrt_utils.h>
 #include "Enclave_u.h"
 #include "sgx_eid.h"
+#include "Common.h"
 #include "Config.h"
 #include "FormatUtils.h"
 #include "IASReport.h"
 #include "sgx_support.h"
-#include "Common.h"
+
 
 class ApiHandler
 {
@@ -24,8 +25,8 @@ public:
     ~ApiHandler();
 
 private:
-    sgx_enclave_id_t *p_global_eid;                                     /* The point for sgx global eid*/
-    web::http::experimental::listener::http_listener m_listener;        /* External api listener*/
+    sgx_enclave_id_t *p_global_eid;                              /* The point for sgx global eid*/
+    web::http::experimental::listener::http_listener m_listener; /* External api listener*/
     void handle_get(web::http::http_request message);
     void handle_post(web::http::http_request message);
 };

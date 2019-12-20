@@ -6,6 +6,8 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 - Boost
 - Cpprest
 
+## TODO: install and init
+
 ## Build
 - Run 'make' in Miner folder
 
@@ -17,3 +19,5 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 ## API
 - Use 'curl http://127.0.0.1:12222/api/v0/status' to get validation status
 - Use 'curl http://127.0.0.1:12222/api/v0/report\?block_hash\=XXXXX' to get work report
+
+

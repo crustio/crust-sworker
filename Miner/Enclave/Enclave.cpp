@@ -76,6 +76,7 @@ void ecall_get_validation_report(char *report, size_t len)
  * to deal with that.
  */
 
+// TODO: post this function into other ecall
 /**
  * @description: generate ecc key pair and store it in enclave
  * @return: generate status

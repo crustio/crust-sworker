@@ -1,6 +1,7 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+// TODO: remove useless code
 /* Enable libcurl as a user agent */
 #define AGENT_LIBCURL 1
 

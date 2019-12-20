@@ -49,34 +49,38 @@ int SGX_CDECL main(int argc, char *argv[])
  */
 bool initialize_enclave(void)
 {
-	int sgx_support;
+    int sgx_support;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-	/* Can we run SGX? */
-
+    /* Can we run SGX? */
     cfprintf(felog, CF_INFO "Initial enclave...\n");
-	sgx_support = get_sgx_support();
-	if (sgx_support & SGX_SUPPORT_NO) {
-		cfprintf(felog, CF_ERROR "This system does not support Intel SGX.\n");
-		return -1;
-	} else {
-		if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED) {
-			cfprintf(felog, CF_ERROR "Intel SGX is supported on this system but disabled in the BIOS\n");
-			return -1;
-		}
-		else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED) {
-			cfprintf(felog, CF_ERROR "Intel SGX will be enabled after the next reboot\n");
-			return -1;
-		}
-		else if (!(sgx_support & SGX_SUPPORT_ENABLED)) {
-			cfprintf(felog, CF_ERROR "Intel SGX is supported on this sytem but not available for use. \
+    sgx_support = get_sgx_support();
+    if (sgx_support & SGX_SUPPORT_NO)
+    {
+        cfprintf(felog, CF_ERROR "This system does not support Intel SGX.\n");
+        return -1;
+    }
+    else
+    {
+        if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED)
+        {
+            cfprintf(felog, CF_ERROR "Intel SGX is supported on this system but disabled in the BIOS\n");
+            return -1;
+        }
+        else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED)
+        {
+            cfprintf(felog, CF_ERROR "Intel SGX will be enabled after the next reboot\n");
+            return -1;
+        }
+        else if (!(sgx_support & SGX_SUPPORT_ENABLED))
+        {
+            cfprintf(felog, CF_ERROR "Intel SGX is supported on this sytem but not available for use. \
                     The system may lock BIOS support, or the Platform Software is not available\n");
-			return -1;
-		}
-	} 
+            return -1;
+        }
+    }
 
-	/* Launch the enclave */
-
+    /* Launch the enclave */
     ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
@@ -85,23 +89,21 @@ bool initialize_enclave(void)
     }
 
     /* Generate code measurement */
-
-    if(SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
+    if (SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
     {
         cfprintf(felog, CF_ERROR "Generate code measurement failed!\n");
         return false;
     }
 
     /* Generate ecc key pair */
-    if ( run_as_server )
+    if (run_as_server)
     {
-        if ( SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret) )
+        if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret))
         {
             cfprintf(felog, CF_ERROR "Generate key pair failed!\n");
             return false;
         }
     }
-
 
     return true;
 }
@@ -138,46 +140,47 @@ bool initialize_components(void)
  * */
 bool entry_network(void)
 {
-	sgx_quote_sign_type_t linkable= SGX_UNLINKABLE_SIGNATURE;
-	sgx_status_t status, sgxrv;
-	//size_t pse_manifest_sz;
-	//char *pse_manifest = NULL;
-	sgx_report_t report;
-	sgx_report_t qe_report;
-	sgx_quote_t *quote;
-	sgx_target_info_t target_info;
-	sgx_epid_group_id_t epid_gid;
-	uint32_t sz= 0;
+    sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
+    sgx_status_t status, sgxrv;
+    //size_t pse_manifest_sz;
+    //char *pse_manifest = NULL;
+    sgx_report_t report;
+    sgx_report_t qe_report;
+    sgx_quote_t *quote;
+    sgx_target_info_t target_info;
+    sgx_epid_group_id_t epid_gid;
+    uint32_t sz = 0;
     uint32_t flags = get_config()->flags;
     sgx_quote_nonce_t nonce;
-	char  *b64quote= NULL;
-	char *b64manifest = NULL;
-    sgx_spid_t *spid = (sgx_spid_t *) malloc(sizeof(sgx_spid_t));
+    char *b64quote = NULL;
+    char *b64manifest = NULL;
+    sgx_spid_t *spid = (sgx_spid_t *)malloc(sizeof(sgx_spid_t));
     memset(spid, 0, sizeof(sgx_spid_t));
-    from_hexstring((unsigned char*)spid, get_config()->spid.c_str(), get_config()->spid.size());
+    from_hexstring((unsigned char *)spid, get_config()->spid.c_str(), get_config()->spid.size());
     int i = 0;
     bool entry_status = true;
 
     /* get nonce */
+    for (i = 0; i < 2; ++i)
+    {
+        int retry = 10;
+        unsigned char ok = 0;
+        uint64_t *np = (uint64_t *)&nonce;
+        while (!ok && retry)
+            ok = _rdrand64_step(&np[i]);
+        if (ok == 0)
+        {
+            fprintf(stderr, "nonce: RDRAND underflow\n");
+            exit(1);
+        }
+    }
 
-	for(i= 0; i< 2; ++i) {
-		int retry= 10;
-		unsigned char ok= 0;
-		uint64_t *np= (uint64_t *) &nonce;
-		while ( !ok && retry ) ok= _rdrand64_step(&np[i]);
-		if ( ok == 0 ) {
-			fprintf(stderr, "nonce: RDRAND underflow\n");
-			exit(1);
-		}
-	}
+    if (OPT_ISSET(flags, OPT_LINK))
+        linkable = SGX_LINKABLE_SIGNATURE;
 
+    /* Platform services info */
 
- 	if (OPT_ISSET(flags, OPT_LINK)) linkable= SGX_LINKABLE_SIGNATURE;
-
-
-	/* Platform services info */
-
-	/*if (OPT_ISSET(flags, OPT_PSE)) {
+    /*if (OPT_ISSET(flags, OPT_PSE)) {
 		status = get_pse_manifest_size(eid, &pse_manifest_sz);
 		if (status != SGX_SUCCESS) {
 			printf("get_pse_manifest_size: %08x\n",
@@ -200,85 +203,89 @@ bool entry_network(void)
 		}
 	}*/
 
-	/* Get our quote */
+    /* Get our quote */
+    memset(&report, 0, sizeof(report));
 
-	memset(&report, 0, sizeof(report));
+    status = sgx_init_quote(&target_info, &epid_gid);
+    if (status != SGX_SUCCESS)
+    {
+        cfprintf(felog, CF_ERROR "sgx_init_quote: %08x\n", status);
+        return false;
+    }
 
-	status= sgx_init_quote(&target_info, &epid_gid);
-	if ( status != SGX_SUCCESS ) {
-		cfprintf(felog, CF_ERROR "sgx_init_quote: %08x\n", status);
-		return false;
-	}
+    status = ecall_get_report(global_eid, &sgxrv, &report, &target_info);
+    if (status != SGX_SUCCESS)
+    {
+        cfprintf(felog, CF_ERROR "get_report: %08x\n", status);
+        return false;
+    }
+    if (sgxrv != SGX_SUCCESS)
+    {
+        cfprintf(felog, CF_ERROR "sgx_create_report: %08x\n", sgxrv);
+        return false;
+    }
 
-	status= ecall_get_report(global_eid, &sgxrv, &report, &target_info);
-	if ( status != SGX_SUCCESS ) {
-		cfprintf(felog, CF_ERROR "get_report: %08x\n", status);
-		return false;
-	}
-	if ( sgxrv != SGX_SUCCESS ) {
-		cfprintf(felog, CF_ERROR "sgx_create_report: %08x\n", sgxrv);
-		return false;
-	}
+    // sgx_get_quote_size() has been deprecated, but our PSW may be too old
+    // so use a wrapper function.
+    if (!get_quote_size(&status, &sz))
+    {
+        cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+        return false;
+    }
+    if (status != SGX_SUCCESS)
+    {
+        cfprintf(felog, CF_ERROR "SGX error while getting quote size: %08x\n", status);
+        return false;
+    }
 
-	// sgx_get_quote_size() has been deprecated, but our PSW may be too old
-	// so use a wrapper function.
+    quote = (sgx_quote_t *)malloc(sz);
+    if (quote == NULL)
+    {
+        cfprintf(felog, CF_ERROR "out of memory\n");
+        return false;
+    }
 
-	if (! get_quote_size(&status, &sz)) {
-		cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
-		return false;
-	}
-	if ( status != SGX_SUCCESS ) {
-		cfprintf(felog, CF_ERROR "SGX error while getting quote size: %08x\n", status);
-		return false;
-	}
-
-	quote= (sgx_quote_t *) malloc(sz);
-	if ( quote == NULL ) {
-		cfprintf(felog, CF_ERROR "out of memory\n");
-		return false;
-	}
-
-	memset(quote, 0, sz);
+    memset(quote, 0, sz);
     fprintf(felog, "========== linkable: %d\n", linkable);
-    fprintf(felog, "========== spid    : %s\n", hexstring(spid,sizeof(sgx_spid_t)));
-    fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce,sizeof(sgx_quote_nonce_t)));
-	status= sgx_get_quote(
-        &report, 
-        linkable, 
+    fprintf(felog, "========== spid    : %s\n", hexstring(spid, sizeof(sgx_spid_t)));
+    fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce, sizeof(sgx_quote_nonce_t)));
+    status = sgx_get_quote(
+        &report,
+        linkable,
         spid,
         &nonce,
-		NULL, 
+        NULL,
         0,
         &qe_report,
-		quote, 
-        sz
-    );
-	if ( status != SGX_SUCCESS ) {
-		cfprintf(felog, CF_ERROR "sgx_get_quote: %08x\n", status);
-		return false;
-	}
+        quote,
+        sz);
+    if (status != SGX_SUCCESS)
+    {
+        cfprintf(felog, CF_ERROR "sgx_get_quote: %08x\n", status);
+        return false;
+    }
 
-	/* Print our quote */
-	fprintf(felog, "quote report_data: %s\n", hexstring((const void*)(quote->report_body.report_data.d),
-            sizeof(quote->report_body.report_data.d)));
-    fprintf(felog, "ias quote report version :%d\n",quote->version);
-    fprintf(felog, "ias quote report signtype:%d\n",quote->sign_type);
-    fprintf(felog, "ias quote report epid    :%d\n",*quote->epid_group_id);
-    fprintf(felog, "ias quote report qe svn  :%d\n",quote->qe_svn);
-    fprintf(felog, "ias quote report pce svn :%d\n",quote->pce_svn);
-    fprintf(felog, "ias quote report xeid    :%d\n",quote->xeid);
-    fprintf(felog, "ias quote report basename:%s\n",hexstring(quote->basename.name,32));
-    fprintf(felog, "ias quote mr enclave     :%s\n",hexstring(&quote->report_body.mr_enclave,32));
+    /* Print our quote */
+    fprintf(felog, "quote report_data: %s\n", hexstring((const void *)(quote->report_body.report_data.d), sizeof(quote->report_body.report_data.d)));
+    fprintf(felog, "ias quote report version :%d\n", quote->version);
+    fprintf(felog, "ias quote report signtype:%d\n", quote->sign_type);
+    fprintf(felog, "ias quote report epid    :%d\n", *quote->epid_group_id);
+    fprintf(felog, "ias quote report qe svn  :%d\n", quote->qe_svn);
+    fprintf(felog, "ias quote report pce svn :%d\n", quote->pce_svn);
+    fprintf(felog, "ias quote report xeid    :%d\n", quote->xeid);
+    fprintf(felog, "ias quote report basename:%s\n", hexstring(quote->basename.name, 32));
+    fprintf(felog, "ias quote mr enclave     :%s\n", hexstring(&quote->report_body.mr_enclave, 32));
 
     // Get base64 quote
-	b64quote= base64_encode((char *) quote, sz);
-	if ( b64quote == NULL ) {
-		cfprintf(felog, CF_ERROR "Could not base64 encode quote\n");
-		return false;
-	}
+    b64quote = base64_encode((char *)quote, sz);
+    if (b64quote == NULL)
+    {
+        cfprintf(felog, CF_ERROR "Could not base64 encode quote\n");
+        return false;
+    }
 
     // TODO: PSE supported to avoid some attacks
-	/*if (OPT_ISSET(flags, OPT_PSE)) {
+    /*if (OPT_ISSET(flags, OPT_PSE)) {
 		b64manifest= base64_encode((char *) pse_manifest, pse_manifest_sz);
 		if ( b64manifest == NULL ) {
 			free(b64quote);
@@ -287,39 +294,45 @@ bool entry_network(void)
 		}
 	}*/
 
-	fprintf(felog, "{\n");
-	fprintf(felog, "\"isvEnclaveQuote\":\"%s\"", b64quote);
-	if ( OPT_ISSET(flags, OPT_NONCE) ) {
-		fprintf(felog, ",\n\"nonce\":\"");
-		print_hexstring(stdout, &nonce, 16);
-		fprintf(felog, "\"");
-	}
+    fprintf(felog, "{\n");
+    fprintf(felog, "\"isvEnclaveQuote\":\"%s\"", b64quote);
+    if (OPT_ISSET(flags, OPT_NONCE))
+    {
+        fprintf(felog, ",\n\"nonce\":\"");
+        print_hexstring(stdout, &nonce, 16);
+        fprintf(felog, "\"");
+    }
 
-	if (OPT_ISSET(flags, OPT_PSE)) {
-		fprintf(felog, ",\n\"pseManifest\":\"%s\"", b64manifest);	
-	}
-	fprintf(felog, "\n}\n");
-
+    if (OPT_ISSET(flags, OPT_PSE))
+    {
+        fprintf(felog, ",\n\"pseManifest\":\"%s\"", b64manifest);
+    }
+    fprintf(felog, "\n}\n");
 
     /* Send quote to validation node */
-
     cfprintf(felog, CF_INFO "Sending quote to on-chain node...\n");
     web::http::client::http_client_config cfg;
     cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
-    web::http::client::http_client* self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str(), cfg);
+    web::http::client::http_client *self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str(), cfg);
     web::uri_builder builder(U("/entry/network"));
     web::http::http_response response;
 
     // Send quote to validation node, try out 3 times for network error.
     int net_tryout = IAS_TRYOUT;
-    while(net_tryout >= 0) {
-        try {
+    while (net_tryout >= 0)
+    {
+        try
+        {
             response = self_api_client->request(web::http::methods::POST, builder.to_string(), b64quote).get();
             break;
-        } catch(const web::http::http_exception& e) {
+        }
+        catch (const web::http::http_exception &e)
+        {
             cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
             cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
-        } catch(const std::exception& e) {
+        }
+        catch (const std::exception &e)
+        {
             cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
             cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
         }
@@ -327,7 +340,7 @@ bool entry_network(void)
         net_tryout--;
     }
 
-    if ( response.status_code() != web::http::status_codes::OK ) 
+    if (response.status_code() != web::http::status_codes::OK)
     {
         cfprintf(felog, CF_ERROR "Entry network application failed!\n");
         entry_status = false;
@@ -341,7 +354,6 @@ cleanup:
     delete self_api_client;
 
     return entry_status;
-
 }
 
 /**
@@ -362,27 +374,26 @@ int main_daemon()
     felog = create_logfile("./logs/entry.log");
 
     // Init enclave
-    if (! initialize_enclave())
+    if (!initialize_enclave())
     {
         return -1;
     }
 
     // Entry network
-    if ( ! run_as_server && ! entry_network() ) 
+    if (!run_as_server && !entry_network())
     {
         cfprintf(felog, CF_ERROR "Entry network failed!\n");
         return -1;
     }
 
     // Init related components
-    if (! initialize_components())
+    if (!initialize_components())
     {
         return -1;
     }
 
-
-    /* Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores */
-    #pragma omp parallel for
+/* Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores */
+#pragma omp parallel for
     for (size_t i = 0; i < get_config()->empty_capacity; i++)
     {
         ecall_plot_disk(global_eid, get_config()->empty_path.c_str());

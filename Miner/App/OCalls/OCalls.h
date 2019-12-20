@@ -14,7 +14,7 @@
 #include "FileUtils.h"
 #include "FormatUtils.h"
 
-#define HEXSTRING_BUF   128
+#define HEXSTRING_BUF 128
 
 /**
  * @description: ocall for printing string
