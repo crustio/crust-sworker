@@ -291,7 +291,7 @@ MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
  */
 unsigned char *Ipfs::get_block_data(const char *hash, size_t *len)
 {
-    /* Get block data from ipfs */ 
+    /* Get block data from ipfs */
     this->clear_block_data();
     web::uri_builder builder(U("/block/hashget"));
     builder.append_query(U("arg"), U(hash));

@@ -10,8 +10,11 @@
 #include <vector>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
-#include "../Ipfs/Ipfs.h"
-#include "../Utils/FileUtils.h"
+#include "Ipfs.h"
+#include "FileUtils.h"
+#include "FormatUtils.h"
+
+#define HEXSTRING_BUF 128
 
 /**
  * @description: ocall for printing string
@@ -20,6 +23,15 @@
 void ocall_print_string(const char *str)
 {
     printf("%s", str);
+}
+
+/**
+ * @description: ocall for printing hexstring
+ * @param str -> string for printing
+ */
+void ocall_printhexstring(const char *str)
+{
+    printf("%s", hexstring(str, HEXSTRING_BUF));
 }
 
 /**

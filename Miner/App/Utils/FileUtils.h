@@ -4,11 +4,10 @@
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <vector>
-#include <string>
+#include <string.h>
 
 std::vector<std::string> get_files_under_path(std::string path);
 std::vector<std::string> get_folders_under_path(std::string path);

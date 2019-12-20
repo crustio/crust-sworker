@@ -5,6 +5,15 @@ SGX_MODE ?= HW
 SGX_ARCH ?= x64
 SGX_DEBUG ?= 1
 
+SGXSSL_DIR := /opt/intel/sgxssl
+SGXSSL_INCDIR := $(SGXSSL_DIR)/include
+SGXSSL_LIBDIR := $(SGXSSL_DIR)/lib64
+
+SGXSSL_LIBRARY_NAME := sgx_tsgxssl
+SGXSSL_CRYPTO_LIBRARY_NAME := sgx_tsgxssl_crypto
+SGXSSL_LINK_FLAGS :=  -L$(SGXSSL_LIBDIR) -Wl,--whole-archive -l$(SGXSSL_LIBRARY_NAME) \
+	-Wl,--no-whole-archive -l$(SGXSSL_CRYPTO_LIBRARY_NAME)
+
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -50,8 +59,10 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) $(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp)
-App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include
+App_C_Files := $(wildcard App/Utils/*.c)
+App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) \
+	$(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp) $(wildcard App/OCalls/*.cpp)
+App_Include_Paths := -IInclude -IApp -IApp/Ipfs -IApp/Utils -IApp/Http -IApp/Config -IApp/OCalls -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
@@ -68,7 +79,9 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags)
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lcpprest -lboost_system -lssl -lcrypto -fopenmp
+App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
+	-lpthread -ldl -lcpprest -lboost_system -lssl -lcrypto -fopenmp \
+	-l:libsgx_usgxssl.a -l:libsgx_capable.a
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -77,6 +90,7 @@ else
 endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
+App_C_Objects := $(App_C_Files:.c=.o)
 
 App_Name := app
 
@@ -91,8 +105,11 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp) $(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp)
-Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
+Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
+	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Verify/*.cpp)
+Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Verify -IEnclave/Models \
+	-IEnclave/PlotDisk -IEnclave/Validator -I$(SGX_SDK)/include \
+	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections
 CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
@@ -116,6 +133,7 @@ Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
+	-L$(SGXSSL_LIBDIR) $(SGXSSL_LINK_FLAGS) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
@@ -191,7 +209,7 @@ endif
 ######## App Objects ########
 
 App/Enclave_u.h: $(SGX_EDGER8R) Enclave/Enclave.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
 	@echo "GEN  =>  $@"
 
 App/Enclave_u.c: App/Enclave_u.h
@@ -200,18 +218,22 @@ App/Enclave_u.o: App/Enclave_u.c
 	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
+App/Utils/%.o: App/Utils/%.c
+	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
 App/%.o: App/%.cpp  App/Enclave_u.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
-	@$(CXX) $^ -o $@ $(App_Link_Flags)
+$(App_Name): App/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
+	@$(CXX) -o $@ $^ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
 
 Enclave/Enclave_t.h: $(SGX_EDGER8R) Enclave/Enclave.edl
-	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
 	@echo "GEN  =>  $@"
 
 Enclave/Enclave_t.c: Enclave/Enclave_t.h
@@ -235,4 +257,4 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 .PHONY: clean
 
 clean:
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.*
+	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) $(App_C_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.*

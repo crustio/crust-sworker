@@ -24,9 +24,12 @@
 
 /* Main loop waiting time (us) */
 #define MAIN_LOOP_WAIT_TIME 10000000
+#define BUFSIZE 10000000
 /* The length of hash */
 #define HASH_LENGTH 32
 
 int eprintf(const char* fmt, ...);
+// TODO: rename
+void eprintfHexString(const char* fmt, ...);
 
 #endif /* !_CRUST_E_UTILS_H_ */

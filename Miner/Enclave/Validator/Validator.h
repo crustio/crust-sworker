@@ -5,8 +5,8 @@
 #include "sgx_trts.h"
 #include "Node.h"
 #include "MerkleTree.h"
-#include "../Models/Workload.h"
-#include "../Utils/PathHelper.h"
+#include "Workload.h"
+#include "PathHelper.h"
 
 void validate_empty_disk(const char *path);
 bool validate_merkle_tree(MerkleTree *root, size_t *size);
