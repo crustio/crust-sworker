@@ -37,10 +37,10 @@ typedef struct _entry_network_signature {
     sgx_ec256_signature_t signature;
 } entry_network_signature;
 
-typedef struct _ecc_key_pair {
+typedef struct _ecc_key_pair
+{
     sgx_ec256_public_t pub_key;
     sgx_ec256_private_t pri_key;
 } ecc_key_pair;
 
 #endif /* !_CRUST_IASREPORTE_H_ */
-

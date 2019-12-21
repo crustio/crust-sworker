@@ -135,7 +135,6 @@ void ApiHandler::handle_post(web::http::http_request message)
     sgx_status_t status_ret = SGX_SUCCESS;
 
     /* Deal with entry network */
-
     if (message.relative_uri().path().compare("/entry/network") == 0)
     {
         int version = IAS_API_DEF_VERSION;
@@ -144,24 +143,25 @@ void ApiHandler::handle_post(web::http::http_request message)
         size_t dqsz = 0;
         sgx_quote_t *quote;
         std::string b64quote = utility::conversions::to_utf8string(message.extract_string().get());
-	    if (! get_quote_size(&status_ret, &qsz)) {
-	    	cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+        if (!get_quote_size(&status_ret, &qsz))
+        {
+            cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
             message.reply(web::http::status_codes::InternalError, "InternalError");
-	    	return;
-	    }
-        
-        if (b64quote.size() == 0) 
+            return;
+        }
+
+        if (b64quote.size() == 0)
         {
             message.reply(web::http::status_codes::InternalError, "InternalError");
             return;
         }
 
-        quote = (sgx_quote_t*)malloc(qsz);
+        quote = (sgx_quote_t *)malloc(qsz);
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
         cfprintf(felog, CF_INFO "Storing quote in enclave...\n");
-        if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char*)quote, qsz) != SGX_SUCCESS) 
+        if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char *)quote, qsz) != SGX_SUCCESS)
         {
             cfprintf(felog, CF_ERROR "Store offChain node quote failed!\n");
             message.reply(web::http::status_codes::InternalError, "StoreQuoteError");
@@ -187,20 +187,26 @@ void ApiHandler::handle_post(web::http::http_request message)
         std::string resStr;
         json::JSON res_json;
 
+        // TODO: deal with specific exceptions
         // Send quote to IAS service
         cfprintf(felog, CF_INFO "Sending quote to IAS service...\n");
         int net_tryout = IAS_TRYOUT;
-        while(net_tryout >= 0) 
+        while (net_tryout >= 0)
         {
-            try {
+            try
+            {
                 response = self_api_client->request(ias_request).get();
                 resStr = response.extract_utf8string().get();
                 res_json = json::JSON::Load(resStr);
                 break;
-            } catch(const web::http::http_exception& e) {
+            }
+            catch (const web::http::http_exception &e)
+            {
                 cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
                 cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
-            } catch(const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
                 cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
             }
@@ -222,114 +228,118 @@ void ApiHandler::handle_post(web::http::http_request message)
         ias_report.push_back(res_headers["X-IASReport-Signature"].c_str());
         ias_report.push_back(resStr.c_str());
 
-		if ( get_config()->verbose ) {
-			fprintf(felog, "\nIAS Report - JSON - Required Fields\n");
-			if ( version >= 3 ) {
-			    fprintf(felog, "version               = %ld\n",
-			    res_json["version"].ToInt());
-			}
-			fprintf(felog, "id:                   = %s\n",
-				res_json["id"].ToString().c_str());
-			fprintf(felog, "timestamp             = %s\n",
-				res_json["timestamp"].ToString().c_str());
-			fprintf(felog, "isvEnclaveQuoteStatus = %s\n",
-				res_json["isvEnclaveQuoteStatus"].ToString().c_str());
-			fprintf(felog, "isvEnclaveQuoteBody   = %s\n",
-				res_json["isvEnclaveQuoteBody"].ToString().c_str());
+        if (get_config()->verbose)
+        {
+            // TODO: seal log code into functions
+            fprintf(felog, "\nIAS Report - JSON - Required Fields\n");
+            if (version >= 3)
+            {
+                fprintf(felog, "version               = %ld\n",
+                        res_json["version"].ToInt());
+            }
+            fprintf(felog, "id:                   = %s\n",
+                    res_json["id"].ToString().c_str());
+            fprintf(felog, "timestamp             = %s\n",
+                    res_json["timestamp"].ToString().c_str());
+            fprintf(felog, "isvEnclaveQuoteStatus = %s\n",
+                    res_json["isvEnclaveQuoteStatus"].ToString().c_str());
+            fprintf(felog, "isvEnclaveQuoteBody   = %s\n",
+                    res_json["isvEnclaveQuoteBody"].ToString().c_str());
             std::string iasQuoteStr = res_json["isvEnclaveQuoteBody"].ToString();
             size_t qs;
             char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
-            sgx_quote_t *ias_quote = (sgx_quote_t *) malloc(qs);
+            sgx_quote_t *ias_quote = (sgx_quote_t *)malloc(qs);
             memset(ias_quote, 0, qs);
             memcpy(ias_quote, ppp, qs);
-            fprintf(felog, "========== ias quote report data:%s\n",hexstring(ias_quote->report_body.report_data.d,
-                    sizeof(ias_quote->report_body.report_data.d)));
-            fprintf(felog, "ias quote report version:%d\n",ias_quote->version);
-            fprintf(felog, "ias quote report signtype:%d\n",ias_quote->sign_type);
-            fprintf(felog, "ias quote report basename:%s\n",hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
+            fprintf(felog, "========== ias quote report data:%s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
+            fprintf(felog, "ias quote report version:%d\n", ias_quote->version);
+            fprintf(felog, "ias quote report signtype:%d\n", ias_quote->sign_type);
+            fprintf(felog, "ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
 
-			fprintf(felog, "\nIAS Report - JSON - Optional Fields\n");
+            fprintf(felog, "\nIAS Report - JSON - Optional Fields\n");
 
-			fprintf(felog, "platformInfoBlob  = %s\n",
-				res_json["platformInfoBlob"].ToString().c_str());
-			fprintf(felog, "revocationReason  = %s\n",
-				res_json["revocationReason"].ToString().c_str());
-			fprintf(felog, "pseManifestStatus = %s\n",
-				res_json["pseManifestStatus"].ToString().c_str());
-			fprintf(felog, "pseManifestHash   = %s\n",
-				res_json["pseManifestHash"].ToString().c_str());
-			fprintf(felog, "nonce             = %s\n",
-				res_json["nonce"].ToString().c_str());
-			fprintf(felog, "epidPseudonym     = %s\n",
-				res_json["epidPseudonym"].ToString().c_str());
-		}
+            fprintf(felog, "platformInfoBlob  = %s\n",
+                    res_json["platformInfoBlob"].ToString().c_str());
+            fprintf(felog, "revocationReason  = %s\n",
+                    res_json["revocationReason"].ToString().c_str());
+            fprintf(felog, "pseManifestStatus = %s\n",
+                    res_json["pseManifestStatus"].ToString().c_str());
+            fprintf(felog, "pseManifestHash   = %s\n",
+                    res_json["pseManifestHash"].ToString().c_str());
+            fprintf(felog, "nonce             = %s\n",
+                    res_json["nonce"].ToString().c_str());
+            fprintf(felog, "epidPseudonym     = %s\n",
+                    res_json["epidPseudonym"].ToString().c_str());
+        }
 
         /* Verify IAS report in enclave */
         cfprintf(felog, CF_INFO "Verifying IAS report in enclave...\n");
         ias_status_t ias_status_ret;
+        // TODO: add current tee public key
         entry_network_signature ensig;
-        status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char**)ias_report.data(), ias_report.size(), &ensig);
-        if ( SGX_SUCCESS == status_ret )
+        status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
+        if (SGX_SUCCESS == status_ret)
         {
-            if ( ias_status_ret == IAS_VERIFY_SUCCESS ) 
+            if (ias_status_ret == IAS_VERIFY_SUCCESS)
             {
                 // TODO:Send a verification request to chain
-                cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void*)&ensig.data, sizeof(ensig.data)));
+                cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void *)&ensig.data, sizeof(ensig.data)));
                 message.reply(web::http::status_codes::OK, "Entry network successfully!");
-            } 
-            else 
+            }
+            else
             {
-                switch(ias_status_ret) {
-                    case IAS_BADREQUEST:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad request!!\n");
-                        break;
-                    case IAS_UNAUTHORIZED:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Unauthorized!!\n");
-                        break;
-                    case IAS_NOT_FOUND:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Not found!!\n");
-                        break;
-                    case IAS_SERVER_ERR:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Server error!!\n");
-                        break;
-                    case IAS_UNAVAILABLE:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Unavailable!!\n");
-                        break;
-                    case IAS_INTERNAL_ERROR:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Internal error!!\n");
-                        break;
-                    case IAS_BAD_CERTIFICATE:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad certificate!!\n");
-                        break;
-                    case IAS_BAD_SIGNATURE:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad signature!!\n");
-                        break;
-                    case IAS_REPORTDATA_NE:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Report data not equal!!\n");
-                        break;
-                    case IAS_GET_REPORT_FAILED:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Get report in current enclave failed!!\n");
-                        break;
-                    case IAS_BADMEASUREMENT:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad enclave code measurement!!\n");
-                        break;
-                    case IAS_GETPUBKEY_FAILED:
-                        cfprintf(felog, CF_ERROR "Verify IAS report failed! Get public key from certificate failed!!\n");
-                        break;
-                    case CRUST_SIGN_PUBKEY_FAILED:
-                        cfprintf(felog, CF_ERROR "Sign public key failed!!\n");
-                        break;
-                    default:
-                        cfprintf(felog, CF_ERROR "Unknow return status!\n");
+                switch (ias_status_ret)
+                {
+                case IAS_BADREQUEST:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad request!!\n");
+                    break;
+                case IAS_UNAUTHORIZED:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Unauthorized!!\n");
+                    break;
+                case IAS_NOT_FOUND:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Not found!!\n");
+                    break;
+                case IAS_SERVER_ERR:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Server error!!\n");
+                    break;
+                case IAS_UNAVAILABLE:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Unavailable!!\n");
+                    break;
+                case IAS_INTERNAL_ERROR:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Internal error!!\n");
+                    break;
+                case IAS_BAD_CERTIFICATE:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad certificate!!\n");
+                    break;
+                case IAS_BAD_SIGNATURE:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad signature!!\n");
+                    break;
+                case IAS_REPORTDATA_NE:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Report data not equal!!\n");
+                    break;
+                case IAS_GET_REPORT_FAILED:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Get report in current enclave failed!!\n");
+                    break;
+                case IAS_BADMEASUREMENT:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Bad enclave code measurement!!\n");
+                    break;
+                case IAS_GETPUBKEY_FAILED:
+                    cfprintf(felog, CF_ERROR "Verify IAS report failed! Get public key from certificate failed!!\n");
+                    break;
+                case CRUST_SIGN_PUBKEY_FAILED:
+                    cfprintf(felog, CF_ERROR "Sign public key failed!!\n");
+                    break;
+                default:
+                    cfprintf(felog, CF_ERROR "Unknow return status!\n");
                 }
                 message.reply(web::http::status_codes::InternalError, "Verify IAS report failed!");
             }
-        } 
-        else 
+        }
+        else
         {
-	        cfprintf(felog, CF_ERROR "Invoke SGX api failed!\n");
+            cfprintf(felog, CF_ERROR "Invoke SGX api failed!\n");
             message.reply(web::http::status_codes::InternalError, "Invoke SGX api failed!");
-        }   
+        }
         delete self_api_client;
     }
 }

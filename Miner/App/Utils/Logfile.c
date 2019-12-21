@@ -12,12 +12,15 @@ FILE *create_logfile(const char *filename)
 {
 	FILE *fp;
 
+// TODO: compatity for windows
 #ifdef _WIN32
-	if (fopen_s(&fp, filename, "w") != 0) {
+	if (fopen_s(&fp, filename, "w") != 0)
+	{
 		fprintf(stderr, "fopen_s: ");
 #else
 	//if ( (fp= fopen(filename, "w")) == NULL ) {
-	if ( (fp= fopen(filename, "a")) == NULL ) {
+	if ((fp = fopen(filename, "a")) == NULL)
+	{
 		fprintf(stderr, "fopen: ");
 #endif
 		perror(filename);
@@ -30,9 +33,10 @@ FILE *create_logfile(const char *filename)
 /**
  * @description: close log file
  * */
-void close_logfile (FILE *fp)
+void close_logfile(FILE *fp)
 {
-	if ( fp ) {
+	if (fp)
+	{
 		fclose(fp);
 		fp = NULL;
 	}

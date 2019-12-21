@@ -29,6 +29,7 @@
 #define HASH_LENGTH 32
 
 int eprintf(const char* fmt, ...);
+// TODO: rename
 void eprintfHexString(const char* fmt, ...);
 
 #endif /* !_CRUST_E_UTILS_H_ */

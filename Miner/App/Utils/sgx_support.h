@@ -21,5 +21,3 @@ void *get_sgx_ufunction(const char *name); /* Returns func pointer */
 #ifdef __cplusplus
 }
 #endif
-
-

@@ -11,11 +11,12 @@
 #include <cpprest/asyncrt_utils.h>
 #include "Enclave_u.h"
 #include "sgx_eid.h"
+#include "Common.h"
 #include "Config.h"
 #include "FormatUtils.h"
 #include "IASReport.h"
 #include "sgx_support.h"
-#include "Common.h"
+
 
 class ApiHandler
 {

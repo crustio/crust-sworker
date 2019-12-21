@@ -28,16 +28,16 @@
 #include "Logfile.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
-#define OPT_ISSET(x,y)	x&y
+#define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })
 
-#define TOKEN_FILENAME   "enclave.token"
+#define TOKEN_FILENAME "enclave.token"
 #define ENCLAVE_FILENAME "enclave.signed.so"
 
-#define OPT_PSE		0x01
-#define OPT_NONCE	0x02
-#define OPT_LINK	0x04
-#define OPT_PUBKEY	0x08
+#define OPT_PSE 0x01
+#define OPT_NONCE 0x02
+#define OPT_LINK 0x04
+#define OPT_PUBKEY 0x08
 
 #ifdef __x86_64__
 #define DEF_LIB_SEARCHPATH "/lib:/lib64:/usr/lib:/usr/lib64"
@@ -48,7 +48,8 @@
 using namespace std;
 
 /* variable definition */
-typedef struct ra_session_struct {
+typedef struct ra_session_struct
+{
 	unsigned char g_a[64];
 	unsigned char g_b[64];
 	unsigned char kdk[16];

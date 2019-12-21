@@ -33,10 +33,13 @@
 
 # User
 /Miner/Enclave/EnclavePrivate.pem
+<<<<<<< HEAD
 
 # OneID
 /OneID/Enclave/Makefile.in
 /OneID/Makefile.in
 /OneID/aclocal.m4
 
+=======
+>>>>>>> 8527f5e67500fbdf336b85e84aab11f80ed7f351
 .vscode/
