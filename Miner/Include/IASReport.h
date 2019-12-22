@@ -5,6 +5,7 @@
 
 #define IAS_TRYOUT              3
 #define IAS_TIMEOUT             30
+#define CLIENT_TIMEOUT          100
 
 #define IAS_API_DEF_VERSION     3
 

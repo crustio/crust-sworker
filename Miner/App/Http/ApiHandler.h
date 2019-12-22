@@ -13,6 +13,7 @@
 #include "sgx_eid.h"
 #include "Common.h"
 #include "Config.h"
+#include "Logfile.h"
 #include "FormatUtils.h"
 #include "IASReport.h"
 #include "sgx_support.h"
@@ -23,6 +24,7 @@ class ApiHandler
 public:
     ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in);
     ~ApiHandler();
+    int start();
 
 private:
     sgx_enclave_id_t *p_global_eid;                                     /* The point for sgx global eid*/
