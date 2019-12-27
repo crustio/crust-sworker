@@ -280,6 +280,7 @@ void ApiHandler::handle_post(web::http::http_request message)
             cfprintf(felog, "ias quote report version:%d\n", ias_quote->version);
             cfprintf(felog, "ias quote report signtype:%d\n", ias_quote->sign_type);
             cfprintf(felog, "ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
+            cfprintf(felog, "ias quote report mr_enclave:%s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
 
             cfprintf(felog, "\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
 
@@ -300,7 +301,6 @@ void ApiHandler::handle_post(web::http::http_request message)
         /* Verify IAS report in enclave */
         cfprintf(felog, CF_INFO "Verifying IAS report in enclave...\n");
         ias_status_t ias_status_ret;
-        // TODO: add current tee public key
         entry_network_signature ensig;
         status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)

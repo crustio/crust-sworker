@@ -1,5 +1,5 @@
 #include "config.h"
-#include "sgx_support.h"
+#include "SgxSupport.h"
 #include <sgx_urts.h>
 #include <sgx_capable.h>
 #include <limits.h>
@@ -11,7 +11,6 @@
 #include <sgx_edger8r.h>
 #include <sgx_uae_service.h>
 
-// TODO: rename file
 #ifdef _WIN32
 #include <Windows.h>
 #else

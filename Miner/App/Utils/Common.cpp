@@ -8,17 +8,17 @@ extern FILE *felog;
  * @description: print messages with indicated format to stderr
  *  if felog defined then output the messages to the file too
  * */
-void edividerWithText(const char *text)
+void edivider_with_text(const char *text)
 {
-	dividerWithText(stderr, text);
+	divider_with_text(stderr, text);
 	if (felog != NULL)
-		dividerWithText(felog, text);
+		divider_with_text(felog, text);
 }
 
 /**
  * @description: print messages indicated stream
  * */
-void dividerWithText(FILE *fd, const char *text)
+void divider_with_text(FILE *fd, const char *text)
 {
 	fprintf(fd, "\n%s\n", LINE_HEADER(text));
 }

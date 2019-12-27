@@ -15,11 +15,15 @@ function getPackage()
 function startAPP()
 {
     cd $appdir
-    verbose INFO "Making application..." h
     make clean &>/dev/null
+    setTimeWait "$(verbose INFO "Making application..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
     make &>/dev/null
-    checkRes $? "quit"
-    nohup ./app server &>$APPLOG &
+    checkRes $? "quit" "$SYNCFILE"
+    nohup ./app $startType &>$APPLOG &
+    if [ $? -ne 0 ]; then
+        verbose ERROR "Start app failed!"
+    fi
     cd - &>/dev/null
 }
 
@@ -264,6 +268,10 @@ function checkRes()
     fi
 
     eval "verbose INFO "SUCCESS" t >$descriptor"
+
+    while [ -s $descriptor ]; do
+        sleep 1
+    done
 }
 
 function setEnv()
@@ -298,7 +306,8 @@ function setTimeWait()
         sleep 1
     done
 
-    echo -n "${info}$(cat $SYNCFILE)"
+    echo "${info}$(cat $SYNCFILE)"
+    true > $SYNCFILE
 }
 
 function verbose()
@@ -343,7 +352,9 @@ function success_exit()
 
     # Kill alive useless sub process
     for el in ${toKillPID[@]}; do
-        kill -9 $el
+        if ps -ef | grep -v grep | grep $el &>/dev/null; then
+            kill -9 $el
+        fi
     done
 
     # delete sgx ssl temp directory
@@ -383,6 +394,7 @@ SYNCFILE=$instdir/.syncfile
 # Control configuration
 instTimeout=30
 toKillPID=()
+startType=$1
 # SGX SDK
 SDKURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/sgx_linux_x64_sdk_2.7.101.3.bin"
 DRIVERURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/sgx_linux_x64_driver_2.6.0_4f5bb63.bin"
@@ -429,6 +441,10 @@ trap "success_exit" EXIT
 #    sleep 1
 #done
 #verbose INFO "success" t
+
+if [ x"$startType" != x"server" ]; then
+    startType=""
+fi
 
 read -p "Please input your account password: " passwd
 echo

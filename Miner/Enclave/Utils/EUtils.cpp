@@ -18,7 +18,7 @@ int eprintf(const char *fmt, ...)
 /**
  * @description: use ocall_printhexstring to print format string
  */
-void eprintfHexString(const char *fmt, ...)
+void eprintf_hex_string(const char *fmt, ...)
 {
     char buf[BUFSIZE] = {'\0'};
     va_list ap;

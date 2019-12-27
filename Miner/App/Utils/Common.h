@@ -36,10 +36,10 @@ extern "C"
 #endif
 
     // TODO: convert function name to xx_xx format
-    void edividerWithText(const char *text);
+    void edivider_with_text(const char *text);
     void edivider();
 
-    void dividerWithText(FILE *fd, const char *text);
+    void divider_with_text(FILE *fd, const char *text);
     void divider(FILE *fd);
 
     int cfprintf(FILE *stream, const char *format, ...);

@@ -16,7 +16,7 @@
 #include "sgx_eid.h"
 #include "sgx_urts.h"
 #include "sgx_capable.h"
-#include "sgx_support.h"
+#include "SgxSupport.h"
 #include "Enclave_u.h"
 #include "Config.h"
 #include "ApiHandler.h"
