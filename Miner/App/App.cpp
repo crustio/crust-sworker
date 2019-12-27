@@ -170,7 +170,6 @@ bool entry_network(void)
     int i = 0;
     bool entry_status = true;
 
-
     /* get nonce */
     for (i = 0; i < 2; ++i)
     {

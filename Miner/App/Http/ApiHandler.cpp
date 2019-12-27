@@ -301,6 +301,7 @@ void ApiHandler::handle_post(web::http::http_request message)
         /* Verify IAS report in enclave */
         cfprintf(felog, CF_INFO "Verifying IAS report in enclave...\n");
         ias_status_t ias_status_ret;
+        // TODO: add current tee public key
         entry_network_signature ensig;
         status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)

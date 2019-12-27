@@ -11,6 +11,7 @@
 #include <sgx_edger8r.h>
 #include <sgx_uae_service.h>
 
+// TODO: rename file
 #ifdef _WIN32
 #include <Windows.h>
 #else

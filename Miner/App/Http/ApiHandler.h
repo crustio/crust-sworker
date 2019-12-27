@@ -27,8 +27,8 @@ public:
     int start();
 
 private:
-    sgx_enclave_id_t *p_global_eid;                                     /* The point for sgx global eid*/
-    web::http::experimental::listener::http_listener m_listener;        /* External api listener*/
+    sgx_enclave_id_t *p_global_eid;                              /* The point for sgx global eid*/
+    web::http::experimental::listener::http_listener m_listener; /* External api listener*/
     void handle_get(web::http::http_request message);
     void handle_post(web::http::http_request message);
 };
