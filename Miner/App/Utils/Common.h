@@ -35,7 +35,6 @@ extern "C"
 {
 #endif
 
-    // TODO: convert function name to xx_xx format
     void edivider_with_text(const char *text);
     void edivider();
 
