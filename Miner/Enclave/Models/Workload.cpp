@@ -2,11 +2,18 @@
 
 Workload *workload = new Workload();
 
+/**
+ * @description: get the global workload
+ * @return: the global workload
+ */
 Workload *get_workload()
 {
     return workload;
 }
 
+/**
+ * @description: constructor
+ */
 Workload::Workload()
 {
     this->empty_disk_capacity = 0;
@@ -14,9 +21,11 @@ Workload::Workload()
     {
         this->empty_root_hash[i] = 0;
     }
-    this->work = NULL;
 }
 
+/**
+ * @description: destructor
+ */
 Workload::~Workload()
 {
     for (size_t i = 0; i < this->empty_g_hashs.size(); i++)
@@ -25,15 +34,12 @@ Workload::~Workload()
     }
 
     this->empty_g_hashs.clear();
-
-    if (this->work != NULL)
-    {
-        delete[] this->work;
-        this->work = NULL;
-    }
 }
 
-void Workload::show()
+/**
+ * @description: print work report
+ */
+void Workload::show(void)
 {
     eprintf("Empty root hash: \n");
     for (size_t i = 0; i < 32; i++)
@@ -46,31 +52,27 @@ void Workload::show()
     eprintf("Meaningful work is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        eprintf("Cid->%s, Size->%luB\n", it->first.c_str(), it->second);
+        eprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(it->first.data(), HASH_LENGTH), it->second);
     }
 }
 
-char *Workload::serialize(const char *block_hash)
+/**
+ * @description: use block hash to serialize work report
+ * @param block_hash -> use this hash to create report
+ * @return: the work report
+ */
+std::string Workload::serialize(const char *block_hash)
 {
-    std::string result = "{";
-    result += "'block_hash':'" + std::string(block_hash) + "',";
-    result += "'empty_root_hash':'" + unsigned_char_array_to_hex_string(this->empty_root_hash, PLOT_HASH_LENGTH) + "',";
-    result += "'empty_disk_capacity':" + std::to_string(this->empty_disk_capacity) + ",";
-    result += "files:[";
+    this->report = "{";
+    this->report += "'block_hash':'" + std::string(block_hash) + "',";
+    this->report += "'empty_root_hash':'" + unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH) + "',";
+    this->report += "'empty_disk_capacity':" + std::to_string(this->empty_disk_capacity) + ",";
+    this->report += "files:[";
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        result += "{'cid':'" + it->first + "','size':" + std::to_string(it->second) + "},";
+        report += "{'hash':'" + unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH) + "','size':" + std::to_string(it->second) + "},";
     }
-    result += "]}";
+    this->report += "]}";
 
-    if (this->work != NULL)
-    {
-        delete[] this->work;
-        this->work = NULL;
-    }
-
-    this->work = new char[result.size() + 1];
-    std::copy(result.begin(), result.end(), this->work);
-    this->work[result.size()] = '\0';
-    return this->work;
+    return this->report;
 }

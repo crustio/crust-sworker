@@ -5,7 +5,7 @@
 
 typedef struct MerkleTreeStruct
 {
-    char* cid;
+    char* hash;
     size_t size;
     size_t links_num;
     struct MerkleTreeStruct** links;
