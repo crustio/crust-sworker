@@ -12,6 +12,7 @@ function getPackage()
     } 222<> lockfile
 }
 
+#TODO: move start.sh & install app into opt & rename app
 function startAPP()
 {
     cd $appdir
@@ -95,25 +96,12 @@ function installSGXSSL()
     verbose INFO "Install SGX SSL successfully!!!"
 }
 
-function installOPENSSL()
-{
-    if [ -e "/opt/openssl/1.1.1d" ]; then
-        verbose WARN "openssl-1.1.1d has been installed! Please check!"
-        return
-    fi
-    tar -xvf $opensslpkg -C $rsrcdir
-    cd $openssldir
-    verbose INFO "Configure openssl..." h
-    ./config --prefix=/opt/openssl/1.1.1d --openssldir=/opt/openssl/1.1.1d
-    checkRes $?
-    verbose INFO "Installing openssl..." h
-    make && sudo make install
-    checkRes $?
-    cd - &>/dev/null
-}
-
 function installIPFS()
 {
+    verbose INFO "Copying ipfs to $IPFS..." h
+    execWithExpect "cp $rsrcdir/ipfs $IPFS"
+    checkRes $? "quit"
+
     if [ -d "$IPFSDIR" ]; then
         verbose INFO "IPFS has been initialized." n
     else
@@ -166,6 +154,7 @@ function installIPFS()
         checkRes $? "return"
     fi
 
+    #TODO: move to start
     verbose INFO "Starting up IPFS..." h
     local ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
     if [ x"$ipfspid" != x"" ]; then
@@ -184,7 +173,6 @@ function installIPFS()
 function uninstallSGXSDK()
 {
     for el in ${delOrder[@]}; do
-        [ x"$el" = x"sgxssl" ] && continue
         if [ ${checkArry[$el]} -eq 1 ]; then
             verbose INFO "Uninstalling previous SGX $el..." h
             if echo $el | grep lib &>/dev/null; then
@@ -274,6 +262,7 @@ function checkRes()
     done
 }
 
+#TODO: better env
 function setEnv()
 {
     if grep "SGX_SDK" ~/.bashrc &>/dev/null; then
@@ -290,7 +279,7 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SGX_SDK/pkgconfig
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SGX_SDK/sdk_libs:$SGX_SSL/lib64
 EOF
 
-    verbose WARN "Please run 'source ~/.bashrc' command!!!"
+    source ~/.bashrc
 }
 
 function setTimeWait()
@@ -379,8 +368,10 @@ basedir=$(cd `dirname $0`;pwd)
 appdir=$basedir/../Miner
 instdir=$basedir/..
 TMPFILE=$appdir/tmp.$$
-rsrcdir=$appdir/resource
+rsrcdir=$instdir/resource
+crustdir=/opt/crust
 inteldir=/opt/intel
+crustbindir=$crustdir/bin
 installEnv=false
 sgxssldir=""
 sgxssl_openssl_source_dir=""
@@ -391,6 +382,7 @@ OSID=$(cat /etc/os-release | grep '^ID\b' | grep -Po "(?<==).*")
 OSVERSION=$(cat /etc/os-release | grep 'VERSION_ID' | grep -Po "(?<==\").*(?=\")")
 tmo=180
 SYNCFILE=$instdir/.syncfile
+res=0
 # Control configuration
 instTimeout=30
 toKillPID=()
@@ -420,7 +412,7 @@ delOrder=(libsgx-enclave-common sgxdriver sgxsdk)
 declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 # IPFS related
 IPFSDIR=$HOME"/.ipfs/"
-IPFS=$instdir/bin/ipfs
+IPFS=$crustbindir/ipfs
 SWARMKEY=$instdir/etc/swarm.key
 IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
 IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
@@ -431,6 +423,7 @@ APPLOG=$appdir/logs/entry.log
 trap "success_exit" INT
 trap "success_exit" EXIT
 
+# TODO: ftp
 # Download packages
 #verbose INFO "Downloading SGX SDK packages..." h
 #for package in ${packages[@]}; do
@@ -459,13 +452,24 @@ if [ $? -ne 0 ]; then
     fi
 fi
 
+# Create directory
+verbose INFO "Creating and setting diretory related..." h
+res=0
+execWithExpect "mkdir -p $crustdir"
+res=$(($?|$res))
+execWithExpect "mkdir -p $crustbindir"
+res=$(($?|$res))
+execWithExpect "mkdir -p $inteldir"
+res=$(($?|$res))
+# Set diretory privillege
+execWithExpect "chmod -R 755 $crustdir"
+res=$(($?|$res))
+checkRes $res "quit"
+
 verbose INFO "---------- Installing SGX SDK ----------" n
 if checkSGXSDK; then
     ### Install sgx
     installSGXSDK
-    
-    ### Install openssl 
-    #installOPENSSL
 else
     verbose INFO "SGX SDK Dependencies have been installed!!!"
 fi
@@ -479,6 +483,10 @@ installSGXSSL
 echo
 verbose INFO "---------- Installing IPFS ----------" n
 installIPFS
+
+# Install tee-app dependencies
+execWithExpect "apt-get install libcpprest-dev"
+checkRes $? "quit"
 
 # Set environment
 echo
