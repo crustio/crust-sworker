@@ -1,5 +1,5 @@
 #include "config.h"
-#include "sgx_support.h"
+#include "SgxSupport.h"
 #include <sgx_urts.h>
 #include <sgx_capable.h>
 #include <limits.h>

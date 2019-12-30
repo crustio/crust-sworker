@@ -5,7 +5,11 @@ sgx_enclave_id_t global_eid = 1;
 
 int run_as_server = 0;
 
+extern ApiHandler *api_handler;
+
 extern FILE *felog;
+
+extern Ipfs *ipfs;
 
 /**
  * @description: application entry:
@@ -127,6 +131,12 @@ bool initialize_components(void)
     if (new_api_handler(get_config()->api_base_url.c_str(), &global_eid) == NULL)
     {
         cfprintf(felog, CF_ERROR "Init api handler failed.\n");
+        return false;
+    }
+
+    if(api_handler->start() == -1)
+    {
+        cfprintf(felog, CF_ERROR "Start network service failed!\n");
         return false;
     }
 
@@ -312,7 +322,7 @@ bool entry_network(void)
     /* Send quote to validation node */
     cfprintf(felog, CF_INFO "Sending quote to on-chain node...\n");
     web::http::client::http_client_config cfg;
-    cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
+    cfg.set_timeout(std::chrono::seconds(CLIENT_TIMEOUT));
     web::http::client::http_client *self_api_client = new web::http::client::http_client(get_config()->api_base_url.c_str(), cfg);
     web::uri_builder builder(U("/entry/network"));
     web::http::http_response response;
@@ -342,7 +352,7 @@ bool entry_network(void)
 
     if (response.status_code() != web::http::status_codes::OK)
     {
-        cfprintf(felog, CF_ERROR "Entry network application failed!\n");
+        cfprintf(felog, CF_ERROR "Entry network failed!\n");
         entry_status = false;
         goto cleanup;
     }
@@ -362,34 +372,42 @@ cleanup:
  */
 int main_daemon()
 {
+    int status = 1;
     // New configure
     if (new_config("Config.json") == NULL)
     {
         cfprintf(felog, CF_ERROR "Init config failed.\n");
-        return -1;
+        status = -1;
+        goto cleanup;
     }
     get_config()->show();
 
     // Create log file
-    felog = create_logfile("./logs/entry.log");
+    if(felog == NULL)
+    {
+        felog = create_logfile("./logs/entry.log");
+    }
 
     // Init enclave
     if (!initialize_enclave())
     {
-        return -1;
+        status = -1;
+        goto cleanup;
     }
 
     // Entry network
     if (!run_as_server && !entry_network())
     {
-        cfprintf(felog, CF_ERROR "Entry network failed!\n");
-        return -1;
+        status = -1;
+        goto cleanup;
     }
 
     // Init related components
     if (!initialize_components())
     {
-        return -1;
+        cfprintf(felog, CF_ERROR "Initial component failed!\n");
+        status = -1;
+        goto cleanup;
     }
 
 /* Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores */
@@ -404,12 +422,16 @@ int main_daemon()
     /* Main validate loop */
     ecall_main_loop(global_eid, get_config()->empty_path.c_str());
 
+cleanup:
     /* End and release*/
     sgx_destroy_enclave(global_eid);
     delete get_config();
-    delete get_ipfs();
+    if(ipfs != NULL)
+    {
+        delete ipfs;
+    }
     close_logfile(felog);
-    return 0;
+    return status;
 }
 
 /**
