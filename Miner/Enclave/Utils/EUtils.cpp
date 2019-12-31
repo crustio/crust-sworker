@@ -1,5 +1,9 @@
 #include "EUtils.h"
 
+static unsigned char *_hex_buffer = NULL;
+static size_t _hex_buffer_size = 0;
+const char _hextable[] = "0123456789abcdef";
+
 /**
  * @description: use ocall_print_string to print format string
  * @return: the length of printed string
@@ -16,14 +20,36 @@ int eprintf(const char *fmt, ...)
 }
 
 /**
- * @description: use ocall_printhexstring to print format string
- */
-void eprintfHexString(const char *fmt, ...)
+ * @description: Transform string to hexstring
+ * @return: Hexstringed data
+ * */
+unsigned char *hexstring(const void *vsrc, size_t len)
 {
-    char buf[BUFSIZE] = {'\0'};
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
-    va_end(ap);
-    ocall_printhexstring(buf);
+	size_t i, bsz;
+	const unsigned char *src = (const unsigned char *)vsrc;
+	unsigned char *bp;
+
+	bsz = len * 2 + 1; /* Make room for NULL byte */
+	if (bsz >= _hex_buffer_size)
+	{
+		/* Allocate in 1K increments. Make room for the NULL byte. */
+		size_t newsz = 1024 * (bsz / 1024) + ((bsz % 1024) ? 1024 : 0);
+		_hex_buffer_size = newsz;
+		_hex_buffer = (unsigned char *)realloc(_hex_buffer, newsz);
+		if (_hex_buffer == NULL)
+		{
+			return NULL;
+		}
+	}
+
+	for (i = 0, bp = _hex_buffer; i < len; ++i)
+	{
+		*bp = (uint8_t)_hextable[src[i] >> 4];
+		++bp;
+		*bp = (uint8_t)_hextable[src[i] & 0xf];
+		++bp;
+	}
+	_hex_buffer[len * 2] = 0;
+
+	return _hex_buffer;
 }

@@ -182,13 +182,13 @@ void ApiHandler::handle_post(web::http::http_request message)
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        cfprintf(felog, CF_INFO "Storing quote in enclave...\n");
         if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char *)quote, qsz) != SGX_SUCCESS)
         {
             cfprintf(felog, CF_ERROR "Store offChain node quote failed!\n");
             message.reply(web::http::status_codes::InternalError, "StoreQuoteError");
             return;
         }
+        cfprintf(felog, CF_INFO "Storing quote in enclave successfully!\n");
 
         /* Request IAS verification */
         web::http::client::http_client_config cfg;
@@ -211,7 +211,6 @@ void ApiHandler::handle_post(web::http::http_request message)
 
         // TODO: deal with specific exceptions
         // Send quote to IAS service
-        cfprintf(felog, CF_INFO "Sending quote to IAS service...\n");
         int net_tryout = IAS_TRYOUT;
         while (net_tryout >= 0)
         {
@@ -243,8 +242,8 @@ void ApiHandler::handle_post(web::http::http_request message)
             delete self_api_client;
             return;
         }
+        cfprintf(felog, CF_INFO "Sending quote to IAS service successfully!\n");
 
-        cfprintf(felog, CF_INFO "Recieve IAS response successfully!\n");
 
         web::http::http_headers res_headers = response.headers();
         std::vector<const char *> ias_report;
@@ -298,7 +297,6 @@ void ApiHandler::handle_post(web::http::http_request message)
         }
 
         /* Verify IAS report in enclave */
-        cfprintf(felog, CF_INFO "Verifying IAS report in enclave...\n");
         ias_status_t ias_status_ret;
         // TODO: add current tee public key
         entry_network_signature ensig;
@@ -308,7 +306,8 @@ void ApiHandler::handle_post(web::http::http_request message)
             if (ias_status_ret == IAS_VERIFY_SUCCESS)
             {
                 // TODO:Send a verification request to chain
-                cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void *)&ensig.data, sizeof(ensig.data)));
+                //cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void *)&ensig.data, sizeof(ensig.data)));
+                cfprintf(felog, CF_INFO "Verifying IAS report in enclave successfully!\n");
                 message.reply(web::http::status_codes::OK, "Entry network successfully!");
             }
             else
@@ -357,6 +356,7 @@ void ApiHandler::handle_post(web::http::http_request message)
                     default:
                         cfprintf(felog, CF_ERROR "Unknow return status!\n");
                 }
+                cfprintf(felog, CF_ERROR "Verify IAS report failed!\n");
                 message.reply(web::http::status_codes::InternalError, "Verify IAS report failed!");
             }
         }

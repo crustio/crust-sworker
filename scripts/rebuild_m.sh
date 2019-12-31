@@ -1,9 +1,9 @@
 #!/bin/bash
 
 basedir=$(cd `dirname $0`;pwd)
-rootdir=$basedir/../Miner
+appdir=$basedir/../Miner
 
-cd $rootdir
+cd $appdir
 make clean && make
 if [ $? -ne 0 ]; then
     echo "[ERROR] make file failed!"

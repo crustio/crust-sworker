@@ -1,15 +1,21 @@
 #include "App.h"
 
 /* Global EID shared by multiple threads */
-sgx_enclave_id_t global_eid = 1;
-
+sgx_enclave_id_t global_eid = 0;
 int run_as_server = 0;
+std::vector<sgx_enclave_id_t> enclaveIDs;
+pid_t workerPID=-1, monitorPID=-1;
+int pipe_fd[2];
+int session_type;
+bool isChild = false;
 
 extern ApiHandler *api_handler;
-
 extern FILE *felog;
-
 extern Ipfs *ipfs;
+
+void start_monitor(void);
+void start_worker(void);
+void *do_disk_related(void *arg);
 
 /**
  * @description: application entry:
@@ -47,11 +53,31 @@ int SGX_CDECL main(int argc, char *argv[])
     return 0;
 }
 
+bool initialize_config(void)
+{
+    bool status = true;
+    // New configure
+    if (new_config("Config.json") == NULL)
+    {
+        cfprintf(felog, CF_ERROR "Init config failed.\n");
+        return false;
+    }
+    get_config()->show();
+
+    // Create log file
+    if(felog == NULL)
+    {
+        felog = create_logfile("./logs/entry.log");
+    }
+
+    return status;
+}
+
 /**
  * @description: call sgx_create_enclave to initialize an enclave instance
  * @return: success or failure
  */
-bool initialize_enclave(void)
+bool initialize_enclave()
 {
     int sgx_support;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -88,14 +114,14 @@ bool initialize_enclave(void)
     ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "Init enclave failed.\n");
+        cfprintf(felog, CF_ERROR "Init enclave failed.Error code:%08x\n", ret);
         return false;
     }
 
     /* Generate code measurement */
     if (SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
     {
-        cfprintf(felog, CF_ERROR "Generate code measurement failed!\n");
+        cfprintf(felog, CF_ERROR "Generate code measurement failed!error code:%08x\n", ret);
         return false;
     }
 
@@ -108,6 +134,7 @@ bool initialize_enclave(void)
             return false;
         }
     }
+    cfprintf(felog, CF_INFO "Initial enclave successfully!\n");
 
     return true;
 }
@@ -368,33 +395,148 @@ cleanup:
 }
 
 /**
- * @description: run main progress
- * @return: exit flag
- */
-int main_daemon()
+ * @description: Execute different session based on parameter
+ * @return: session result
+ * */
+ipc_status_t attest_session()
 {
-    int status = 1;
-    // New configure
-    if (new_config("Config.json") == NULL)
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    ipc_status_t ipc_status = IPC_SUCCESS;
+    if(session_type == SESSION_STARTER)
     {
-        cfprintf(felog, CF_ERROR "Init config failed.\n");
-        status = -1;
-        goto cleanup;
+        sgx_status = attest_session_starter(global_eid, &ipc_status);
     }
-    get_config()->show();
+    else if(session_type == SESSION_RECEIVER)
+    {
+        sgx_status = attest_session_receiver(global_eid, &ipc_status);
+    }
+    else
+    {
+        return IPC_BADSESSIONTYPE;
+    }
+    // Judge by result
+    if(SGX_SUCCESS == sgx_status)
+    {
+        if(IPC_SUCCESS !=  ipc_status)
+        {
+            return ipc_status;
+        }
+    }
+    else
+    {
+        return IPC_SGX_ERROR;
+    }
 
-    // Create log file
-    if(felog == NULL)
-    {
-        felog = create_logfile("./logs/entry.log");
-    }
+    return ipc_status;
+}
+
+/**
+ * @description: start child worker
+ */
+void start_monitor(void)
+{
+    cfprintf(NULL, CF_INFO "Monintor process(ID:%d)\n", monitorPID);
+    int status = 0;
+    pid_t pid = -1;
+
+    // Init IPC
+    init_ipc();
 
     // Init enclave
     if (!initialize_enclave())
     {
-        status = -1;
+        cfprintf(NULL, CF_ERROR "Monitor process init enclave failed!\n");
+        exit(3);
+    }
+    cfprintf(NULL, CF_INFO "Monitor process init enclave successfully!id:%d\n", global_eid);
+
+
+again:
+    // Do TEE key pair transformation
+    if(IPC_SUCCESS != attest_session())
+    {
+        cfprintf(NULL, CF_ERROR "Monitor does local attestation failed!\n");
+        //destroy_ipc();
+        exit(4);
+    }
+    cfprintf(NULL, CF_INFO "[Monitor] Do local attestation successfully!\n");
+
+    // Monitor worker process
+    monitor_ipc(MONITORTYPE,WORKERTYPE);
+    cfprintf(NULL, CF_INFO "Worker process exit unexpectly!Restart it again\n");
+
+    // Deal with child process
+    if(!isChild)
+    {
+        waitpid(workerPID, &status, WNOHANG);
+    }
+
+    // Fork new child process
+    if((pid=fork()) == -1)
+    {
+        cfprintf(felog, CF_ERROR "Create worker process failed!\n");
         goto cleanup;
     }
+
+    if(pid == 0)
+    {
+        cfprintf(NULL, CF_INFO "Start new worker...\n");
+        // Child process used for worker
+        workerPID = getpid();
+        session_type = SESSION_RECEIVER;
+        isChild = true;
+        start_worker();
+    }
+    else 
+    {
+        workerPID = pid;
+        session_type = SESSION_STARTER;
+        isChild = false;
+        goto again;
+    }
+
+
+cleanup:
+    /* End and release*/
+    sgx_destroy_enclave(global_eid);
+    delete get_config();
+    close_logfile(felog);
+
+}
+
+/**
+ * @description: start parent worker
+ */
+void start_worker(void)
+{
+    cfprintf(NULL, CF_INFO "Worker process(ID:%d)\n", workerPID);
+    int status = 0;
+    pid_t pid = 0;
+    pthread_t wthread;
+    cfprintf(NULL, CF_INFO "worker global eid:%d\n", global_eid);
+
+    // Init conifigure
+    if(!initialize_config())
+    {
+        cfprintf(felog, CF_ERROR "Init configuration failed!\n");
+        return;
+    }
+
+    // Init IPC
+    init_ipc();
+
+    // Init enclave
+    if(global_eid != 0)
+    {
+        sgx_destroy_enclave(global_eid);
+    }
+    cfprintf(NULL, CF_INFO "Before Worker process int enclave id:%d\n", global_eid);
+    if (!initialize_enclave())
+    {
+        cfprintf(felog, CF_ERROR "Init enclave failed!\n");
+        return;
+    }
+    cfprintf(NULL, CF_INFO "Worker process int enclave successfully!id:%d\n", global_eid);
 
     // Entry network
     if (!run_as_server && !entry_network())
@@ -411,6 +553,83 @@ int main_daemon()
         goto cleanup;
     }
 
+    // Simulate work
+    //while(true)
+    //{
+    //    sleep(50);
+    //}
+
+    // Do disk related
+    status = pthread_create(&wthread, NULL, do_disk_related, NULL);
+    if(status != 0)
+    {
+        cfprintf(felog, CF_ERROR "Create worker thread failed!\n");
+        status = IPC_CREATE_THREAD_ERR;
+        goto cleanup;
+    }
+
+
+again:
+    // Do TEE key pair transformation
+    if(IPC_SUCCESS != attest_session())
+    {
+        cfprintf(NULL, CF_ERROR "Worker does local attestation failed!\n");
+        //destroy_ipc();
+        exit(4);
+    }
+    cfprintf(NULL, CF_INFO "[Worker] Do local attestation successfully!\n");
+
+    // Monitor monitor process
+    monitor_ipc(WORKERTYPE,MONITORTYPE);
+    cfprintf(NULL, CF_INFO "Monitor process exit unexpectly!Restart it again\n");
+
+    // Deal with child process
+    if(!isChild)
+    {
+        waitpid(monitorPID, &status, WNOHANG);
+    }
+    
+    // Fork a new process for monitor
+    if((pid=fork()) == -1)
+    {
+        cfprintf(felog, CF_ERROR "Create worker process failed!\n");
+        status = -1;
+        goto cleanup;
+    }
+
+    if(pid == 0)
+    {
+        // Child process used for monitor
+        monitorPID = getpid();
+        session_type = SESSION_RECEIVER;
+        isChild = true;
+        start_monitor();
+    }
+    else
+    {
+        monitorPID = pid;
+        session_type = SESSION_STARTER;
+        isChild = false;
+        goto again;
+    }
+
+
+cleanup:
+    /* End and release*/
+    sgx_destroy_enclave(global_eid);
+    delete get_config();
+    if(ipfs != NULL)
+    {
+        delete ipfs;
+    }
+    close_logfile(felog);
+
+    exit(status);
+}
+
+void *do_disk_related(void *)
+{
+
 /* Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores */
 #pragma omp parallel for
     for (size_t i = 0; i < get_config()->empty_capacity; i++)
@@ -423,16 +642,45 @@ int main_daemon()
     /* Main validate loop */
     ecall_main_loop(global_eid, get_config()->empty_path.c_str());
 
-cleanup:
-    /* End and release*/
-    sgx_destroy_enclave(global_eid);
-    delete get_config();
-    if(ipfs != NULL)
+    return NULL;
+}
+
+/**
+ * @description: run main progress
+ * @return: exit flag
+ */
+int main_daemon()
+{
+    // Clean last time IPC related variable, actually it indicates message queue
+    // generated last time without normal exit
+    clean_ipc();
+
+    // Create worker process
+    monitorPID = getpid();
+    pid_t pid;
+    if((pid=fork()) == -1)
     {
-        delete ipfs;
+        cfprintf(NULL, CF_ERROR "Create worker process failed!\n");
+        return -1;
     }
-    close_logfile(felog);
-    return status;
+    if(pid == 0)
+    {
+        // Worker process(child process)
+        workerPID = getpid();
+        session_type = SESSION_STARTER;
+        isChild = true;
+        start_worker();
+    }
+    else
+    {
+        // Monitor process(parent process)
+        workerPID = pid;
+        session_type = SESSION_RECEIVER;
+        isChild = false;
+        start_monitor();
+    }
+
+    return 1;
 }
 
 /**
