@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <string>
 #include <unistd.h>
 #include "sgx_error.h"
@@ -22,6 +23,7 @@
 #include "ApiHandler.h"
 #include "Ipfs.h"
 #include "OCalls.h"
+//#include "LocalAttestation.h"
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
@@ -33,6 +35,8 @@
 
 #define TOKEN_FILENAME "enclave.token"
 #define ENCLAVE_FILENAME "enclave.signed.so"
+#define ENCLAVE_FILENAME_MONITOR "enclave.signed_monitor.so"
+#define ENCLAVE_FILENAME_WORKER "enclave.signed_worker.so"
 
 #define OPT_PSE 0x01
 #define OPT_NONCE 0x02
@@ -44,6 +48,9 @@
 #else
 #define DEF_LIB_SEARCHPATH "/lib:/usr/lib"
 #endif
+
+#define SESSION_STARTER  1
+#define SESSION_RECEIVER 2
 
 using namespace std;
 
@@ -60,7 +67,7 @@ typedef struct ra_session_struct
 } ra_session_t;
 
 extern sgx_enclave_id_t global_eid;
-bool initialize_enclave(void);
+bool initialize_enclave();
 bool initialize_components(void);
 bool entry_network(void);
 int main_daemon(void);

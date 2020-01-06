@@ -3,9 +3,7 @@
 using namespace std;
 
 extern uint8_t offChain_report_data[];
-
 extern sgx_measurement_t current_mr_enclave;
-
 extern ecc_key_pair id_key_pair;
 
 static enum _error_type {

@@ -1,51 +1,22 @@
 #include "ApiHandler.h"
 #include "json.hpp"
 
-ApiHandler *api_handler = NULL;
+sgx_enclave_id_t global_eid = 0;
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 
 extern FILE *felog;
 
 /**
- * @description: new a global API handler
- * @param url -> API base url 
- * @param p_global_eid -> The point for sgx global eid 
- * @return: the point of API handler
- */
-ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid)
-{
-    if (api_handler != NULL)
-    {
-        delete api_handler;
-    }
-
-    api_handler = new ApiHandler(url, p_global_eid);
-    return api_handler;
-}
-
-/**
- * @description: get the global API handler
- * @return: the point of API handler
- */
-ApiHandler *get_api_handler(void)
-{
-    if (api_handler == NULL)
-    {
-        cfprintf(stderr, CF_INFO "Please use new_api_handler(url, &global_eid) frist.\n");
-        exit(-1);
-    }
-
-    return api_handler;
-}
-
-/**
  * @description: constructor
  * @param url -> API base url 
  * @param p_global_eid The point for sgx global eid  
  */
-ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in) : m_listener(url)
+ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in)
 {
+    //web::http::experimental::listener::http_listener_config listener_config;
+    //listener_config.set_timeout(utility::seconds(15));
+    this->m_listener = new web::http::experimental::listener::http_listener(url);
     this->p_global_eid = p_global_eid_in;
 }
 
@@ -57,9 +28,28 @@ int ApiHandler::start()
 {
     try 
     {
-        this->m_listener.support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
-        this->m_listener.support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
-        this->m_listener.open().wait();
+        this->m_listener->support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
+        this->m_listener->support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
+        this->m_listener->open().wait();
+        return 1;
+    }
+    catch (const web::http::http_exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+    }
+    catch (const std::exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+    }
+
+    return -1;
+}
+
+int ApiHandler::stop()
+{
+    try
+    {
+        this->m_listener->close().wait();
         return 1;
     }
     catch (const web::http::http_exception &e)
@@ -79,8 +69,7 @@ int ApiHandler::start()
  */
 ApiHandler::~ApiHandler()
 {
-    this->m_listener.close().wait();
-    delete this->p_global_eid;
+    delete this->m_listener;
 }
 
 /**
@@ -141,12 +130,13 @@ void ApiHandler::handle_get(web::http::http_request message)
         }
 
         message.reply(web::http::status_codes::OK, report);
+        delete report;
         return;
     }
 
     message.reply(web::http::status_codes::BadRequest, "BadRequest");
     return;
-};
+}
 
 /**
  * @description: handle post requests
@@ -182,13 +172,13 @@ void ApiHandler::handle_post(web::http::http_request message)
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        cfprintf(felog, CF_INFO "Storing quote in enclave...\n");
         if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char *)quote, qsz) != SGX_SUCCESS)
         {
             cfprintf(felog, CF_ERROR "Store offChain node quote failed!\n");
             message.reply(web::http::status_codes::InternalError, "StoreQuoteError");
             return;
         }
+        cfprintf(felog, CF_INFO "Storing quote in enclave successfully!\n");
 
         /* Request IAS verification */
         web::http::client::http_client_config cfg;
@@ -211,7 +201,6 @@ void ApiHandler::handle_post(web::http::http_request message)
 
         // TODO: deal with specific exceptions
         // Send quote to IAS service
-        cfprintf(felog, CF_INFO "Sending quote to IAS service...\n");
         int net_tryout = IAS_TRYOUT;
         while (net_tryout >= 0)
         {
@@ -243,8 +232,8 @@ void ApiHandler::handle_post(web::http::http_request message)
             delete self_api_client;
             return;
         }
+        cfprintf(felog, CF_INFO "Sending quote to IAS service successfully!\n");
 
-        cfprintf(felog, CF_INFO "Recieve IAS response successfully!\n");
 
         web::http::http_headers res_headers = response.headers();
         std::vector<const char *> ias_report;
@@ -299,7 +288,6 @@ void ApiHandler::handle_post(web::http::http_request message)
         }
 
         /* Verify IAS report in enclave */
-        cfprintf(felog, CF_INFO "Verifying IAS report in enclave...\n");
         ias_status_t ias_status_ret;
         // TODO: add current tee public key
         entry_network_signature ensig;
@@ -309,7 +297,8 @@ void ApiHandler::handle_post(web::http::http_request message)
             if (ias_status_ret == IAS_VERIFY_SUCCESS)
             {
                 // TODO:Send a verification request to chain
-                cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void *)&ensig.data, sizeof(ensig.data)));
+                //cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void *)&ensig.data, sizeof(ensig.data)));
+                cfprintf(felog, CF_INFO "Verifying IAS report in enclave successfully!\n");
                 message.reply(web::http::status_codes::OK, "Entry network successfully!");
             }
             else
@@ -358,6 +347,7 @@ void ApiHandler::handle_post(web::http::http_request message)
                     default:
                         cfprintf(felog, CF_ERROR "Unknow return status!\n");
                 }
+                cfprintf(felog, CF_ERROR "Verify IAS report failed!\n");
                 message.reply(web::http::status_codes::InternalError, "Verify IAS report failed!");
             }
         }
@@ -370,4 +360,7 @@ void ApiHandler::handle_post(web::http::http_request message)
     }
 
     fflush(felog);
+
+    message.reply(web::http::status_codes::BadRequest, "BadRequest");
+    return;
 }
