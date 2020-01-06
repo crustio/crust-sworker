@@ -1,6 +1,7 @@
 #include "ApiHandler.h"
 #include "json.hpp"
 
+// TODO: single class
 ApiHandler *api_handler = NULL;
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
