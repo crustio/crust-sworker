@@ -1,15 +1,19 @@
 #include "Attestation.h"
 #include "EUtils.h"
+#include "Workload.h"
 
 extern ecc_key_pair id_key_pair;
+extern Workload *workload;
+extern sgx_measurement_t current_mr_enclave;
 
 ipc_status_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_enclave_identity);
 
 /**
- * @description: Create a session with monitor enclave
+ * @description: This function should be invoked by worker process,
+ *  used to transform work data to monitor process for backup
  * @return: ipc status
  * */
-ipc_status_t attest_session_starter()
+ipc_status_t ecall_attest_session_starter(int datatype)
 {
     sgx_dh_msg1_t dh_msg1;            //Diffie-Hellman Message 1
     sgx_key_128bit_t dh_aek;          // Session Key
@@ -24,22 +28,40 @@ ipc_status_t attest_session_starter()
     plaintext = (const uint8_t*)(" ");
     uint32_t plaintext_length;
     plaintext_length = 0;
+    uint8_t *p_data;
+    uint32_t secret_size = 0;
+
+    // Set transfered data
+    if(datatype ==  IPC_DATATYPE_KEYPAIR)
+    {
+        p_data = (uint8_t*)&id_key_pair;
+        secret_size = sizeof(ecc_key_pair);
+    }
+    else if(datatype == IPC_DATATYPE_REPORT)
+    {
+        // TODO: transfer report data
+        eprintf("[enclave]===========get report data\n");
+    }
+    else
+    {
+        return IPC_DATATYPE_ERROR;
+    }
 
     //Allocate memory for the AES-GCM request message
-    req_message = (sgx_aes_gcm_data_t*)malloc(sizeof(sgx_aes_gcm_data_t)+sizeof(ecc_key_pair));
+    req_message = (sgx_aes_gcm_data_t*)malloc(sizeof(sgx_aes_gcm_data_t)+secret_size);
     if(!req_message)
     {
         return MALLOC_ERROR;
     }
 
-    memset(req_message,0,sizeof(sgx_aes_gcm_data_t)+sizeof(ecc_key_pair));
+    memset(req_message,0,sizeof(sgx_aes_gcm_data_t)+secret_size);
     memset(&dh_aek,0, sizeof(sgx_key_128bit_t));
     memset(&dh_msg1, 0, sizeof(sgx_dh_msg1_t));
     memset(&dh_msg2, 0, sizeof(sgx_dh_msg2_t));
     memset(&dh_msg3, 0, sizeof(sgx_dh_msg3_t));
 
     //Set the payload size to data to encrypt length
-    req_message->payload_size = sizeof(ecc_key_pair);
+    req_message->payload_size = secret_size;
     memcpy(req_message->reserved,"0123456789",10);
 
     //Intialize the session as a session initiator
@@ -50,7 +72,7 @@ ipc_status_t attest_session_starter()
     }
 
     //Ocall to request for a session with the destination enclave and obtain session id and Message 1 if successful
-    status = ocall_send_request_recv_msg1(&ipc_status, &dh_msg1);
+    status = ocall_send_request_recv_msg1(&ipc_status, &dh_msg1, secret_size);
     if (status == SGX_SUCCESS)
     {
         if (ipc_status != IPC_SUCCESS)
@@ -94,7 +116,7 @@ ipc_status_t attest_session_starter()
     //eprintf("[enclave]===========payload size:%d\n", req_message->payload_size);
 
     // Send key pair to monitor process tee
-    status = sgx_rijndael128GCM_encrypt(&dh_aek, (uint8_t*)&id_key_pair, sizeof(ecc_key_pair),
+    status = sgx_rijndael128GCM_encrypt(&dh_aek, p_data, secret_size,
                 reinterpret_cast<uint8_t *>(&(req_message->payload)),
                 reinterpret_cast<uint8_t *>(&(req_message->reserved)),
                 sizeof(req_message->reserved), plaintext, plaintext_length,
@@ -107,7 +129,7 @@ ipc_status_t attest_session_starter()
     }
     //eprintf("[enclave]===========received data:%s\n", hexstring(&id_key_pair, sizeof(ecc_key_pair)));
 
-    status = ocall_send_keypair(&ipc_status, req_message, sizeof(sgx_aes_gcm_data_t)+sizeof(ecc_key_pair));
+    status = ocall_send_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size);
     if(SGX_SUCCESS == status)
     {
         if(IPC_SUCCESS != ipc_status)
@@ -125,10 +147,11 @@ ipc_status_t attest_session_starter()
 }
 
 /**
- * @description: Handle the request from worker enclave
+ * @description: This function should be invoked by monitor process,
+ *  which will receive work data from worker process for backup
  * @return: ipc status
  * */
-ipc_status_t attest_session_receiver()
+ipc_status_t ecall_attest_session_receiver(int datatype)
 {
     sgx_dh_session_t sgx_dh_session;
     sgx_status_t status = SGX_SUCCESS;
@@ -140,13 +163,12 @@ ipc_status_t attest_session_receiver()
     sgx_dh_session_enclave_identity_t initiator_identity;
     ipc_status_t ipc_status;
     sgx_aes_gcm_data_t *req_message;
-    req_message = (sgx_aes_gcm_data_t*)malloc(sizeof(sgx_aes_gcm_data_t)+sizeof(ecc_key_pair));
     uint32_t plain_text_offset;
     uint32_t plaintext_length = 0;
     uint32_t decrypted_data_length;
     uint8_t *decrypted_data;
+    uint32_t secret_size = 0;
 
-    memset(req_message, 0, sizeof(sgx_aes_gcm_data_t)+sizeof(ecc_key_pair));
     memset(request, 0, 20);
     memset(&dh_aek,0, sizeof(sgx_key_128bit_t));
     memset(&dh_msg1, 0, sizeof(sgx_dh_msg1_t));
@@ -160,7 +182,7 @@ ipc_status_t attest_session_receiver()
     }
 
     // Waiting for session request
-    status = ocall_recv_session_request(&ipc_status, request);
+    status = ocall_recv_session_request(&ipc_status, request, &secret_size);
     if(SGX_SUCCESS == status)
     {
         if(IPC_SUCCESS != ipc_status)
@@ -176,6 +198,10 @@ ipc_status_t attest_session_receiver()
     {
         return IPC_SGX_ERROR;
     }
+
+    // Set request message
+    req_message = (sgx_aes_gcm_data_t*)malloc(sizeof(sgx_aes_gcm_data_t)+secret_size);
+    memset(req_message, 0, sizeof(sgx_aes_gcm_data_t)+secret_size);
 
     //Generate Message1 that will be returned to Source Enclave
     status = sgx_dh_responder_gen_msg1((sgx_dh_msg1_t*)&dh_msg1, &sgx_dh_session);
@@ -236,7 +262,7 @@ ipc_status_t attest_session_receiver()
         }
 
         // Receive tee key pair from worker process
-        status = ocall_recv_keypair(&ipc_status, req_message, sizeof(sgx_aes_gcm_data_t)+sizeof(ecc_key_pair));
+        status = ocall_recv_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size);
         if(SGX_SUCCESS == status)
         {
             if(IPC_SUCCESS != ipc_status)
@@ -251,7 +277,6 @@ ipc_status_t attest_session_receiver()
 
         plain_text_offset = req_message->payload_size;
         decrypted_data_length = req_message->payload_size;
-        //eprintf("[enclave]==========payload size:%d\n", decrypted_data_length);
         decrypted_data = (uint8_t*)malloc(decrypted_data_length);
         if(!decrypted_data)
         {
@@ -275,7 +300,15 @@ ipc_status_t attest_session_receiver()
 
         eprintf("[enclave]===========received data:%s\n",hexstring(decrypted_data, decrypted_data_length));
 
-        memcpy(&id_key_pair, decrypted_data, sizeof(ecc_key_pair));
+        // Recevie data by data type
+        if(datatype == IPC_DATATYPE_KEYPAIR)
+        {
+            memcpy(&id_key_pair, decrypted_data, decrypted_data_length);
+        }
+        else if(datatype == IPC_DATATYPE_REPORT)
+        {
+            eprintf("[enclave]===========receive report\n");
+        }
 
     } while(0);
 
@@ -293,8 +326,9 @@ ipc_status_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_e
     {
         return INVALID_PARAMETER_ERROR;
     }
-    if(peer_enclave_identity->isv_prod_id != 0 || !(peer_enclave_identity->attributes.flags & SGX_FLAGS_INITTED))
+    //if(peer_enclave_identity->isv_prod_id != 0 || !(peer_enclave_identity->attributes.flags & SGX_FLAGS_INITTED))
         // || peer_enclave_identity->attributes.xfrm !=3)// || peer_enclave_identity->mr_signer != xx //TODO: To be hardcoded with values to check
+    if(memcmp(&peer_enclave_identity->mr_enclave, &current_mr_enclave, sizeof(sgx_measurement_t)) != 0)
     {
         return ENCLAVE_TRUST_ERROR;
     }

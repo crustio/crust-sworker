@@ -1,51 +1,22 @@
 #include "ApiHandler.h"
 #include "json.hpp"
 
-ApiHandler *api_handler = NULL;
+sgx_enclave_id_t global_eid = 0;
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 
 extern FILE *felog;
 
 /**
- * @description: new a global API handler
- * @param url -> API base url 
- * @param p_global_eid -> The point for sgx global eid 
- * @return: the point of API handler
- */
-ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid)
-{
-    if (api_handler != NULL)
-    {
-        delete api_handler;
-    }
-
-    api_handler = new ApiHandler(url, p_global_eid);
-    return api_handler;
-}
-
-/**
- * @description: get the global API handler
- * @return: the point of API handler
- */
-ApiHandler *get_api_handler(void)
-{
-    if (api_handler == NULL)
-    {
-        cfprintf(stderr, CF_INFO "Please use new_api_handler(url, &global_eid) frist.\n");
-        exit(-1);
-    }
-
-    return api_handler;
-}
-
-/**
  * @description: constructor
  * @param url -> API base url 
  * @param p_global_eid The point for sgx global eid  
  */
-ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in) : m_listener(url)
+ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in)
 {
+    //web::http::experimental::listener::http_listener_config listener_config;
+    //listener_config.set_timeout(utility::seconds(15));
+    this->m_listener = new web::http::experimental::listener::http_listener(url);
     this->p_global_eid = p_global_eid_in;
 }
 
@@ -57,9 +28,28 @@ int ApiHandler::start()
 {
     try 
     {
-        this->m_listener.support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
-        this->m_listener.support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
-        this->m_listener.open().wait();
+        this->m_listener->support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
+        this->m_listener->support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
+        this->m_listener->open().wait();
+        return 1;
+    }
+    catch (const web::http::http_exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+    }
+    catch (const std::exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+    }
+
+    return -1;
+}
+
+int ApiHandler::stop()
+{
+    try
+    {
+        this->m_listener->close().wait();
         return 1;
     }
     catch (const web::http::http_exception &e)
@@ -79,8 +69,7 @@ int ApiHandler::start()
  */
 ApiHandler::~ApiHandler()
 {
-    this->m_listener.close().wait();
-    delete this->p_global_eid;
+    delete this->m_listener;
 }
 
 /**
@@ -141,12 +130,13 @@ void ApiHandler::handle_get(web::http::http_request message)
         }
 
         message.reply(web::http::status_codes::OK, report);
+        delete report;
         return;
     }
 
     message.reply(web::http::status_codes::BadRequest, "BadRequest");
     return;
-};
+}
 
 /**
  * @description: handle post requests
@@ -369,4 +359,7 @@ void ApiHandler::handle_post(web::http::http_request message)
     }
 
     fflush(felog);
+
+    message.reply(web::http::status_codes::BadRequest, "BadRequest");
+    return;
 }

@@ -230,10 +230,9 @@ int monitor_ipc(int sendtype, int recvtype)
     while(true)
     {
         msg.type = sendtype;
-        msg.text = 'i';
         msgsnd(msqid, &msg, sizeof(msg.text), 0);
     
-        while(msgrcv(msqid, &msg, 1, recvtype, IPC_NOWAIT) == -1)
+        while(msgrcv(msqid, &msg, sizeof(msg.text), recvtype, IPC_NOWAIT) == -1)
         {
             if(timeout == IPCTIMEOUT)
             {

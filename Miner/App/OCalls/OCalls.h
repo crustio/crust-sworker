@@ -19,6 +19,7 @@
 
 #define HEXSTRING_BUF   128
 #define BUFSIZE         1024
+#define IPC_TIMEOUT     60
 
 extern FILE* felog;
 
@@ -174,39 +175,36 @@ void ocall_usleep(int u)
     usleep(u);
 }
 
-/**
- * @description: Monitor process receives session request
- * @return: ocall status
- * */
-ipc_status_t ocall_recv_session_request(char *request)
-{
-    // Waiting for session request
-    cfprintf(NULL, CF_INFO "Waiting for session request\n");
-    if(msgrcv(msqid, &msg, 1, 100, 0) == -1)
-    {
-        return IPC_RECVMSG_ERROR;
-    }
-    sem_p(semid);
-    cfprintf(NULL, CF_INFO "Get session request:%s\n", shm);
-    sem_v(semid);
-    memcpy(request, shm, 20);
 
-    return IPC_SUCCESS;
+/**
+ * @description: message receive function wrapper to do timeout check
+ * @return: receive status
+ * */
+int Msgrcv_to(int msgqid, void *msgp, size_t msgsz, long msgtype)
+{
+    ssize_t res = 0;
+    int timeout = 0;
+    while((res=msgrcv(msgqid, msgp, msgsz, msgtype, IPC_NOWAIT)) == -1 && timeout < IPC_TIMEOUT)
+    {
+        timeout++;
+        sleep(1);
+    }
+    return (int)res;
 }
 
 /**
  * @description: Worker process sends session request and receives Message1
  * @return: ocall status
  * */
-ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1)
+ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secret_size)
 {
     // Request session to monitor process
-    cfprintf(NULL, CF_INFO "Sending session request\n");
+    cfprintf(NULL, CF_INFO "Sending session request:secret size:%d\n", secret_size);
     sem_p(semid);
     memcpy(shm, "SessionRequest", 20);
     sem_v(semid);
     msg.type = 100;
-    msg.text = 'r';
+    msg.text = secret_size;
     if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
@@ -214,7 +212,7 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1)
 
     // Read Message1
     cfprintf(NULL, CF_INFO "Waiting for msg1\n");
-    if(msgrcv(msqid, &msg, 1, 101, 0) == -1)
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 101) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -222,6 +220,28 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1)
     memcpy(dh_msg1, shm, sizeof(sgx_dh_msg1_t));
     sem_v(semid);
     cfprintf(NULL, CF_INFO "type:%d,Get msg1:%s\n", msg.type, hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
+
+    return IPC_SUCCESS;
+}
+
+/**
+ * @description: Monitor process receives session request
+ * @return: ocall status
+ * */
+ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size)
+{
+    // Waiting for session request
+    cfprintf(NULL, CF_INFO "Waiting for session request\n");
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 100) == -1)
+    {
+        return IPC_RECVMSG_ERROR;
+    }
+    memcpy(secret_size, &msg.text, sizeof(msg.text));
+    cfprintf(NULL, CF_INFO "secret size:%d\n", *secret_size);
+    sem_p(semid);
+    memcpy(request, shm, 20);
+    sem_v(semid);
+    cfprintf(NULL, CF_INFO "Get session request:%s\n", shm);
 
     return IPC_SUCCESS;
 }
@@ -238,7 +258,6 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
     memcpy(shm, dh_msg1, sizeof(sgx_dh_msg1_t));
     sem_v(semid);
     msg.type = 101;
-    msg.text = '1';
     if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
@@ -246,7 +265,7 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
 
     // Receive Message2 from worker
     cfprintf(NULL, CF_INFO "Waiting for msg2\n");
-    if(msgrcv(msqid, &msg, 1, 102, 0) == -1)
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 102) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -270,7 +289,6 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
     memcpy(shm, dh_msg2, sizeof(sgx_dh_msg2_t));
     sem_v(semid);
     msg.type = 102;
-    msg.text = '2';
     if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
@@ -278,7 +296,7 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
 
     // Receive Message3 from worker
     cfprintf(NULL, CF_INFO "Waiting for msg3\n");
-    if(msgrcv(msqid, &msg, 1, 103, 0) == -1)
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 103) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -302,7 +320,6 @@ ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3)
     memcpy(shm, dh_msg3, sizeof(sgx_dh_msg3_t));
     sem_v(semid);
     msg.type = 103;
-    msg.text = '3';
     if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
@@ -315,15 +332,14 @@ ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3)
  * @description: Worker process sends encrypted tee key pair to monitor process
  * @return: ocall status
  * */
-ipc_status_t ocall_send_keypair(sgx_aes_gcm_data_t *req_message, uint32_t len)
+ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
 {
     cfprintf(NULL, CF_INFO "len:%d, Sending key pair:%s\n", len, hexstring(req_message, len));
     sem_p(semid);
     memcpy(shm, req_message, len);
     sem_v(semid);
     msg.type = 104;
-    msg.text = '4';
-    if(msgsnd(msqid, &msg, 5, 0) == -1)
+    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
@@ -335,10 +351,10 @@ ipc_status_t ocall_send_keypair(sgx_aes_gcm_data_t *req_message, uint32_t len)
  * @description: Monitor process receives encrypted tee key pair 
  * @return: ocall status
  * */
-ipc_status_t ocall_recv_keypair(sgx_aes_gcm_data_t *req_message, uint32_t len)
+ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
 {
     cfprintf(NULL, CF_INFO "Waiting for key pair\n");
-    if(msgrcv(msqid, &msg, 5, 104, 0) == -1)
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 104) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }

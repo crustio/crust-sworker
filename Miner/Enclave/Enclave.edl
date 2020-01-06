@@ -18,8 +18,8 @@ enclave {
         public enum ValidationStatus ecall_return_validation_status(void);
         public void ecall_get_validation_report([out, size=len] char *report, size_t len);
         public size_t ecall_generate_validation_report([in, string] const char *block_hash); 
-        public ipc_status_t attest_session_starter(); 
-        public ipc_status_t attest_session_receiver(); 
+        public ipc_status_t ecall_attest_session_starter(int datatype); 
+        public ipc_status_t ecall_attest_session_receiver(int datatype); 
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
 		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, size_t len);
@@ -42,12 +42,12 @@ enclave {
         size_t ocall_get_diff_files_num(void);
         void ocall_usleep(int u);
 
-        ipc_status_t ocall_recv_session_request([out, size=20] char *request);
-        ipc_status_t ocall_send_request_recv_msg1([out] sgx_dh_msg1_t *p_dh_msg1);
+        ipc_status_t ocall_recv_session_request([out, size=20] char *request, [out, size=4] uint32_t *secret_size);
+        ipc_status_t ocall_send_request_recv_msg1([out] sgx_dh_msg1_t *p_dh_msg1, uint32_t secret_size);
         ipc_status_t ocall_send_msg1_recv_msg2([in] sgx_dh_msg1_t *dh_msg1, [out] sgx_dh_msg2_t *dh_msg2);
         ipc_status_t ocall_send_msg2_recv_msg3([in] sgx_dh_msg2_t *dh_msg2, [out] sgx_dh_msg3_t *dh_msg3);
         ipc_status_t ocall_send_msg3([in] sgx_dh_msg3_t *dh_msg3);
-        ipc_status_t ocall_send_keypair([in, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len);
-        ipc_status_t ocall_recv_keypair([out, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len);
+        ipc_status_t ocall_send_secret([in, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len);
+        ipc_status_t ocall_recv_secret([out, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len);
     };
 };

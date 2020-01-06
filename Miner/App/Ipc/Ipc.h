@@ -7,13 +7,13 @@
 #include <string.h>   // memcpy
 #include "Common.h"   // memcpy
 
-#define IPCTIMEOUT  5
+#define IPCTIMEOUT  10
 #define WORKERTYPE  200
 #define MONITORTYPE 201
 
 struct msg_form {
     long type;
-    char text;
+    uint32_t text;
 };
 
 union semun
