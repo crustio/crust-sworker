@@ -53,33 +53,7 @@ int cfprintf(FILE *stream, const char *format, ...)
 	int rv;
 
 	// Print timestamp
-	time_t ts;
-	struct tm timetm, *timetmp;
-	char timestr[TIMESTR_SIZE];
-	/* Don't timestamp a single "\n" */
-	if (!(strlen(format) == 1 && format[0] == '\n'))
-	{
-		time(&ts);
-#ifndef _WIN32
-		timetmp = localtime(&ts);
-		if (timetmp == NULL)
-		{
-			perror("localtime");
-			return 0;
-		}
-		timetm = *timetmp;
-#else
-		localtime_s(&timetm, &ts);
-#endif
-
-		/* If you change this format, you _may_ need to change TIMESTR_SIZE */
-		if (strftime(timestr, TIMESTR_SIZE, "%b %e %Y %T", &timetm) == 0)
-		{
-			/* oops */
-			timestr[0] = 0;
-		}
-		fprintf(stderr, "[%s] ", timestr);
-	}
+    char* timestr = print_timestamp();
 
 	va_start(va, format);
 	rv = vfprintf(stderr, format, va);
@@ -87,7 +61,7 @@ int cfprintf(FILE *stream, const char *format, ...)
 
 	if (stream != NULL)
 	{
-		if (!(strlen(format) == 1 && format[0] == '\n'))
+		if(!(strlen(format) == 1 && format[0] == '\n') && timestr != NULL)
 		{
 			fprintf(stream, "[%s] ", timestr);
 		}
@@ -97,6 +71,37 @@ int cfprintf(FILE *stream, const char *format, ...)
 	}
 
 	return rv;
+}
+
+char* print_timestamp()
+{
+	// Print timestamp
+	time_t ts;
+	struct tm timetm, *timetmp;
+    //char timestr[TIMESTR_SIZE];
+    char *timestr = (char*)malloc(TIMESTR_SIZE);
+	time(&ts);
+#ifndef _WIN32
+	timetmp = localtime(&ts);
+	if (timetmp == NULL)
+	{
+		perror("localtime");
+		return NULL;
+	}
+	timetm = *timetmp;
+#else
+	localtime_s(&timetm, &ts);
+#endif
+
+	/* If you change this format, you _may_ need to change TIMESTR_SIZE */
+	if (strftime(timestr, TIMESTR_SIZE, "%b %e %Y %T", &timetm) == 0)
+	{
+		/* oops */
+		timestr[0] = 0;
+	}
+	fprintf(stderr, "[%s] ", timestr);
+
+    return timestr;
 }
 
 /**

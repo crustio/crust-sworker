@@ -92,7 +92,7 @@ endif
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 App_C_Objects := $(App_C_Files:.c=.o)
 
-App_Name := app
+App_Name := crust
 
 ######## Enclave Settings ########
 

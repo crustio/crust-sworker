@@ -1,7 +1,6 @@
 #include "ApiHandler.h"
 #include "json.hpp"
 
-sgx_enclave_id_t global_eid = 0;
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 
@@ -14,8 +13,6 @@ extern FILE *felog;
  */
 ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in)
 {
-    //web::http::experimental::listener::http_listener_config listener_config;
-    //listener_config.set_timeout(utility::seconds(15));
     this->m_listener = new web::http::experimental::listener::http_listener(url);
     this->p_global_eid = p_global_eid_in;
 }

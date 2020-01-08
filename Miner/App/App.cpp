@@ -1,7 +1,7 @@
 #include "App.h"
 
 /* Global EID shared by multiple threads */
-extern sgx_enclave_id_t global_eid;
+sgx_enclave_id_t global_eid;
 // Indicate if run current process as server
 int run_as_server = 0;
 // Record monitor and worker process id
@@ -16,6 +16,8 @@ const int heart_beat_timeout = 30;
 bool is_entried_network = false;
 // Indicate if exit whole process
 bool exit_process = false;
+// Indicate current process in show info
+const char *show_tag = "<monitor> ";
 
 Config *p_config = NULL;
 ApiHandler *p_api_handler = NULL;
@@ -25,6 +27,7 @@ extern Ipfs *ipfs;
 void start_monitor(void);
 void start_worker(void);
 void *do_disk_related(void *arg);
+void app_printf(FILE *stream, const char* type, const char *format, ...);
 
 /**
  * @description: Signal process function to deal with signals transfered
@@ -46,10 +49,33 @@ static void sig_handler(int signum) {
             // Check if there is any child process existed before existing
             while((pid=waitpid(-1, &status, WNOHANG)) > 0)
             {
-                cfprintf(NULL, CF_INFO "child %d terminated!\n", pid);
+                app_printf(felog, CF_INFO, "child %d terminated!\n", pid);
             }
             break;
     }
+}
+
+void app_printf(FILE *stream, const char* type, const char *format, ...)
+{
+    va_list va;
+    char *timestr = print_timestamp();
+    std::string str;
+    str.append(type).append(show_tag).append(format);
+	va_start(va, str.c_str());
+	vfprintf(stderr, str.c_str(), va);
+	va_end(va);
+
+    // Print log in logfile
+	if (stream != NULL)
+	{
+        if(timestr != NULL)
+        {
+		    fprintf(stream, "[%s] ", timestr);
+        }
+	    va_start(va, str.c_str());
+	    vfprintf(stream, str.c_str(), va);
+	    va_end(va);
+	}
 }
 
 /**
@@ -96,9 +122,9 @@ bool initialize_config(void)
 {
     bool status = true;
     // New configure
-    if((p_config=new_config("Config.json")) == NULL)
+    if((p_config=new_config(CONFIG_FILE_PATH)) == NULL)
     {
-        cfprintf(felog, CF_ERROR "Init config failed.\n");
+        app_printf(felog, CF_ERROR, "Init config failed.\n");
         return false;
     }
     p_config->show();
@@ -106,7 +132,7 @@ bool initialize_config(void)
     // Create log file
     if(felog == NULL)
     {
-        felog = create_logfile("./logs/entry.log");
+        felog = create_logfile(LOG_FILE_PATH);
     }
 
     return status;
@@ -122,45 +148,45 @@ bool initialize_enclave()
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     /* Can we run SGX? */
-    cfprintf(felog, CF_INFO "Initial enclave...\n");
+    app_printf(felog, CF_INFO, "Initial enclave...\n");
     sgx_support = get_sgx_support();
     if (sgx_support & SGX_SUPPORT_NO)
     {
-        cfprintf(felog, CF_ERROR "This system does not support Intel SGX.\n");
+        app_printf(felog, CF_ERROR, "This system does not support Intel SGX.\n");
         return -1;
     }
     else
     {
         if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED)
         {
-            cfprintf(felog, CF_ERROR "Intel SGX is supported on this system but disabled in the BIOS\n");
+            app_printf(felog, CF_ERROR, "Intel SGX is supported on this system but disabled in the BIOS\n");
             return -1;
         }
         else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED)
         {
-            cfprintf(felog, CF_ERROR "Intel SGX will be enabled after the next reboot\n");
+            app_printf(felog, CF_ERROR, "Intel SGX will be enabled after the next reboot\n");
             return -1;
         }
         else if (!(sgx_support & SGX_SUPPORT_ENABLED))
         {
-            cfprintf(felog, CF_ERROR "Intel SGX is supported on this sytem but not available for use. \
+            app_printf(felog, CF_ERROR, "Intel SGX is supported on this sytem but not available for use. \
                     The system may lock BIOS support, or the Platform Software is not available\n");
             return -1;
         }
     }
 
     /* Launch the enclave */
-    ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
+    ret = sgx_create_enclave(ENCLAVE_FILE_PATH, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "Init enclave failed.Error code:%08x\n", ret);
+        app_printf(felog, CF_ERROR, "Init enclave failed.Error code:%08x\n", ret);
         return false;
     }
 
     /* Generate code measurement */
     if (SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
     {
-        cfprintf(felog, CF_ERROR "Generate code measurement failed!error code:%08x\n", ret);
+        app_printf(felog, CF_ERROR, "Generate code measurement failed!error code:%08x\n", ret);
         return false;
     }
 
@@ -169,11 +195,11 @@ bool initialize_enclave()
     {
         if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret))
         {
-            cfprintf(felog, CF_ERROR "Generate key pair failed!\n");
+            app_printf(felog, CF_ERROR, "Generate key pair failed!\n");
             return false;
         }
     }
-    cfprintf(felog, CF_INFO "Initial enclave successfully!\n");
+    app_printf(felog, CF_INFO, "Initial enclave successfully!\n");
 
     return true;
 }
@@ -187,29 +213,34 @@ bool initialize_enclave()
  */
 bool initialize_components(void)
 {
-    if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
+    if(new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
     {
-        cfprintf(felog, CF_ERROR "Init ipfs failed.\n");
+        app_printf(felog, CF_ERROR, "Init ipfs failed.\n");
         return false;
     }
-    //cfprintf(NULL, CF_INFO "Init ipfs successfully.\n");
+    if(!ipfs->is_online())
+    {
+        app_printf(felog, CF_ERROR, "IPFS daemon is not started up! Please start it up!\n");
+        return false;
+    }
+    //app_printf(felog, CF_INFO, "Init ipfs successfully.\n");
 
     /* API handler component */
-    cfprintf(NULL, CF_INFO "Initing api url:%s...\n",p_config->api_base_url.c_str());
+    app_printf(felog, CF_INFO, "Initing api url:%s...\n",p_config->api_base_url.c_str());
     p_api_handler = new ApiHandler(p_config->api_base_url.c_str(), &global_eid);
     if(p_api_handler == NULL)
     {
-        cfprintf(felog, CF_ERROR "Init api handler failed.\n");
+        app_printf(felog, CF_ERROR, "Init api handler failed.\n");
         return false;
     }
-    //cfprintf(NULL, CF_INFO "Init api handler successfully.\n");
+    //app_printf(felog, CF_INFO, "Init api handler successfully.\n");
 
     if(p_api_handler->start() == -1)
     {
-        cfprintf(felog, CF_ERROR "Start network service failed!\n");
+        app_printf(felog, CF_ERROR, "Start network service failed!\n");
         return false;
     }
-    //cfprintf(NULL, CF_INFO "Start rest service successfully!\n");
+    //app_printf(felog, CF_INFO, "Start rest service successfully!\n");
 
     return true;
 }
@@ -290,19 +321,19 @@ bool entry_network(void)
     status = sgx_init_quote(&target_info, &epid_gid);
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "sgx_init_quote: %08x\n", status);
+        app_printf(felog, CF_ERROR, "sgx_init_quote: %08x\n", status);
         return false;
     }
 
     status = ecall_get_report(global_eid, &sgxrv, &report, &target_info);
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "get_report: %08x\n", status);
+        app_printf(felog, CF_ERROR, "get_report: %08x\n", status);
         return false;
     }
     if (sgxrv != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "sgx_create_report: %08x\n", sgxrv);
+        app_printf(felog, CF_ERROR, "sgx_create_report: %08x\n", sgxrv);
         return false;
     }
 
@@ -310,19 +341,19 @@ bool entry_network(void)
     // so use a wrapper function.
     if (!get_quote_size(&status, &sz))
     {
-        cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+        app_printf(felog, CF_ERROR, "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
         return false;
     }
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "SGX error while getting quote size: %08x\n", status);
+        app_printf(felog, CF_ERROR, "SGX error while getting quote size: %08x\n", status);
         return false;
     }
 
     quote = (sgx_quote_t *)malloc(sz);
     if (quote == NULL)
     {
-        cfprintf(felog, CF_ERROR "out of memory\n");
+        app_printf(felog, CF_ERROR, "out of memory\n");
         return false;
     }
 
@@ -342,7 +373,7 @@ bool entry_network(void)
         sz);
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "sgx_get_quote: %08x\n", status);
+        app_printf(felog, CF_ERROR, "sgx_get_quote: %08x\n", status);
         return false;
     }
 
@@ -361,7 +392,7 @@ bool entry_network(void)
     b64quote = base64_encode((char *)quote, sz);
     if (b64quote == NULL)
     {
-        cfprintf(felog, CF_ERROR "Could not base64 encode quote\n");
+        app_printf(felog, CF_ERROR, "Could not base64 encode quote\n");
         return false;
     }
 
@@ -391,10 +422,10 @@ bool entry_network(void)
     fprintf(felog, "\n}\n");
 
     /* Send quote to validation node */
-    cfprintf(felog, CF_INFO "Sending quote to on-chain node...\n");
+    app_printf(felog, CF_INFO, "Sending quote to on-chain node...\n");
     web::http::client::http_client_config cfg;
     cfg.set_timeout(std::chrono::seconds(CLIENT_TIMEOUT));
-    cfprintf(NULL, CF_INFO "========request url:%s\n", p_config->request_url.c_str());
+    app_printf(felog, CF_INFO, "request url:%s\n", p_config->request_url.c_str());
     web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->request_url.c_str(), cfg);
     web::uri_builder builder(U("/entry/network"));
     web::http::http_response response;
@@ -410,13 +441,13 @@ bool entry_network(void)
         }
         catch (const web::http::http_exception &e)
         {
-            cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
-            cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
+            app_printf(felog, CF_ERROR, "HTTP Exception: %s\n", e.what());
+            app_printf(felog, CF_INFO, "Trying agin:%d\n", net_tryout);
         }
         catch (const std::exception &e)
         {
-            cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
-            cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
+            app_printf(felog, CF_ERROR, "HTTP throw: %s\n", e.what());
+            app_printf(felog, CF_INFO, "Trying agin:%d\n", net_tryout);
         }
         usleep(3000);
         net_tryout--;
@@ -424,12 +455,12 @@ bool entry_network(void)
 
     if (response.status_code() != web::http::status_codes::OK)
     {
-        cfprintf(felog, CF_ERROR "Entry network failed!\n");
+        app_printf(felog, CF_ERROR, "Entry network failed!\n");
         entry_status = false;
         goto cleanup;
     }
 
-    cfprintf(felog, CF_INFO "Entry network application successfully!\n");
+    app_printf(felog, CF_INFO, "Entry network application successfully!\n");
 
 cleanup:
 
@@ -480,7 +511,7 @@ ipc_status_t attest_session()
  */
 void start_monitor(void)
 {
-    cfprintf(NULL, CF_INFO "Monintor process(ID:%d)\n", monitorPID);
+    app_printf(felog, CF_INFO, "Monintor process(ID:%d)\n", monitorPID);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
 
@@ -495,7 +526,7 @@ void start_monitor(void)
     /* Init IPC */
     if(init_ipc() == -1)
     {
-        cfprintf(NULL, CF_ERROR "Init IPC failed!\n");
+        app_printf(felog, CF_ERROR, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
         goto cleanup;
     }
@@ -509,21 +540,21 @@ void start_monitor(void)
     }
     if (!initialize_enclave())
     {
-        cfprintf(felog, CF_ERROR "Monitor process init enclave failed!\n");
+        app_printf(felog, CF_ERROR, "Monitor process init enclave failed!\n");
         ipc_status = INIT_ENCLAVE_ERROR;
         goto cleanup;
     }
-    cfprintf(NULL, CF_INFO "Monitor process init enclave successfully!id:%d\n", global_eid);
+    app_printf(felog, CF_INFO, "Monitor process init enclave successfully!id:%d\n", global_eid);
 
 
 again:
     /* Do TEE key pair transformation */
     if((ipc_status=attest_session()) != IPC_SUCCESS)
     {
-        cfprintf(NULL, CF_ERROR "Monitor does local attestation failed!\n");
+        app_printf(felog, CF_ERROR, "Do local attestation failed!\n");
         goto cleanup;
     }
-    cfprintf(NULL, CF_INFO "[Monitor] Do local attestation successfully!\n");
+    app_printf(felog, CF_INFO, "Do local attestation successfully!\n");
 
     /* Monitor worker process */
     while(true)
@@ -533,48 +564,49 @@ again:
         {
             if(errno == ESRCH)
             {
-                cfprintf(NULL, CF_ERROR "Worker process is not existed!\n");
+                app_printf(felog, CF_ERROR, "Worker process is not existed!\n");
             }
             else if(errno == EPERM)
             {
-                cfprintf(NULL, CF_ERROR "Monitor has no right to send sig to worker!\n");
+                app_printf(felog, CF_ERROR, "Monitor has no right to send sig to worker!\n");
             }
             else if(errno == EINVAL)
             {
-                cfprintf(NULL, CF_ERROR "Invalid sig!\n");
+                app_printf(felog, CF_ERROR, "Invalid sig!\n");
             }
             else
             {
-                cfprintf(NULL, CF_ERROR "Unknown error!\n");
+                app_printf(felog, CF_ERROR, "Unknown error!\n");
             }
-            cfprintf(NULL, CF_ERROR "Monitor sends sig to worker failed!Error code:%d\n", errno);
+            app_printf(felog, CF_ERROR, "Monitor sends sig to worker failed!Error code:%d\n", errno);
             break;
         }
     }
-    cfprintf(NULL, CF_INFO "Worker process exit unexpectly!Restart it again\n");
+    app_printf(felog, CF_INFO, "Worker process exit unexpectly!Restart it again\n");
 
     // Check if worker process exit because of entry network or creating work thread failed,
     // then monitor process should end.
     if(exit_process)
     {
-        cfprintf(NULL, CF_ERROR "Worker process entries network or creates work thread failed! \
+        app_printf(felog, CF_ERROR, "Worker process entries network or creates work thread failed! \
                 Exit monitor process!\n");
         goto cleanup;
     }
 
-    cfprintf(NULL, CF_INFO "Do fork\n");
+    app_printf(felog, CF_INFO, "Do fork\n");
     /* Fork new child process */
     if((pid=fork()) == -1)
     {
-        cfprintf(felog, CF_ERROR "Create worker process failed!\n");
+        app_printf(felog, CF_ERROR, "Create worker process failed!\n");
         ipc_status = FORK_NEW_PROCESS_ERROR;
         goto cleanup;
     }
 
     if(pid == 0)
     {
-        cfprintf(NULL, CF_INFO "Start new worker...\n");
         // Child process used for worker
+        app_printf(felog, CF_INFO, "Start new worker...\n");
+        show_tag = "<worker> ";
         workerPID = getpid();
         session_type = SESSION_RECEIVER;
         start_worker();
@@ -596,7 +628,7 @@ cleanup:
     close_logfile(felog);
     destroy_ipc();
 
-    cfprintf(felog, CF_ERROR "Monitor process exits with error code:%lx\n", ipc_status);
+    app_printf(felog, CF_ERROR, "Monitor process exits with error code:%lx\n", ipc_status);
 
     exit(ipc_status);
 }
@@ -606,11 +638,11 @@ cleanup:
  */
 void start_worker(void)
 {
-    cfprintf(NULL, CF_INFO "Worker process(ID:%d)\n", workerPID);
+    app_printf(felog, CF_INFO, "Worker process(ID:%d)\n", workerPID);
     pid_t pid = 0;
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
-    cfprintf(NULL, CF_INFO "Worker global eid:%d\n", global_eid);
+    app_printf(felog, CF_INFO, "Worker global eid:%d\n", global_eid);
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
@@ -621,28 +653,27 @@ void start_worker(void)
     /* Init conifigure */
     if(!initialize_config())
     {
-        cfprintf(felog, CF_ERROR "Init configuration failed!\n");
+        app_printf(felog, CF_ERROR, "Init configuration failed!\n");
         exit(INIT_CONFIG_ERROR);
     }
 
     /* Init related components */
-    cfprintf(NULL, CF_INFO "Initing components...\n");
     if(!initialize_components())
     {
-        cfprintf(felog, CF_ERROR "Initial component failed!\n");
+        app_printf(felog, CF_ERROR, "Init component failed!\n");
         ipc_status = INIT_COMPONENT_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "Init components successfully!\n");
+    app_printf(felog, CF_INFO, "Init components successfully!\n");
 
     /* Init IPC */
     if(init_ipc() == -1)
     {
-        cfprintf(felog, CF_ERROR "Init IPC failed!\n");
+        app_printf(felog, CF_ERROR, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "Init IPC successfully!\n");
+    app_printf(felog, CF_INFO, "Init IPC successfully!\n");
 
     /* Init enclave */
     if(global_eid != 0)
@@ -653,19 +684,19 @@ void start_worker(void)
     }
     if (!initialize_enclave())
     {
-        cfprintf(felog, CF_ERROR "Init enclave failed!\n");
+        app_printf(felog, CF_ERROR, "Init enclave failed!\n");
         ipc_status = INIT_ENCLAVE_ERROR;
         goto cleanup;
     }
-    cfprintf(NULL, CF_INFO "Worker process int enclave successfully!id:%d\n", global_eid);
+    app_printf(felog, CF_INFO, "Worker process int enclave successfully!id:%d\n", global_eid);
 
     /* Do TEE key pair transformation */
     if((ipc_status=attest_session()) != IPC_SUCCESS)
     {
-        cfprintf(NULL, CF_ERROR "Worker does local attestation failed!\n");
+        app_printf(felog, CF_ERROR, "Do local attestation failed!\n");
         goto cleanup;
     }
-    cfprintf(NULL, CF_INFO "[Worker] Do local attestation successfully!\n");
+    app_printf(felog, CF_INFO, "Do local attestation successfully!\n");
 
     /* Entry network */
     if(!is_entried_network && !run_as_server && !entry_network())
@@ -675,13 +706,13 @@ void start_worker(void)
     }
     if(!is_entried_network && kill(monitorPID, SIGUSR1) == -1)
     {
-        cfprintf(NULL, CF_ERROR "Send entry network status failed!\n");
+        app_printf(felog, CF_ERROR, "Send entry network status failed!\n");
     }
 
     /* Do disk related */
     if(pthread_create(&wthread, NULL, do_disk_related, NULL) != 0)
     {
-        cfprintf(felog, CF_ERROR "Create worker thread failed!\n");
+        app_printf(felog, CF_ERROR, "Create worker thread failed!\n");
         ipc_status = IPC_CREATE_THREAD_ERR;
         goto cleanup;
     }
@@ -696,30 +727,30 @@ again:
         {
             if(errno == ESRCH)
             {
-                cfprintf(NULL, CF_ERROR "Monitor process is not existed!\n");
+                app_printf(felog, CF_ERROR, "Monitor process is not existed!\n");
             }
             else if(errno == EPERM)
             {
-                cfprintf(NULL, CF_ERROR "Worker has no right to send sig to worker!\n");
+                app_printf(felog, CF_ERROR, "Worker has no right to send sig to worker!\n");
             }
             else if(errno == EINVAL)
             {
-                cfprintf(NULL, CF_ERROR "Invalid sig!\n");
+                app_printf(felog, CF_ERROR, "Invalid sig!\n");
             }
             else
             {
-                cfprintf(NULL, CF_ERROR "Unknown error!\n");
+                app_printf(felog, CF_ERROR, "Unknown error!\n");
             }
-            cfprintf(NULL, CF_ERROR "Worker sends sig to worker failed!Error code:%d\n", errno);
+            app_printf(felog, CF_ERROR, "Worker sends sig to worker failed!Error code:%d\n", errno);
             break;
         }
     }
-    cfprintf(NULL, CF_INFO "Monitor process exit unexpectly!Restart it again\n");
+    app_printf(felog, CF_INFO, "Monitor process exit unexpectly!Restart it again\n");
     
     /* Fork a new process for monitor */
     if((pid=fork()) == -1)
     {
-        cfprintf(felog, CF_ERROR "Create worker process failed!\n");
+        app_printf(felog, CF_ERROR, "Create worker process failed!\n");
         ipc_status = FORK_NEW_PROCESS_ERROR;
         goto cleanup;
     }
@@ -727,6 +758,7 @@ again:
     if(pid == 0)
     {
         // Child process used for monitor
+        show_tag = "<monitor> ";
         monitorPID = getpid();
         session_type = SESSION_RECEIVER;
         start_monitor();
@@ -738,10 +770,10 @@ again:
         /* Do TEE key pair transformation */
         if((ipc_status=attest_session()) != IPC_SUCCESS)
         {
-            cfprintf(NULL, CF_ERROR "Worker does local attestation failed!\n");
+            app_printf(felog, CF_ERROR, "Do local attestation failed!\n");
             goto cleanup;
         }
-        cfprintf(NULL, CF_INFO "[Worker] Do local attestation successfully!\n");
+        app_printf(felog, CF_INFO, "Do local attestation successfully!\n");
         goto again;
     }
 
@@ -764,7 +796,7 @@ cleanup:
         kill(monitorPID, SIGUSR2);
     }
 
-    cfprintf(felog, CF_ERROR "Worker process exits with error code:%lx\n", ipc_status);
+    app_printf(felog, CF_ERROR, "Worker process exits with error code:%lx\n", ipc_status);
 
     exit(ipc_status);
 }
@@ -802,12 +834,13 @@ int main_daemon()
     pid_t pid;
     if((pid=fork()) == -1)
     {
-        cfprintf(NULL, CF_ERROR "Create worker process failed!\n");
+        app_printf(felog, CF_ERROR, "Create worker process failed!\n");
         return -1;
     }
     if(pid == 0)
     {
         // Worker process(child process)
+        show_tag = "<worker> ";
         workerPID = getpid();
         session_type = SESSION_STARTER;
         start_worker();
@@ -815,6 +848,7 @@ int main_daemon()
     else
     {
         // Monitor process(parent process)
+        show_tag = "<monitor> ";
         workerPID = pid;
         session_type = SESSION_RECEIVER;
         start_monitor();
@@ -832,7 +866,7 @@ int main_status(void)
     /* Get configurations */
     if (new_config("Config.json") == NULL)
     {
-        cfprintf(felog, CF_ERROR "Init config failed.\n");
+        app_printf(felog, CF_ERROR, "Init config failed.\n");
         return false;
     }
 
@@ -855,7 +889,7 @@ int main_report(const char *block_hash)
     /* Get configurations */
     if (new_config("Config.json") == NULL)
     {
-        cfprintf(felog, CF_ERROR "Init config failed.\n");
+        app_printf(felog, CF_ERROR, "Init config failed.\n");
         return false;
     }
 

@@ -6,7 +6,6 @@ char *shm = NULL;
 struct shmid_ds buf1;
 struct msqid_ds buf2;
 struct msg_form msg;
-const char* ipc_file = "./test.ipc2";
 
 /**
  * @description: Init semaphore
@@ -101,16 +100,16 @@ int creat_sem(key_t key)
 int init_ipc()
 {
     // Get IPC key
-    if((ipc_key = ftok(ipc_file, 'z')) < 0)
+    if((ipc_key = ftok(IPC_FILE_PATH, 'z')) < 0)
     {
-        cfprintf(NULL, CF_ERROR "ftok error");
+        cfprintf(NULL, CF_ERROR "ftok error\n");
         return -1;
     }
 
     // Create shared memory
     if((shmid = shmget(ipc_key, 1024, IPC_CREAT|0666)) == -1)
     {
-        cfprintf(NULL, CF_ERROR "Create Shared Memory Error");
+        cfprintf(NULL, CF_ERROR "Create Shared Memory Error\n");
         return -1;
     }
 
@@ -119,14 +118,14 @@ int init_ipc()
     //if(shm == -1)
     if(shm == NULL)
     {
-        cfprintf(NULL, CF_ERROR "Attach Shared Memory Error");
+        cfprintf(NULL, CF_ERROR "Attach Shared Memory Error\n");
         return -1;
     }
 
     // Create message queue
     if((msqid = msgget(ipc_key, IPC_CREAT|0777)) == -1)
     {
-        cfprintf(NULL, CF_ERROR "msgget error");
+        cfprintf(NULL, CF_ERROR "msgget error\n");
         return -1;
     }
 
@@ -142,55 +141,12 @@ int init_ipc()
 }
 
 /**
- * @description: Init worker IPC, including getting shared memory,
- *  creating message queue and getting sem
- * @return: 0 for success while other for fail
+ * @description: Used to delete previous ipc variable
  * */
-int init_ipc_link()
-{
-    // Get ipc key
-    if((ipc_key = ftok(ipc_file, 'z')) < 0)
-    {
-        cfprintf(NULL, CF_ERROR "ftok error");
-        return -1;
-    }
-
-    // Get shared memory
-    if((shmid = shmget(ipc_key, 1024, 0)) == -1)
-    {
-        cfprintf(NULL, CF_ERROR "Get Shared Memory Error");
-        return -1;
-    }
-
-    // Link shared memory
-    shm = (char*)shmat(shmid, 0, 0);
-    if(shm == NULL)
-    {
-        cfprintf(NULL, CF_ERROR "Attach Shared Memory Error");
-        return -1;
-    }
-
-    // Get message queue
-    if((msqid = msgget(ipc_key, 0)) == -1)
-    {
-        cfprintf(NULL, CF_ERROR "msgget error");
-        return -1;
-    }
-
-    // Get semaphore
-	if((semid = semget(ipc_key, 0, 0)) == -1)
-    {
-        cfprintf(NULL, CF_ERROR "semget error");
-        return -1;
-    }
-
-    return 0;
-}
-
 void clean_ipc()
 {
     // Get ipc key, same file and flag result in same ipc key
-    if((ipc_key = ftok(ipc_file, 'z')) < 0)
+    if((ipc_key = ftok(IPC_FILE_PATH, 'z')) < 0)
     {
         return;
     }
@@ -204,45 +160,23 @@ void clean_ipc()
     msgctl(msqid, IPC_RMID, &buf2);
 }
 
+/**
+ * @description: Recycle message queue, semaphore and shared memory
+ * @return: Destroy status
+ * */
 int destroy_ipc()
 {
-	shmctl(shmid, IPC_RMID, &buf1);
-    msgctl(msqid, IPC_RMID, &buf2);
-    del_sem(semid);
-    return 1;
-}
-
-int destroy_ipc_link()
-{
-    shmdt(shm);
-    return 1;
-}
-
-/**
- * @description: Used to monitor parent or child process
- * @param: sendtype -> the type sent to message queue
- * @param: recvtype -> the type hope to be received from message queue
- * @return: monitor status
- * */
-int monitor_ipc(int sendtype, int recvtype)
-{
-    int timeout = 0;
-    while(true)
+    if(shmid != -1)
     {
-        msg.type = sendtype;
-        msgsnd(msqid, &msg, sizeof(msg.text), 0);
-    
-        while(msgrcv(msqid, &msg, sizeof(msg.text), recvtype, IPC_NOWAIT) == -1)
-        {
-            if(timeout == IPCTIMEOUT)
-            {
-                cfprintf(NULL, CF_ERROR "Wait for %d type message failed!Error code:%d\n", recvtype, errno);
-                return -1;
-            }
-            sleep(1);
-            timeout++;
-        }
-        sleep(IPCTIMEOUT - timeout);
-        timeout = 0;
+	    shmctl(shmid, IPC_RMID, &buf1);
     }
+    if(msqid != -1)
+    {
+        msgctl(msqid, IPC_RMID, &buf2);
+    }
+    if(semid != -1)
+    {
+        del_sem(semid);
+    }
+    return 1;
 }

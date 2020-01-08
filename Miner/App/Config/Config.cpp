@@ -39,7 +39,6 @@ Config *get_config(void)
  */
 Config::Config(std::string path)
 {
-    // TODO: think about putting some configurations into code
     /* Read user configurations from file */
     std::ifstream config_ifs(path);
     std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());

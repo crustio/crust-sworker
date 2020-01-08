@@ -1,5 +1,6 @@
 #include "Ipfs.h"
 
+extern FILE *felog;
 Ipfs *ipfs = NULL;
 
 /**
@@ -26,11 +27,39 @@ Ipfs *get_ipfs(void)
 {
     if (ipfs == NULL)
     {
-        printf("Please use get_ipfs(url) frist.\n");
+        cfprintf(felog, CF_ERROR "Please use get_ipfs(url) frist.\n");
         exit(-1);
     }
 
     return ipfs;
+}
+
+/**
+ * @description: Test if there is usable IPFS
+ * @return: Test result
+ * */
+bool Ipfs::is_online()
+{
+    try {
+        web::uri_builder builder(U("/work"));
+        web::http::http_response response = this->ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
+        if (response.status_code() != web::http::status_codes::OK)
+        {
+            return false;
+        }
+    
+        return true;
+    }
+    catch (const web::http::http_exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+    }
+    catch (const std::exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+    }
+
+    return false;
 }
 
 /**

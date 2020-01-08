@@ -4,8 +4,9 @@
 #include <sys/shm.h>  // shared memory
 #include <sys/sem.h>  // semaphore
 #include <sys/msg.h>  // message queue
-#include <string.h>   // memcpy
-#include "Common.h"   // memcpy
+#include <string.h>
+#include "Common.h"
+#include "config.h"
 
 #define IPCTIMEOUT  10
 #define WORKERTYPE  200
@@ -29,9 +30,5 @@ int sem_v(int sem_id);
 int del_sem(int sem_id);
 int creat_sem(key_t key);
 int init_ipc();
-int init_ipc_link();
 int destroy_ipc();
-int destroy_ipc_link();
-int monitor_ipc(int sendtype, int recvtype);
-int keep_worker_ipc();
 void clean_ipc();

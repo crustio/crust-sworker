@@ -42,6 +42,7 @@ extern "C"
     void divider(FILE *fd);
 
     int cfprintf(FILE *stream, const char *format, ...);
+    char* print_timestamp();
     int cfputs(const char *s);
 
 #if defined(__cplusplus)

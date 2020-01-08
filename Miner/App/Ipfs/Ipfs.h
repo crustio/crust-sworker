@@ -12,6 +12,7 @@
 #include <cpprest/json.h>
 #include "Node.h"
 #include "MerkleTree.h"
+#include "Common.h"
 
 class Ipfs
 {
@@ -34,6 +35,7 @@ private:
 public:
     Ipfs(const char *url);
     ~Ipfs();
+    bool is_online();
     bool generate_diff_files(void);
     Node *get_diff_files(void);
     size_t get_diff_files_num(void);

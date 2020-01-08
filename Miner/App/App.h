@@ -28,15 +28,13 @@
 #include "FormatUtils.h"
 #include "Common.h"
 #include "Logfile.h"
+#include "config.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })
 
 #define TOKEN_FILENAME "enclave.token"
-#define ENCLAVE_FILENAME "enclave.signed.so"
-#define ENCLAVE_FILENAME_MONITOR "enclave.signed_monitor.so"
-#define ENCLAVE_FILENAME_WORKER "enclave.signed_worker.so"
 
 #define OPT_PSE 0x01
 #define OPT_NONCE 0x02
@@ -66,7 +64,6 @@ typedef struct ra_session_struct
 	unsigned char vk[16];
 } ra_session_t;
 
-extern sgx_enclave_id_t global_eid;
 bool initialize_enclave();
 bool initialize_components(void);
 bool entry_network(void);
