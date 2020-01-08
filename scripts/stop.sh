@@ -74,7 +74,7 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 killIPFS=true
 
-
+# TODO: stop flow
 verbose INFO "Shutting down IPFS..." h
 ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
 if [ x"$ipfspid" != x"" ]; then

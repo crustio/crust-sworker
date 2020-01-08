@@ -60,6 +60,7 @@ function verbose()
     echo $opt $content
 }
 
+# TODO: optimze package flow
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
 instdir=$basedir/..

@@ -5,7 +5,7 @@ sgx_enclave_id_t global_eid;
 // Indicate if run current process as server
 int run_as_server = 0;
 // Record monitor and worker process id
-pid_t workerPID=-1, monitorPID=-1;
+pid_t workerPID = -1, monitorPID = -1;
 // Local attestation session type
 int session_type;
 // Local attestation transfered data type
@@ -27,55 +27,56 @@ extern Ipfs *ipfs;
 void start_monitor(void);
 void start_worker(void);
 void *do_disk_related(void *arg);
-void app_printf(FILE *stream, const char* type, const char *format, ...);
+void app_printf(FILE *stream, const char *type, const char *format, ...);
 
 /**
  * @description: Signal process function to deal with signals transfered
  *  between parent and child process
  * */
-static void sig_handler(int signum) {
+static void sig_handler(int signum)
+{
     pid_t pid;
     int status;
-    switch(signum)
+    switch (signum)
     {
-        case SIGUSR1:
-            is_entried_network = true;
-            break;
-        case SIGUSR2:
-            exit_process = true;
-            break;
-        case SIGCHLD:
-            /* Deal with child process */
-            // Check if there is any child process existed before existing
-            while((pid=waitpid(-1, &status, WNOHANG)) > 0)
-            {
-                app_printf(felog, CF_INFO, "child %d terminated!\n", pid);
-            }
-            break;
+    case SIGUSR1:
+        is_entried_network = true;
+        break;
+    case SIGUSR2:
+        exit_process = true;
+        break;
+    case SIGCHLD:
+        /* Deal with child process */
+        // Check if there is any child process existed before existing
+        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+        {
+            app_printf(felog, CF_INFO, "child %d terminated!\n", pid);
+        }
+        break;
     }
 }
 
-void app_printf(FILE *stream, const char* type, const char *format, ...)
+void app_printf(FILE *stream, const char *type, const char *format, ...)
 {
     va_list va;
     char *timestr = print_timestamp();
     std::string str;
     str.append(type).append(show_tag).append(format);
-	va_start(va, str.c_str());
-	vfprintf(stderr, str.c_str(), va);
-	va_end(va);
+    va_start(va, str.c_str());
+    vfprintf(stderr, str.c_str(), va);
+    va_end(va);
 
     // Print log in logfile
-	if (stream != NULL)
-	{
-        if(timestr != NULL)
+    if (stream != NULL)
+    {
+        if (timestr != NULL)
         {
-		    fprintf(stream, "[%s] ", timestr);
+            fprintf(stream, "[%s] ", timestr);
         }
-	    va_start(va, str.c_str());
-	    vfprintf(stream, str.c_str(), va);
-	    va_end(va);
-	}
+        va_start(va, str.c_str());
+        vfprintf(stream, str.c_str(), va);
+        va_end(va);
+    }
 }
 
 /**
@@ -122,7 +123,7 @@ bool initialize_config(void)
 {
     bool status = true;
     // New configure
-    if((p_config=new_config(CONFIG_FILE_PATH)) == NULL)
+    if ((p_config = new_config(CONFIG_FILE_PATH)) == NULL)
     {
         app_printf(felog, CF_ERROR, "Init config failed.\n");
         return false;
@@ -130,7 +131,7 @@ bool initialize_config(void)
     p_config->show();
 
     // Create log file
-    if(felog == NULL)
+    if (felog == NULL)
     {
         felog = create_logfile(LOG_FILE_PATH);
     }
@@ -213,12 +214,12 @@ bool initialize_enclave()
  */
 bool initialize_components(void)
 {
-    if(new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
+    if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
     {
         app_printf(felog, CF_ERROR, "Init ipfs failed.\n");
         return false;
     }
-    if(!ipfs->is_online())
+    if (!ipfs->is_online())
     {
         app_printf(felog, CF_ERROR, "IPFS daemon is not started up! Please start it up!\n");
         return false;
@@ -226,16 +227,16 @@ bool initialize_components(void)
     //app_printf(felog, CF_INFO, "Init ipfs successfully.\n");
 
     /* API handler component */
-    app_printf(felog, CF_INFO, "Initing api url:%s...\n",p_config->api_base_url.c_str());
+    app_printf(felog, CF_INFO, "Initing api url:%s...\n", p_config->api_base_url.c_str());
     p_api_handler = new ApiHandler(p_config->api_base_url.c_str(), &global_eid);
-    if(p_api_handler == NULL)
+    if (p_api_handler == NULL)
     {
         app_printf(felog, CF_ERROR, "Init api handler failed.\n");
         return false;
     }
     //app_printf(felog, CF_INFO, "Init api handler successfully.\n");
 
-    if(p_api_handler->start() == -1)
+    if (p_api_handler->start() == -1)
     {
         app_printf(felog, CF_ERROR, "Start network service failed!\n");
         return false;
@@ -477,11 +478,11 @@ ipc_status_t attest_session()
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     ipc_status_t ipc_status = IPC_SUCCESS;
-    if(session_type == SESSION_STARTER)
+    if (session_type == SESSION_STARTER)
     {
         sgx_status = ecall_attest_session_starter(global_eid, &ipc_status, datatype);
     }
-    else if(session_type == SESSION_RECEIVER)
+    else if (session_type == SESSION_RECEIVER)
     {
         sgx_status = ecall_attest_session_receiver(global_eid, &ipc_status, datatype);
     }
@@ -490,9 +491,9 @@ ipc_status_t attest_session()
         return IPC_BADSESSIONTYPE;
     }
     // Judge by result
-    if(SGX_SUCCESS == sgx_status)
+    if (SGX_SUCCESS == sgx_status)
     {
-        if(IPC_SUCCESS !=  ipc_status)
+        if (IPC_SUCCESS != ipc_status)
         {
             return ipc_status;
         }
@@ -524,7 +525,7 @@ void start_monitor(void)
     signal(SIGCHLD, sig_handler);
 
     /* Init IPC */
-    if(init_ipc() == -1)
+    if (init_ipc() == -1)
     {
         app_printf(felog, CF_ERROR, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
@@ -532,7 +533,7 @@ void start_monitor(void)
     }
 
     /* Init enclave */
-    if(global_eid != 0)
+    if (global_eid != 0)
     {
         // If monitor process is copied from fork function,
         // delete copied sgx enclave memory space
@@ -546,10 +547,9 @@ void start_monitor(void)
     }
     app_printf(felog, CF_INFO, "Monitor process init enclave successfully!id:%d\n", global_eid);
 
-
 again:
     /* Do TEE key pair transformation */
-    if((ipc_status=attest_session()) != IPC_SUCCESS)
+    if ((ipc_status = attest_session()) != IPC_SUCCESS)
     {
         app_printf(felog, CF_ERROR, "Do local attestation failed!\n");
         goto cleanup;
@@ -557,20 +557,20 @@ again:
     app_printf(felog, CF_INFO, "Do local attestation successfully!\n");
 
     /* Monitor worker process */
-    while(true)
+    while (true)
     {
         sleep(heart_beat_timeout);
-        if(kill(workerPID, 0) == -1)
+        if (kill(workerPID, 0) == -1)
         {
-            if(errno == ESRCH)
+            if (errno == ESRCH)
             {
                 app_printf(felog, CF_ERROR, "Worker process is not existed!\n");
             }
-            else if(errno == EPERM)
+            else if (errno == EPERM)
             {
                 app_printf(felog, CF_ERROR, "Monitor has no right to send sig to worker!\n");
             }
-            else if(errno == EINVAL)
+            else if (errno == EINVAL)
             {
                 app_printf(felog, CF_ERROR, "Invalid sig!\n");
             }
@@ -586,7 +586,7 @@ again:
 
     // Check if worker process exit because of entry network or creating work thread failed,
     // then monitor process should end.
-    if(exit_process)
+    if (exit_process)
     {
         app_printf(felog, CF_ERROR, "Worker process entries network or creates work thread failed! \
                 Exit monitor process!\n");
@@ -595,14 +595,14 @@ again:
 
     app_printf(felog, CF_INFO, "Do fork\n");
     /* Fork new child process */
-    if((pid=fork()) == -1)
+    if ((pid = fork()) == -1)
     {
         app_printf(felog, CF_ERROR, "Create worker process failed!\n");
         ipc_status = FORK_NEW_PROCESS_ERROR;
         goto cleanup;
     }
 
-    if(pid == 0)
+    if (pid == 0)
     {
         // Child process used for worker
         app_printf(felog, CF_INFO, "Start new worker...\n");
@@ -611,17 +611,16 @@ again:
         session_type = SESSION_RECEIVER;
         start_worker();
     }
-    else 
+    else
     {
         workerPID = pid;
         session_type = SESSION_STARTER;
         goto again;
     }
 
-
 cleanup:
     /* End and release*/
-    if(global_eid != 0)
+    if (global_eid != 0)
     {
         sgx_destroy_enclave(global_eid);
     }
@@ -633,6 +632,7 @@ cleanup:
     exit(ipc_status);
 }
 
+// TODO: move to other files
 /**
  * @description: start parent worker
  */
@@ -651,14 +651,14 @@ void start_worker(void)
     signal(SIGCHLD, sig_handler);
 
     /* Init conifigure */
-    if(!initialize_config())
+    if (!initialize_config())
     {
         app_printf(felog, CF_ERROR, "Init configuration failed!\n");
         exit(INIT_CONFIG_ERROR);
     }
 
     /* Init related components */
-    if(!initialize_components())
+    if (!initialize_components())
     {
         app_printf(felog, CF_ERROR, "Init component failed!\n");
         ipc_status = INIT_COMPONENT_ERROR;
@@ -667,7 +667,7 @@ void start_worker(void)
     app_printf(felog, CF_INFO, "Init components successfully!\n");
 
     /* Init IPC */
-    if(init_ipc() == -1)
+    if (init_ipc() == -1)
     {
         app_printf(felog, CF_ERROR, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
@@ -676,7 +676,7 @@ void start_worker(void)
     app_printf(felog, CF_INFO, "Init IPC successfully!\n");
 
     /* Init enclave */
-    if(global_eid != 0)
+    if (global_eid != 0)
     {
         // If worker process is copied from fork function,
         // delete copied sgx enclave memory space
@@ -691,7 +691,7 @@ void start_worker(void)
     app_printf(felog, CF_INFO, "Worker process int enclave successfully!id:%d\n", global_eid);
 
     /* Do TEE key pair transformation */
-    if((ipc_status=attest_session()) != IPC_SUCCESS)
+    if ((ipc_status = attest_session()) != IPC_SUCCESS)
     {
         app_printf(felog, CF_ERROR, "Do local attestation failed!\n");
         goto cleanup;
@@ -699,41 +699,40 @@ void start_worker(void)
     app_printf(felog, CF_INFO, "Do local attestation successfully!\n");
 
     /* Entry network */
-    if(!is_entried_network && !run_as_server && !entry_network())
+    if (!is_entried_network && !run_as_server && !entry_network())
     {
         ipc_status = ENTRY_NETWORK_ERROR;
         goto cleanup;
     }
-    if(!is_entried_network && kill(monitorPID, SIGUSR1) == -1)
+    if (!is_entried_network && kill(monitorPID, SIGUSR1) == -1)
     {
         app_printf(felog, CF_ERROR, "Send entry network status failed!\n");
     }
 
     /* Do disk related */
-    if(pthread_create(&wthread, NULL, do_disk_related, NULL) != 0)
+    if (pthread_create(&wthread, NULL, do_disk_related, NULL) != 0)
     {
         app_printf(felog, CF_ERROR, "Create worker thread failed!\n");
         ipc_status = IPC_CREATE_THREAD_ERR;
         goto cleanup;
     }
 
-
 again:
     /* Monitor monitor process */
-    while(true)
+    while (true)
     {
         sleep(heart_beat_timeout);
-        if(kill(monitorPID, 0) == -1)
+        if (kill(monitorPID, 0) == -1)
         {
-            if(errno == ESRCH)
+            if (errno == ESRCH)
             {
                 app_printf(felog, CF_ERROR, "Monitor process is not existed!\n");
             }
-            else if(errno == EPERM)
+            else if (errno == EPERM)
             {
                 app_printf(felog, CF_ERROR, "Worker has no right to send sig to worker!\n");
             }
-            else if(errno == EINVAL)
+            else if (errno == EINVAL)
             {
                 app_printf(felog, CF_ERROR, "Invalid sig!\n");
             }
@@ -746,16 +745,16 @@ again:
         }
     }
     app_printf(felog, CF_INFO, "Monitor process exit unexpectly!Restart it again\n");
-    
+
     /* Fork a new process for monitor */
-    if((pid=fork()) == -1)
+    if ((pid = fork()) == -1)
     {
         app_printf(felog, CF_ERROR, "Create worker process failed!\n");
         ipc_status = FORK_NEW_PROCESS_ERROR;
         goto cleanup;
     }
 
-    if(pid == 0)
+    if (pid == 0)
     {
         // Child process used for monitor
         show_tag = "<monitor> ";
@@ -768,7 +767,7 @@ again:
         monitorPID = pid;
         session_type = SESSION_STARTER;
         /* Do TEE key pair transformation */
-        if((ipc_status=attest_session()) != IPC_SUCCESS)
+        if ((ipc_status = attest_session()) != IPC_SUCCESS)
         {
             app_printf(felog, CF_ERROR, "Do local attestation failed!\n");
             goto cleanup;
@@ -777,7 +776,6 @@ again:
         goto again;
     }
 
-
 cleanup:
     /* End and release */
     delete ipfs;
@@ -785,13 +783,13 @@ cleanup:
     delete p_config;
     destroy_ipc();
     close_logfile(felog);
-    if(global_eid != 0)
+    if (global_eid != 0)
     {
         sgx_destroy_enclave(global_eid);
     }
 
     // If entry network or create work thread failed, notify monitor process to exit
-    if(ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
+    if (ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
     {
         kill(monitorPID, SIGUSR2);
     }
@@ -832,12 +830,12 @@ int main_daemon()
     // Create worker process
     monitorPID = getpid();
     pid_t pid;
-    if((pid=fork()) == -1)
+    if ((pid = fork()) == -1)
     {
         app_printf(felog, CF_ERROR, "Create worker process failed!\n");
         return -1;
     }
-    if(pid == 0)
+    if (pid == 0)
     {
         // Worker process(child process)
         show_tag = "<worker> ";
