@@ -27,8 +27,7 @@ Ipfs *get_ipfs(void)
 {
     if (ipfs == NULL)
     {
-        cfprintf(felog, CF_ERROR "Please use get_ipfs(url) frist.\n");
-        exit(-1);
+        cfprintf(felog, CF_ERROR "Please use new_ipfs(url) frist.\n");
     }
 
     return ipfs;

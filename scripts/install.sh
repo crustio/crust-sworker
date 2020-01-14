@@ -27,7 +27,7 @@ function installAPP()
     make &>/dev/null
     checkRes $? "quit" "$SYNCFILE"
     cp $appname ../bin
-    #cp $enclaveso ../etc
+    cp $enclaveso ../etc
     cp $configfile ../etc
     cd - &>/dev/null
     
@@ -301,23 +301,6 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SGX_SDK/sdk_libs:$SGX_SSL/lib64
 EOF
 
     source ~/.bashrc
-}
-
-function setTimeWait()
-{
-    local info=$1
-    local syncfile=$2
-    local index=1
-    local timeout=100
-    while [ ! -s "$syncfile" ] && [ $timeout -gt 0 ]; do
-        printf "%s\r" "${info}${index}s"
-        ((index++))
-        ((timeout--))
-        sleep 1
-    done
-
-    echo "${info}$(cat $SYNCFILE)"
-    true > $SYNCFILE
 }
 
 function setTimeWait()

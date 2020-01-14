@@ -1,83 +1,65 @@
 #!/bin/bash
-function checkRes()
+function success_exit()
 {
-    local res=$1
-    local err_op=$2
-    local descriptor=$3
+    rm -f $SYNCFILE &>/dev/null
 
-    if [ x"$descriptor" = x"" ] ; then 
-        descriptor="&1"
-    fi
-
-    if [ $res -ne 0 ]; then
-        eval "verbose ERROR "FAILED" t >$descriptor"
-        case $err_op in 
-            quit)       exit 1;;
-            return)     return 1;;
-            *)          ;;
-        esac
-        return 1
-    fi
-
-    eval "verbose INFO "SUCCESS" t >$descriptor"
-
-    while [ -s $descriptor ]; do
-        sleep 1
+    # Kill alive useless sub process
+    for el in ${toKillPID[@]}; do
+        if ps -ef | grep -v grep | grep $el &>/dev/null; then
+            kill -9 $el
+        fi
     done
-}
 
-function verbose()
-{
-    local type=$1
-    local info=$2
-    local tips=$3
-    local color=$GREEN
-    local nc=$NC
-    local opt="-e"
-    local content=""
-    local time=`date "+%Y/%m/%d %T.%3N"`
-
-    case $type in
-        ERROR)  color=$RED ;;
-        WARN)   color=$YELLOW ;;
-        INFO)   color=$GREEN ;;
-    esac
-    case $tips in 
-        h)      
-            opt="-n"
-            content="$time [$type] $info"
-            ;;
-        t)      
-            opt="-e"
-            content="${color}$info${nc}"
-            ;;
-        n)
-            content="$time [$type] $info"
-            ;;
-        *)
-            content="${color}$time [$type] $info${nc}"
-    esac
-    echo $opt $content
+    rm -rf $pkgdir
 }
 
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
-instdir=$basedir/..
+instdir=$(cd $basedir/..;pwd)
 appdir=$instdir/Miner
 VERSION=$(cat $instdir/VERSION)
 pkgdir=$instdir/crust-$VERSION
 enclavefile="enclave.signed.so"
+SYNCFILE=$instdir/.syncfile
+resourceUrl="ftp://47.102.98.136/pub/resource.tar"
+
+
+. $basedir/utils.sh
+
+trap "success_exit" INT
+trap "success_exit" EXIT
 
 mkdir -p $pkgdir
 
-# Generate mrenclave file
-cd $appdir
-verbose INFO "Building MRENCALVE file..." h
-make clean && make &>/dev/null
-checkRes $? "quit"
-cp $enclavefile $instdir/etc
-make clean
+# Check if resource and bin directory exsited
+cd $instdir
+if [ ! -e "$instdir/bin" ] || [ ! -e "$instdir/resource" ]; then
+    verbose INFO "This is your first packing, some resource should be downloaded, please wait..."
+    wget $resourceUrl
+    if [ $? -ne 0 ]; then
+        verbose ERROR "Download failed!"
+        exit 1
+    fi
+    tar -xvf $(basename $resourceUrl) &>/dev/null
+    if [ $? -ne 0 ]; then
+        verbose ERROR "Unpack failed, bad package!"
+        exit 1
+    fi
+    rm -r $(basename $resourceUrl)
+fi
 cd -
+
+# Generate mrenclave file
+if [ x"$1" != x"debug" ]; then
+    cd $appdir
+    setTimeWait "$(verbose INFO "Building MRENCLAVE file..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
+    make clean && make &>/dev/null
+    checkRes $? "quit" "$SYNCFILE"
+    cp $enclavefile $instdir/etc
+    make clean
+    cd -
+fi
 
 cd $instdir
 cp -r bin etc log Miner resource scripts $pkgdir
@@ -90,6 +72,6 @@ rm scripts/package.sh
 mv scripts/install.sh ./
 cd -
 
-tar -cvf crust-$VERSION.tar $pkgdir/*
-
-rm -rf $pkgdir
+cd $instdir
+tar -cvf crust-$VERSION.tar crust-$VERSION
+cd -

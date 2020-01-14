@@ -27,7 +27,9 @@ int ApiHandler::start()
     {
         this->m_listener->support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
         this->m_listener->support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
+        cfprintf(NULL, CF_INFO "Opening listener...\n");
         this->m_listener->open().wait();
+        cfprintf(NULL, CF_INFO "Opening listener end\n");
         return 1;
     }
     catch (const web::http::http_exception &e)
@@ -180,11 +182,15 @@ void ApiHandler::handle_post(web::http::http_request message)
         /* Request IAS verification */
         web::http::client::http_client_config cfg;
         cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
-        web::http::client::http_client *self_api_client = new web::http::client::http_client(get_config()->ias_base_url.c_str(), cfg);
+        Config *p_config = Config::get_instance();
+        web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->ias_base_url.c_str(), cfg);
+        //web::http::client::http_client *self_api_client = new web::http::client::http_client(Config::ias_base_url.c_str(), cfg);
         web::http::http_request ias_request(web::http::methods::POST);
-        ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(get_config()->ias_primary_subscription_key));
+        ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(p_config->ias_primary_subscription_key));
+        //ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(Config::ias_primary_subscription_key));
         ias_request.headers().add(U("Content-Type"), U("application/json"));
-        ias_request.set_request_uri(get_config()->ias_base_path.c_str());
+        ias_request.set_request_uri(p_config->ias_base_path.c_str());
+        //ias_request.set_request_uri(Config::ias_base_path.c_str());
 
         std::string body = "{\n\"isvEnclaveQuote\":\"";
         body.append(b64quote);
@@ -239,7 +245,8 @@ void ApiHandler::handle_post(web::http::http_request message)
         ias_report.push_back(resStr.c_str());
     
         // Print IAS report 
-        if (get_config()->verbose)
+        if (p_config->verbose)
+        //if (Config::verbose)
         {
             // TODO: seal log code into functions
             cfprintf(felog, "\n\n----------IAS Report - JSON - Required Fields----------\n\n");

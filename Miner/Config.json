@@ -1,5 +1,5 @@
 {
-    "emptyPath" : "../empty_store",
+    "emptyPath" : "/opt/crust/empty_store",
     "emptyCapacity" : 4,
     "ipfsApiBaseUrl" : "http://127.0.0.1:5001/api/v0",
     "apiBaseUrl": "http://192.168.50.9:12222/api/v0",
@@ -16,5 +16,9 @@
 
     "flags": 4,
     "debug": 0,
-    "verbose": 0
+    "verbose": 0,
+
+    "address": "127.0.0.1",
+    "port": 11111,
+    "doc_root": "/api/v0"
 }
