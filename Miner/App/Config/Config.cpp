@@ -5,40 +5,9 @@ using namespace std;
 Config *Config::config = NULL;
 
 /**
- * @description: new a global config
- * @param path -> configurations file path
- * @return: new config point
- */
-/*
-Config *new_config(const char *path)
-{
-    if (config != NULL)
-    {
-        delete config;
-    }
-
-    config = new Config(path);
-    return config;
-}
-*/
-
-/**
- * @description: get the global config
- * @return: config point
- */
-/*
-Config *get_config(void)
-{
-    if (config == NULL)
-    {
-        printf("Please use new_config(path) frist.\n");
-        exit(-1);
-    }
-
-    return config;
-}
-*/
-
+ * @desination: Single instance class function to get instance
+ * @return: Configure instance
+ * */
 Config *Config::get_instance()
 {
     if(Config::config == NULL)
@@ -81,12 +50,6 @@ Config::Config(std::string path)
     this->flags = config_value["flags"].as_integer();
     this->verbose = config_value["verbose"].as_integer();
     this->debug = config_value["debug"].as_integer();
-
-
-    // New http para
-    this->address = config_value["address"].as_string();
-    this->port = config_value["port"].as_integer();
-    this->doc_root = config_value["doc_root"].as_string();
 }
 
 /**
@@ -110,8 +73,5 @@ void Config::show(void)
     printf("    'IAS base path' : '%s',\n", this->ias_base_path.c_str());
     printf("    'verbose info' : '%d',\n", this->verbose);
     printf("    'debug info' : '%d',\n", this->debug);
-    printf("    'address' : '%s',\n", this->address.c_str());
-    printf("    'port' : '%d',\n", this->port);
-    printf("    'doc root' : '%s',\n", this->doc_root.c_str());
     printf("}\n");
 }

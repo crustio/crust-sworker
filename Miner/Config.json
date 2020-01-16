@@ -16,9 +16,5 @@
 
     "flags": 4,
     "debug": 0,
-    "verbose": 0,
-
-    "address": "127.0.0.1",
-    "port": 11111,
-    "doc_root": "/api/v0"
+    "verbose": 0
 }

@@ -45,38 +45,6 @@ int SGX_CDECL main(int argc, char *argv[])
 int main_daemon()
 {
     return process();
-    /*
-    // Clean last time IPC related variable, actually it indicates message queue
-    // generated last time without normal exit
-    clean_ipc();
-
-    // Create worker process
-    monitorPID = getpid();
-    pid_t pid;
-    if((pid=fork()) == -1)
-    {
-        cfprintf(felog, CF_ERROR "Create worker process failed!\n");
-        return -1;
-    }
-    if(pid == 0)
-    {
-        // Worker process(child process)
-        show_tag = "<worker> ";
-        workerPID = getpid();
-        session_type = SESSION_STARTER;
-        start_worker();
-    }
-    else
-    {
-        // Monitor process(parent process)
-        show_tag = "<monitor> ";
-        workerPID = pid;
-        session_type = SESSION_RECEIVER;
-        start_monitor();
-    }
-
-    return 1;
-    */
 }
 
 /**
@@ -87,15 +55,14 @@ int main_status(void)
 {
     /* Get configurations */
     Config *p_config = Config::get_instance();
-    //if (p_config == NULL)
-    //{
-    //    cfprintf(NULL, CF_ERROR "Init config failed.\n");
-    //    return false;
-    //}
+    if (p_config == NULL)
+    {
+        cfprintf(NULL, CF_ERROR "Init config failed.\n");
+        return false;
+    }
 
     /* Call internal api interface to get information */
     web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->api_base_url.c_str());
-    //web::http::client::http_client *self_api_client = new web::http::client::http_client(Config::api_base_url.c_str());
     web::uri_builder builder(U("/status"));
     web::http::http_response response = self_api_client->request(web::http::methods::GET, builder.to_string()).get();
     printf("%s", response.extract_utf8string().get().c_str());
@@ -111,17 +78,15 @@ int main_status(void)
 int main_report(const char *block_hash)
 {
     /* Get configurations */
-    //Config *p_config = new_config("Config.json");
     Config *p_config = Config::get_instance();
-    //if (p_config == NULL)
-    //{
-    //    cfprintf(NULL, CF_ERROR "Init config failed.\n");
-    //    return false;
-    //}
+    if (p_config == NULL)
+    {
+        cfprintf(NULL, CF_ERROR "Init config failed.\n");
+        return false;
+    }
 
     /* Call internal api interface to get information */
     web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->api_base_url.c_str());
-    //web::http::client::http_client *self_api_client = new web::http::client::http_client(Config::api_base_url.c_str());
     web::uri_builder builder(U("/report"));
     builder.append_query("block_hash", block_hash);
     web::http::http_response response = self_api_client->request(web::http::methods::GET, builder.to_string()).get();

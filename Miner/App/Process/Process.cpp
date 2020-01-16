@@ -19,12 +19,11 @@ bool is_entried_network = false;
 bool exit_process = false;
 // Indicate current process in show info
 const char *show_tag = "<monitor>";
-bool killChild = false;
-bool get_enclave_worker = false;
-
+// Pointor to configure instance
 Config *p_config = NULL;
+// Pointer to http handler instance
 ApiHandler *p_api_handler = NULL;
-//extern Ipfs *ipfs;
+
 extern FILE *felog;
 extern bool run_as_server;
 extern int msqid;
@@ -704,6 +703,9 @@ cleanup:
     exit(ipc_status);
 }
 
+/**
+ * @description: Start monitor2 process used to monitor monitor process
+ * */
 void start_monitor2(void)
 {
     cfprintf(felog, CF_INFO "%s Monintor2 process(ID:%d)\n", show_tag, monitorPID2);
@@ -808,7 +810,6 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s Worker process(ID:%d)\n", show_tag, workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
-    get_enclave_worker = false;
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
 
     /* Signal function */
@@ -857,7 +858,6 @@ void start_worker(void)
         ipc_status = INIT_ENCLAVE_ERROR;
         goto cleanup;
     }
-    get_enclave_worker = true;
     cfprintf(felog, CF_INFO "%s Worker process int enclave successfully!id:%d\n", show_tag, global_eid);
 
     /* Do TEE key pair transformation */
@@ -978,6 +978,10 @@ cleanup:
     exit(ipc_status);
 }
 
+/**
+ * @desination: Main function to start application
+ * @return: Start status
+ * */
 int process()
 {
     // Clean last time IPC related variable, actually it indicates message queue

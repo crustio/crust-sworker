@@ -30,14 +30,9 @@ public:
     // debug related
     int debug;
     int verbose;
-    // New http para
-    std::string address;
-    int port;
-    std::string doc_root;
 
     static Config *config;
 
-    //Config(std::string path);
     void show(void);
     static Config *get_instance();
 
