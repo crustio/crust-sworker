@@ -109,21 +109,21 @@ size_t ocall_get_folders_number_under_path(const char *path)
  * @param len -> the length of data
  * @return file data
  */
-unsigned char *ocall_get_file(const char *file_path, size_t len)
+void ocall_get_file(const char *file_path, unsigned char *p_file, size_t len)
 {
     if (access(file_path, 0) == -1)
     {
-        return NULL;
+        return ;
     }
 
-    unsigned char *data = new unsigned char[len];
+    //unsigned char *data = new unsigned char[len];
     std::ifstream in;
 
     in.open(file_path, std::ios::out | std::ios::binary);
-    in.read(reinterpret_cast<char *>(data), len);
+    in.read(reinterpret_cast<char *>(p_file), len);
     in.close();
 
-    return data;
+    //return data;
 }
 
 /**
@@ -131,9 +131,10 @@ unsigned char *ocall_get_file(const char *file_path, size_t len)
  * @param root_hash -> the root hash of file
  * @return: the merkle tree of file
  */
-MerkleTree *ocall_get_merkle_tree(const char *root_hash)
+void ocall_get_merkle_tree(const char *root_hash, MerkleTree **p_merkletree)
 {
-    return get_ipfs()->get_merkle_tree(root_hash);
+    //return get_ipfs()->get_merkle_tree(root_hash);
+    *p_merkletree = get_ipfs()->get_merkle_tree(root_hash);
 }
 
 /**
@@ -142,19 +143,21 @@ MerkleTree *ocall_get_merkle_tree(const char *root_hash)
  * @param len(out) -> the length of block data 
  * @return: the block data
  */
-unsigned char *ocall_get_block(const char *hash, size_t *len)
+void ocall_get_block(const char *hash, size_t *len, unsigned char **p_block)
 {
-    return get_ipfs()->get_block_data(hash, len);
+    //return get_ipfs()->get_block_data(hash, len);
+    *p_block = get_ipfs()->get_block_data(hash, len);
 }
 
 /**
  * @description: ocall for getting changed files
  * @return: changed files
  */
-Node *ocall_get_diff_files()
+void ocall_get_diff_files(Node **node)
 {
     get_ipfs()->generate_diff_files();
-    return get_ipfs()->get_diff_files();
+    *node = get_ipfs()->get_diff_files();
+    //return get_ipfs()->get_diff_files();
 }
 
 /**

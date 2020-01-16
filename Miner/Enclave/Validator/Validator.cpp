@@ -20,9 +20,10 @@ void validate_empty_disk(const char *path)
         if (rand_val < 256 * EMPTY_VALIDATE_RATE)
         {
             /* Get M hashs */
-            unsigned char *m_hashs = NULL;
+            unsigned char *m_hashs = (unsigned char*)malloc(PLOT_RAND_DATA_NUM * HASH_LENGTH);
             std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
-            ocall_get_file(&m_hashs, get_m_hashs_file_path(g_path.c_str()).c_str(), PLOT_RAND_DATA_NUM * HASH_LENGTH);
+            //ocall_get_file(&m_hashs, get_m_hashs_file_path(g_path.c_str()).c_str(), PLOT_RAND_DATA_NUM * HASH_LENGTH);
+            ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
 
             if (m_hashs == NULL)
             {
@@ -50,8 +51,9 @@ void validate_empty_disk(const char *path)
             std::string leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
             // eprintf("Select path: %s\n", leaf_path.c_str());
 
-            unsigned char *leaf_data = NULL;
-            ocall_get_file(&leaf_data, leaf_path.c_str(), PLOT_RAND_DATA_LENGTH);
+            unsigned char *leaf_data = (unsigned char*)malloc(PLOT_RAND_DATA_LENGTH);
+            ocall_get_file(leaf_path.c_str(), leaf_data, PLOT_RAND_DATA_LENGTH);
+            //ocall_get_file(&leaf_data, leaf_path.c_str(), PLOT_RAND_DATA_LENGTH);
 
             if (leaf_data == NULL)
             {
@@ -118,7 +120,8 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
             /* Get merkle tree of file */
             MerkleTree *tree = NULL;
             std::string root_hash = unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH);
-            ocall_get_merkle_tree(&tree, root_hash.c_str());
+            //ocall_get_merkle_tree(&tree, root_hash.c_str());
+            ocall_get_merkle_tree(root_hash.c_str(), &tree);
 
             if (tree == NULL)
             {
@@ -157,7 +160,8 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
     /* Validate block data */
     if (rand_val < 256 * MEANINGFUL_BLOCK_VALIDATE_RATE)
     {
-        ocall_get_block(&block_data, std::string(root->hash).c_str(), &block_size);
+        //ocall_get_block(&block_data, std::string(root->hash).c_str(), &block_size);
+        ocall_get_block(std::string(root->hash).c_str(), &block_size, &block_data);
         if (block_data == NULL || block_size != root->size)
         {
             return false;

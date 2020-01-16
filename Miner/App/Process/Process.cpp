@@ -1,11 +1,12 @@
 #include "Process.h"
 #include "OCalls.h"
+#include <map>
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid;
 // Indicate if run current process as server
 // Record monitor and worker process id
-pid_t workerPID=-1,monitorPID=-1;
+pid_t workerPID=-1,monitorPID=-1,monitorPID2=-1;
 // Local attestation session type
 int session_type;
 // Local attestation transfered data type
@@ -19,16 +20,21 @@ bool exit_process = false;
 // Indicate current process in show info
 const char *show_tag = "<monitor>";
 bool killChild = false;
+bool get_enclave_worker = false;
 
 Config *p_config = NULL;
 ApiHandler *p_api_handler = NULL;
 //extern Ipfs *ipfs;
 extern FILE *felog;
 extern bool run_as_server;
+extern int msqid;
+extern msg_form msg;
 
 
 void start_monitor(void);
+void start_monitor2(void);
 void start_worker(void);
+ipc_status_t attest_session();
 
 
 /**
@@ -448,6 +454,7 @@ ipc_status_t attest_session()
     ipc_status_t ipc_status = IPC_SUCCESS;
     if(session_type == SESSION_STARTER)
     {
+        cfprintf(felog, CF_INFO "%s do attestation....\n", show_tag);
         sgx_status = ecall_attest_session_starter(global_eid, &ipc_status, datatype);
     }
     else if(session_type == SESSION_RECEIVER)
@@ -483,10 +490,8 @@ void *do_disk_related(void *)
 /* Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores */
 #pragma omp parallel for
     for (size_t i = 0; i < p_config->empty_capacity; i++)
-    //for (size_t i = 0; i < Config::empty_capacity; i++)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
-        //ecall_plot_disk(global_eid, Config::empty_path.c_str());
     }
 
     ecall_generate_empty_root(global_eid);
@@ -507,6 +512,12 @@ void start_monitor(void)
     cfprintf(felog, CF_INFO "%s Monintor process(ID:%d)\n", show_tag, monitorPID);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
+    std::map<std::string,pid_t> pids_m;
+    pids_m["worker"] = workerPID;
+    pids_m["monitor2"] = monitorPID2;
+    bool is_break_check = false;
+    bool doAttest = true;   // Used to indicate if worker terminated
+    std::pair<std::string,pid_t> exit_entry;
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
@@ -541,53 +552,72 @@ void start_monitor(void)
 
 
 again:
-    /* Do TEE key pair transformation */
-    if((ipc_status=attest_session()) != IPC_SUCCESS)
+    /* Do local attestation and exchange pid with worker */
+    if(doAttest)
     {
-        cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
-        goto cleanup;
-    }
-    cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
-
-    /*
-    if(killChild)
-    {
-        if(kill(workerPID, SIGKILL) == -1)
+        if((ipc_status=attest_session()) != IPC_SUCCESS)
         {
-            cfprintf(felog, CF_ERROR "%s Kill worker failed!\n", show_tag);
+            cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
             goto cleanup;
         }
-    }
-    killChild = false;
-    */
-
-    /* Monitor worker process */
-    while(true)
-    {
-        sleep(heart_beat_timeout);
-        if(kill(workerPID, 0) == -1)
+        else
         {
-            if(errno == ESRCH)
+            cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
+            /* Exchange pid with worker */
+            msg.type = 201;
+            msg.text = getpid();
+            if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
             {
-                cfprintf(felog, CF_ERROR "%s Worker process is not existed!\n", show_tag);
+                cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
             }
-            else if(errno == EPERM)
+            if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 200) == -1)
             {
-                cfprintf(felog, CF_ERROR "%s Monitor has no right to send sig to worker!\n", show_tag);
-            }
-            else if(errno == EINVAL)
-            {
-                cfprintf(felog, CF_ERROR "%s Invalid sig!\n", show_tag);
+                cfprintf(felog, CF_ERROR "%s Get worker pid failed!!\n", show_tag);
             }
             else
             {
-                cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
+                workerPID = msg.text;
+                pids_m["worker"] = workerPID;
+                cfprintf(felog, CF_INFO "%s Get worker pid successfully!pid:%d\n", show_tag, workerPID);
             }
-            cfprintf(felog, CF_ERROR "%s Monitor sends sig to worker failed!Error code:%d\n", show_tag, errno);
-            break;
         }
+        doAttest = false;
     }
-    cfprintf(felog, CF_INFO "%s Worker process exit unexpectly!Restart it again\n", show_tag);
+
+    /* Monitor worker and monitor2 process */
+    while(true)
+    {
+        sleep(heart_beat_timeout);
+        for(auto it : pids_m)
+        {
+            if(kill(it.second, 0) == -1)
+            {
+                if(errno == ESRCH)
+                {
+                    cfprintf(felog, CF_ERROR "%s %s process is not existed!pid:%d\n", show_tag, it.first.c_str(), it.second);
+                }
+                else if(errno == EPERM)
+                {
+                    cfprintf(felog, CF_ERROR "%s %s has no right to send sig to worker!\n", show_tag, it.first.c_str());
+                }
+                else if(errno == EINVAL)
+                {
+                    cfprintf(felog, CF_ERROR "%s Invalid sig!\n", show_tag);
+                }
+                else
+                {
+                    cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
+                }
+                cfprintf(felog, CF_ERROR "%s %s sends sig to worker failed!Error code:%d\n", show_tag, it.first.c_str(), errno);
+                is_break_check = true;
+                exit_entry = it;
+                break;
+            }
+        }
+        if(is_break_check) break;
+    }
+    is_break_check = false;
+    cfprintf(felog, CF_INFO "%s %s process exit unexpectly!Restart it again\n", show_tag, exit_entry.first.c_str());
 
     // Check if worker process exit because of entry network or creating work thread failed,
     // then monitor process should end.
@@ -598,8 +628,10 @@ again:
         goto cleanup;
     }
 
-    cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
     /* Fork new child process */
+    cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
+    // Should get current pid before fork
+    monitorPID = getpid();
     if((pid=fork()) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
@@ -610,16 +642,44 @@ again:
     if(pid == 0)
     {
         // Child process used for worker
-        cfprintf(felog, CF_INFO "%s Start new worker...\n", show_tag);
-        show_tag = "<worker> ";
-        workerPID = getpid();
-        session_type = SESSION_RECEIVER;
-        start_worker();
+        cfprintf(felog, CF_INFO "%s Start new %s...\n", show_tag, exit_entry.first.c_str());
+        show_tag = ("<" + exit_entry.first + ">").c_str();
+        if(exit_entry.first.compare("worker") == 0)
+        {
+            session_type = SESSION_RECEIVER;
+            workerPID = getpid();
+            start_worker();
+        }
+        else if(exit_entry.first.compare("monitor2") == 0)
+        {
+            monitorPID2 = getpid();
+            start_monitor2();
+        }
+        else
+        {
+            cfprintf(NULL, CF_ERROR "Unknown process!\n");
+            goto cleanup;
+        }
     }
     else 
     {
-        workerPID = pid;
-        session_type = SESSION_STARTER;
+        if(exit_entry.first.compare("worker") == 0)
+        {
+            workerPID = pid;
+            session_type = SESSION_STARTER;
+            doAttest = true;
+        }
+        else if(exit_entry.first.compare("monitor2") == 0)
+        {
+            monitorPID2 = pid;
+        }
+        else
+        {
+            cfprintf(NULL, CF_ERROR "Unknown process!\n");
+            goto cleanup;
+        }
+        // Update related pid
+        pids_m[exit_entry.first] = pid;
         goto again;
     }
 
@@ -635,6 +695,108 @@ cleanup:
 
     cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
 
+    // Send SIGKILL to monitor2 to prevent it starts up monitor again
+    if(kill(monitorPID2, SIGKILL) == -1)
+    {
+        cfprintf(NULL, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
+    }
+
+    exit(ipc_status);
+}
+
+void start_monitor2(void)
+{
+    cfprintf(felog, CF_INFO "%s Monintor2 process(ID:%d)\n", show_tag, monitorPID2);
+    ipc_status_t ipc_status = IPC_SUCCESS;
+    pid_t pid = -1;
+
+    /* Signal function */
+    // SIGUSR1 used to notify that entry network has been done,
+    // no need to do it again
+    signal(SIGUSR1, sig_handler);
+    // SIGUSR2 used to notify monitor process to exit
+    signal(SIGUSR2, sig_handler);
+    signal(SIGCHLD, sig_handler);
+
+    /* Init IPC */
+    if(init_ipc() == -1)
+    {
+        cfprintf(felog, CF_ERROR "%s Init IPC failed!\n", show_tag);
+        ipc_status = INIT_IPC_ERROR;
+        goto cleanup;
+    }
+
+
+again:
+    /* Monitor worker process */
+    while(true)
+    {
+        sleep(heart_beat_timeout);
+        if(kill(monitorPID, 0) == -1)
+        {
+            if(errno == ESRCH)
+            {
+                cfprintf(felog, CF_ERROR "%s Monitor process is not existed!\n", show_tag);
+            }
+            else if(errno == EPERM)
+            {
+                cfprintf(felog, CF_ERROR "%s Monitor2 has no right to send sig to monitor!\n", show_tag);
+            }
+            else if(errno == EINVAL)
+            {
+                cfprintf(felog, CF_ERROR "%s Invalid sig!\n", show_tag);
+            }
+            else
+            {
+                cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
+            }
+            cfprintf(felog, CF_ERROR "%s Monitor2 sends sig to monitor failed!Error code:%d\n", show_tag, errno);
+            break;
+        }
+    }
+    cfprintf(felog, CF_INFO "%s Monitor process exit unexpectly!Restart it again\n", show_tag);
+
+    // Check if worker process exit because of entry network or creating work thread failed,
+    // then monitor process should end.
+    if(exit_process)
+    {
+        cfprintf(felog, CF_ERROR "%s Monitor process entries network or creates work thread failed! \
+                Exit monitor2 process!\n", show_tag);
+        goto cleanup;
+    }
+
+    /* Fork new child process */
+    cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
+    // Should get current pid before fork
+    monitorPID2 = getpid();
+    if((pid=fork()) == -1)
+    {
+        cfprintf(felog, CF_ERROR "%s Create monitor process failed!\n", show_tag);
+        ipc_status = FORK_NEW_PROCESS_ERROR;
+        goto cleanup;
+    }
+    if(pid == 0)
+    {
+        // Child process used for worker
+        cfprintf(felog, CF_INFO "%s Start new monitor:monitor2:%d...\n", show_tag, monitorPID2);
+        show_tag = "<monitor>";
+        session_type = SESSION_RECEIVER;
+        start_monitor();
+    }
+    else 
+    {
+        monitorPID = pid;
+        goto again;
+    }
+
+
+cleanup:
+    /* End and release*/
+    close_logfile(felog);
+    destroy_ipc();
+
+    cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
+
     exit(ipc_status);
 }
 
@@ -644,15 +806,17 @@ cleanup:
 void start_worker(void)
 {
     cfprintf(felog, CF_INFO "%s Worker process(ID:%d)\n", show_tag, workerPID);
-    pid_t pid = 0;
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
+    get_enclave_worker = false;
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
     // no need to do it again
     signal(SIGUSR1, sig_handler);
+    // If monitor exit unexpectly, monitor will notify worker to do attestation again
+    signal(SIGUSR2, sig_handler);
     signal(SIGCHLD, sig_handler);
 
     /* Init conifigure */
@@ -693,6 +857,7 @@ void start_worker(void)
         ipc_status = INIT_ENCLAVE_ERROR;
         goto cleanup;
     }
+    get_enclave_worker = true;
     cfprintf(felog, CF_INFO "%s Worker process int enclave successfully!id:%d\n", show_tag, global_eid);
 
     /* Do TEE key pair transformation */
@@ -704,12 +869,12 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
     /* Entry network */
-    cfprintf(felog, CF_INFO "Entrying network...\n");
     if(!is_entried_network && !run_as_server && !entry_network())
     {
         ipc_status = ENTRY_NETWORK_ERROR;
         goto cleanup;
     }
+    cfprintf(felog, CF_INFO "Entrying network...\n");
     if(!is_entried_network)
     {
         if(kill(monitorPID, SIGUSR1) == -1)
@@ -733,7 +898,24 @@ void start_worker(void)
 
 
 again:
-    /* Monitor monitor process */
+    /* Exchange pid with monitor */
+    msg.type = 200;
+    msg.text = getpid();
+    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
+    {
+        cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
+    }
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 201) == -1)
+    {
+        cfprintf(felog, CF_ERROR "%s Get monitor pid failed!!\n", show_tag);
+    }
+    else
+    {
+        monitorPID = msg.text;
+        cfprintf(felog, CF_INFO "%s Get monitor pid successfully!pid:%d\n", show_tag, monitorPID);
+    }
+
+    /* Monitor worker process */
     while(true)
     {
         sleep(heart_beat_timeout);
@@ -745,7 +927,7 @@ again:
             }
             else if(errno == EPERM)
             {
-                cfprintf(felog, CF_ERROR "%s Worker has no right to send sig to worker!\n", show_tag);
+                cfprintf(felog, CF_ERROR "%s Worker has no right to send sig to monitor!\n", show_tag);
             }
             else if(errno == EINVAL)
             {
@@ -759,38 +941,17 @@ again:
             break;
         }
     }
-    cfprintf(felog, CF_INFO "%s Monitor process exit unexpectly!Restart it again\n", show_tag);
-    // Before start new monitor, delete all resource related to api
-    
-    /* Fork a new process for monitor */
-    if((pid=fork()) == -1)
+
+    /* Do TEE key pair transformation */
+    session_type = SESSION_STARTER;
+    if((ipc_status=attest_session()) != IPC_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
-        ipc_status = FORK_NEW_PROCESS_ERROR;
+        cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
         goto cleanup;
     }
+    cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
-    if(pid == 0)
-    {
-        // Child process used for monitor
-        show_tag = "<monitor> ";
-        monitorPID = getpid();
-        session_type = SESSION_RECEIVER;
-        killChild = true;
-        start_monitor();
-    }
-    else
-    {
-        monitorPID = pid;
-        session_type = SESSION_STARTER;
-        /* Do TEE key pair transformation */
-        if((ipc_status=attest_session()) != IPC_SUCCESS)
-        {
-            cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
-            goto cleanup;
-        }
-        cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
-    }
+    goto again;
 
 
 cleanup:
@@ -841,8 +1002,8 @@ int process()
     {
         // Worker process(child process)
         show_tag = "<worker>";
-        workerPID = getpid();
         session_type = SESSION_STARTER;
+        workerPID = getpid();
         start_worker();
     }
     else
@@ -850,8 +1011,23 @@ int process()
         // Monitor process(parent process)
         show_tag = "<monitor>";
         workerPID = pid;
-        session_type = SESSION_RECEIVER;
-        start_monitor();
+        if((pid=fork()) == -1)
+        {
+            cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
+            return -1;
+        }
+        if(pid == 0)
+        {
+            show_tag = "<monitor2>";
+            monitorPID2 = getpid();
+            start_monitor2();
+        }
+        else
+        {
+            monitorPID2 = pid;
+            session_type = SESSION_RECEIVER;
+            start_monitor();
+        }
     }
 
     return 1;
