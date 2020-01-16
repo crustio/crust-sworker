@@ -16,6 +16,7 @@ killIPFS=true
 . $basedir/utils.sh
 
 
+# TODO: stop flow
 verbose INFO "Shutting down IPFS..." h
 ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
 if [ x"$ipfspid" != x"" ]; then
