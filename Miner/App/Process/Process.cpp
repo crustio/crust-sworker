@@ -85,7 +85,14 @@ static void sig_handler(int signum)
             // Check if there is any child process existed before existing
             while((pid=waitpid(-1, &status, WNOHANG)) > 0)
             {
-                cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
+                if(WIFEXITED(status))
+                {
+                    cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, WEXITSTATUS(status));
+                }
+                else
+                {
+                    cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
+                }
             }
             break;
     }
@@ -640,7 +647,6 @@ again:
 
     if(pid == 0)
     {
-        // Child process used for worker
         cfprintf(felog, CF_INFO "%s Start new %s...\n", show_tag, exit_entry.first.c_str());
         show_tag = ("<" + exit_entry.first + ">").c_str();
         if(exit_entry.first.compare("worker") == 0)
@@ -689,15 +695,20 @@ cleanup:
     {
         sgx_destroy_enclave(global_eid);
     }
-    close_logfile(felog);
     destroy_ipc();
 
     cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
 
     // Send SIGKILL to monitor2 to prevent it starts up monitor again
-    if(kill(monitorPID2, SIGKILL) == -1)
+    cfprintf(felog, CF_ERROR "%s Kill monitor2 process\n", show_tag);
+    if(kill(pids_m["monitor2"], SIGKILL) == -1)
     {
-        cfprintf(NULL, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
+        cfprintf(felog, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
+    }
+
+    if(felog != NULL)
+    {
+        close_logfile(felog);
     }
 
     exit(ipc_status);
@@ -758,15 +769,6 @@ again:
     }
     cfprintf(felog, CF_INFO "%s Monitor process exit unexpectly!Restart it again\n", show_tag);
 
-    // Check if worker process exit because of entry network or creating work thread failed,
-    // then monitor process should end.
-    if(exit_process)
-    {
-        cfprintf(felog, CF_ERROR "%s Monitor process entries network or creates work thread failed! \
-                Exit monitor2 process!\n", show_tag);
-        goto cleanup;
-    }
-
     /* Fork new child process */
     cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
     // Should get current pid before fork
@@ -783,6 +785,7 @@ again:
         cfprintf(felog, CF_INFO "%s Start new monitor:monitor2:%d...\n", show_tag, monitorPID2);
         show_tag = "<monitor>";
         session_type = SESSION_RECEIVER;
+        monitorPID = getpid();
         start_monitor();
     }
     else 
@@ -794,10 +797,14 @@ again:
 
 cleanup:
     /* End and release*/
-    close_logfile(felog);
     destroy_ipc();
 
     cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
+
+    if(felog != NULL)
+    {
+        close_logfile(felog);
+    }
 
     exit(ipc_status);
 }
@@ -957,23 +964,32 @@ again:
 cleanup:
     /* End and release */
     delete p_config;
-    delete get_ipfs();
-    p_api_handler->stop();
-    delete p_api_handler;
+    if(get_ipfs() != NULL)
+    {
+        delete get_ipfs();
+    }
+    if(p_api_handler != NULL)
+    {
+        delete p_api_handler;
+    }
     destroy_ipc();
-    close_logfile(felog);
     if(global_eid != 0)
     {
         sgx_destroy_enclave(global_eid);
     }
 
     // If entry network or create work thread failed, notify monitor process to exit
-    if(ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status || INIT_COMPONENT_ERROR == ipc_status)
+    if(ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
     {
         kill(monitorPID, SIGUSR2);
     }
 
     cfprintf(felog, CF_ERROR "%s Worker process exits with error code:%lx\n", show_tag, ipc_status);
+
+    if(felog != NULL)
+    {
+        close_logfile(felog);
+    }
 
     exit(ipc_status);
 }

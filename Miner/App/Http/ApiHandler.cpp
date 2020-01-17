@@ -27,9 +27,7 @@ int ApiHandler::start()
     {
         this->m_listener->support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
         this->m_listener->support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
-        cfprintf(NULL, CF_INFO "Opening listener...\n");
         this->m_listener->open().wait();
-        cfprintf(NULL, CF_INFO "Opening listener end\n");
         return 1;
     }
     catch (const web::http::http_exception &e)

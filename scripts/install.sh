@@ -1,17 +1,4 @@
 #!/bin/bash
-function getPackage()
-{
-    timeout $tmo wget -P $tempdir $1
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Get package $1 failed!Please try again!" t
-        exit 1
-    fi
-    {
-        flock -x 222 -w $tmo
-        ((gotPkgNum++))
-    } 222<> lockfile
-}
-
 function installAPP()
 {
     # Install tee-app dependencies
@@ -444,19 +431,10 @@ IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
 trap "success_exit" INT
 trap "success_exit" EXIT
 
-# TODO: ftp
-# Download packages
-#verbose INFO "Downloading SGX SDK packages..." h
-#for package in ${packages[@]}; do
-#    getPackage $package &
-#done
-## Wait for downloading...
-#while [ $gotPkgNum < ${#packages[*]} ]; do
-#    sleep 1
-#done
-#verbose INFO "success" t
 
-read -p "Please input your account password: " -s passwd
+verbose WARN "Make sure $USER can run 'sudo'!"
+
+read -p "Please input your password: " -s passwd
 echo
 
 # check if there is expect installed

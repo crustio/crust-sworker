@@ -13,7 +13,6 @@ function success_exit()
     rm -rf $pkgdir
 }
 
-# TODO: optimze package flow
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
