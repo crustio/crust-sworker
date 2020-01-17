@@ -42,6 +42,8 @@ extern "C"
     void divider(FILE *fd);
 
     int cfprintf(FILE *stream, const char *format, ...);
+    int cfprintf_pro(FILE *stream, const char* processID, const char* type, const char *format, ...);
+    char* print_timestamp();
     int cfputs(const char *s);
 
 #if defined(__cplusplus)

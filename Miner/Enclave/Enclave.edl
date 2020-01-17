@@ -1,10 +1,13 @@
 enclave {
     include "sgx_tcrypto.h"
+    include "sgx_dh.h"
+    include "sgx_tseal.h"
     include "MerkleTree.h"
     include "Node.h"
     include "ValidationStatus.h"
 
 	include "IASReport.h"
+	include "IPCReport.h"
 
     from "PlotDisk/PlotDisk.edl" import *;
 
@@ -15,6 +18,8 @@ enclave {
         public enum ValidationStatus ecall_return_validation_status(void);
         public void ecall_get_validation_report([out, size=len] char *report, size_t len);
         public size_t ecall_generate_validation_report([in, string] const char *block_hash); 
+        public ipc_status_t ecall_attest_session_starter(int datatype); 
+        public ipc_status_t ecall_attest_session_receiver(int datatype); 
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
 		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, size_t len);
@@ -26,16 +31,26 @@ enclave {
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
-        void ocall_printhexstring([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
         void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
         void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
         size_t ocall_get_folders_number_under_path([in, string] const char *path);
-        unsigned char *ocall_get_file([in, string] const char *file_path, size_t len);
-        MerkleTree *ocall_get_merkle_tree([in, string] const char *root_hash);
-        unsigned char *ocall_get_block([in, string] const char* cid, [in, out] size_t* len);
-        Node *ocall_get_diff_files(void);
+        //unsigned char *ocall_get_file([in, string] const char *file_path, size_t len);
+        void ocall_get_file([in, string] const char *file_path, [out, size=len] unsigned char *p_file, size_t len);
+        //MerkleTree *ocall_get_merkle_tree([in, string] const char *root_hash);
+        void ocall_get_merkle_tree([in, string] const char *root_hash, [out] MerkleTree **p_merkletree);
+        //unsigned char *ocall_get_block([in, string] const char* cid, [in, out] size_t* len);
+        void ocall_get_block([in, string] const char* cid, [in, out] size_t* len, [out] unsigned char **p_block);
+        void ocall_get_diff_files([out] Node **node);
         size_t ocall_get_diff_files_num(void);
         void ocall_usleep(int u);
+
+        ipc_status_t ocall_recv_session_request([out, size=20] char *request, [out, size=4] uint32_t *secret_size);
+        ipc_status_t ocall_send_request_recv_msg1([out] sgx_dh_msg1_t *p_dh_msg1, uint32_t secret_size);
+        ipc_status_t ocall_send_msg1_recv_msg2([in] sgx_dh_msg1_t *dh_msg1, [out] sgx_dh_msg2_t *dh_msg2);
+        ipc_status_t ocall_send_msg2_recv_msg3([in] sgx_dh_msg2_t *dh_msg2, [out] sgx_dh_msg3_t *dh_msg3);
+        ipc_status_t ocall_send_msg3([in] sgx_dh_msg3_t *dh_msg3);
+        ipc_status_t ocall_send_secret([in, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len);
+        ipc_status_t ocall_recv_secret([out, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len);
     };
 };

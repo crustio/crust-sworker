@@ -1,36 +1,21 @@
 #include "Config.h"
 
-Config *config = NULL;
+using namespace std;
+
+Config *Config::config = NULL;
 
 /**
- * @description: new a global config
- * @param path -> configurations file path
- * @return: new config point
- */
-Config *new_config(const char *path)
+ * @desination: Single instance class function to get instance
+ * @return: Configure instance
+ * */
+Config *Config::get_instance()
 {
-    if (config != NULL)
+    if(Config::config == NULL)
     {
-        delete config;
+        Config::config = new Config(CONFIG_FILE_PATH);
     }
 
-    config = new Config(path);
-    return config;
-}
-
-/**
- * @description: get the global config
- * @return: config point
- */
-Config *get_config(void)
-{
-    if (config == NULL)
-    {
-        printf("Please use new_config(path) frist.\n");
-        exit(-1);
-    }
-
-    return config;
+    return Config::config;
 }
 
 /**
@@ -39,7 +24,6 @@ Config *get_config(void)
  */
 Config::Config(std::string path)
 {
-    // TODO: think about putting some configurations into code
     /* Read user configurations from file */
     std::ifstream config_ifs(path);
     std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
@@ -49,9 +33,10 @@ Config::Config(std::string path)
     this->empty_path = config_value["emptyPath"].as_string();
     this->ipfs_api_base_url = config_value["ipfsApiBaseUrl"].as_string();
     this->api_base_url = config_value["apiBaseUrl"].as_string();
+    this->request_url = config_value["requestUrl"].as_string();
     this->empty_capacity = (size_t)config_value["emptyCapacity"].as_integer();
+    this->spid = config_value["spid"].as_string();   
 
-    this->spid = config_value["spid"].as_string();
     // TODO: true or false, include linkable, random nonce, verbose ...
     this->linkable = config_value["linkable"].as_integer();
     this->random_nonce = config_value["random_nonce"].as_integer();
@@ -77,6 +62,7 @@ void Config::show(void)
     printf("    'empty capacity' : %lu,\n", this->empty_capacity);
     printf("    'ipfs api base url' : '%s',\n", this->ipfs_api_base_url.c_str());
     printf("    'api base url' : '%s',\n", this->api_base_url.c_str());
+    printf("    'request url' : '%s',\n", this->request_url.c_str());
     printf("    'spid' : '%s',\n", this->spid.c_str());
     printf("    'linkable' : '%d',\n", this->linkable);
     printf("    'random nonce' : '%d',\n", this->random_nonce);

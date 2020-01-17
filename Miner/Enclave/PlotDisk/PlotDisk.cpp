@@ -1,5 +1,6 @@
 #include "PlotDisk.h"
 
+// TODO: put log to file
 /* Used to update workload->empty_g_hashs multiple threads */
 sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 

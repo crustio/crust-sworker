@@ -25,15 +25,14 @@ public:
     ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in);
     ~ApiHandler();
     int start();
+    int stop();
+    int test = 32;
 
 private:
-    sgx_enclave_id_t *p_global_eid;                              /* The point for sgx global eid*/
-    web::http::experimental::listener::http_listener m_listener; /* External api listener*/
+    sgx_enclave_id_t *p_global_eid;                                     /* The point for sgx global eid*/
+    web::http::experimental::listener::http_listener *m_listener;        /* External api listener*/
     void handle_get(web::http::http_request message);
     void handle_post(web::http::http_request message);
 };
-
-ApiHandler *new_api_handler(const char *url, sgx_enclave_id_t *p_global_eid);
-ApiHandler *get_api_handler();
 
 #endif /* !_CRUST_API_HANDLER_H_ */

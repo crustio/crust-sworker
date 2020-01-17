@@ -5,9 +5,9 @@
 
 typedef struct NodeStruct
 {
-    unsigned char *hash;
     size_t size;
     char exist;
+    unsigned char *hash;
 } Node;
 
 #endif /* !_CRUST_NODE_H_ */

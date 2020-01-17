@@ -61,8 +61,10 @@ endif
 
 App_C_Files := $(wildcard App/Utils/*.c)
 App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) \
-	$(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp) $(wildcard App/OCalls/*.cpp)
-App_Include_Paths := -IInclude -IApp -IApp/Ipfs -IApp/Utils -IApp/Http -IApp/Config -IApp/OCalls -I$(SGX_SDK)/include
+	$(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp) $(wildcard App/OCalls/*.cpp) $(wildcard App/Ipc/*.cpp) \
+	$(wildcard App/Process/*.cpp) 
+App_Include_Paths := -IInclude -IApp -IApp/Ipfs -IApp/Utils -IApp/Http -IApp/Config -IApp/OCalls -IApp/Ipc \
+	-IApp/Process -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
@@ -92,7 +94,7 @@ endif
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 App_C_Objects := $(App_C_Files:.c=.o)
 
-App_Name := app
+App_Name := crust
 
 ######## Enclave Settings ########
 
@@ -106,9 +108,9 @@ endif
 Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
-	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Verify/*.cpp)
+	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Verify/*.cpp) $(wildcard Enclave/Attestation/*.cpp)
 Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Verify -IEnclave/Models \
-	-IEnclave/PlotDisk -IEnclave/Validator -I$(SGX_SDK)/include \
+	-IEnclave/PlotDisk -IEnclave/Validator -IEnclave/Attestation -I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections

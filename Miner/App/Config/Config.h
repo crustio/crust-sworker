@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <cpprest/json.h>
+#include "config.h"
 
 #define IAS_API_DEF_VERSION 3
 
@@ -15,8 +16,6 @@ public:
     size_t empty_capacity;         /* Hard drive storage space for empty validation files, The unit is GB */
     std::string ipfs_api_base_url; /* Used to connect to IPFS */
     std::string api_base_url;      /* External API base url */
-    Config(std::string path);
-    void show(void);
     // entry network related
     std::string spid;
     int linkable;
@@ -25,14 +24,20 @@ public:
     std::string ias_primary_subscription_key;
     std::string ias_secondary_subscription_key;
     std::string ias_base_url;
+    std::string request_url;
     std::string ias_base_path;
     uint32_t flags;
     // debug related
-    int debug = 0;
-    int verbose = 0;
-};
+    int debug;
+    int verbose;
 
-Config *new_config(const char *path);
-Config *get_config(void);
+    static Config *config;
+
+    void show(void);
+    static Config *get_instance();
+
+private:
+    Config(std::string path);
+};
 
 #endif /* !_CRUST_CONFIG_H_ */

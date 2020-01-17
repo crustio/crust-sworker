@@ -12,20 +12,33 @@ function getPackage()
     } 222<> lockfile
 }
 
-#TODO: move start.sh & install app into opt & rename app
-function startAPP()
+function installAPP()
 {
+    # Install tee-app dependencies
+    verbose INFO "Installing app dependencies..." h
+    execWithExpect "apt-get install libcpprest-dev"
+    checkRes $? "quit"
+
+    local res=0
     cd $appdir
     make clean &>/dev/null
-    setTimeWait "$(verbose INFO "Making application..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Buiding application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
     make &>/dev/null
     checkRes $? "quit" "$SYNCFILE"
-    nohup ./app $startType &>$APPLOG &
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Start app failed!"
-    fi
+    cp $appname ../bin
+    cp $enclaveso ../etc
+    cp $configfile ../etc
     cd - &>/dev/null
+    
+    # Copy related files to install directory
+    cp -r $instdir/bin $crustdir
+    cp -r $instdir/etc $crustdir
+    cp -r $instdir/scripts $crustdir
+    mkdir -p $crustdir/log
+    true > $crustdir/.ipc
+
+    verbose INFO "Install application successfully!"
 }
 
 function installSGXSDK()
@@ -54,7 +67,7 @@ function installSGXSDK()
 function installSGXSSL()
 {
     if [ -d "$inteldir/sgxssl" ]; then
-        verbose INFO "SGX SSL has been installed!"
+        verbose INFO "SGX SSL has been installed." n
         return
     fi
     # get sgx ssl package
@@ -98,16 +111,20 @@ function installSGXSSL()
 
 function installIPFS()
 {
-    verbose INFO "Copying ipfs to $IPFS..." h
-    execWithExpect "cp $rsrcdir/ipfs $IPFS"
-    checkRes $? "quit"
-
     if [ -d "$IPFSDIR" ]; then
         verbose INFO "IPFS has been initialized." n
     else
         local res=0
+        local ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
+        if [ x"$ipfspid" != x"" ]; then
+            kill -9 $ipfspid
+            if [ $? -ne 0 ]; then
+                # If failed by using current user, kill it using root
+                execWithExpect "kill -9 $ipfspid"
+            fi
+        fi
         verbose INFO "Init ipfs..." h
-        $IPFS init &>/dev/null
+        $IPFS init
         checkRes $? "return"
     
         verbose INFO "Set swarm key ..." h
@@ -153,21 +170,26 @@ function installIPFS()
         $IPFS repo gc &>/dev/null
         checkRes $? "return"
     fi
+}
 
-    #TODO: move to start
-    verbose INFO "Starting up IPFS..." h
-    local ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
-    if [ x"$ipfspid" != x"" ]; then
-        kill -9 $ipfspid
-        if [ $? -ne 0 ]; then
-            # If failed by using current user, kill it using root
-            execWithExpect "kill -9 $ipfspid"
-        fi
+function uninstallOldCrust()
+{
+    verbose INFO "Removing old crust..." h
+    local ret=0
+    if [ ! -e "$crustdir" ]; then
+        verbose INFO "SUCCESS" t
+        return
     fi
-    nohup $IPFS daemon &>$NOHUPOUT &
-    checkRes $? "quit"
-
-    verbose INFO "Install IPFS successfully!"
+    cd $crustdir
+    if [ -e "scripts/uninstall.sh" ]; then
+        ./scripts/uninstall.sh &>/dev/null
+        ret=$?
+    else
+        rm -rf *
+        ret=$?
+    fi
+    cd - &>/dev/null
+    checkRes $ret "quit"
 }
 
 function uninstallSGXSDK()
@@ -262,7 +284,6 @@ function checkRes()
     done
 }
 
-#TODO: better env
 function setEnv()
 {
     if grep "SGX_SDK" ~/.bashrc &>/dev/null; then
@@ -365,13 +386,12 @@ HYELLOW='\033[1;33m'
 NC='\033[0m'
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
-appdir=$basedir/../Miner
-instdir=$basedir/..
+appdir=$basedir/Miner
+instdir=$basedir
 TMPFILE=$appdir/tmp.$$
 rsrcdir=$instdir/resource
 crustdir=/opt/crust
 inteldir=/opt/intel
-crustbindir=$crustdir/bin
 installEnv=false
 sgxssldir=""
 sgxssl_openssl_source_dir=""
@@ -383,10 +403,10 @@ OSVERSION=$(cat /etc/os-release | grep 'VERSION_ID' | grep -Po "(?<==\").*(?=\")
 tmo=180
 SYNCFILE=$instdir/.syncfile
 res=0
+uid=$(id -u)
 # Control configuration
 instTimeout=30
 toKillPID=()
-startType=$1
 # SGX SDK
 SDKURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/sgx_linux_x64_sdk_2.7.101.3.bin"
 DRIVERURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/sgx_linux_x64_driver_2.6.0_4f5bb63.bin"
@@ -410,15 +430,16 @@ sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
 #delOrder=(libsgx-enclave-common sgxdriver sgxsdk sgxssl)
 delOrder=(libsgx-enclave-common sgxdriver sgxsdk)
 declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
+# App related
+appname="crust"
+enclaveso="enclave.signed.so"
+configfile="Config.json"
 # IPFS related
-IPFSDIR=$HOME"/.ipfs/"
-IPFS=$crustbindir/ipfs
-SWARMKEY=$instdir/etc/swarm.key
+IPFSDIR=$HOME/.ipfs
+IPFS=$crustdir/bin/ipfs
+SWARMKEY=$crustdir/etc/swarm.key
 IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
 IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
-NOHUPOUT=$instdir/nohup.out
-# App related
-APPLOG=$appdir/logs/entry.log
 
 trap "success_exit" INT
 trap "success_exit" EXIT
@@ -435,11 +456,7 @@ trap "success_exit" EXIT
 #done
 #verbose INFO "success" t
 
-if [ x"$startType" != x"server" ]; then
-    startType=""
-fi
-
-read -p "Please input your account password: " passwd
+read -p "Please input your account password: " -s passwd
 echo
 
 # check if there is expect installed
@@ -452,20 +469,22 @@ if [ $? -ne 0 ]; then
     fi
 fi
 
+echo
+verbose INFO "---------- Uninstalling previous crust ----------" n
+uninstallOldCrust
+
 # Create directory
 verbose INFO "Creating and setting diretory related..." h
 res=0
 execWithExpect "mkdir -p $crustdir"
 res=$(($?|$res))
-execWithExpect "mkdir -p $crustbindir"
+execWithExpect "chown -R $uid:$uid $crustdir"
 res=$(($?|$res))
 execWithExpect "mkdir -p $inteldir"
 res=$(($?|$res))
-# Set diretory privillege
-execWithExpect "chmod -R 755 $crustdir"
-res=$(($?|$res))
 checkRes $res "quit"
 
+echo
 verbose INFO "---------- Installing SGX SDK ----------" n
 if checkSGXSDK; then
     ### Install sgx
@@ -479,21 +498,20 @@ echo
 verbose INFO "---------- Installing SGX SSL ----------" n
 installSGXSSL
 
-# Install IPFS
-echo
-verbose INFO "---------- Installing IPFS ----------" n
-installIPFS
-
-# Install tee-app dependencies
-execWithExpect "apt-get install libcpprest-dev"
-checkRes $? "quit"
-
 # Set environment
 echo
 verbose INFO "---------- Setting environment ----------" n
 setEnv
 
-# Start crust tee
+# Install Application
 echo
-verbose INFO "---------- Start Application ----------" n
-startAPP
+verbose INFO "---------- Installing Application ----------" n
+installAPP
+
+# Install IPFS
+echo
+verbose INFO "---------- Installing IPFS ----------" n
+installIPFS
+echo
+
+verbose INFO "Crust has been installed in /opt/crust! Go to that directory and run scripts/start.sh to start crust.\n"
