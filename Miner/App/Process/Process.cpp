@@ -188,13 +188,6 @@ bool initialize_components(void)
         return false;
     }
 
-    if (!get_crust()->post_tee_identity("qwer"))
-    {
-        cfprintf(felog, CF_ERROR "%s post_tee_identity failed!\n", show_tag);
-        return false;
-    }
-    
-
     /* API handler component */
     cfprintf(felog, CF_INFO "%s Initing api url:%s...\n", show_tag, p_config->api_base_url.c_str());
     p_api_handler = new ApiHandler(p_config->api_base_url.c_str(), &global_eid);
