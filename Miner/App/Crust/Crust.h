@@ -21,6 +21,7 @@ private:
 public:
     BlockHeader *get_block_header(void);
     bool post_tee_identity(std::string identity);
+    bool post_tee_work_report(std::string work_report);
     Crust(std::string url, std::string password, std::string backup);
     bool is_online(void);
     ~Crust();

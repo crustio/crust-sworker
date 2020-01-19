@@ -45,6 +45,8 @@ Crust *get_crust(void)
 Crust::Crust(std::string url, std::string password, std::string backup)
 {
     this->crust_client = new web::http::client::http_client(url);
+    this->password = password;
+    this->backup = backup;
 }
 
 /**
@@ -120,6 +122,40 @@ bool Crust::post_tee_identity(std::string identity)
         req.headers().add(U("Content-Type"), U("application/json"));
         req.set_request_uri(U("/tee/identity"));
         std::string body = "{\"identity\":\"" + identity + "\",\"backup\":\"" + this->backup + "\"}";
+        req.set_body(body);
+
+        web::http::http_response response = this->crust_client->request(req).get();
+        if (response.status_code() != web::http::status_codes::OK)
+        {
+            return false;
+        }
+    }
+    catch (const web::http::http_exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+    }
+    catch (const std::exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+    }
+
+    return true;
+}
+
+/**
+ * @description: post tee work report to crust chain
+ * @param work_report -> tee work report
+ * @return: success or fail
+ * */
+bool Crust::post_tee_work_report(std::string work_report)
+{
+    try
+    {
+        web::http::http_request req(web::http::methods::POST);
+        req.headers().add(U("password"), U(this->password));
+        req.headers().add(U("Content-Type"), U("application/json"));
+        req.set_request_uri(U("/tee/workreport"));
+        std::string body = "{\"workreport\":\"" + work_report + "\",\"backup\":\"" + this->backup + "\"}";
         req.set_body(body);
 
         web::http::http_response response = this->crust_client->request(req).get();
