@@ -10,6 +10,7 @@ IPFSLOG=$instdir/log/ipfs.log
 startType=$1
 
 . $basedir/utils.sh
+. $instdir/etc/environment
 
 if [ x"$startType" != x"server" ]; then
     verbose INFO "Start crust in client Mode" n

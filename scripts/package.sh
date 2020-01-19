@@ -13,7 +13,6 @@ function success_exit()
     rm -rf $pkgdir
 }
 
-# TODO: optimze package flow
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
@@ -30,12 +29,13 @@ resourceUrl="ftp://47.102.98.136/pub/resource.tar"
 trap "success_exit" INT
 trap "success_exit" EXIT
 
+rm -rf $pkgdir &>/dev/null
 mkdir -p $pkgdir
 
 # Check if resource and bin directory exsited
 cd $instdir
 if [ ! -e "$instdir/bin" ] || [ ! -e "$instdir/resource" ]; then
-    verbose INFO "This is your first packing, some resource should be downloaded, please wait..."
+    verbose INFO "This is your first packing, some resource will be downloaded, please wait..."
     wget $resourceUrl
     if [ $? -ne 0 ]; then
         verbose ERROR "Download failed!"
@@ -53,7 +53,7 @@ cd -
 # Generate mrenclave file
 if [ x"$1" != x"debug" ]; then
     cd $appdir
-    setTimeWait "$(verbose INFO "Building MRENCLAVE file..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Building enclave.signed.so file..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
     make clean && make &>/dev/null
     checkRes $? "quit" "$SYNCFILE"

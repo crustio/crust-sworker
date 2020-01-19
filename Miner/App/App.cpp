@@ -51,22 +51,30 @@ int main_daemon()
  * @description: run status command  to get and printf validation status
  * @return: exit flag
  */
-int main_status(void)
+int main_status()
 {
     /* Get configurations */
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
         cfprintf(NULL, CF_ERROR "Init config failed.\n");
-        return false;
+        return -1;
     }
 
     /* Call internal api interface to get information */
     web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->api_base_url.c_str());
     web::uri_builder builder(U("/status"));
     web::http::http_response response = self_api_client->request(web::http::methods::GET, builder.to_string()).get();
-    printf("%s", response.extract_utf8string().get().c_str());
+    if(response.status_code() == web::http::status_codes::OK)
+    {
+        cfprintf(NULL, CF_INFO "%s", response.extract_utf8string().get().c_str());
+    }
+    else
+    {
+        cfprintf(NULL, CF_ERROR "Get status failed!\n");
+    }
     delete self_api_client;
+    delete p_config;
     return 0;
 }
 
@@ -90,7 +98,8 @@ int main_report(const char *block_hash)
     web::uri_builder builder(U("/report"));
     builder.append_query("block_hash", block_hash);
     web::http::http_response response = self_api_client->request(web::http::methods::GET, builder.to_string()).get();
-    printf("%s", response.extract_utf8string().get().c_str());
+    cfprintf(NULL, CF_INFO "%s", response.extract_utf8string().get().c_str());
     delete self_api_client;
+    delete p_config;
     return 0;
 }
