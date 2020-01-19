@@ -62,9 +62,9 @@ endif
 App_C_Files := $(wildcard App/Utils/*.c)
 App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) \
 	$(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp) $(wildcard App/OCalls/*.cpp) $(wildcard App/Ipc/*.cpp) \
-	$(wildcard App/Process/*.cpp) 
+	$(wildcard App/Process/*.cpp) $(wildcard App/Crust/*.cpp)
 App_Include_Paths := -IInclude -IApp -IApp/Ipfs -IApp/Utils -IApp/Http -IApp/Config -IApp/OCalls -IApp/Ipc \
-	-IApp/Process -I$(SGX_SDK)/include
+	-IApp/Process -IApp/Crust -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 

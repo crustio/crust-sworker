@@ -183,17 +183,32 @@ bool initialize_enclave()
  */
 bool initialize_components(void)
 {
+    /* IPFS component */
     if(new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
     {
         cfprintf(felog, CF_ERROR "%s Init ipfs failed.\n", show_tag);
         return false;
     }
+
     if(!get_ipfs()->is_online())
     {
         cfprintf(felog, CF_ERROR "%s ipfs daemon is not started up! Please start it up!\n", show_tag);
         return false;
     }
     //cfprintf(felog, CF_INFO "%s Init ipfs successfully.\n", show_tag);
+
+    /* Crust component */
+    if(new_crust(p_config->crust_api_base_url.c_str()) == NULL)
+    {
+        cfprintf(felog, CF_ERROR "%s Init crust failed.\n", show_tag);
+        return false;
+    }
+
+    if(!get_crust()->is_online())
+    {
+        cfprintf(felog, CF_ERROR "%s crust api or crust chain is not started up! Please start it up!\n", show_tag);
+        return false;
+    }
 
     /* API handler component */
     cfprintf(felog, CF_INFO "%s Initing api url:%s...\n", show_tag, p_config->api_base_url.c_str());

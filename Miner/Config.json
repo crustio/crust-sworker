@@ -2,6 +2,7 @@
     "emptyPath" : "/opt/crust/empty_store",
     "emptyCapacity" : 4,
     "ipfsApiBaseUrl" : "http://127.0.0.1:5001/api/v0",
+    "crustApiBaseUrl" : "http://127.0.0.1:56666/api/v1",
     "apiBaseUrl": "http://192.168.50.9:12222/api/v0",
     "requestUrl": "http://192.168.50.9:12222/api/v0",
 
