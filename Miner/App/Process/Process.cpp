@@ -198,7 +198,7 @@ bool initialize_components(void)
     //cfprintf(felog, CF_INFO "%s Init ipfs successfully.\n", show_tag);
 
     /* Crust component */
-    if(new_crust(p_config->crust_api_base_url.c_str()) == NULL)
+    if(new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
     {
         cfprintf(felog, CF_ERROR "%s Init crust failed.\n", show_tag);
         return false;

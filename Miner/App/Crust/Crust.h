@@ -16,14 +16,17 @@ class Crust
 {
 private:
     web::http::client::http_client *crust_client; /* Used to call Crust API */
+    std::string password;                         /* The password of chain account id */
+    std::string backup;                           /* The backup of chain account id */
 public:
-    BlockHeader *GetBlockHeader();
-    Crust(const char *url);
+    BlockHeader *get_block_header(void);
+    bool post_tee_identity(std::string identity);
+    Crust(std::string url, std::string password, std::string backup);
     bool is_online(void);
     ~Crust();
 };
 
-Crust *new_crust(const char *url);
+Crust *new_crust(std::string url, std::string password, std::string backup);
 Crust *get_crust(void);
 
 #endif /* !_CRUST_CRSUT_H_ */

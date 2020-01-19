@@ -32,11 +32,14 @@ Config::Config(std::string path)
     web::json::value config_value = web::json::value::parse(config_str);
     this->empty_path = config_value["emptyPath"].as_string();
     this->ipfs_api_base_url = config_value["ipfsApiBaseUrl"].as_string();
-    this->crust_api_base_url = config_value["crustApiBaseUrl"].as_string();
     this->api_base_url = config_value["apiBaseUrl"].as_string();
     this->request_url = config_value["requestUrl"].as_string();
     this->empty_capacity = (size_t)config_value["emptyCapacity"].as_integer();
-    this->spid = config_value["spid"].as_string();   
+    this->spid = config_value["spid"].as_string();
+    
+    this->crust_api_base_url = config_value["crustApiBaseUrl"].as_string();
+    this->crust_password = config_value["crustPassword"].as_string();
+    this->crust_backup = config_value["crustBackup"].as_string();   
 
     // TODO: true or false, include linkable, random nonce, verbose ...
     this->linkable = config_value["linkable"].as_integer();
