@@ -87,7 +87,7 @@ void ApiHandler::handle_get(web::http::http_request message)
             return;
         }
 
-        message.reply(web::http::status_codes::OK, std::string("{'validationStatus':") + validation_status_strings[validation_status] + "}");
+        message.reply(web::http::status_codes::OK, (std::string("{'validationStatus':") + validation_status_strings[validation_status] + "}").c_str());
         return;
     }
 
@@ -182,13 +182,10 @@ void ApiHandler::handle_post(web::http::http_request message)
         cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
         Config *p_config = Config::get_instance();
         web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->ias_base_url.c_str(), cfg);
-        //web::http::client::http_client *self_api_client = new web::http::client::http_client(Config::ias_base_url.c_str(), cfg);
         web::http::http_request ias_request(web::http::methods::POST);
         ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(p_config->ias_primary_subscription_key));
-        //ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(Config::ias_primary_subscription_key));
         ias_request.headers().add(U("Content-Type"), U("application/json"));
         ias_request.set_request_uri(p_config->ias_base_path.c_str());
-        //ias_request.set_request_uri(Config::ias_base_path.c_str());
 
         std::string body = "{\n\"isvEnclaveQuote\":\"";
         body.append(b64quote);
@@ -200,7 +197,6 @@ void ApiHandler::handle_post(web::http::http_request message)
         std::string resStr;
         json::JSON res_json;
 
-        // TODO: deal with specific exceptions
         // Send quote to IAS service
         int net_tryout = IAS_TRYOUT;
         while (net_tryout >= 0)
@@ -222,14 +218,14 @@ void ApiHandler::handle_post(web::http::http_request message)
                 cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
                 cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
             }
-            usleep(3000);
+            sleep(3);
             net_tryout--;
         }
 
         if (response.status_code() != IAS_OK)
         {
             cfprintf(felog, CF_ERROR "Request IAS failed!\n");
-            message.reply(web::http::status_codes::InternalError, "InternalError");
+            message.reply(web::http::status_codes::InternalError, "Request IAS failed!");
             delete self_api_client;
             return;
         }
@@ -244,7 +240,6 @@ void ApiHandler::handle_post(web::http::http_request message)
     
         // Print IAS report 
         if (p_config->verbose)
-        //if (Config::verbose)
         {
             // TODO: seal log code into functions
             cfprintf(felog, "\n\n----------IAS Report - JSON - Required Fields----------\n\n");
@@ -291,7 +286,6 @@ void ApiHandler::handle_post(web::http::http_request message)
 
         /* Verify IAS report in enclave */
         ias_status_t ias_status_ret;
-        // TODO: add current tee public key
         entry_network_signature ensig;
         status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)

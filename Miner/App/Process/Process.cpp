@@ -37,34 +37,6 @@ ipc_status_t attest_session();
 
 
 /**
- * @description: Printf process related information
- * */
-/*
-void cfprintf(FILE *stream, const char* type, const char *format, ...)
-{
-    va_list va;
-    char *timestr = print_timestamp();
-    std::string str;
-    str.append(type).append(show_tag).append(format);
-	va_start(va, str.c_str());
-	vfprintf(stderr, str.c_str(), va);
-	va_end(va);
-
-    // Print log in logfile
-	if (stream != NULL)
-	{
-        if(timestr != NULL)
-        {
-		    fprintf(stream, "[%s] ", timestr);
-        }
-	    va_start(va, str.c_str());
-	    vfprintf(stream, str.c_str(), va);
-	    va_end(va);
-	}
-}
-*/
-
-/**
  * @description: Signal process function to deal with signals transfered
  *  between parent and child process
  * */
@@ -240,14 +212,12 @@ bool entry_network(void)
     sgx_epid_group_id_t epid_gid;
     uint32_t sz = 0;
     uint32_t flags = p_config->flags;
-    //uint32_t flags = Config::flags;
     sgx_quote_nonce_t nonce;
     char *b64quote = NULL;
     char *b64manifest = NULL;
     sgx_spid_t *spid = (sgx_spid_t *)malloc(sizeof(sgx_spid_t));
     memset(spid, 0, sizeof(sgx_spid_t));
     from_hexstring((unsigned char *)spid, p_config->spid.c_str(), p_config->spid.size());
-    //from_hexstring((unsigned char *)spid, Config::spid.c_str(), Config::spid.size());
     int i = 0;
     bool entry_status = true;
 
@@ -405,9 +375,7 @@ bool entry_network(void)
     web::http::client::http_client_config cfg;
     cfg.set_timeout(std::chrono::seconds(CLIENT_TIMEOUT));
     cfprintf(felog, CF_INFO "%s request url:%s\n", show_tag, p_config->request_url.c_str());
-    //cfprintf(felog, CF_INFO "%s request url:%s\n", show_tag, Config::request_url.c_str());
     web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->request_url.c_str(), cfg);
-    //web::http::client::http_client *self_api_client = new web::http::client::http_client(Config::request_url.c_str(), cfg);
     web::uri_builder builder(U("/entry/network"));
     web::http::http_response response;
 
@@ -430,7 +398,7 @@ bool entry_network(void)
             cfprintf(felog, CF_ERROR "%s HTTP throw: %s\n", show_tag, e.what());
             cfprintf(felog, CF_INFO "%s Trying agin:%d\n", show_tag, net_tryout);
         }
-        sleep(1);
+        sleep(3);
         net_tryout--;
     }
 
@@ -504,7 +472,6 @@ void *do_disk_related(void *)
 
     /* Main validate loop */
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
-    //ecall_main_loop(global_eid, Config::empty_path.c_str());
 
     return NULL;
 }
@@ -515,7 +482,7 @@ void *do_disk_related(void *)
  */
 void start_monitor(void)
 {
-    cfprintf(felog, CF_INFO "%s Monintor process(ID:%d)\n", show_tag, monitorPID);
+    cfprintf(felog, CF_INFO "%s MonitorPID=%d\n", show_tag, monitorPID);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
     std::map<std::string,pid_t> pids_m;
@@ -570,13 +537,13 @@ again:
         {
             cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
             /* Exchange pid with worker */
-            msg.type = 201;
+            msg.type = MSG_PID_MONITOR;
             msg.text = getpid();
             if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
             {
                 cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
             }
-            if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 200) == -1)
+            if(Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_WORKER) == -1)
             {
                 cfprintf(felog, CF_ERROR "%s Get worker pid failed!!\n", show_tag);
             }
@@ -638,6 +605,7 @@ again:
     cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
     // Should get current pid before fork
     monitorPID = getpid();
+    is_entried_network = true;
     if((pid=fork()) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
@@ -719,7 +687,7 @@ cleanup:
  * */
 void start_monitor2(void)
 {
-    cfprintf(felog, CF_INFO "%s Monintor2 process(ID:%d)\n", show_tag, monitorPID2);
+    cfprintf(felog, CF_INFO "%s Monitor2PID=%d\n", show_tag, monitorPID2);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
 
@@ -814,7 +782,7 @@ cleanup:
  */
 void start_worker(void)
 {
-    cfprintf(felog, CF_INFO "%s Worker process(ID:%d)\n", show_tag, workerPID);
+    cfprintf(felog, CF_INFO "%s WorkerPID=%d\n", show_tag, workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
@@ -906,13 +874,13 @@ void start_worker(void)
 
 again:
     /* Exchange pid with monitor */
-    msg.type = 200;
+    msg.type = MSG_PID_WORKER;
     msg.text = getpid();
     if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
     }
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 201) == -1)
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_MONITOR) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Get monitor pid failed!!\n", show_tag);
     }
@@ -957,6 +925,12 @@ again:
         goto cleanup;
     }
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
+
+    /* Tell monitor process worker has entried network */
+    if(kill(monitorPID, SIGUSR1) == -1)
+    {
+        cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
+    }
 
     goto again;
 

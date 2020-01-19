@@ -25,6 +25,9 @@ function installAPP()
     mkdir -p $crustdir/log
     true > $crustdir/.ipc
 
+    # Set environment
+    setEnv
+
     verbose INFO "Install application successfully!"
 }
 
@@ -273,12 +276,8 @@ function checkRes()
 
 function setEnv()
 {
-    if grep "SGX_SDK" ~/.bashrc &>/dev/null; then
-        verbose WARN "SGX environment has been set in ~/.bashrc!
-            Please check if it is the right one!"
-        return
-    fi
-cat << EOF >> ~/.bashrc
+
+cat << EOF > $crust_env_file
 # SGX configuration
 export SGX_SDK=/opt/intel/sgxsdk
 export SGX_SSL=/opt/intel/sgxssl
@@ -287,7 +286,6 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SGX_SDK/pkgconfig
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SGX_SDK/sdk_libs:$SGX_SSL/lib64
 EOF
 
-    source ~/.bashrc
 }
 
 function setTimeWait()
@@ -427,6 +425,8 @@ IPFS=$crustdir/bin/ipfs
 SWARMKEY=$crustdir/etc/swarm.key
 IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
 IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
+# Crust related
+crust_env_file=$crustdir/etc/environment
 
 trap "success_exit" INT
 trap "success_exit" EXIT
@@ -476,11 +476,6 @@ echo
 verbose INFO "---------- Installing SGX SSL ----------" n
 installSGXSSL
 
-# Set environment
-echo
-verbose INFO "---------- Setting environment ----------" n
-setEnv
-
 # Install Application
 echo
 verbose INFO "---------- Installing Application ----------" n
@@ -492,4 +487,4 @@ verbose INFO "---------- Installing IPFS ----------" n
 installIPFS
 echo
 
-verbose INFO "Crust has been installed in /opt/crust! Go to that directory and run scripts/start.sh to start crust.\n"
+verbose INFO "Crust has been installed in /opt/crust! Go to /opt/crust and run scripts/start.sh to start crust.\n"

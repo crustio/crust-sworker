@@ -48,6 +48,9 @@
 #define SESSION_STARTER  1
 #define SESSION_RECEIVER 2
 
+#define MSG_PID_WORKER  200
+#define MSG_PID_MONITOR 201
+
 int process();
 
 #endif /* !_CRUST_PROCESS_H_ */
