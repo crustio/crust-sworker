@@ -1,17 +1,4 @@
 #!/bin/bash
-function getPackage()
-{
-    timeout $tmo wget -P $tempdir $1
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Get package $1 failed!Please try again!" t
-        exit 1
-    fi
-    {
-        flock -x 222 -w $tmo
-        ((gotPkgNum++))
-    } 222<> lockfile
-}
-
 function installAPP()
 {
     # Install tee-app dependencies
@@ -37,6 +24,9 @@ function installAPP()
     cp -r $instdir/scripts $crustdir
     mkdir -p $crustdir/log
     true > $crustdir/.ipc
+
+    # Set environment
+    setEnv
 
     verbose INFO "Install application successfully!"
 }
@@ -286,12 +276,8 @@ function checkRes()
 
 function setEnv()
 {
-    if grep "SGX_SDK" ~/.bashrc &>/dev/null; then
-        verbose WARN "SGX environment has been set in ~/.bashrc!
-            Please check if it is the right one!"
-        return
-    fi
-cat << EOF >> ~/.bashrc
+
+cat << EOF > $crust_env_file
 # SGX configuration
 export SGX_SDK=/opt/intel/sgxsdk
 export SGX_SSL=/opt/intel/sgxssl
@@ -300,7 +286,6 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SGX_SDK/pkgconfig
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SGX_SDK/sdk_libs:$SGX_SSL/lib64
 EOF
 
-    source ~/.bashrc
 }
 
 function setTimeWait()
@@ -440,23 +425,16 @@ IPFS=$crustdir/bin/ipfs
 SWARMKEY=$crustdir/etc/swarm.key
 IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
 IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
+# Crust related
+crust_env_file=$crustdir/etc/environment
 
 trap "success_exit" INT
 trap "success_exit" EXIT
 
-# TODO: ftp
-# Download packages
-#verbose INFO "Downloading SGX SDK packages..." h
-#for package in ${packages[@]}; do
-#    getPackage $package &
-#done
-## Wait for downloading...
-#while [ $gotPkgNum < ${#packages[*]} ]; do
-#    sleep 1
-#done
-#verbose INFO "success" t
 
-read -p "Please input your account password: " -s passwd
+verbose WARN "Make sure $USER can run 'sudo'!"
+
+read -p "Please input your password: " -s passwd
 echo
 
 # check if there is expect installed
@@ -498,11 +476,6 @@ echo
 verbose INFO "---------- Installing SGX SSL ----------" n
 installSGXSSL
 
-# Set environment
-echo
-verbose INFO "---------- Setting environment ----------" n
-setEnv
-
 # Install Application
 echo
 verbose INFO "---------- Installing Application ----------" n
@@ -514,4 +487,4 @@ verbose INFO "---------- Installing IPFS ----------" n
 installIPFS
 echo
 
-verbose INFO "Crust has been installed in /opt/crust! Go to that directory and run scripts/start.sh to start crust.\n"
+verbose INFO "Crust has been installed in /opt/crust! Go to /opt/crust and run scripts/start.sh to start crust.\n"

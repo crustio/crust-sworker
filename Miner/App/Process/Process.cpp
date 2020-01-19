@@ -35,34 +35,6 @@ void start_worker(void);
 ipc_status_t attest_session();
 
 /**
- * @description: Printf process related information
- * */
-/*
-void cfprintf(FILE *stream, const char* type, const char *format, ...)
-{
-    va_list va;
-    char *timestr = print_timestamp();
-    std::string str;
-    str.append(type).append(show_tag).append(format);
-	va_start(va, str.c_str());
-	vfprintf(stderr, str.c_str(), va);
-	va_end(va);
-
-    // Print log in logfile
-	if (stream != NULL)
-	{
-        if(timestr != NULL)
-        {
-		    fprintf(stream, "[%s] ", timestr);
-        }
-	    va_start(va, str.c_str());
-	    vfprintf(stream, str.c_str(), va);
-	    va_end(va);
-	}
-}
-*/
-
-/**
  * @description: Signal process function to deal with signals transfered
  *  between parent and child process
  * */
@@ -70,22 +42,29 @@ static void sig_handler(int signum)
 {
     pid_t pid;
     int status;
-    switch (signum)
+    switch(signum)
     {
-    case SIGUSR1:
-        is_entried_network = true;
-        break;
-    case SIGUSR2:
-        exit_process = true;
-        break;
-    case SIGCHLD:
-        /* Deal with child process */
-        // Check if there is any child process existed before existing
-        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-        {
-            cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
-        }
-        break;
+        case SIGUSR1:
+            is_entried_network = true;
+            break;
+        case SIGUSR2:
+            exit_process = true;
+            break;
+        case SIGCHLD:
+            /* Deal with child process */
+            // Check if there is any child process existed before existing
+            while((pid=waitpid(-1, &status, WNOHANG)) > 0)
+            {
+                if(WIFEXITED(status))
+                {
+                    cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, WEXITSTATUS(status));
+                }
+                else
+                {
+                    cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
+                }
+            }
+            break;
     }
 }
 
@@ -254,14 +233,12 @@ bool entry_network(void)
     sgx_epid_group_id_t epid_gid;
     uint32_t sz = 0;
     uint32_t flags = p_config->flags;
-    //uint32_t flags = Config::flags;
     sgx_quote_nonce_t nonce;
     char *b64quote = NULL;
     char *b64manifest = NULL;
     sgx_spid_t *spid = (sgx_spid_t *)malloc(sizeof(sgx_spid_t));
     memset(spid, 0, sizeof(sgx_spid_t));
     from_hexstring((unsigned char *)spid, p_config->spid.c_str(), p_config->spid.size());
-    //from_hexstring((unsigned char *)spid, Config::spid.c_str(), Config::spid.size());
     int i = 0;
     bool entry_status = true;
 
@@ -419,9 +396,7 @@ bool entry_network(void)
     web::http::client::http_client_config cfg;
     cfg.set_timeout(std::chrono::seconds(CLIENT_TIMEOUT));
     cfprintf(felog, CF_INFO "%s request url:%s\n", show_tag, p_config->request_url.c_str());
-    //cfprintf(felog, CF_INFO "%s request url:%s\n", show_tag, Config::request_url.c_str());
     web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->request_url.c_str(), cfg);
-    //web::http::client::http_client *self_api_client = new web::http::client::http_client(Config::request_url.c_str(), cfg);
     web::uri_builder builder(U("/entry/network"));
     web::http::http_response response;
 
@@ -444,7 +419,7 @@ bool entry_network(void)
             cfprintf(felog, CF_ERROR "%s HTTP throw: %s\n", show_tag, e.what());
             cfprintf(felog, CF_INFO "%s Trying agin:%d\n", show_tag, net_tryout);
         }
-        sleep(1);
+        sleep(3);
         net_tryout--;
     }
 
@@ -518,7 +493,6 @@ void *do_disk_related(void *)
 
     /* Main validate loop */
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
-    //ecall_main_loop(global_eid, Config::empty_path.c_str());
 
     return NULL;
 }
@@ -529,7 +503,7 @@ void *do_disk_related(void *)
  */
 void start_monitor(void)
 {
-    cfprintf(felog, CF_INFO "%s Monintor process(ID:%d)\n", show_tag, monitorPID);
+    cfprintf(felog, CF_INFO "%s MonitorPID=%d\n", show_tag, monitorPID);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
     std::map<std::string, pid_t> pids_m;
@@ -583,13 +557,13 @@ again:
         {
             cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
             /* Exchange pid with worker */
-            msg.type = 201;
+            msg.type = MSG_PID_MONITOR;
             msg.text = getpid();
             if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
             {
                 cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
             }
-            if (Msgrcv_to(msqid, &msg, sizeof(msg.text), 200) == -1)
+            if(Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_WORKER) == -1)
             {
                 cfprintf(felog, CF_ERROR "%s Get worker pid failed!!\n", show_tag);
             }
@@ -653,7 +627,8 @@ again:
     cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
     // Should get current pid before fork
     monitorPID = getpid();
-    if ((pid = fork()) == -1)
+    is_entried_network = true;
+    if((pid=fork()) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
         ipc_status = FORK_NEW_PROCESS_ERROR;
@@ -662,7 +637,6 @@ again:
 
     if (pid == 0)
     {
-        // Child process used for worker
         cfprintf(felog, CF_INFO "%s Start new %s...\n", show_tag, exit_entry.first.c_str());
         show_tag = ("<" + exit_entry.first + ">").c_str();
         if (exit_entry.first.compare("worker") == 0)
@@ -710,15 +684,20 @@ cleanup:
     {
         sgx_destroy_enclave(global_eid);
     }
-    close_logfile(felog);
     destroy_ipc();
 
     cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
 
     // Send SIGKILL to monitor2 to prevent it starts up monitor again
-    if (kill(monitorPID2, SIGKILL) == -1)
+    cfprintf(felog, CF_ERROR "%s Kill monitor2 process\n", show_tag);
+    if(kill(pids_m["monitor2"], SIGKILL) == -1)
     {
-        cfprintf(NULL, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
+        cfprintf(felog, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
+    }
+
+    if(felog != NULL)
+    {
+        close_logfile(felog);
     }
 
     exit(ipc_status);
@@ -729,7 +708,7 @@ cleanup:
  * */
 void start_monitor2(void)
 {
-    cfprintf(felog, CF_INFO "%s Monintor2 process(ID:%d)\n", show_tag, monitorPID2);
+    cfprintf(felog, CF_INFO "%s Monitor2PID=%d\n", show_tag, monitorPID2);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
 
@@ -778,16 +757,6 @@ again:
     }
     cfprintf(felog, CF_INFO "%s Monitor process exit unexpectly!Restart it again\n", show_tag);
 
-    // Check if worker process exit because of entry network or creating work thread failed,
-    // then monitor process should end.
-    if (exit_process)
-    {
-        cfprintf(felog, CF_ERROR "%s Monitor process entries network or creates work thread failed! \
-                Exit monitor2 process!\n",
-                 show_tag);
-        goto cleanup;
-    }
-
     /* Fork new child process */
     cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
     // Should get current pid before fork
@@ -804,6 +773,7 @@ again:
         cfprintf(felog, CF_INFO "%s Start new monitor:monitor2:%d...\n", show_tag, monitorPID2);
         show_tag = "<monitor>";
         session_type = SESSION_RECEIVER;
+        monitorPID = getpid();
         start_monitor();
     }
     else
@@ -814,10 +784,14 @@ again:
 
 cleanup:
     /* End and release*/
-    close_logfile(felog);
     destroy_ipc();
 
     cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
+
+    if(felog != NULL)
+    {
+        close_logfile(felog);
+    }
 
     exit(ipc_status);
 }
@@ -827,7 +801,7 @@ cleanup:
  */
 void start_worker(void)
 {
-    cfprintf(felog, CF_INFO "%s Worker process(ID:%d)\n", show_tag, workerPID);
+    cfprintf(felog, CF_INFO "%s WorkerPID=%d\n", show_tag, workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
@@ -918,13 +892,13 @@ void start_worker(void)
 
 again:
     /* Exchange pid with monitor */
-    msg.type = 200;
+    msg.type = MSG_PID_WORKER;
     msg.text = getpid();
     if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
     }
-    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), 201) == -1)
+    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_MONITOR) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Get monitor pid failed!!\n", show_tag);
     }
@@ -970,28 +944,43 @@ again:
     }
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
+    /* Tell monitor process worker has entried network */
+    if(kill(monitorPID, SIGUSR1) == -1)
+    {
+        cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
+    }
+
     goto again;
 
 cleanup:
     /* End and release */
     delete p_config;
-    delete get_ipfs();
-    p_api_handler->stop();
-    delete p_api_handler;
+    if(get_ipfs() != NULL)
+    {
+        delete get_ipfs();
+    }
+    if(p_api_handler != NULL)
+    {
+        delete p_api_handler;
+    }
     destroy_ipc();
-    close_logfile(felog);
-    if (global_eid != 0)
+    if(global_eid != 0)
     {
         sgx_destroy_enclave(global_eid);
     }
 
     // If entry network or create work thread failed, notify monitor process to exit
-    if (ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status || INIT_COMPONENT_ERROR == ipc_status)
+    if(ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
     {
         kill(monitorPID, SIGUSR2);
     }
 
     cfprintf(felog, CF_ERROR "%s Worker process exits with error code:%lx\n", show_tag, ipc_status);
+
+    if(felog != NULL)
+    {
+        close_logfile(felog);
+    }
 
     exit(ipc_status);
 }

@@ -65,7 +65,7 @@ int cfprintf(FILE *stream, const char *format, ...)
 	if (timetmp == NULL)
 	{
 		perror("localtime");
-		return NULL;
+		return -1;
 	}
 	timetm = *timetmp;
 #else
@@ -96,64 +96,6 @@ int cfprintf(FILE *stream, const char *format, ...)
 	}
 
 	return rv;
-}
-
-int cfprintf_pro(FILE *stream, const char* processID, const char* type, const char *format, ...)
-{
-	va_list va;
-	int rv;
-
-	// Print timestamp
-    char* p_timestr = print_timestamp();
-    printf("%s%s", show_tag, processID);
-
-	va_start(va, format);
-	rv = vfprintf(stderr, format, va);
-	va_end(va);
-
-	if (stream != NULL)
-	{
-		if(!(strlen(format) == 1 && format[0] == '\n') && p_timestr != NULL)
-		{
-			fprintf(stream, "[%s] %s%s", p_timestr, show_tag, processID);
-		}
-		va_start(va, format);
-		rv = vfprintf(stream, format, va);
-		va_end(va);
-	}
-
-	return rv;
-}
-
-char* print_timestamp()
-{
-	// Print timestamp
-	time_t ts;
-	struct tm timetm, *timetmp;
-    //char *_timeBuff = (char*)malloc(TIMESTR_SIZE);
-    //memset(_timeBuff, 0, TIMESTR_SIZE);
-	time(&ts);
-#ifndef _WIN32
-	timetmp = localtime(&ts);
-	if (timetmp == NULL)
-	{
-		perror("localtime");
-		return NULL;
-	}
-	timetm = *timetmp;
-#else
-	localtime_s(&timetm, &ts);
-#endif
-
-	/* If you change this format, you _may_ need to change TIMESTR_SIZE */
-	if (strftime(_timeBuff, TIMESTR_SIZE, "%b %e %Y %T", &timetm) == 0)
-	{
-		/* oops */
-		_timeBuff[0] = 0;
-	}
-	fprintf(stderr, "[%s] ", _timeBuff);
-
-    return _timeBuff;
 }
 
 /**

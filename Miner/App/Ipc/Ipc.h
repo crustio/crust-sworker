@@ -8,7 +8,6 @@
 #include "Common.h"
 #include "config.h"
 
-#define IPCTIMEOUT  10
 #define WORKERTYPE  200
 #define MONITORTYPE 201
 

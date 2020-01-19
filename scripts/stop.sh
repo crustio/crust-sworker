@@ -16,14 +16,13 @@ killIPFS=true
 . $basedir/utils.sh
 
 
-# TODO: stop flow
 verbose INFO "Shutting down IPFS..." h
 ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
 if [ x"$ipfspid" != x"" ]; then
     kill -9 $ipfspid
     if [ $? -ne 0 ]; then
         # If failed by using current user, kill it using root
-        execWithExpect "kill -9 $ipfspid"
+        sudo kill -9 $ipfspid
         if [ $? -ne 0 ]; then
             verbose INFO "FAILED" t
             killIPFS=false
