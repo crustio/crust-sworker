@@ -35,7 +35,7 @@ extern msg_form msg;
  */
 void ocall_print_string(const char *str)
 {
-    printf("%s", str);
+    fprintf(felog, "%s", str);
 }
 
 /**

@@ -121,8 +121,11 @@ bool Crust::post_tee_identity(std::string identity)
         req.headers().add(U("password"), U(this->password));
         req.headers().add(U("Content-Type"), U("application/json"));
         req.set_request_uri(U("/tee/identity"));
-        std::string body = "{\"identity\":\"" + identity + "\",\"backup\":\"" + this->backup + "\"}";
-        req.set_body(body);
+
+        web::json::value json_v;
+        json_v["identity"] = web::json::value::string(identity);
+        json_v["backup"] = web::json::value::string(backup);
+        req.set_body(json_v);
 
         web::http::http_response response = this->crust_client->request(req).get();
         if (response.status_code() != web::http::status_codes::OK)
@@ -155,8 +158,11 @@ bool Crust::post_tee_work_report(std::string work_report)
         req.headers().add(U("password"), U(this->password));
         req.headers().add(U("Content-Type"), U("application/json"));
         req.set_request_uri(U("/tee/workreport"));
-        std::string body = "{\"workreport\":\"" + work_report + "\",\"backup\":\"" + this->backup + "\"}";
-        req.set_body(body);
+
+        web::json::value json_v;
+        json_v["workreport"] = web::json::value::string(work_report);
+        json_v["backup"] = web::json::value::string(backup);
+        req.set_body(json_v);
 
         web::http::http_response response = this->crust_client->request(req).get();
         if (response.status_code() != web::http::status_codes::OK)
