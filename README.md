@@ -14,6 +14,7 @@ Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<
 1. Cd to the extract folder, run '**scripts/install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust**' directory.
 
 ## Start
+Crust TEE apllication is installed in /opt/crust.
 1. In etc/Config.json file you can configure your TEE application configure.
 1. After configuration, run '**scripts/start.sh**' to start TEE application.
 1. You can run '**scripts/stop.sh**' to stop TEE application.
@@ -23,5 +24,3 @@ Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<
 ## API
 - Use 'curl http://127.0.0.1:12222/api/v0/status' to get validation status
 - Use 'curl http://127.0.0.1:12222/api/v0/report\?block_hash\=XXXXX' to get work report
-
-
