@@ -38,8 +38,9 @@ Config::Config(std::string path)
     this->spid = config_value["spid"].as_string();
     
     this->crust_api_base_url = config_value["crustApiBaseUrl"].as_string();
+    this->crust_account_id =  config_value["crustAccountId"].as_string();
     this->crust_password = config_value["crustPassword"].as_string();
-    this->crust_backup = config_value["crustBackup"].as_string();   
+    this->crust_backup = config_value["crustBackup"].as_string();  
 
     // TODO: true or false, include linkable, random nonce, verbose ...
     this->linkable = config_value["linkable"].as_integer();

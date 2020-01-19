@@ -29,7 +29,6 @@ extern bool run_as_server;
 extern int msqid;
 extern msg_form msg;
 
-
 void start_monitor(void);
 void start_monitor2(void);
 void start_worker(void);
@@ -209,6 +208,8 @@ bool initialize_components(void)
         cfprintf(felog, CF_ERROR "%s crust api or crust chain is not started up! Please start it up!\n", show_tag);
         return false;
     }
+
+    get_crust()->post_tee_identity("qwer");
 
     /* API handler component */
     cfprintf(felog, CF_INFO "%s Initing api url:%s...\n", show_tag, p_config->api_base_url.c_str());

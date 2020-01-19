@@ -18,6 +18,7 @@ public:
     std::string api_base_url;      /* External API base url */
     // Crust chain
     std::string crust_api_base_url; /* Used to connect to Crust API */
+    std::string crust_account_id;   /* The password of crust chain account */
     std::string crust_password;     /* The password of crust chain account */
     std::string crust_backup;       /* The backup of crust chain account */
     // entry network related

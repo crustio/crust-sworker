@@ -39,14 +39,14 @@ Crust *get_crust(void)
 /**
  * @description: new a crust handler to access crust node
  * @param url -> crust API base url, like: http://127.0.0.1:56666/api/v1
- * @param password -> the password of chain account id
- * @param backup ->  the backup of chain account id
+ * @param password_tmp -> the password of chain account id
+ * @param backup_tmp ->  the backup of chain account id
  */
-Crust::Crust(std::string url, std::string password, std::string backup)
+Crust::Crust(std::string url, std::string password_tmp, std::string backup_tmp)
 {
     this->crust_client = new web::http::client::http_client(url);
-    this->password = password;
-    this->backup = backup;
+    this->password = password_tmp;
+    this->backup = backup_tmp;
 }
 
 /**
