@@ -2,6 +2,8 @@
 
 Crust *crust = NULL;
 
+extern FILE *felog;
+
 /**
  * @description: new a global crust handler to access crust node
  * @param url -> crust API base url 

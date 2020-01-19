@@ -4,6 +4,7 @@
 #include <string>
 #include <cpprest/http_client.h>
 #include <cpprest/json.h>
+#include "Common.h"
 
 struct BlockHeader
 {
