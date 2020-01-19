@@ -22,6 +22,7 @@
 #include "Config.h"
 #include "ApiHandler.h"
 #include "Ipfs.h"
+#include "Crust.h"
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
