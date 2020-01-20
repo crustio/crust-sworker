@@ -427,6 +427,7 @@ bool entry_network(void)
         entry_status = false;
         goto cleanup;
     }
+    cfprintf(felog, CF_INFO "%s Entry network application successfully!\n", show_tag);
 
     entryRes = response.extract_utf8string().get();
     cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entryRes.c_str());
@@ -435,7 +436,6 @@ bool entry_network(void)
         cfprintf(felog, CF_ERROR "Send identity to crust chain failed!\n");
     }
     cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
-    //cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, hexstring(entryRes.c_str(), entryRes.size()));
 
 cleanup:
 

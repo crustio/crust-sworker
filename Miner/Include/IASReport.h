@@ -38,9 +38,7 @@ typedef enum _ias_status_t
 typedef struct _entry_network_signature
 {
     uint8_t pub_key[REPORT_DATA_SIZE];
-    uint8_t account_id[ACCOUNT_SIZE];
     uint8_t validator_pub_key[REPORT_DATA_SIZE];
-    uint8_t validator_account_id[ACCOUNT_SIZE];
     sgx_ec256_signature_t signature;
 } entry_network_signature;
 
