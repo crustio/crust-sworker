@@ -298,6 +298,8 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	BIO_puts(bio_mem, INTELSGXATTROOTCA);
 	X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
 	vector<string> response(IASReport, IASReport + size);
+    string context;
+    size_t context_size = 0;
 
 	/*
 	 * The response body has the attestation report. The headers have
@@ -467,8 +469,15 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-	sgx_status = sgx_ecdsa_sign((const uint8_t *)offChain_report_data,
-								REPORT_DATA_SIZE,
+    //ocall_read_account_id()
+
+    context.append((char*)offChain_report_data)
+           .append(response[3])
+           .append((char*)&id_key_pair.pub_key)
+           .append(response[4]);
+    context_size = REPORT_DATA_SIZE + response[3].size() + response[4].size() + sizeof(id_key_pair.pub_key);
+	sgx_status = sgx_ecdsa_sign((const uint8_t *)context.c_str(),
+								(uint32_t)context_size,
 								&id_key_pair.pri_key,
 								&ecc_signature,
 								ecc_state);
@@ -478,8 +487,8 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-	memcpy(&p_ensig->data, offChain_report_data, REPORT_DATA_SIZE);
-	memcpy(&p_ensig->signer_id, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
+	memcpy(&p_ensig->pub_key, offChain_report_data, REPORT_DATA_SIZE);
+	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
 	memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
 
 cleanup:

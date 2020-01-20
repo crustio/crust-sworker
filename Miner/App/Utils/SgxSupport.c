@@ -1,4 +1,4 @@
-#include "config.h"
+#include "Resource.h"
 #include "SgxSupport.h"
 #include <sgx_urts.h>
 #include <sgx_capable.h>

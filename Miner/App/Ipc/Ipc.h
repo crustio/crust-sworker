@@ -6,7 +6,7 @@
 #include <sys/msg.h>  // message queue
 #include <string.h>
 #include "Common.h"
-#include "config.h"
+#include "Resource.h"
 
 #define WORKERTYPE  200
 #define MONITORTYPE 201

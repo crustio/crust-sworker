@@ -151,7 +151,9 @@ void ApiHandler::handle_post(web::http::http_request message)
         uint32_t qsz;
         size_t dqsz = 0;
         sgx_quote_t *quote;
-        std::string b64quote = utility::conversions::to_utf8string(message.extract_string().get());
+        json::JSON req_json = json::JSON::Load(message.extract_utf8string().get());
+        std::string b64quote = req_json["isvEnclaveQuote"].ToString();
+        std::string account_id = req_json["crust_account_id"].ToString();
         if (!get_quote_size(&status_ret, &qsz))
         {
             cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
@@ -237,6 +239,8 @@ void ApiHandler::handle_post(web::http::http_request message)
         ias_report.push_back(res_headers["X-IASReport-Signing-Certificate"].c_str());
         ias_report.push_back(res_headers["X-IASReport-Signature"].c_str());
         ias_report.push_back(resStr.c_str());
+        ias_report.push_back(account_id.c_str());
+        ias_report.push_back(p_config->crust_account_id.c_str());
     
         // Print IAS report 
         if (p_config->verbose)
@@ -292,10 +296,15 @@ void ApiHandler::handle_post(web::http::http_request message)
         {
             if (ias_status_ret == IAS_VERIFY_SUCCESS)
             {
-                // TODO:Send a verification request to chain
-                //cfprintf(felog, CF_INFO "pubkey:%s\n", hexstring((const void *)&ensig.data, sizeof(ensig.data)));
+                json::JSON identity_json;
+                identity_json["pub_key"] = hexstring((const char*)&ensig.pub_key, sizeof(ensig.pub_key));
+                identity_json["account_id"] = account_id;
+                identity_json["validator_pub_key"] = hexstring((const char*)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
+                identity_json["validator_account_id"] = p_config->crust_account_id;
+                identity_json["sig"] = hexstring((const char*)&ensig.signature, sizeof(ensig.signature));
+                std::string jsonstr = identity_json.dump();
+                message.reply(web::http::status_codes::OK, jsonstr.c_str());
                 cfprintf(felog, CF_INFO "Verifying IAS report in enclave successfully!\n");
-                message.reply(web::http::status_codes::OK, "Entry network successfully!");
             }
             else
             {

@@ -22,11 +22,12 @@
 #include "Config.h"
 #include "ApiHandler.h"
 #include "Ipfs.h"
+#include "Crust.h"
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
 #include "Logfile.h"
-#include "config.h"
+#include "Resource.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x, y) x &y

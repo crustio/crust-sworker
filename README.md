@@ -17,10 +17,11 @@ Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<
 Crust TEE apllication is installed in /opt/crust.
 1. In etc/Config.json file you can configure your TEE application configure.
 1. After configuration, run '**scripts/start.sh**' to start TEE application.
-1. You can run '**scripts/stop.sh**' to stop TEE application.
-1. Run '**scripts/status.sh status**' to get and printf validation status
-1. Run '**scripts/status.sh report <block_hash>**' to get and printf work report
+1. Run '**scripts/stop.sh**' to stop TEE application.
+1. Run '**scripts/status.sh -s,--status**' to get process information.
+1. Run '**scripts/status.sh -p,--plot**' to get and printf validation status.
+1. Run '**scripts/status.sh -r,--report <block_hash>**' to get work report.
 
 ## API
-- Use 'curl http://127.0.0.1:12222/api/v0/status' to get validation status
-- Use 'curl http://127.0.0.1:12222/api/v0/report\?block_hash\=XXXXX' to get work report
+- Use 'curl http://<url_in_Config.json>/api/v0/status' to get validation status
+- Use 'curl http://<url_in_Config.json>/api/v0/report\?block_hash\=XXXXX' to get work report
