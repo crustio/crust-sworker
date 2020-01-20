@@ -13,6 +13,8 @@
 #include "Node.h"
 #include "MerkleTree.h"
 #include "Common.h"
+#include "httplib.h"
+#include "json.hpp"
 
 class Ipfs
 {
@@ -25,12 +27,15 @@ private:
     unsigned char *block_data;                            /* Used to store block data */
     MerkleTree *merkle_tree;                              /* Used to store merkle tree of a file*/
 
-    std::vector<unsigned char> get_hash_from_json_array(web::json::array hash_array);
+    UrlEndPoint *url_end_point;    /* Url end point info */
+    httplib::Client *crust_client; /* Used to call Crust API */
+
+    std::vector<unsigned char> get_hash_from_json_array(json::JSON hash_array);
     unsigned char *bytes_dup(std::vector<unsigned char> in);
     void clear_merkle_tree(MerkleTree *&root);
     void clear_block_data(void);
     void clear_diff_files(void);
-    void fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data);
+    void fill_merkle_tree(MerkleTree *&root, json::JSON merkle_data);
 
 public:
     Ipfs(const char *url);

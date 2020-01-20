@@ -85,6 +85,7 @@ void validate_empty_disk(const char *path)
     ecall_generate_empty_root();
 }
 
+// TODO: somtimes can't get block
 /* Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave? */
 /**
  * @description: validate meaningful disk
