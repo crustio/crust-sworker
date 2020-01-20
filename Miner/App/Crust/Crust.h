@@ -2,9 +2,8 @@
 #define _CRUST_CRSUT_H_
 
 #include <string>
-#include <cpprest/http_client.h>
-#include <cpprest/json.h>
 #include "Common.h"
+#include "httplib.h"
 
 struct BlockHeader
 {
@@ -15,9 +14,10 @@ struct BlockHeader
 class Crust
 {
 private:
-    web::http::client::http_client *crust_client; /* Used to call Crust API */
-    std::string password;                         /* The password of chain account */
-    std::string backup;                           /* The backup of chain account */
+    UrlEndPoint *url_end_point;    /* Url end point info */
+    httplib::Client *crust_client; /* Used to call Crust API */
+    std::string password;          /* The password of chain account */
+    std::string backup;            /* The backup of chain account */
 public:
     BlockHeader *get_block_header(void);
     bool post_tee_identity(std::string identity);
