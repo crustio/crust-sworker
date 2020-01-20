@@ -1,4 +1,5 @@
 #include "Crust.h"
+#include "json.hpp"
 
 Crust *crust = NULL;
 
@@ -44,7 +45,8 @@ Crust *get_crust(void)
  */
 Crust::Crust(std::string url, std::string password_tmp, std::string backup_tmp)
 {
-    this->crust_client = new web::http::client::http_client(url);
+    this->url_end_point = get_url_end_point(url);
+    this->crust_client = new httplib::Client(this->url_end_point->ip, this->url_end_point->port);
     this->password = password_tmp;
     this->backup = backup_tmp;
 }
@@ -63,20 +65,28 @@ Crust::~Crust()
  */
 BlockHeader *Crust::get_block_header(void)
 {
-    web::uri_builder builder(U("/block/header"));
-    web::http::http_response response = this->crust_client->request(web::http::methods::GET, builder.to_string()).get();
-
-    if (response.status_code() != web::http::status_codes::OK)
+    try
     {
+        std::string path = this->url_end_point->base + "/block/header";
+        auto res = this->crust_client->Get(path.c_str());
+        if (res && res->status == 200)
+        {
+            auto block_header_json = json::JSON::Load(res->body);
+
+            BlockHeader *block_header = new BlockHeader();
+            block_header->hash = block_header_json["hash"].ToString();
+            block_header->number = block_header_json["number"].ToInt();
+            return block_header;
+        }
+
         return NULL;
     }
+    catch (const std::exception &e)
+    {
+        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+    }
 
-    web::json::value block_header_json = response.extract_json().get();
-    BlockHeader *block_header = new BlockHeader();
-    block_header->hash = block_header_json["hash"].as_string();
-    block_header->number = block_header_json["number"].as_integer();
-
-    return block_header;
+    return NULL;
 }
 
 /**
@@ -87,18 +97,14 @@ bool Crust::is_online(void)
 {
     try
     {
-        web::uri_builder builder(U("/block/header"));
-        web::http::http_response response = this->crust_client->request(web::http::methods::GET, builder.to_string()).get();
-        if (response.status_code() != web::http::status_codes::OK)
+        std::string path = this->url_end_point->base + "/block/header";
+        auto res = this->crust_client->Get(path.c_str());
+        if (res && res->status == 200)
         {
-            return false;
+            return true;
         }
 
-        return true;
-    }
-    catch (const web::http::http_exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+        return false;
     }
     catch (const std::exception &e)
     {
@@ -117,27 +123,20 @@ bool Crust::post_tee_identity(std::string identity)
 {
     try
     {
-        web::http::http_request req(web::http::methods::POST);
-        req.headers().add(U("password"), U(this->password));
-        req.headers().add(U("Content-Type"), U("application/json"));
-        req.set_request_uri(U("/tee/identity"));
+        std::string path = this->url_end_point->base + "/tee/identity";
+        httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        web::json::value json_v;
-        json_v["identity"] = web::json::value::string(identity);
-        json_v["backup"] = web::json::value::string(backup);
-        req.set_body(json_v);
+        json::JSON obj;
+        obj["identity"] = identity;
+        obj["backup"] = this->backup;
+        auto res = this->crust_client->Post(path.c_str(), headers, obj.dump(), "application/json");
 
-        web::http::http_response response = this->crust_client->request(req).get();
-        if (response.status_code() != web::http::status_codes::OK)
+        if (res && res->status == 200)
         {
-            return false;
+            return true;
         }
 
-        return true;
-    }
-    catch (const web::http::http_exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+        return false;
     }
     catch (const std::exception &e)
     {
@@ -156,30 +155,25 @@ bool Crust::post_tee_work_report(std::string work_report)
 {
     try
     {
-        web::http::http_request req(web::http::methods::POST);
-        req.headers().add(U("password"), U(this->password));
-        req.headers().add(U("Content-Type"), U("application/json"));
-        req.set_request_uri(U("/tee/workreport"));
+        std::string path = this->url_end_point->base + "/tee/workreport";
+        httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        web::json::value json_v;
-        json_v["workreport"] = web::json::value::string(work_report);
-        json_v["backup"] = web::json::value::string(backup);
-        req.set_body(json_v);
+        json::JSON obj;
+        obj["workreport"] = work_report;
+        obj["backup"] = this->backup;
+        auto res = this->crust_client->Post(path.c_str(), headers, obj.dump(), "application/json");
 
-        web::http::http_response response = this->crust_client->request(req).get();
-        if (response.status_code() != web::http::status_codes::OK)
+        if (res && res->status == 200)
         {
-            return false;
+            return true;
         }
-    }
-    catch (const web::http::http_exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
+
+        return false;
     }
     catch (const std::exception &e)
     {
         cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
     }
 
-    return true;
+    return false;
 }
