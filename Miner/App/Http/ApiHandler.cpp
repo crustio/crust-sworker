@@ -300,9 +300,16 @@ void ApiHandler::handle_post(web::http::http_request message)
                 identity_json["pub_key"] = hexstring((const char*)&ensig.pub_key, sizeof(ensig.pub_key));
                 identity_json["account_id"] = account_id;
                 identity_json["validator_pub_key"] = hexstring((const char*)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
-                identity_json["validator_account_id"] = p_config->crust_account_id;
+                //identity_json["validator_account_id"] = p_config->crust_account_id;
+                // TODO: waiting for chain
+                identity_json["validator_account_id"] = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
                 identity_json["sig"] = hexstring((const char*)&ensig.signature, sizeof(ensig.signature));
                 std::string jsonstr = identity_json.dump();
+                // Delete space
+                jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), ' '), jsonstr.end());
+                // Delete line break
+                jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), '\n'), jsonstr.end());
+
                 message.reply(web::http::status_codes::OK, jsonstr.c_str());
                 cfprintf(felog, CF_INFO "Verifying IAS report in enclave successfully!\n");
             }

@@ -2,6 +2,7 @@
 #define _CRUST_API_HANDLER_H_
 
 #include <stdio.h>
+#include <algorithm>
 #include <sgx_report.h>
 #include <sgx_key_exchange.h>
 #include <sgx_error.h>
