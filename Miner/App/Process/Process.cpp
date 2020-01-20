@@ -234,6 +234,7 @@ bool entry_network(void)
     from_hexstring((unsigned char *)spid, p_config->spid.c_str(), p_config->spid.size());
     int i = 0;
     bool entry_status = true;
+    std::string entryRes;
 
     /* get nonce */
     for (i = 0; i < 2; ++i)
@@ -394,12 +395,16 @@ bool entry_network(void)
     web::http::http_response response;
 
     // Send quote to validation node, try out 3 times for network error.
+    std::string req_data;
+    req_data.append("{ \"isvEnclaveQuote\": \"");
+    req_data.append(b64quote).append("\", \"crust_account_id\": \"");
+    req_data.append(p_config->crust_account_id.c_str()).append("\" }");
     int net_tryout = IAS_TRYOUT;
     while (net_tryout >= 0)
     {
         try
         {
-            response = self_api_client->request(web::http::methods::POST, builder.to_string(), b64quote).get();
+            response = self_api_client->request(web::http::methods::POST, builder.to_string(), req_data.c_str()).get();
             break;
         }
         catch (const web::http::http_exception &e)
@@ -422,8 +427,15 @@ bool entry_network(void)
         entry_status = false;
         goto cleanup;
     }
-
     cfprintf(felog, CF_INFO "%s Entry network application successfully!\n", show_tag);
+
+    entryRes = response.extract_utf8string().get();
+    cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entryRes.c_str());
+    if(!get_crust()->post_tee_identity(entryRes))
+    {
+        cfprintf(felog, CF_ERROR "Send identity to crust chain failed!\n");
+    }
+    cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
 
 cleanup:
 

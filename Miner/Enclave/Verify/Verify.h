@@ -2,7 +2,7 @@
 #define _CRUST_VERIFY_H_
 
 #ifndef _WIN32
-#include "config.h"
+#include "Resource.h"
 #endif
 #include "Enclave_t.h"
 #include "IASReport.h"

@@ -5,7 +5,7 @@
 #include <string>
 #include <fstream>
 #include <cpprest/json.h>
-#include "config.h"
+#include "Resource.h"
 
 #define IAS_API_DEF_VERSION 3
 

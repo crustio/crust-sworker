@@ -27,7 +27,7 @@
 #include "FormatUtils.h"
 #include "Common.h"
 #include "Logfile.h"
-#include "config.h"
+#include "Resource.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x, y) x &y
