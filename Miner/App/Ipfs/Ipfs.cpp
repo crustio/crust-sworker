@@ -291,10 +291,8 @@ void Ipfs::fill_merkle_tree(MerkleTree *&root, json::JSON merkle_data)
 MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
 {
     this->clear_merkle_tree(this->merkle_tree);
-    httplib::Params params;
-    params.emplace("arg", root_hash);
-    std::string path = this->url_end_point->base + "/merkle";
-    auto res = this->crust_client->Post(path.c_str(), params);
+    std::string path = this->url_end_point->base + "/merkle?arg=" + root_hash;
+    auto res = this->crust_client->Get(path.c_str());
 
     if (!res || res->status != 200)
     {
@@ -317,17 +315,16 @@ unsigned char *Ipfs::get_block_data(const char *hash, size_t *len)
     /* Get block data from ipfs */
     this->clear_block_data();
 
-    httplib::Params params;
-    params.emplace("arg", hash);
-    std::string path = this->url_end_point->base + "/merkle";
-    auto res = this->crust_client->Post(path.c_str(), params);
+    std::string path = this->url_end_point->base + "/block/hashget?arg=" + hash;
+    auto res = this->crust_client->Get(path.c_str());
 
     if (!res || res->status != 200)
     {
         return NULL;
     }
 
-    std::vector<unsigned char> result = get_hash_from_json_array(json::JSON::Load(res->body));
+    std::vector<unsigned char> result = std::vector<unsigned char>(res->body.data(), res->body.data() + res->body.length());
+    
     *len = result.size();
     this->block_data = new unsigned char[result.size()];
     for (size_t i = 0; i < result.size(); i++)
