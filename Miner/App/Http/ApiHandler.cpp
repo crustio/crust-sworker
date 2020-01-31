@@ -153,7 +153,7 @@ void ApiHandler::handle_post(web::http::http_request message)
         sgx_quote_t *quote;
         json::JSON req_json = json::JSON::Load(message.extract_utf8string().get());
         std::string b64quote = req_json["isvEnclaveQuote"].ToString();
-        std::string account_id = req_json["crust_account_id"].ToString();
+        std::string offChain_account_id = req_json["crust_account_id"].ToString();
         if (!get_quote_size(&status_ret, &qsz))
         {
             cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
@@ -239,7 +239,7 @@ void ApiHandler::handle_post(web::http::http_request message)
         ias_report.push_back(res_headers["X-IASReport-Signing-Certificate"].c_str());
         ias_report.push_back(res_headers["X-IASReport-Signature"].c_str());
         ias_report.push_back(resStr.c_str());
-        ias_report.push_back(account_id.c_str());
+        ias_report.push_back(offChain_account_id.c_str());
         ias_report.push_back(p_config->crust_account_id.c_str());
     
         // Print IAS report 
@@ -298,7 +298,7 @@ void ApiHandler::handle_post(web::http::http_request message)
             {
                 json::JSON identity_json;
                 identity_json["pub_key"] = hexstring((const char*)&ensig.pub_key, sizeof(ensig.pub_key));
-                identity_json["account_id"] = account_id;
+                identity_json["account_id"] = offChain_account_id;
                 identity_json["validator_pub_key"] = hexstring((const char*)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
                 //identity_json["validator_account_id"] = p_config->crust_account_id;
                 // TODO: waiting for chain

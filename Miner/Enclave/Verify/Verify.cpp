@@ -2,7 +2,7 @@
 
 using namespace std;
 
-extern uint8_t offChain_report_data[];
+extern uint8_t offChain_pub_key[];
 extern sgx_measurement_t current_mr_enclave;
 extern ecc_key_pair id_key_pair;
 
@@ -299,6 +299,8 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
 	vector<string> response(IASReport, IASReport + size);
     string context;
+    string offChain_account_id = response[3];
+    string validator_account_id = response[4];
     size_t context_size = 0;
 
 	/*
@@ -448,7 +450,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 
 	// This report data is our ecc public key
 	// should be equal to the one contained in IAS report
-	if (memcmp(iasReportBody->report_data.d, offChain_report_data, REPORT_DATA_SIZE) != 0)
+	if (memcmp(iasReportBody->report_data.d, offChain_pub_key, REPORT_DATA_SIZE) != 0)
 	{
 		status = IAS_REPORTDATA_NE;
 		goto cleanup;
@@ -471,10 +473,10 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 
     //ocall_read_account_id()
 
-    context.append((char*)offChain_report_data)
-           .append(response[3])
+    context.append((char*)offChain_pub_key)
+           .append(offChain_account_id)
            .append((char*)&id_key_pair.pub_key)
-           .append(response[4]);
+           .append(validator_account_id);
     context_size = REPORT_DATA_SIZE + response[3].size() + response[4].size() + sizeof(id_key_pair.pub_key);
 	sgx_status = sgx_ecdsa_sign((const uint8_t *)context.c_str(),
 								(uint32_t)context_size,
@@ -487,7 +489,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-	memcpy(&p_ensig->pub_key, offChain_report_data, REPORT_DATA_SIZE);
+	memcpy(&p_ensig->pub_key, offChain_pub_key, REPORT_DATA_SIZE);
 	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
 	memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
 
