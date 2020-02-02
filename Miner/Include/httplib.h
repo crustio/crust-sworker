@@ -8,6 +8,8 @@
 #ifndef CPPHTTPLIB_HTTPLIB_H
 #define CPPHTTPLIB_HTTPLIB_H
 
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+
 /*
  * Configuration
  */
@@ -4583,7 +4585,13 @@ inline bool SSLClient::process_and_close_socket(
                return true;
              },
              [&](SSL *ssl) {
-               SSL_set_tlsext_host_name(ssl, host_.c_str());
+               // FIXME: openssl library prevents const char* to char *
+               char *hostbuf = (char*)malloc(host_.size());
+               memset(hostbuf, 0, host_.size());
+               memcpy(hostbuf, host_.c_str(), host_.size());
+               SSL_set_tlsext_host_name(ssl, hostbuf);
+               free(hostbuf);
+               //SSL_set_tlsext_host_name(ssl, host_.c_str());
                return true;
              },
              [&](SSL * /*ssl*/, Stream &strm, bool last_connection,
@@ -4640,7 +4648,9 @@ SSLClient::verify_host_with_subject_alt_name(X509 *server_cert) const {
   }
 #endif
 
-  auto alt_names = static_cast<const struct stack_st_GENERAL_NAME *>(
+  // FIXME: openssl library prevents const xxx * to xxx *
+  //auto alt_names = static_cast<const struct stack_st_GENERAL_NAME *>(
+  auto alt_names = static_cast<struct stack_st_GENERAL_NAME *>(
       X509_get_ext_d2i(server_cert, NID_subject_alt_name, nullptr, nullptr));
 
   if (alt_names) {

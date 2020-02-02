@@ -471,13 +471,11 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-    //ocall_read_account_id()
-
     context.append((char*)offChain_pub_key)
            .append(offChain_account_id)
            .append((char*)&id_key_pair.pub_key)
            .append(validator_account_id);
-    context_size = REPORT_DATA_SIZE + response[3].size() + response[4].size() + sizeof(id_key_pair.pub_key);
+    context_size = REPORT_DATA_SIZE + offChain_account_id.size() + validator_account_id.size() + sizeof(id_key_pair.pub_key);
 	sgx_status = sgx_ecdsa_sign((const uint8_t *)context.c_str(),
 								(uint32_t)context_size,
 								&id_key_pair.pri_key,

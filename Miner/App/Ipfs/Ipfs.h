@@ -8,8 +8,6 @@
 #include <map>
 #include <set>
 #include <sys/time.h>
-#include <cpprest/http_client.h>
-#include <cpprest/json.h>
 #include "Node.h"
 #include "MerkleTree.h"
 #include "Common.h"
@@ -23,7 +21,6 @@ private:
     std::map<std::vector<unsigned char>, size_t> files_b; /* Used to store files' hash and size */
     bool files_a_is_old;                                  /* Indicate who is old in files_a and files_b */
     std::vector<Node> diff_files;                         /* Confirm changed files by comparing files_a and files_b */
-    web::http::client::http_client *ipfs_client;          /* Used to call IPFS API */
     unsigned char *block_data;                            /* Used to store block data */
     MerkleTree *merkle_tree;                              /* Used to store merkle tree of a file*/
 

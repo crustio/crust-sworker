@@ -1,6 +1,8 @@
 #include "ApiHandler.h"
 #include "json.hpp"
 
+using namespace httplib;
+
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 
@@ -11,159 +13,92 @@ extern FILE *felog;
  * @param url -> API base url 
  * @param p_global_eid The point for sgx global eid  
  */
-ApiHandler::ApiHandler(utility::string_t url, sgx_enclave_id_t *p_global_eid_in)
+ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
 {
-    this->m_listener = new web::http::experimental::listener::http_listener(url);
+    this->server = new Server();
     this->p_global_eid = p_global_eid_in;
 }
 
-/**
- * @description: Start network service
- * @return: Start status
- */
 int ApiHandler::start()
 {
-    try 
+    Config *p_config = Config::get_instance();
+    UrlEndPoint *urlendpoint = get_url_end_point(p_config->api_base_url);
+
+    if(!server->is_valid())
     {
-        this->m_listener->support(web::http::methods::GET, std::bind(&ApiHandler::handle_get, this, std::placeholders::_1));
-        this->m_listener->support(web::http::methods::POST, std::bind(&ApiHandler::handle_post, this, std::placeholders::_1));
-        this->m_listener->open().wait();
-        return 1;
-    }
-    catch (const web::http::http_exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
-    }
-    catch (const std::exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+        cfprintf(NULL, CF_ERROR "Server encount an error!\n");
+        return -1;
     }
 
-    return -1;
-}
-
-int ApiHandler::stop()
-{
-    try
-    {
-        this->m_listener->close().wait();
-        return 1;
-    }
-    catch (const web::http::http_exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
-    }
-    catch (const std::exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
-    }
-
-    return -1;
-}
-
-/**
- * @description: destructor
- */
-ApiHandler::~ApiHandler()
-{
-    delete this->m_listener;
-}
-
-/**
- * @description: handle get requests
- * @param message -> http request message
- */
-void ApiHandler::handle_get(web::http::http_request message)
-{
-    /* Handle status request */
-    if (message.relative_uri().path() == "/status")
-    {
+    server->Get("/status", [=](const Request & /*req*/, Response &res) {
         enum ValidationStatus validation_status = ValidateStop;
 
         if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
         {
             cfprintf(NULL, CF_ERROR "Get validation failed.\n");
-            message.reply(web::http::status_codes::InternalError, "InternalError");
+            res.set_content("InternalError", "text/plain");
             return;
         }
 
-        message.reply(web::http::status_codes::OK, (std::string("{'validationStatus':") + validation_status_strings[validation_status] + "}").c_str());
+        res.set_content(std::string("{'validationStatus':") + validation_status_strings[validation_status] + "}", "text/plain");
         return;
-    }
+    });
 
-    /* Handle report request */
-    if (message.relative_uri().path() == "/report")
-    {
+    server->Get("/report", [=](const Request &req, Response &res) {
         /* Get block hash from url */
-        auto arg_map = web::http::uri::split_query(message.request_uri().query());
+        auto arg_map = req.params;
+        auto arg_entry = arg_map.find("block_hash");
 
-        if (arg_map.find("block_hash") == arg_map.end())
+        if ( arg_entry == arg_map.end())
         {
-            message.reply(web::http::status_codes::BadRequest, "BadRequest");
-            return;
+            res.set_content("BadRequest", "text/plain");
         }
 
         /* Call ecall function to get work report */
         size_t report_len = 0;
-        if (ecall_generate_validation_report(*this->p_global_eid, &report_len, arg_map["block_hash"].c_str()) != SGX_SUCCESS)
+        if (ecall_generate_validation_report(*this->p_global_eid, &report_len, arg_entry->second.c_str()) != SGX_SUCCESS)
         {
             cfprintf(NULL, CF_ERROR "Generate validation failed.\n");
-            message.reply(web::http::status_codes::InternalError, "InternalError");
-            return;
+            res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
         if (ecall_get_validation_report(*this->p_global_eid, report, report_len) != SGX_SUCCESS)
         {
             cfprintf(NULL, CF_ERROR "Get validation failed.\n");
-            message.reply(web::http::status_codes::InternalError, "InternalError");
-            return;
+            res.set_content("InternalError", "text/plain");
         }
 
         if (report == NULL)
         {
-            message.reply(web::http::status_codes::InternalError, "InternalError");
-            return;
+            res.set_content("InternalError", "text/plain");
         }
 
-        message.reply(web::http::status_codes::OK, report);
+        res.set_content(report, "text/plain");
         delete report;
-        return;
-    }
+    });
 
-    message.reply(web::http::status_codes::BadRequest, "BadRequest");
-    return;
-}
-
-/**
- * @description: handle post requests
- * @param message -> http request message
- */
-void ApiHandler::handle_post(web::http::http_request message)
-{
-    sgx_status_t status_ret = SGX_SUCCESS;
-
-    /* Deal with entry network */
-    if (message.relative_uri().path().compare("/entry/network") == 0)
-    {
+    std::string entryPath = urlendpoint->base + "/entry/network";
+    server->Post(entryPath.c_str(), [&](const Request &req, Response &res) {
+        sgx_status_t status_ret = SGX_SUCCESS;
         int version = IAS_API_DEF_VERSION;
         cfprintf(felog, CF_INFO "Processing entry network application...\n");
         uint32_t qsz;
         size_t dqsz = 0;
         sgx_quote_t *quote;
-        json::JSON req_json = json::JSON::Load(message.extract_utf8string().get());
+        json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
         std::string b64quote = req_json["isvEnclaveQuote"].ToString();
         std::string offChain_account_id = req_json["crust_account_id"].ToString();
         if (!get_quote_size(&status_ret, &qsz))
         {
             cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
-            message.reply(web::http::status_codes::InternalError, "InternalError");
+            res.set_content("InternalError", "text/plain");
             return;
         }
 
         if (b64quote.size() == 0)
         {
-            message.reply(web::http::status_codes::InternalError, "InternalError");
+            res.set_content("InternalError", "text/plain");
             return;
         }
 
@@ -174,71 +109,58 @@ void ApiHandler::handle_post(web::http::http_request message)
         if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char *)quote, qsz) != SGX_SUCCESS)
         {
             cfprintf(felog, CF_ERROR "Store offChain node quote failed!\n");
-            message.reply(web::http::status_codes::InternalError, "StoreQuoteError");
+            res.set_content("StoreQuoteError", "text/plain");
             return;
         }
         cfprintf(felog, CF_INFO "Storing quote in enclave successfully!\n");
 
         /* Request IAS verification */
-        web::http::client::http_client_config cfg;
-        cfg.set_timeout(std::chrono::seconds(IAS_TIMEOUT));
-        Config *p_config = Config::get_instance();
-        web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->ias_base_url.c_str(), cfg);
-        web::http::http_request ias_request(web::http::methods::POST);
-        ias_request.headers().add(U("Ocp-Apim-Subscription-Key"), U(p_config->ias_primary_subscription_key));
-        ias_request.headers().add(U("Content-Type"), U("application/json"));
-        ias_request.set_request_uri(p_config->ias_base_path.c_str());
+        SSLClient *client = new SSLClient(p_config->ias_base_url);
+        Headers headers = {
+            {"Ocp-Apim-Subscription-Key", p_config->ias_primary_subscription_key}
+            //{"Content-Type", "application/json"}
+        };
+        client->set_timeout_sec(IAS_TIMEOUT);
 
         std::string body = "{\n\"isvEnclaveQuote\":\"";
         body.append(b64quote);
         body.append("\"\n}");
 
-        ias_request.set_body(body);
-
-        web::http::http_response response;
         std::string resStr;
         json::JSON res_json;
+        std::shared_ptr<httplib::Response> ias_res;
 
         // Send quote to IAS service
         int net_tryout = IAS_TRYOUT;
-        while (net_tryout >= 0)
+        while (net_tryout > 0)
         {
-            try
+            ias_res = client->Post(p_config->ias_base_path.c_str(), headers, body, "application/json");
+            if(!(ias_res && ias_res->status == 200))
             {
-                response = self_api_client->request(ias_request).get();
-                resStr = response.extract_utf8string().get();
-                res_json = json::JSON::Load(resStr);
-                break;
+                cfprintf(NULL, CF_ERROR "Send to ias failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
+                sleep(3);
+                net_tryout--;
+                continue;
             }
-            catch (const web::http::http_exception &e)
-            {
-                cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
-                cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
-            }
-            catch (const std::exception &e)
-            {
-                cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
-                cfprintf(felog, CF_INFO "Trying agin:%d\n", net_tryout);
-            }
-            sleep(3);
-            net_tryout--;
+            break;
         }
 
-        if (response.status_code() != IAS_OK)
+        if(!(ias_res && ias_res->status == 200))
         {
             cfprintf(felog, CF_ERROR "Request IAS failed!\n");
-            message.reply(web::http::status_codes::InternalError, "Request IAS failed!");
-            delete self_api_client;
+            res.set_content("Request IAS failed!", "text/plain");
+            delete client;
             return;
         }
+        res_json = json::JSON::Load(ias_res->body);
         cfprintf(felog, CF_INFO "Sending quote to IAS service successfully!\n");
 
 
-        web::http::http_headers res_headers = response.headers();
+        Headers res_headers = ias_res->headers;
         std::vector<const char *> ias_report;
-        ias_report.push_back(res_headers["X-IASReport-Signing-Certificate"].c_str());
-        ias_report.push_back(res_headers["X-IASReport-Signature"].c_str());
-        ias_report.push_back(resStr.c_str());
+        ias_report.push_back(res_headers.find("X-IASReport-Signing-Certificate")->second.c_str());
+        ias_report.push_back(res_headers.find("X-IASReport-Signature")->second.c_str());
+        ias_report.push_back(ias_res->body.c_str());
         ias_report.push_back(offChain_account_id.c_str());
         ias_report.push_back(p_config->crust_account_id.c_str());
     
@@ -310,7 +232,7 @@ void ApiHandler::handle_post(web::http::http_request message)
                 // Delete line break
                 jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), '\n'), jsonstr.end());
 
-                message.reply(web::http::status_codes::OK, jsonstr.c_str());
+                res.set_content(jsonstr.c_str(), "text/plain");
                 cfprintf(felog, CF_INFO "Verifying IAS report in enclave successfully!\n");
             }
             else
@@ -360,19 +282,32 @@ void ApiHandler::handle_post(web::http::http_request message)
                         cfprintf(felog, CF_ERROR "Unknow return status!\n");
                 }
                 cfprintf(felog, CF_ERROR "Verify IAS report failed!\n");
-                message.reply(web::http::status_codes::InternalError, "Verify IAS report failed!");
+                res.set_content("Verify IAS report failed!", "text/plain");
             }
         }
         else
         {
             cfprintf(felog, CF_ERROR "Invoke SGX api failed!\n");
-            message.reply(web::http::status_codes::InternalError, "Invoke SGX api failed!");
+            res.set_content("Invoke SGX api failed!", "text/plain");
         }
-        delete self_api_client;
-    }
+        delete client;
+    });
 
-    fflush(felog);
+    server->listen(urlendpoint->ip.c_str(), urlendpoint->port);
 
-    message.reply(web::http::status_codes::BadRequest, "BadRequest");
-    return;
+    return 1;
+}
+
+int ApiHandler::stop()
+{
+    this->server->stop();
+    return -1;
+}
+
+/**
+ * @description: destructor
+ */
+ApiHandler::~ApiHandler()
+{
+    delete this->server;
 }

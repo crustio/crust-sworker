@@ -39,20 +39,11 @@ Ipfs *get_ipfs(void)
  * */
 bool Ipfs::is_online()
 {
-    try
+    std::string path = this->url_end_point->base + "/work";
+    auto res = this->crust_client->Get(path.c_str());
+    if (res && res->status == 200)
     {
-        std::string path = this->url_end_point->base + "/work";
-        auto res = this->crust_client->Get(path.c_str());
-        if (res && res->status == 200)
-        {
-            return true;
-        }
-
-        return false;
-    }
-    catch (const std::exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+        return true;
     }
 
     return false;
