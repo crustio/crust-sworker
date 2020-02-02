@@ -5,7 +5,7 @@
     "apiBaseUrl": "http://192.168.50.9:12222/api/v0",
     "requestUrl": "http://192.168.50.9:12222/api/v0",
 
-    "crustApiBaseUrl" : "http://192.168.50.6:6009/api/v1",
+    "crustApiBaseUrl" : "http://139.196.122.228:6009/api/v1",
     "crustAccountId" : "5Cowt7B9CbBa3CffyusJTCuhT33WcwpqRoULdSQwwmKHNRW2",
     "crustPassword" : "123456",
     "crustBackup" : "{\"address\":\"5Cowt7B9CbBa3CffyusJTCuhT33WcwpqRoULdSQwwmKHNRW2\",\"encoded\":\"0x0b8e46f0847c7578b07556fd5545f2dfa64ec252b85b7aef873c3290a7348f87673fc346ac2bc8f42b3cb2a346c07a4fc7a7d4f98cf457e4cc5527ac1382c4af2ea6394a2e5a7fa8f5a36474d87fd8884e4f0c50b80c2e15dcd1b4868873bd0e6d91a20a2a0684891f0ef5324dd536dd41d0a9d74f0a1e7f5966b106d7b9a297f231e2be067908b6a0692b984e06b66f15bb243e1b1a3d400c0a2e4189\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1579507739914}}",
