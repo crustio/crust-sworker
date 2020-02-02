@@ -53,7 +53,7 @@ static const sgx_ec256_public_t def_service_public_key =
 
 ecc_key_pair id_key_pair;
 
-uint8_t offChain_report_data[REPORT_DATA_SIZE] = {'\0'};
+uint8_t offChain_pub_key[REPORT_DATA_SIZE] = {'\0'};
 
 sgx_measurement_t current_mr_enclave;
 

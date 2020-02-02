@@ -152,6 +152,22 @@ bool initialize_enclave()
     return true;
 }
 
+void *start_http(void *)
+{
+    /* API handler component */
+    cfprintf(felog, CF_INFO "%s Initing api url:%s...\n", show_tag, p_config->api_base_url.c_str());
+    p_api_handler = new ApiHandler(&global_eid);
+    if (p_api_handler == NULL)
+    {
+        cfprintf(felog, CF_ERROR "%s Init api handler failed.\n", show_tag);
+        return NULL;
+    }
+    //cfprintf(felog, CF_INFO "%s Init api handler successfully.\n", show_tag);
+    p_api_handler->start();
+    cfprintf(felog, CF_ERROR "%s Start network service failed!\n", show_tag);
+    return NULL;
+}
+
 /**
  * @description: initialize the components:
  *   config -> user configurations and const configurations
@@ -188,19 +204,10 @@ bool initialize_components(void)
         return false;
     }
 
-    /* API handler component */
-    cfprintf(felog, CF_INFO "%s Initing api url:%s...\n", show_tag, p_config->api_base_url.c_str());
-    p_api_handler = new ApiHandler(p_config->api_base_url.c_str(), &global_eid);
-    if (p_api_handler == NULL)
+    pthread_t wthread;
+    if (pthread_create(&wthread, NULL, start_http, NULL) != 0)
     {
-        cfprintf(felog, CF_ERROR "%s Init api handler failed.\n", show_tag);
-        return false;
-    }
-    //cfprintf(felog, CF_INFO "%s Init api handler successfully.\n", show_tag);
-
-    if (p_api_handler->start() == -1)
-    {
-        cfprintf(felog, CF_ERROR "%s Start network service failed!\n", show_tag);
+        cfprintf(felog, CF_ERROR "%s Create rest service thread failed!\n", show_tag);
         return false;
     }
     cfprintf(felog, CF_INFO "%s Start rest service successfully!\n", show_tag);
@@ -387,12 +394,6 @@ bool entry_network(void)
 
     /* Send quote to validation node */
     cfprintf(felog, CF_INFO "%s Sending quote to on-chain node...\n", show_tag);
-    web::http::client::http_client_config cfg;
-    cfg.set_timeout(std::chrono::seconds(CLIENT_TIMEOUT));
-    cfprintf(felog, CF_INFO "%s request url:%s\n", show_tag, p_config->request_url.c_str());
-    web::http::client::http_client *self_api_client = new web::http::client::http_client(p_config->request_url.c_str(), cfg);
-    web::uri_builder builder(U("/entry/network"));
-    web::http::http_response response;
 
     // Send quote to validation node, try out 3 times for network error.
     std::string req_data;
@@ -400,36 +401,35 @@ bool entry_network(void)
     req_data.append(b64quote).append("\", \"crust_account_id\": \"");
     req_data.append(p_config->crust_account_id.c_str()).append("\" }");
     int net_tryout = IAS_TRYOUT;
-    while (net_tryout >= 0)
+
+	httplib::Params params;
+    params.emplace("arg", req_data);
+    UrlEndPoint *urlendpoint = get_url_end_point(p_config->request_url);
+    httplib::Client *client = new httplib::Client(urlendpoint->ip, urlendpoint->port);
+    client->set_timeout_sec(CLIENT_TIMEOUT);
+    std::string path = urlendpoint->base + "/entry/network";
+    std::shared_ptr<httplib::Response> res;
+    while (net_tryout > 0)
     {
-        try
+        res = client->Post(path.c_str(), params);
+        if(!(res && res->status == 200))
         {
-            response = self_api_client->request(web::http::methods::POST, builder.to_string(), req_data.c_str()).get();
-            break;
+            cfprintf(NULL, CF_INFO "Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
+            sleep(3);
+            net_tryout--;
+            continue;
         }
-        catch (const web::http::http_exception &e)
-        {
-            cfprintf(felog, CF_ERROR "%s HTTP Exception: %s\n", show_tag, e.what());
-            cfprintf(felog, CF_INFO "%s Trying agin:%d\n", show_tag, net_tryout);
-        }
-        catch (const std::exception &e)
-        {
-            cfprintf(felog, CF_ERROR "%s HTTP throw: %s\n", show_tag, e.what());
-            cfprintf(felog, CF_INFO "%s Trying agin:%d\n", show_tag, net_tryout);
-        }
-        sleep(3);
-        net_tryout--;
+        break;
     }
 
-    if (response.status_code() != web::http::status_codes::OK)
+    if(!(res && res->status == 200))
     {
         cfprintf(felog, CF_ERROR "%s Entry network failed!\n", show_tag);
         entry_status = false;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Entry network application successfully!\n", show_tag);
 
-    entryRes = response.extract_utf8string().get();
+    entryRes = res->body;
     cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entryRes.c_str());
     if(!get_crust()->post_tee_identity(entryRes))
     {
@@ -439,7 +439,7 @@ bool entry_network(void)
 
 cleanup:
 
-    delete self_api_client;
+    delete client;
 
     return entry_status;
 }

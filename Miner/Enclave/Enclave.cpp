@@ -174,7 +174,7 @@ sgx_status_t ecall_gen_sgx_measurement()
 sgx_status_t ecall_store_quote(const char *quote, size_t len)
 {
     sgx_quote_t *offChain_quote = (sgx_quote_t*)malloc(len);
-    if ( offChain_report_data == NULL )
+    if ( offChain_pub_key == NULL )
     {
         return SGX_ERROR_UNEXPECTED;
     }
@@ -182,7 +182,7 @@ sgx_status_t ecall_store_quote(const char *quote, size_t len)
     memset(offChain_quote, 0, len);
     memcpy(offChain_quote, quote, len);
     unsigned char *p_report_data = offChain_quote->report_body.report_data.d;
-    memcpy(offChain_report_data, p_report_data, REPORT_DATA_SIZE);
+    memcpy(offChain_pub_key, p_report_data, REPORT_DATA_SIZE);
 
     return SGX_SUCCESS;
 }
