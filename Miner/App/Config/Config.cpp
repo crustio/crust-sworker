@@ -44,7 +44,8 @@ Config::Config(std::string path)
     this->crust_api_base_url = config_value["crust_api_base_url"].ToString();
     this->crust_account_id = config_value["crust_account_id"].ToString();
     this->crust_password = config_value["crust_password"].ToString();
-    this->crust_backup = boost::erase_all(config_value["crust_backup"].ToString(), "\\");
+    const std::string backup_temp = config_value["crust_backup"].ToString();
+    this->crust_backup = boost::erase_all(backup_temp, "\\");
 
     // TODO: true or false, include linkable, random nonce, verbose ...
     // tee identity validation configurations
