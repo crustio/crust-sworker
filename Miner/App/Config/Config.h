@@ -5,7 +5,7 @@
 #include <string>
 #include <fstream>
 #include "Resource.h"
-#include "Common.h"
+#include "json.hpp"
 
 #define IAS_API_DEF_VERSION 3
 

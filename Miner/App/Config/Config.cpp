@@ -29,7 +29,7 @@ Config::Config(std::string path)
     std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
 
     /* Fill configurations */
-    json::JSON config_value = json::JSON::Load(res->body);
+    json::JSON config_value = json::JSON::Load(config_str);
 
     // Plot configurations
     this->empty_path = config_value["empty_path"].ToString();
@@ -71,9 +71,16 @@ void Config::show(void)
     printf("Config:\n{\n");
     printf("    'empty path' : '%s',\n", this->empty_path.c_str());
     printf("    'empty capacity' : %lu,\n", this->empty_capacity);
+
     printf("    'ipfs api base url' : '%s',\n", this->ipfs_api_base_url.c_str());
     printf("    'api base url' : '%s',\n", this->api_base_url.c_str());
     printf("    'validator api base url' : '%s',\n", this->validator_api_base_url.c_str());
+
+    printf("    'crust api base url' : %s,\n", this->crust_api_base_url.c_str());
+    printf("    'crust account id' : '%s',\n", this->crust_account_id.c_str());
+    printf("    'crust password' : '%s',\n", this->crust_password.c_str());
+    printf("    'crust backup' : '%s',\n", this->crust_backup.c_str());
+
     printf("    'spid' : '%s',\n", this->spid.c_str());
     printf("    'linkable' : '%d',\n", this->linkable);
     printf("    'random nonce' : '%d',\n", this->random_nonce);
@@ -82,6 +89,8 @@ void Config::show(void)
     printf("    'IAS Secondary subscription key' : '%s',\n", this->ias_secondary_subscription_key.c_str());
     printf("    'IAS base url' : '%s',\n", this->ias_base_url.c_str());
     printf("    'IAS base path' : '%s',\n", this->ias_base_path.c_str());
+
+    printf("    'flags' : '%d',\n", this->flags);
     printf("    'verbose info' : '%d',\n", this->verbose);
     printf("    'debug info' : '%d',\n", this->debug);
     printf("}\n");

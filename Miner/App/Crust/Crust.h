@@ -4,6 +4,7 @@
 #include <string>
 #include "Common.h"
 #include "httplib.h"
+#include "json.hpp"
 
 struct BlockHeader
 {

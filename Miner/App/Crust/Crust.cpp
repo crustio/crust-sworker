@@ -1,5 +1,4 @@
 #include "Crust.h"
-#include "json.hpp"
 
 Crust *crust = NULL;
 
@@ -71,7 +70,7 @@ BlockHeader *Crust::get_block_header(void)
         auto res = this->crust_client->Get(path.c_str());
         if (res && res->status == 200)
         {
-            auto block_header_json = json::JSON::Load(res->body);
+            json::JSON block_header_json = json::JSON::Load(res->body);
 
             BlockHeader *block_header = new BlockHeader();
             block_header->hash = block_header_json["hash"].ToString();
