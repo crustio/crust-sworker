@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string>
 #include <fstream>
+#include <boost/algorithm/string.hpp>
 #include "Resource.h"
 #include "json.hpp"
 

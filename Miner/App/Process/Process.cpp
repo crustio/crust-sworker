@@ -42,29 +42,29 @@ static void sig_handler(int signum)
 {
     pid_t pid;
     int status;
-    switch(signum)
+    switch (signum)
     {
-        case SIGUSR1:
-            is_entried_network = true;
-            break;
-        case SIGUSR2:
-            exit_process = true;
-            break;
-        case SIGCHLD:
-            /* Deal with child process */
-            // Check if there is any child process existed before existing
-            while((pid=waitpid(-1, &status, WNOHANG)) > 0)
+    case SIGUSR1:
+        is_entried_network = true;
+        break;
+    case SIGUSR2:
+        exit_process = true;
+        break;
+    case SIGCHLD:
+        /* Deal with child process */
+        // Check if there is any child process existed before existing
+        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+        {
+            if (WIFEXITED(status))
             {
-                if(WIFEXITED(status))
-                {
-                    cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, WEXITSTATUS(status));
-                }
-                else
-                {
-                    cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
-                }
+                cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, WEXITSTATUS(status));
             }
-            break;
+            else
+            {
+                cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
+            }
+        }
+        break;
     }
 }
 
@@ -402,7 +402,7 @@ bool entry_network(void)
     req_data.append(p_config->crust_account_id.c_str()).append("\" }");
     int net_tryout = IAS_TRYOUT;
 
-	httplib::Params params;
+    httplib::Params params;
     params.emplace("arg", req_data);
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->validator_api_base_url);
     httplib::Client *client = new httplib::Client(urlendpoint->ip, urlendpoint->port);
@@ -412,7 +412,7 @@ bool entry_network(void)
     while (net_tryout > 0)
     {
         res = client->Post(path.c_str(), params);
-        if(!(res && res->status == 200))
+        if (!(res && res->status == 200))
         {
             cfprintf(NULL, CF_INFO "Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
             sleep(3);
@@ -422,7 +422,7 @@ bool entry_network(void)
         break;
     }
 
-    if(!(res && res->status == 200))
+    if (!(res && res->status == 200))
     {
         cfprintf(felog, CF_ERROR "%s Entry network failed!\n", show_tag);
         entry_status = false;
@@ -431,11 +431,16 @@ bool entry_network(void)
 
     entryRes = res->body;
     cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entryRes.c_str());
-    if(!get_crust()->post_tee_identity(entryRes))
+    if (!get_crust()->post_tee_identity(entryRes))
     {
         cfprintf(felog, CF_ERROR "Send identity to crust chain failed!\n");
+        entry_status = false;
+        goto cleanup;
     }
-    cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
+    else
+    {
+        cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
+    }
 
 cleanup:
 
@@ -568,7 +573,7 @@ again:
             {
                 cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
             }
-            if(Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_WORKER) == -1)
+            if (Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_WORKER) == -1)
             {
                 cfprintf(felog, CF_ERROR "%s Get worker pid failed!!\n", show_tag);
             }
@@ -633,7 +638,7 @@ again:
     // Should get current pid before fork
     monitorPID = getpid();
     is_entried_network = true;
-    if((pid=fork()) == -1)
+    if ((pid = fork()) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
         ipc_status = FORK_NEW_PROCESS_ERROR;
@@ -695,12 +700,12 @@ cleanup:
 
     // Send SIGKILL to monitor2 to prevent it starts up monitor again
     cfprintf(felog, CF_ERROR "%s Kill monitor2 process\n", show_tag);
-    if(kill(pids_m["monitor2"], SIGKILL) == -1)
+    if (kill(pids_m["monitor2"], SIGKILL) == -1)
     {
         cfprintf(felog, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
     }
 
-    if(felog != NULL)
+    if (felog != NULL)
     {
         close_logfile(felog);
     }
@@ -793,7 +798,7 @@ cleanup:
 
     cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
 
-    if(felog != NULL)
+    if (felog != NULL)
     {
         close_logfile(felog);
     }
@@ -903,7 +908,7 @@ again:
     {
         cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
     }
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_MONITOR) == -1)
+    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_MONITOR) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Get monitor pid failed!!\n", show_tag);
     }
@@ -950,7 +955,7 @@ again:
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
     /* Tell monitor process worker has entried network */
-    if(kill(monitorPID, SIGUSR1) == -1)
+    if (kill(monitorPID, SIGUSR1) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
     }
@@ -960,29 +965,29 @@ again:
 cleanup:
     /* End and release */
     delete p_config;
-    if(get_ipfs() != NULL)
+    if (get_ipfs() != NULL)
     {
         delete get_ipfs();
     }
-    if(p_api_handler != NULL)
+    if (p_api_handler != NULL)
     {
         delete p_api_handler;
     }
     destroy_ipc();
-    if(global_eid != 0)
+    if (global_eid != 0)
     {
         sgx_destroy_enclave(global_eid);
     }
 
     // If entry network or create work thread failed, notify monitor process to exit
-    if(ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
+    if (ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
     {
         kill(monitorPID, SIGUSR2);
     }
 
     cfprintf(felog, CF_ERROR "%s Worker process exits with error code:%lx\n", show_tag, ipc_status);
 
-    if(felog != NULL)
+    if (felog != NULL)
     {
         close_logfile(felog);
     }

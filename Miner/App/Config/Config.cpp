@@ -10,7 +10,7 @@ Config *Config::config = NULL;
  * */
 Config *Config::get_instance()
 {
-    if(Config::config == NULL)
+    if (Config::config == NULL)
     {
         Config::config = new Config(CONFIG_FILE_PATH);
     }
@@ -39,12 +39,12 @@ Config::Config(std::string path)
     this->ipfs_api_base_url = config_value["ipfs_api_base_url"].ToString();
     this->api_base_url = config_value["api_base_url"].ToString();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
-    
+
     // crust chain configurations
     this->crust_api_base_url = config_value["crust_api_base_url"].ToString();
-    this->crust_account_id =  config_value["crust_account_id"].ToString();
+    this->crust_account_id = config_value["crust_account_id"].ToString();
     this->crust_password = config_value["crust_password"].ToString();
-    this->crust_backup = config_value["crust_backup"].ToString();  
+    this->crust_backup = boost::erase_all(config_value["crust_backup"].ToString(), "\\");
 
     // TODO: true or false, include linkable, random nonce, verbose ...
     // tee identity validation configurations
