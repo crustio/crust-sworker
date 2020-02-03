@@ -15,7 +15,7 @@
 #include "IASReport.h"
 #include "SgxSupport.h"
 #include "Resource.h"
-#include "httplib.h"
+#include "HttpLib.h"
 
 
 class ApiHandler

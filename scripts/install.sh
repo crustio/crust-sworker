@@ -3,7 +3,6 @@ function installAPP()
 {
     # Install tee-app dependencies
     verbose INFO "Installing app dependencies..." h
-    execWithExpect "apt-get install libcpprest-dev"
     checkRes $? "quit"
 
     local res=0

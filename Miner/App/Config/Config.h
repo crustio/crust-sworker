@@ -4,23 +4,27 @@
 #include <stdio.h>
 #include <string>
 #include <fstream>
-#include <cpprest/json.h>
 #include "Resource.h"
+#include "Json.hpp"
+#include "Common.h"
 
 #define IAS_API_DEF_VERSION 3
 
 class Config
 {
 public:
-    std::string empty_path;        /* Empty validation files base path */
-    size_t empty_capacity;         /* Hard drive storage space for empty validation files, The unit is GB */
-    std::string ipfs_api_base_url; /* Used to connect to IPFS */
-    std::string api_base_url;      /* External API base url */
-    // Crust chain
+    std::string empty_path;             /* Empty validation files base path */
+    size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
+    std::string ipfs_api_base_url;      /* Used to connect to IPFS */
+    std::string api_base_url;           /* External API base url */
+    std::string validator_api_base_url; /* Validator base API base url */
+
+    // crust chain
     std::string crust_api_base_url; /* Used to connect to Crust API */
     std::string crust_account_id;   /* The password of crust chain account */
     std::string crust_password;     /* The password of crust chain account */
     std::string crust_backup;       /* The backup of crust chain account */
+
     // entry network related
     std::string spid;
     int linkable;
@@ -29,7 +33,7 @@ public:
     std::string ias_primary_subscription_key;
     std::string ias_secondary_subscription_key;
     std::string ias_base_url;
-    std::string request_url;
+
     std::string ias_base_path;
     uint32_t flags;
     // debug related

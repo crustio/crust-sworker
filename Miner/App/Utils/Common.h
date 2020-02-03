@@ -11,6 +11,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <boost/algorithm/string.hpp>
 
 #define LINE_TYPE '-'
@@ -53,6 +54,7 @@ extern "C"
     };
 
     UrlEndPoint *get_url_end_point(std::string url);
+    void remove_chars_from_string(std::string &str, const char *chars_to_remove);
 
 #if defined(__cplusplus)
 }
