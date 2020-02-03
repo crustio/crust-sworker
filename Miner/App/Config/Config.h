@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <string>
 #include <fstream>
-#include <boost/algorithm/string.hpp>
 #include "Resource.h"
 #include "json.hpp"
+#include "Common.h"
 
 #define IAS_API_DEF_VERSION 3
 

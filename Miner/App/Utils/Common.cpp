@@ -131,5 +131,18 @@ UrlEndPoint *get_url_end_point(std::string url)
 		url_end_point->base += "/" + fields2[i];
 	}
 
-	return url_end_point; 
+	return url_end_point;
+}
+
+/**
+ * @description: remove chars from string
+ * @param str input string
+ * @param chars_to_remove removed chars
+ * */
+void remove_chars_from_string(std::string &str, const char *chars_to_remove)
+{
+	for (unsigned int i = 0; i < strlen(chars_to_remove); ++i)
+	{
+		str.erase(std::remove(str.begin(), str.end(), chars_to_remove[i]), str.end());
+	}
 }
