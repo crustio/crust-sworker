@@ -82,7 +82,7 @@ endif
 
 App_Cpp_Flags := $(App_C_Flags)
 App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
-	-lpthread -ldl -lcpprest -lboost_system -lssl -lcrypto -fopenmp \
+	-lpthread -ldl -lboost_system -lssl -lcrypto -fopenmp \
 	-l:libsgx_usgxssl.a -l:libsgx_capable.a -Xlinker -zmuldefs
 
 ifneq ($(SGX_MODE), HW)
