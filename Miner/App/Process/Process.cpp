@@ -404,7 +404,7 @@ bool entry_network(void)
 
 	httplib::Params params;
     params.emplace("arg", req_data);
-    UrlEndPoint *urlendpoint = get_url_end_point(p_config->request_url);
+    UrlEndPoint *urlendpoint = get_url_end_point(p_config->validator_api_base_url);
     httplib::Client *client = new httplib::Client(urlendpoint->ip, urlendpoint->port);
     client->set_timeout_sec(CLIENT_TIMEOUT);
     std::string path = urlendpoint->base + "/entry/network";
