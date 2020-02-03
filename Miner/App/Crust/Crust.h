@@ -3,8 +3,8 @@
 
 #include <string>
 #include "Common.h"
-#include "httplib.h"
-#include "json.hpp"
+#include "HttpLib.h"
+#include "Json.hpp"
 
 struct BlockHeader
 {
