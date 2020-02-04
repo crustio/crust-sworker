@@ -3,8 +3,6 @@
 
 using namespace httplib;
 
-using namespace httplib;
-
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 
