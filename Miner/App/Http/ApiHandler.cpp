@@ -165,7 +165,7 @@ int ApiHandler::start()
 
         // Identity info
         ias_report.push_back(off_chain_crust_account_id.c_str());           //[3]
-        ias_report.push_back(p_config->off_chain_crust_account_id.c_str()); //[4]
+        ias_report.push_back(p_config->crust_account_id.c_str()); //[4]
 
         // Print IAS report
         if (p_config->verbose)
