@@ -69,12 +69,51 @@ void ecall_get_validation_report(char *report, size_t len)
     report[len - 1] = '\0';
 }
 
-validate_status_t ecall_sign_validation_report(const char *report, size_t len, sgx_ec256_signature_t *p_signature)
+validate_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height, 
+        sgx_ec256_signature_t *p_signature,
+        char* report, size_t report_len)
 {
+    /* Create signature data */
+    Workload *wl = get_workload();
+    size_t meaningful_workload_size = 0;
+    for (auto it = wl->files.begin(); it != wl->files.end(); it++)
+    {
+        meaningful_workload_size += it->second;
+    }
+    size_t tmpSize = (wl->empty_disk_capacity*1024);
+    // Convert number type to string
+    std::string block_height_str = std::to_string(block_height);
+    std::string empty_disk_capacity_str = std::to_string(tmpSize);
+    std::string meaningful_workload_size_str = std::to_string(meaningful_workload_size);
+
+    size_t block_hash_len = strlen(block_hash);
+    size_t buf_len = sizeof(id_key_pair.pub_key) 
+                     + block_height_str.size()
+                     + block_hash_len / 2
+                     + HASH_LENGTH
+                     + empty_disk_capacity_str.size()
+                     + meaningful_workload_size_str.size();
+    uint8_t *sigbuf = (uint8_t*)malloc(buf_len);
+    memset(sigbuf, 0, buf_len);
+    uint8_t *p_sigbuf = sigbuf;
+    // Convert to bytes and concat
+    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    sigbuf += sizeof(id_key_pair.pub_key);
+    memcpy(sigbuf, (uint8_t*)block_height_str.c_str(), block_height_str.size());
+    sigbuf += block_height_str.size();
+    memcpy(sigbuf, hex_string_to_bytes(block_hash, block_hash_len), block_hash_len / 2);
+    sigbuf += (block_hash_len / 2);
+    memcpy(sigbuf, wl->empty_root_hash, HASH_LENGTH);
+    sigbuf += HASH_LENGTH;
+    memcpy(sigbuf, (uint8_t*)empty_disk_capacity_str.c_str(), empty_disk_capacity_str.size());
+    sigbuf += empty_disk_capacity_str.size();
+    memcpy(sigbuf, (uint8_t*)meaningful_workload_size_str.c_str(), meaningful_workload_size_str.size());
+
+
+    /* Sign work report */
 	sgx_ecc_state_handle_t ecc_state = NULL;
     validate_status_t validate_status = VALIDATION_REPORT_SIGN_SUCCESS;
     sgx_status_t sgx_status;
-
 	sgx_status = sgx_ecc256_open_context(&ecc_state);
 	if (SGX_SUCCESS != sgx_status)
 	{
@@ -82,15 +121,19 @@ validate_status_t ecall_sign_validation_report(const char *report, size_t len, s
         goto cleanup;
 	}
 
-	sgx_status = sgx_ecdsa_sign((const uint8_t*)report,
-								len,
+	sgx_status = sgx_ecdsa_sign((const uint8_t*)p_sigbuf,
+								buf_len,
 								&id_key_pair.pri_key,
 								p_signature,
 								ecc_state);
 	if (SGX_SUCCESS != sgx_status)
 	{
         validate_status = VALIDATION_REPORT_SIGN_FAILED;
+        goto cleanup;
 	}
+    // Get work report string
+    std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
+    report[report_len - 1] = '\0';
 
 cleanup:
 	if (ecc_state != NULL)
