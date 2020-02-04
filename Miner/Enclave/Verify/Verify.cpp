@@ -300,8 +300,8 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
 	vector<string> response(IASReport, IASReport + size);
 
-	uint8_t *off_chain_crust_account_id = hex_string_to_bytes(response[3], CRUST_ACCOUNT_ID_SIZE * 2);
-	uint8_t *validator_crust_account_id = hex_string_to_bytes(response[4], CRUST_ACCOUNT_ID_SIZE * 2);
+	uint8_t *off_chain_crust_account_id = hex_string_to_bytes(response[3], CRUST_ACCOUNT_ID_SIZE_HEX_STRING);
+	uint8_t *validator_crust_account_id = hex_string_to_bytes(response[4], CRUST_ACCOUNT_ID_SIZE_HEX_STRING);
 	uint8_t *sigbuf, *p_sig, p_result;
 	size_t context_size = 0;
 
