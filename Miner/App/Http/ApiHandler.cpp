@@ -226,7 +226,7 @@ int ApiHandler::start()
                 // TODO: substrust will convert address to account id automaticly
                 identity_json["account_id"] = off_chain_crust_address;
                 identity_json["validator_pub_key"] = hexstring((const char *)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
-                identity_json["validator_account_id"] = p_config->off_chain_crust_address;
+                identity_json["validator_account_id"] = p_config->crust_address;
                 identity_json["sig"] = hexstring((const char *)&ensig.signature, sizeof(ensig.signature));
                 std::string jsonstr = identity_json.dump();
                 // Delete space
