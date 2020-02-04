@@ -2,6 +2,7 @@
 
 using namespace std;
 
+// TODO: rename offChain_pub_key to off_chain_pub_key
 extern uint8_t offChain_pub_key[];
 extern sgx_measurement_t current_mr_enclave;
 extern ecc_key_pair id_key_pair;
@@ -298,10 +299,11 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	BIO_puts(bio_mem, INTELSGXATTROOTCA);
 	X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
 	vector<string> response(IASReport, IASReport + size);
-    string offChain_account_id = response[3];
-    string validator_account_id = response[4];
-    uint8_t *sigbuf, *p_sig, p_result;
-    size_t context_size = 0;
+
+	uint8_t *off_chain_crust_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
+	uint8_t *validator_crust_account_id = hex_string_to_bytes(response[4].c_str(), response[4].length());
+	uint8_t *sigbuf, *p_sig, p_result;
+	size_t context_size = 0;
 
     uint8_t *u_account_id = hex_string_to_bytes("20fac39ac3c5c8b13ac24ba85cf9c7a46f32309c0f9c7f0006040d991b866e68", 64);
     uint8_t *u_validator_account_id = hex_string_to_bytes("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d", 64);
@@ -474,18 +476,19 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-    context_size = 32*2+REPORT_DATA_SIZE*2;
-    sigbuf = (uint8_t *)malloc(context_size);
-    memset(sigbuf, 0, context_size);
-    p_sig = sigbuf;
+	// Generate identity data for sig
+	context_size = CRUST_ACCOUNT_ID_SIZE * 2 + REPORT_DATA_SIZE * 2;
+	sigbuf = (uint8_t *)malloc(context_size);
+	memset(sigbuf, 0, context_size);
+	p_sig = sigbuf;
 
-    memcpy(sigbuf, offChain_pub_key, REPORT_DATA_SIZE);
-    sigbuf += REPORT_DATA_SIZE;
-    memcpy(sigbuf, u_account_id, 32);
-    sigbuf += 32;
-    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    sigbuf += sizeof(id_key_pair.pub_key);
-    memcpy(sigbuf, u_validator_account_id, 32);
+	memcpy(sigbuf, offChain_pub_key, REPORT_DATA_SIZE);
+	sigbuf += REPORT_DATA_SIZE;
+	memcpy(sigbuf, off_chain_crust_account_id, CRUST_ACCOUNT_ID_SIZE);
+	sigbuf += CRUST_ACCOUNT_ID_SIZE;
+	memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+	sigbuf += sizeof(id_key_pair.pub_key);
+	memcpy(sigbuf, validator_crust_account_id, CRUST_ACCOUNT_ID_SIZE);
 
 	sgx_status = sgx_ecdsa_sign(p_sig,
 								(uint32_t)context_size,
@@ -498,27 +501,27 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-    sgx_status = sgx_ecdsa_verify(p_sig,
-                                  (uint32_t)context_size,
-                                  &id_key_pair.pub_key,
-                                  &ecc_signature,
-                                  &p_result,
-                                  ecc_state);
-    if(sgx_status != SGX_SUCCESS)
-    {
-        eprintf("========== verify signature failed!\n");
-    }
-    else
-    {
-        if(p_result != SGX_EC_VALID)
-        {
-            eprintf("========== verify signature failed! %x\n", p_result);
-        }
-        else
-        {
-            eprintf("========== verify signature successful!\n");
-        }
-    }
+	sgx_status = sgx_ecdsa_verify(p_sig,
+								  (uint32_t)context_size,
+								  &id_key_pair.pub_key,
+								  &ecc_signature,
+								  &p_result,
+								  ecc_state);
+	if (sgx_status != SGX_SUCCESS)
+	{
+		eprintf("========== verify signature failed!\n");
+	}
+	else
+	{
+		if (p_result != SGX_EC_VALID)
+		{
+			eprintf("========== verify signature failed! %x\n", p_result);
+		}
+		else
+		{
+			eprintf("========== verify signature successful!\n");
+		}
+	}
 
 	memcpy(&p_ensig->pub_key, offChain_pub_key, REPORT_DATA_SIZE);
 	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
@@ -527,21 +530,25 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 
 cleanup:
 	if (pkey != NULL)
-    {
+	{
 		EVP_PKEY_free(pkey);
-    }
+	}
 	cert_stack_free(stack);
 	free(certar);
 	for (i = 0; i < count; ++i)
-    {
+	{
 		X509_free(certvec[i]);
-    }
+	}
 	free(sig);
 	free(iasQuote);
 	if (ecc_state != NULL)
-    {
+	{
 		sgx_ecc256_close_context(ecc_state);
-    }
+	}
+
+	free(off_chain_crust_account_id);
+	free(validator_crust_account_id);
+	free(p_sig);
 
 	return status;
 }

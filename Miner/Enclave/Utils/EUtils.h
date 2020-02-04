@@ -28,6 +28,9 @@
 /* The length of hash */
 #define HASH_LENGTH 32
 
+/* Crust account id size */
+#define CRUST_ACCOUNT_ID_SIZE 32
+
 int eprintf(const char* fmt, ...);
 unsigned char *hexstring(const void *vsrc, size_t len);
 uint8_t *hex_string_to_bytes(const char *src, size_t len);
