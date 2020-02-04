@@ -2,6 +2,7 @@
 
 using namespace std;
 
+// TODO: rename offChain_pub_key to off_chain_pub_key
 extern uint8_t offChain_pub_key[];
 extern sgx_measurement_t current_mr_enclave;
 extern ecc_key_pair id_key_pair;

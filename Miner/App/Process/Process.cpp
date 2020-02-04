@@ -400,7 +400,7 @@ bool entry_network(void)
     std::string req_data;
     req_data.append("{ \"isvEnclaveQuote\": \"");
     req_data.append(b64quote).append("\", \"crust_address\": \"");
-    req_data.append.append(p_config->crust_address).append("\", \"crust_account_id\": \"");
+    req_data.append(p_config->crust_address).append("\", \"crust_account_id\": \"");
     req_data.append(p_config->crust_account_id.c_str()).append("\" }");
     int net_tryout = IAS_TRYOUT;
 
