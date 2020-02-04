@@ -21,7 +21,8 @@ public:
 
     // crust chain
     std::string crust_api_base_url; /* Used to connect to Crust API */
-    std::string crust_account_id;   /* The password of crust chain account */
+    std::string crust_address;      /* The address of crust chain account */
+    std::string crust_account_id;   /* The account id(hex string) of crust chain account */
     std::string crust_password;     /* The password of crust chain account */
     std::string crust_backup;       /* The backup of crust chain account */
 

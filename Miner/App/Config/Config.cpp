@@ -42,6 +42,7 @@ Config::Config(std::string path)
 
     // crust chain configurations
     this->crust_api_base_url = config_value["crust_api_base_url"].ToString();
+    this->crust_address = config_value["crust_address"].ToString()
     this->crust_account_id = config_value["crust_account_id"].ToString();
     this->crust_password = config_value["crust_password"].ToString();
     std::string backup_temp = config_value["crust_backup"].ToString();
@@ -79,6 +80,7 @@ void Config::show(void)
     printf("    'validator api base url' : '%s',\n", this->validator_api_base_url.c_str());
 
     printf("    'crust api base url' : %s,\n", this->crust_api_base_url.c_str());
+    printf("    'crust address' : '%s',\n", this->crust_address.c_str());
     printf("    'crust account id' : '%s',\n", this->crust_account_id.c_str());
     printf("    'crust password' : '%s',\n", this->crust_password.c_str());
     printf("    'crust backup' : '%s',\n", this->crust_backup.c_str());
