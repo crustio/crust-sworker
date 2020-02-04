@@ -305,8 +305,6 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	uint8_t *sigbuf, *p_sig, p_result;
 	size_t context_size = 0;
 
-    uint8_t *u_account_id = hex_string_to_bytes("20fac39ac3c5c8b13ac24ba85cf9c7a46f32309c0f9c7f0006040d991b866e68", 64);
-    uint8_t *u_validator_account_id = hex_string_to_bytes("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d", 64);
 
 	/*
 	 * The response body has the attestation report. The headers have
