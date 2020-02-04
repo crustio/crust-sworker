@@ -472,6 +472,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
+	// Generate identity data for sig
 	context_size = CRUST_ACCOUNT_ID_SIZE * 2 + REPORT_DATA_SIZE * 2;
 	sigbuf = (uint8_t *)malloc(context_size);
 	memset(sigbuf, 0, context_size);
@@ -539,6 +540,10 @@ cleanup:
 	{
 		sgx_ecc256_close_context(ecc_state);
 	}
+
+	free(off_chain_crust_account_id);
+	free(validator_crust_account_id);
+	free(p_sig);
 
 	return status;
 }

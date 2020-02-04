@@ -42,7 +42,7 @@ Config::Config(std::string path)
 
     // crust chain configurations
     this->crust_api_base_url = config_value["crust_api_base_url"].ToString();
-    this->crust_address = config_value["crust_address"].ToString()
+    this->crust_address = config_value["crust_address"].ToString();
     this->crust_account_id = config_value["crust_account_id"].ToString();
     this->crust_password = config_value["crust_password"].ToString();
     std::string backup_temp = config_value["crust_backup"].ToString();
