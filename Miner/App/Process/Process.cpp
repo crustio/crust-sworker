@@ -89,7 +89,7 @@ bool initialize_config(void)
  * @description: call sgx_create_enclave to initialize an enclave instance
  * @return: success or failure
  */
-bool initialize_enclave()
+bool initialize_enclave(bool gen_key_pair = true)
 {
     int sgx_support;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -139,13 +139,14 @@ bool initialize_enclave()
     }
 
     /* Generate ecc key pair */
-    if (run_as_server)
+    if (gen_key_pair)
     {
         if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret))
         {
             cfprintf(felog, CF_ERROR "%s Generate key pair failed!\n", show_tag);
             return false;
         }
+        cfprintf(felog, CF_INFO "%s Generate key pair successfully!\n", show_tag);
     }
     cfprintf(felog, CF_INFO "%s Initial enclave successfully!\n", show_tag);
 
@@ -486,11 +487,86 @@ ipc_status_t attest_session()
     return ipc_status;
 }
 
+void *do_check_block(void *)
+{
+    while(true)
+    {
+        BlockHeader *block_header = get_crust()->get_block_header();
+        if(block_header->number % 5  == 0)
+        {
+            size_t report_len = 0;
+            cfprintf(NULL, CF_INFO "===== Get block hash:%s\n", block_header->hash.c_str());
+            if (ecall_generate_validation_report(global_eid, block_header->hash.c_str(), &report_len) != SGX_SUCCESS)
+            {
+                cfprintf(NULL, CF_ERROR "Generate validation failed.\n");
+            }
+            else 
+            {
+                char *report = new char[report_len];
+                if (ecall_get_validation_report(global_eid, report, report_len) != SGX_SUCCESS)
+                {
+                    cfprintf(felog, CF_ERROR "Get validation report failed!\n");
+                }
+                else
+                {
+                    sleep(10);
+                    json::JSON work_json = json::JSON::Load(std::string(report));
+                    work_json["block_height"] = block_header->number;
+                    std::string workStr = work_json.dump();
+                    sgx_ec256_signature_t ecc_signature;
+                    validate_status_t validate_status;
+                    // Delete space
+                    workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
+                    // Delete line break
+                    workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
+                    //cfprintf(NULL, CF_INFO "=========work report:\n%s\n", workStr.c_str());
+                    if(ecall_sign_validation_report(global_eid, &validate_status, workStr.c_str(), workStr.size(), &ecc_signature) != SGX_SUCCESS)
+                    {
+                        cfprintf(felog, CF_ERROR "Sign validation report failed!\n");
+                    }
+                    else
+                    {
+                        if(validate_status != VALIDATION_REPORT_SIGN_SUCCESS)
+                        {
+                            cfprintf(felog, CF_INFO "Sign validation report failed! Error code:%x\n", validate_status);
+                        }
+                        else
+                        {
+                            work_json["sig"] = hexstring((const uint8_t*)&ecc_signature, sizeof(ecc_signature));
+                            workStr = work_json.dump();
+                            cfprintf(felog, CF_INFO "Sign validation report successfully!\n%s\n", workStr.c_str());
+                            // Delete space
+                            workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
+                            // Delete line break
+                            workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
+                            if(!get_crust()->post_tee_work_report(workStr))
+                            {
+                                cfprintf(felog, CF_ERROR "Send identity to crust chain failed!\n");
+                            }
+                            else
+                            {
+                                cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            cfprintf(NULL, CF_INFO "Block height:%d is not enough!\n", block_header->number);
+            sleep(3);
+        }
+    }
+}
+
 /**
  * @description: Do ploting disk related
  * */
 void *do_disk_related(void *)
 {
+
+    pthread_t wthread;
 
 /* Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores */
 #pragma omp parallel for
@@ -500,6 +576,11 @@ void *do_disk_related(void *)
     }
 
     ecall_generate_empty_root(global_eid);
+
+    if (pthread_create(&wthread, NULL, do_check_block, NULL) != 0)
+    {
+        cfprintf(NULL, CF_ERROR "Create checking block info thread failed!\n");
+    }
 
     /* Main validate loop */
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
@@ -546,7 +627,7 @@ void start_monitor(void)
         // delete copied sgx enclave memory space
         sgx_destroy_enclave(global_eid);
     }
-    if (!initialize_enclave())
+    if (!initialize_enclave(false))
     {
         cfprintf(felog, CF_ERROR "%s Monitor process init enclave failed!\n", show_tag);
         ipc_status = INIT_ENCLAVE_ERROR;

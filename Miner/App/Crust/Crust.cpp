@@ -73,7 +73,7 @@ BlockHeader *Crust::get_block_header(void)
             json::JSON block_header_json = json::JSON::Load(res->body);
 
             BlockHeader *block_header = new BlockHeader();
-            block_header->hash = block_header_json["hash"].ToString();
+            block_header->hash = block_header_json["hash"].ToString().erase(0,2);
             block_header->number = block_header_json["number"].ToInt();
             return block_header;
         }

@@ -4,6 +4,7 @@ using namespace std;
 
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
+extern ecc_key_pair id_key_pair;
 
 /**
  * @description: ecall main loop
@@ -51,9 +52,9 @@ enum ValidationStatus ecall_return_validation_status(void)
  * @param block_hash -> used to generate validation report
  * @return: the length of validation report
  */
-size_t ecall_generate_validation_report(const char *block_hash)
+void ecall_generate_validation_report(const char *block_hash, size_t *size)
 {
-    return get_workload()->serialize(block_hash).size() + 1;
+    *size = get_workload()->serialize(block_hash).size() + 1;
 }
 
 /**
@@ -66,6 +67,38 @@ void ecall_get_validation_report(char *report, size_t len)
 {
     std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
     report[len - 1] = '\0';
+}
+
+validate_status_t ecall_sign_validation_report(const char *report, size_t len, sgx_ec256_signature_t *p_signature)
+{
+	sgx_ecc_state_handle_t ecc_state = NULL;
+    validate_status_t validate_status = VALIDATION_REPORT_SIGN_SUCCESS;
+    sgx_status_t sgx_status;
+
+	sgx_status = sgx_ecc256_open_context(&ecc_state);
+	if (SGX_SUCCESS != sgx_status)
+	{
+        validate_status = VALIDATION_REPORT_SIGN_FAILED;
+        goto cleanup;
+	}
+
+	sgx_status = sgx_ecdsa_sign((const uint8_t*)report,
+								len,
+								&id_key_pair.pri_key,
+								p_signature,
+								ecc_state);
+	if (SGX_SUCCESS != sgx_status)
+	{
+        validate_status = VALIDATION_REPORT_SIGN_FAILED;
+	}
+
+cleanup:
+	if (ecc_state != NULL)
+    {
+		sgx_ecc256_close_context(ecc_state);
+    }
+
+    return validate_status;
 }
 
 /*
@@ -121,13 +154,6 @@ sgx_status_t ecall_gen_key_pair()
  * */
 sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
-    sgx_status_t status;
-    // Generate key pair
-    status = ecall_gen_key_pair();
-    if ( SGX_SUCCESS != status )
-    {
-        return status;
-    }
 
     // Copy public key to report data
     sgx_report_data_t report_data;

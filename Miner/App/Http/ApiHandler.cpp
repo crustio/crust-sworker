@@ -56,7 +56,7 @@ int ApiHandler::start()
 
         /* Call ecall function to get work report */
         size_t report_len = 0;
-        if (ecall_generate_validation_report(*this->p_global_eid, &report_len, arg_entry->second.c_str()) != SGX_SUCCESS)
+        if (ecall_generate_validation_report(*this->p_global_eid, arg_entry->second.c_str(), &report_len) != SGX_SUCCESS)
         {
             cfprintf(NULL, CF_ERROR "Generate validation failed.\n");
             res.set_content("InternalError", "text/plain");
