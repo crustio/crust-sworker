@@ -4,7 +4,6 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 ## Dependent library
 - Intel sgx
 - Boost
-- Cpprest
 
 ## Package
 Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.

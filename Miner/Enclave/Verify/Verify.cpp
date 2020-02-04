@@ -487,14 +487,6 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
     sigbuf += sizeof(id_key_pair.pub_key);
     memcpy(sigbuf, u_validator_account_id, 32);
 
-    /*
-    eprintf("============= to be signed data\n");
-    for(int i=0;i<context_size;i++)
-    {
-        eprintf("%d,", p_sig[i]);
-    }
-    eprintf("============= end size:%d\n", context_size);
-    */
 	sgx_status = sgx_ecdsa_sign(p_sig,
 								(uint32_t)context_size,
 								&id_key_pair.pri_key,
@@ -529,7 +521,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
     }
 
 	memcpy(&p_ensig->pub_key, offChain_pub_key, REPORT_DATA_SIZE);
-	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, REPORT_DATA_SIZE);
+	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
 	memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
 
 

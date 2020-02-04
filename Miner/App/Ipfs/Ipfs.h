@@ -11,8 +11,8 @@
 #include "Node.h"
 #include "MerkleTree.h"
 #include "Common.h"
-#include "httplib.h"
-#include "json.hpp"
+#include "HttpLib.h"
+#include "Json.hpp"
 
 class Ipfs
 {
