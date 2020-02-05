@@ -17,12 +17,11 @@ function showProcessInfo()
 function showPlotInfo()
 {
     local tag=$1
-    local para=$2
 
     if [ x"$tag" = x"status" ]; then
         curl $apiUrl/$tag
     elif [ x"$tag" = x"report" ]; then
-        curl $apiUrl/$tag\?block_hash\=$para
+        curl $apiUrl/$tag
     fi
 
     echo
@@ -58,11 +57,11 @@ while true; do
             shift
             ;;
         -r|--report)
-            showPlotInfo "report" "$2"
+            showPlotInfo "report"
             shift 2
             ;;
         -s|--status)
-            showProcessInfo "report"
+            showProcessInfo
             shift
             ;;
         --)

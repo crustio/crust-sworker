@@ -30,6 +30,6 @@ typedef struct ra_session_struct
 
 int main_daemon(void);
 int main_status(void);
-int main_report(const char *block_hash);
+int main_report(void);
 
 #endif /* !_CRUST_APP_H_ */
