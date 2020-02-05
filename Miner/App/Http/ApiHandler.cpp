@@ -30,7 +30,8 @@ int ApiHandler::start()
         return -1;
     }
 
-    server->Get("/status", [=](const Request & /*req*/, Response &res) {
+    std::string status_path = urlendpoint->base + "/status";
+    server->Get(status_path.c_str(), [=](const Request & /*req*/, Response &res) {
         enum ValidationStatus validation_status = ValidateStop;
 
         if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
@@ -44,7 +45,8 @@ int ApiHandler::start()
         return;
     });
 
-    server->Get("/report", [=](const Request & /*req*/, Response &res) {
+    std::string report_path = urlendpoint->base + "/report";
+    server->Get(report_path.c_str(), [=](const Request & /*req*/, Response &res) {
         /* Call ecall function to get work report */
         size_t report_len = 0;
         if (ecall_generate_validation_report(*this->p_global_eid, &report_len) != SGX_SUCCESS)
@@ -69,8 +71,8 @@ int ApiHandler::start()
         delete report;
     });
 
-    std::string entryPath = urlendpoint->base + "/entry/network";
-    server->Post(entryPath.c_str(), [&](const Request &req, Response &res) {
+    std::string entry_path = urlendpoint->base + "/entry/network";
+    server->Post(entry_path.c_str(), [&](const Request &req, Response &res) {
         sgx_status_t status_ret = SGX_SUCCESS;
         int version = IAS_API_DEF_VERSION;
         cfprintf(felog, CF_INFO "Processing entry network application...\n");
