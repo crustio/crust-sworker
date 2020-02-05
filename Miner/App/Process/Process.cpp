@@ -500,6 +500,7 @@ void *do_check_block(void *)
     while(true)
     {
         BlockHeader *block_header = get_crust()->get_block_header();
+        // TODO: use better number to replace 5 and 10
         if(block_header->number % 5  == 0)
         {
             sleep(10);
