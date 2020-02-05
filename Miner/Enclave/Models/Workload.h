@@ -20,7 +20,7 @@ public:
     Workload();
     ~Workload();
     void show(void);
-    std::string serialize(const char *block_hash);
+    std::string serialize();
 };
 
 Workload *get_workload();
