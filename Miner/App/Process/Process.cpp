@@ -508,7 +508,7 @@ void *do_check_block(void *)
             sgx_ec256_signature_t ecc_signature;
             validate_status_t validate_status = VALIDATION_REPORT_SIGN_SUCCESS;
             // Generate validation report and get report size
-            if(ecall_generate_validation_report(global_eid, block_header->hash.c_str(), &report_len) != SGX_SUCCESS)
+            if(ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
             {
                 cfprintf(felog, CF_ERROR "Generate validation report failed!\n");
                 continue;
@@ -534,6 +534,7 @@ void *do_check_block(void *)
                     json::JSON work_json = json::JSON::Load(std::string(report));
                     work_json["sig"] = hexstring((const uint8_t*)&ecc_signature, sizeof(ecc_signature));
                     work_json["block_height"] = block_header->number;
+                    work_json["block_hash"] = block_header->hash;
                     std::string workStr = work_json.dump();
                     cfprintf(felog, CF_INFO "Sign validation report successfully!\n%s\n", workStr.c_str());
                     // Delete space and line break
