@@ -20,7 +20,7 @@ void validate_empty_disk(const char *path)
         if (rand_val < 256 * EMPTY_VALIDATE_RATE)
         {
             /* Get M hashs */
-            unsigned char *m_hashs = (unsigned char*)malloc(PLOT_RAND_DATA_NUM * HASH_LENGTH);
+            unsigned char *m_hashs = (unsigned char *)malloc(PLOT_RAND_DATA_NUM * HASH_LENGTH);
             std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
             //ocall_get_file(&m_hashs, get_m_hashs_file_path(g_path.c_str()).c_str(), PLOT_RAND_DATA_NUM * HASH_LENGTH);
             ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
@@ -51,7 +51,7 @@ void validate_empty_disk(const char *path)
             std::string leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
             // eprintf("Select path: %s\n", leaf_path.c_str());
 
-            unsigned char *leaf_data = (unsigned char*)malloc(PLOT_RAND_DATA_LENGTH);
+            unsigned char *leaf_data = (unsigned char *)malloc(PLOT_RAND_DATA_LENGTH);
             ocall_get_file(leaf_path.c_str(), leaf_data, PLOT_RAND_DATA_LENGTH);
             //ocall_get_file(&leaf_data, leaf_path.c_str(), PLOT_RAND_DATA_LENGTH);
 
@@ -93,7 +93,7 @@ void validate_empty_disk(const char *path)
  */
 void validate_meaningful_disk(const Node *files, size_t files_num)
 {
-    /* Update files */
+    /* Remove deleted files */
     Workload *workload = get_workload();
     for (size_t i = 0; i < files_num; i++)
     {
@@ -102,14 +102,9 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
             eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
             workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH));
         }
-        else
-        {
-            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
-            workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH), files[i].size));
-        }
     }
 
-    /* Validate files */
+    /* Validate old files */
     for (auto it = workload->files.begin(); it != workload->files.end(); it++)
     {
         unsigned char rand_val;
@@ -117,10 +112,9 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
 
         if (rand_val < 256 * MEANINGFUL_FILE_VALIDATE_RATE)
         {
-            /* Get merkle tree of file */
+            // Get merkle tree of file
             MerkleTree *tree = NULL;
             std::string root_hash = unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH);
-            //ocall_get_merkle_tree(&tree, root_hash.c_str());
             ocall_get_merkle_tree(root_hash.c_str(), &tree);
 
             if (tree == NULL)
@@ -129,13 +123,48 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
                 return;
             }
 
-            /* Validate merkle tree */
+            // Validate merkle tree
             size_t merkle_tree_size = 0;
             if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != it->second)
             {
                 eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
                 return;
             }
+        }
+    }
+
+    /* Validate new files */
+    for (size_t i = 0; i < files_num; i++)
+    {
+        if (files[i].exist != 0)
+        {
+            unsigned char rand_val;
+            sgx_read_rand((unsigned char *)&rand_val, 1);
+
+            if (rand_val < 256 * MEANINGFUL_FILE_VALIDATE_RATE)
+            {
+                // Get merkle tree of file
+                MerkleTree *tree = NULL;
+                std::string root_hash = unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH);
+                ocall_get_merkle_tree(root_hash.c_str(), &tree);
+
+                if (tree == NULL)
+                {
+                    eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", root_hash.c_str());
+                    return;
+                }
+
+                // Validate merkle tree
+                size_t merkle_tree_size = 0;
+                if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != files[i].size)
+                {
+                    eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
+                    return;
+                }
+            }
+
+            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
+            workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH), files[i].size));
         }
     }
 }
@@ -185,14 +214,14 @@ bool validate_merkle_tree(MerkleTree *root, size_t *size)
         if (block_size != 0)
         {
             std::vector<std::string> hashs = get_hashs_from_block(block_data, block_size);
-            if (hashs.size() !=  root->links_num)
+            if (hashs.size() != root->links_num)
             {
                 return false;
             }
 
             for (size_t i = 0; i < hashs.size(); i++)
             {
-                if(hashs[i] != root->links[i]->hash)
+                if (hashs[i] != root->links[i]->hash)
                 {
                     return false;
                 }
@@ -230,12 +259,12 @@ std::vector<std::string> get_hashs_from_block(unsigned char *block_data, size_t 
 
     std::string flag = "0a221220";
     size_t position = 0;
-    
+
     while ((position = block_data_str.find(flag, position)) != std::string::npos)
     {
         hashs.push_back(block_data_str.substr(position + flag.length(), HASH_LENGTH * 2));
         position += flag.length() + HASH_LENGTH * 2;
     }
-    
+
     return hashs;
 }

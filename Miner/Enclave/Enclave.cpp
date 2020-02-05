@@ -17,7 +17,6 @@ void ecall_main_loop(const char *empty_path)
     
     while (true)
     {
-        // TODO: user can only get workreport after validation
         eprintf("\n-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
