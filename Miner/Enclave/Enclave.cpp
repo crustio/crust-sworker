@@ -5,6 +5,7 @@ using namespace std;
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
 extern ecc_key_pair id_key_pair;
+extern uint8_t off_chain_pub_key[];
 
 /**
  * @description: ecall main loop
@@ -16,6 +17,7 @@ void ecall_main_loop(const char *empty_path)
     
     while (true)
     {
+        // TODO: user can only get workreport after validation
         eprintf("\n-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
@@ -69,12 +71,70 @@ void ecall_get_validation_report(char *report, size_t len)
     report[len - 1] = '\0';
 }
 
-validate_status_t ecall_sign_validation_report(const char *report, size_t len, sgx_ec256_signature_t *p_signature)
+/**
+ * @description: Get signed validation report
+ * @param: block_hash(in) -> block hash
+ * @param: block_height(in) -> block height
+ * @param: p_signature(out) -> sig by tee
+ * @param: report(out) -> work report string
+ * @param: report_len(in) -> work report string length
+ * @return: sign status
+ * */
+validate_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height, 
+        sgx_ec256_signature_t *p_signature,
+        char* report, size_t report_len)
 {
+    /* Create signature data */
+    Workload *wl = get_workload();
+    size_t meaningful_workload_size = 0;
+    for (auto it = wl->files.begin(); it != wl->files.end(); it++)
+    {
+        meaningful_workload_size += it->second;
+    }
+    unsigned long long tmpSize = wl->empty_disk_capacity;
+    tmpSize = tmpSize * 1024 * 1024 * 1024;
+    // Convert number type to string
+    std::string block_height_str = std::to_string(block_height);
+    std::string empty_disk_capacity_str = std::to_string(tmpSize);
+    std::string meaningful_workload_size_str = std::to_string(meaningful_workload_size);
+    uint8_t *block_height_u = (uint8_t*)malloc(block_height_str.size());
+    uint8_t *empty_disk_capacity_u = (uint8_t*)malloc(empty_disk_capacity_str.size());
+    uint8_t *meaningful_workload_size_u = (uint8_t*)malloc(meaningful_workload_size_str.size());
+    memset(block_height_u, 0, block_height_str.size());
+    memset(empty_disk_capacity_u, 0, empty_disk_capacity_str.size());
+    memset(meaningful_workload_size_u, 0, meaningful_workload_size_str.size());
+    memcpy(block_height_u, block_height_str.c_str(), block_height_str.size());
+    memcpy(empty_disk_capacity_u, empty_disk_capacity_str.c_str(), empty_disk_capacity_str.size());
+    memcpy(meaningful_workload_size_u, meaningful_workload_size_str.c_str(), meaningful_workload_size_str.size());
+
+    size_t block_hash_len = strlen(block_hash);
+    size_t buf_len = sizeof(id_key_pair.pub_key) 
+                     + block_height_str.size()
+                     + block_hash_len / 2
+                     + HASH_LENGTH
+                     + empty_disk_capacity_str.size()
+                     + meaningful_workload_size_str.size();
+    uint8_t *sigbuf = (uint8_t*)malloc(buf_len);
+    memset(sigbuf, 0, buf_len);
+    uint8_t *p_sigbuf = sigbuf;
+    // Convert to bytes and concat
+    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    sigbuf += sizeof(id_key_pair.pub_key);
+    memcpy(sigbuf, block_height_u, block_height_str.size());
+    sigbuf += block_height_str.size();
+    memcpy(sigbuf, hex_string_to_bytes(block_hash, block_hash_len), block_hash_len / 2);
+    sigbuf += (block_hash_len / 2);
+    memcpy(sigbuf, wl->empty_root_hash, HASH_LENGTH);
+    sigbuf += HASH_LENGTH;
+    memcpy(sigbuf, empty_disk_capacity_u, empty_disk_capacity_str.size());
+    sigbuf += empty_disk_capacity_str.size();
+    memcpy(sigbuf, meaningful_workload_size_u, meaningful_workload_size_str.size());
+
+
+    /* Sign work report */
 	sgx_ecc_state_handle_t ecc_state = NULL;
     validate_status_t validate_status = VALIDATION_REPORT_SIGN_SUCCESS;
     sgx_status_t sgx_status;
-
 	sgx_status = sgx_ecc256_open_context(&ecc_state);
 	if (SGX_SUCCESS != sgx_status)
 	{
@@ -82,21 +142,30 @@ validate_status_t ecall_sign_validation_report(const char *report, size_t len, s
         goto cleanup;
 	}
 
-	sgx_status = sgx_ecdsa_sign((const uint8_t*)report,
-								len,
+	sgx_status = sgx_ecdsa_sign(p_sigbuf,
+								buf_len,
 								&id_key_pair.pri_key,
 								p_signature,
 								ecc_state);
 	if (SGX_SUCCESS != sgx_status)
 	{
         validate_status = VALIDATION_REPORT_SIGN_FAILED;
+        goto cleanup;
 	}
+    // Get work report string
+    std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
+    report[report_len - 1] = '\0';
 
 cleanup:
 	if (ecc_state != NULL)
     {
 		sgx_ecc256_close_context(ecc_state);
     }
+
+    free(block_height_u);
+    free(empty_disk_capacity_u);
+    free(meaningful_workload_size_u);
+    free(p_sigbuf);
 
     return validate_status;
 }
@@ -200,7 +269,7 @@ sgx_status_t ecall_gen_sgx_measurement()
 sgx_status_t ecall_store_quote(const char *quote, size_t len)
 {
     sgx_quote_t *offChain_quote = (sgx_quote_t*)malloc(len);
-    if ( offChain_pub_key == NULL )
+    if ( off_chain_pub_key == NULL )
     {
         return SGX_ERROR_UNEXPECTED;
     }
@@ -208,7 +277,7 @@ sgx_status_t ecall_store_quote(const char *quote, size_t len)
     memset(offChain_quote, 0, len);
     memcpy(offChain_quote, quote, len);
     unsigned char *p_report_data = offChain_quote->report_body.report_data.d;
-    memcpy(offChain_pub_key, p_report_data, REPORT_DATA_SIZE);
+    memcpy(off_chain_pub_key, p_report_data, REPORT_DATA_SIZE);
 
     return SGX_SUCCESS;
 }

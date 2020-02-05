@@ -13,7 +13,9 @@ function installAPP()
     make &>/dev/null
     checkRes $? "quit" "$SYNCFILE"
     cp $appname ../bin
-    cp $enclaveso ../etc
+    if [ ! -e "../etc/$enclaveso" ]; then
+        cp $enclaveso ../etc
+    fi
     cp $configfile ../etc
     cd - &>/dev/null
     

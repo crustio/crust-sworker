@@ -95,12 +95,14 @@ int ApiHandler::start()
         {
             cfprintf(felog, CF_ERROR "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
             res.set_content("InternalError", "text/plain");
+            res.status = 400;
             return;
         }
 
         if (b64quote.size() == 0)
         {
             res.set_content("InternalError", "text/plain");
+            res.status = 400;
             return;
         }
 
@@ -112,6 +114,7 @@ int ApiHandler::start()
         {
             cfprintf(felog, CF_ERROR "Store offChain node quote failed!\n");
             res.set_content("StoreQuoteError", "text/plain");
+            res.status = 401;
             return;
         }
         cfprintf(felog, CF_INFO "Storing quote in enclave successfully!\n");
@@ -151,6 +154,7 @@ int ApiHandler::start()
         {
             cfprintf(felog, CF_ERROR "Request IAS failed!\n");
             res.set_content("Request IAS failed!", "text/plain");
+            res.status = 402;
             delete client;
             return;
         }
@@ -287,14 +291,15 @@ int ApiHandler::start()
                 default:
                     cfprintf(felog, CF_ERROR "Unknow return status!\n");
                 }
-                cfprintf(felog, CF_ERROR "Verify IAS report failed!\n");
                 res.set_content("Verify IAS report failed!", "text/plain");
+                res.status = 403;
             }
         }
         else
         {
             cfprintf(felog, CF_ERROR "Invoke SGX api failed!\n");
             res.set_content("Invoke SGX api failed!", "text/plain");
+            res.status = 404;
         }
         delete client;
     });

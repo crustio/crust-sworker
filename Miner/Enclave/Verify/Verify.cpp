@@ -2,8 +2,7 @@
 
 using namespace std;
 
-// TODO: rename offChain_pub_key to off_chain_pub_key
-extern uint8_t offChain_pub_key[];
+extern uint8_t off_chain_pub_key[];
 extern sgx_measurement_t current_mr_enclave;
 extern ecc_key_pair id_key_pair;
 
@@ -302,8 +301,15 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 
 	uint8_t *off_chain_crust_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
 	uint8_t *validator_crust_account_id = hex_string_to_bytes(response[4].c_str(), response[4].length());
-	uint8_t *sigbuf, *p_sig, p_result;
+    if(off_chain_crust_account_id == NULL || validator_crust_account_id == NULL)
+    {
+        return CRUST_GET_ACCOUNT_ID_BYTE_FAILED;
+    }
+
+    size_t crust_account_id_size = response[3].length() / 2;
+	uint8_t *sigbuf, *p_sig = NULL;
 	size_t context_size = 0;
+
 
 	/*
 	 * The response body has the attestation report. The headers have
@@ -452,7 +458,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 
 	// This report data is our ecc public key
 	// should be equal to the one contained in IAS report
-	if (memcmp(iasReportBody->report_data.d, offChain_pub_key, REPORT_DATA_SIZE) != 0)
+	if (memcmp(iasReportBody->report_data.d, off_chain_pub_key, REPORT_DATA_SIZE) != 0)
 	{
 		status = IAS_REPORTDATA_NE;
 		goto cleanup;
@@ -474,18 +480,18 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	}
 
 	// Generate identity data for sig
-	context_size = CRUST_ACCOUNT_ID_SIZE * 2 + REPORT_DATA_SIZE * 2;
+	context_size = crust_account_id_size * 2 + REPORT_DATA_SIZE * 2;
 	sigbuf = (uint8_t *)malloc(context_size);
 	memset(sigbuf, 0, context_size);
 	p_sig = sigbuf;
 
-	memcpy(sigbuf, offChain_pub_key, REPORT_DATA_SIZE);
+	memcpy(sigbuf, off_chain_pub_key, REPORT_DATA_SIZE);
 	sigbuf += REPORT_DATA_SIZE;
-	memcpy(sigbuf, off_chain_crust_account_id, CRUST_ACCOUNT_ID_SIZE);
-	sigbuf += CRUST_ACCOUNT_ID_SIZE;
+	memcpy(sigbuf, off_chain_crust_account_id, crust_account_id_size);
+	sigbuf += crust_account_id_size;
 	memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
 	sigbuf += sizeof(id_key_pair.pub_key);
-	memcpy(sigbuf, validator_crust_account_id, CRUST_ACCOUNT_ID_SIZE);
+	memcpy(sigbuf, validator_crust_account_id, crust_account_id_size);
 
 	sgx_status = sgx_ecdsa_sign(p_sig,
 								(uint32_t)context_size,
@@ -498,31 +504,10 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-	sgx_status = sgx_ecdsa_verify(p_sig,
-								  (uint32_t)context_size,
-								  &id_key_pair.pub_key,
-								  &ecc_signature,
-								  &p_result,
-								  ecc_state);
-	if (sgx_status != SGX_SUCCESS)
-	{
-		eprintf("========== verify signature failed!\n");
-	}
-	else
-	{
-		if (p_result != SGX_EC_VALID)
-		{
-			eprintf("========== verify signature failed! %x\n", p_result);
-		}
-		else
-		{
-			eprintf("========== verify signature successful!\n");
-		}
-	}
-
-	memcpy(&p_ensig->pub_key, offChain_pub_key, REPORT_DATA_SIZE);
+	memcpy(&p_ensig->pub_key, off_chain_pub_key, REPORT_DATA_SIZE);
 	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
 	memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
+
 
 cleanup:
 	if (pkey != NULL)
@@ -544,7 +529,10 @@ cleanup:
 
 	free(off_chain_crust_account_id);
 	free(validator_crust_account_id);
-	free(p_sig);
+    if (p_sig != NULL)
+    {
+	    free(p_sig);
+    }
 
 	return status;
 }
