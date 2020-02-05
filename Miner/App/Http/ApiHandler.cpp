@@ -35,7 +35,7 @@ int ApiHandler::start()
 
         if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
         {
-            cfprintf(NULL, CF_ERROR "Get validation failed.\n");
+            cfprintf(NULL, CF_ERROR "Get validatiom status failed.\n");
             res.set_content("InternalError", "text/plain");
             return;
         }
@@ -44,19 +44,19 @@ int ApiHandler::start()
         return;
     });
 
-    server->Get("/report", [=](const Request &req, Response &res) {
+    server->Get("/report", [=](const Request & /*req*/, Response &res) {
         /* Call ecall function to get work report */
         size_t report_len = 0;
         if (ecall_generate_validation_report(*this->p_global_eid, &report_len) != SGX_SUCCESS)
         {
-            cfprintf(NULL, CF_ERROR "Generate validation failed.\n");
+            cfprintf(NULL, CF_ERROR "Generate validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
         if (ecall_get_validation_report(*this->p_global_eid, report, report_len) != SGX_SUCCESS)
         {
-            cfprintf(NULL, CF_ERROR "Get validation failed.\n");
+            cfprintf(NULL, CF_ERROR "Get validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 

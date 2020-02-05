@@ -68,7 +68,7 @@ int main_status()
     auto res = client->Get(path.c_str());
     if(!(res && res->status == 200))
     {
-        cfprintf(NULL, CF_INFO "Get report failed!");
+        cfprintf(NULL, CF_INFO "Get status failed!");
         return -1;
     }
     cfprintf(NULL, CF_INFO "%s", res->body.c_str());
