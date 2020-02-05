@@ -542,11 +542,11 @@ void *do_check_block(void *)
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
                     if(!get_crust()->post_tee_work_report(workStr))
                     {
-                        cfprintf(felog, CF_ERROR "Send identity to crust chain failed!\n");
+                        cfprintf(felog, CF_ERROR "Send work report to crust chain failed!\n");
                     }
                     else
                     {
-                        cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
+                        cfprintf(felog, CF_INFO "Send work report to crust chain successfully!\n");
                     }
                 }
             }
