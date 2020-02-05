@@ -424,9 +424,16 @@ bool entry_network(void)
         break;
     }
 
-    if (!(res && res->status == 200))
+    if (!res || res->status != 200)
     {
-        cfprintf(felog, CF_ERROR "%s Entry network failed!\n", show_tag);
+        if(res)
+        {
+            cfprintf(felog, CF_ERROR "%s Entry network failed!Error code:%d\n", show_tag, res->status);
+        }
+        else
+        {
+            cfprintf(felog, CF_ERROR "%s Entry network failed!Error: Get response failed!\n", show_tag);
+        }
         entry_status = false;
         goto cleanup;
     }
@@ -439,10 +446,7 @@ bool entry_network(void)
         entry_status = false;
         goto cleanup;
     }
-    else
-    {
-        cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
-    }
+    cfprintf(felog, CF_INFO "Send identity to crust chain successfully!\n");
 
 cleanup:
 
@@ -488,6 +492,9 @@ ipc_status_t attest_session()
     return ipc_status;
 }
 
+/**
+ * @description: Check if there is enough height, send signed validation report to chain
+ * */
 void *do_check_block(void *)
 {
     while(true)
@@ -698,8 +705,7 @@ again:
     // then monitor process should end.
     if (exit_process)
     {
-        cfprintf(felog, CF_ERROR "%s Worker process entries network or creates work thread failed! \
-                Exit monitor process!\n",
+        cfprintf(felog, CF_ERROR "%s Worker process entries network or creates work thread failed! Exit monitor process!\n",
                  show_tag);
         goto cleanup;
     }
@@ -944,12 +950,12 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
     /* Entry network */
+    cfprintf(felog, CF_INFO "Entrying network...\n");
     if (!is_entried_network && !run_as_server && !entry_network())
     {
         ipc_status = ENTRY_NETWORK_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "Entrying network...\n");
     if (!is_entried_network)
     {
         if (kill(monitorPID, SIGUSR1) == -1)

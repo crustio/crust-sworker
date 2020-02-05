@@ -7,7 +7,7 @@
 
 #define IAS_TRYOUT              3
 #define IAS_TIMEOUT             30
-#define CLIENT_TIMEOUT          100
+#define CLIENT_TIMEOUT          300
 
 #define IAS_API_DEF_VERSION     3
 
@@ -33,6 +33,7 @@ typedef enum _ias_status_t
     IAS_BADMEASUREMENT = IAS_MK_ERROR(1006),
     IAS_GETPUBKEY_FAILED = IAS_MK_ERROR(1007),
     CRUST_SIGN_PUBKEY_FAILED = IAS_MK_ERROR(1008),
+    CRUST_GET_ACCOUNT_ID_BYTE_FAILED = IAS_MK_ERROR(1009),
 } ias_status_t;
 
 typedef struct _entry_network_signature

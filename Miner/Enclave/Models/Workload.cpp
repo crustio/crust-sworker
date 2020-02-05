@@ -67,10 +67,10 @@ std::string Workload::serialize(const char *block_hash)
     this->report = "{";
     this->report += "\"pub_key\":\"" + std::string((const char*)hexstring(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key))) + "\",";
     this->report += "\"block_hash\":\"" + std::string(block_hash) + "\",";
-    //this->report += "\"empty_root_hash\":\"" + unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH) + "\",";
     this->report += "\"empty_root\":\"" + unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH) + "\",";
-    //this->report += "\"empty_disk_capacity\":" + std::to_string(this->empty_disk_capacity) + ",";
-    this->report += "\"empty_workload\":" + std::to_string(this->empty_disk_capacity*1024) + ",";
+    unsigned long long empty_disk_capacity_ull = this->empty_disk_capacity;
+    empty_disk_capacity_ull = empty_disk_capacity_ull * 1024 * 1024 * 1024;
+    this->report += "\"empty_workload\":" + std::to_string(empty_disk_capacity_ull) + ",";
     //this->report += "files:[";
     size_t meaningful_workload_size = 0;
     for (auto it = this->files.begin(); it != this->files.end(); it++)
