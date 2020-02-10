@@ -5,4 +5,4 @@ instdir=$(cd $basedir/..;pwd)
 $instdir/scripts/stop.sh
 rm -rf $instdir/*
 
-echo "Uninstall crust successfully!"
+echo "Uninstall crust-tee successfully!"

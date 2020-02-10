@@ -94,7 +94,7 @@ endif
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 App_C_Objects := $(App_C_Files:.c=.o)
 
-App_Name := crust
+App_Name := crust-tee
 
 ######## Enclave Settings ########
 

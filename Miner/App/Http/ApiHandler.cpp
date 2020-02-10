@@ -19,6 +19,10 @@ ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
     this->p_global_eid = p_global_eid_in;
 }
 
+/**
+ * @desination: Start rest service
+ * @return: Start status
+ * */
 int ApiHandler::start()
 {
     Config *p_config = Config::get_instance();
@@ -301,10 +305,14 @@ int ApiHandler::start()
     return 1;
 }
 
+/**
+ * @desination: Stop rest service
+ * @return: Stop status
+ * */
 int ApiHandler::stop()
 {
     this->server->stop();
-    return -1;
+    return 1;
 }
 
 /**

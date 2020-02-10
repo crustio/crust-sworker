@@ -1,7 +1,7 @@
 #!/bin/bash
 function showProcessInfo()
 {
-    if ! ps -ef | grep -v grep | grep -v ipfs | grep crust &>/dev/null; then
+    if ! ps -ef | grep -v grep | grep -v ipfs | grep crust-tee &>/dev/null; then
         echo "TEE application doesn't run."
         return
     fi
@@ -43,7 +43,7 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 conf=$instdir/etc/Config.json
 logfile=$instdir/log/crust.log
-CRUST=$instdir/bin/crust
+CRUST=$instdir/bin/crust-tee
 apiUrl=$(cat $conf | grep "\bapi_base_url\b" | grep -Po "(?=http).*(?=\")")
 
 . $basedir/utils.sh

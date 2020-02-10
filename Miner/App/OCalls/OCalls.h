@@ -110,21 +110,21 @@ size_t ocall_get_folders_number_under_path(const char *path)
  * @param len -> the length of data
  * @return file data
  */
-void ocall_get_file(const char *file_path, unsigned char *p_file, size_t len)
+void ocall_get_file(const char *file_path, unsigned char **p_file, size_t len)
 {
     if (access(file_path, 0) == -1)
     {
         return ;
     }
 
-    //unsigned char *data = new unsigned char[len];
+    unsigned char *data = new unsigned char[len];
     std::ifstream in;
 
     in.open(file_path, std::ios::out | std::ios::binary);
-    in.read(reinterpret_cast<char *>(p_file), len);
+    in.read(reinterpret_cast<char *>(data), len);
     in.close();
 
-    //return data;
+    *p_file = data;
 }
 
 /**
