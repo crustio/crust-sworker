@@ -4,7 +4,7 @@
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 IPFS=$instdir/bin/ipfs
-CRUST=$instdir/bin/crust
+CRUST=$instdir/bin/crust-tee
 APPLOG=$instdir/log/crust.log
 IPFSLOG=$instdir/log/ipfs.log
 startType=$1
@@ -13,10 +13,10 @@ startType=$1
 . $instdir/etc/environment
 
 if [ x"$startType" != x"server" ]; then
-    verbose INFO "Start crust in client Mode" n
+    verbose INFO "Start crust-tee in client Mode" n
     startType=""
 else
-    verbose INFO "Start crust in server Mode" n
+    verbose INFO "Start crust-tee in server Mode" n
 fi
 
 verbose INFO "Starting up IPFS..." h
@@ -33,5 +33,5 @@ checkRes $? "quit"
 
 verbose INFO "Starting up crust..." h
 sleep 3
-nohup $CRUST $startType &>$APPLOG &
+nohup $CRUSTTEE $startType &>$APPLOG &
 checkRes $? "quit"

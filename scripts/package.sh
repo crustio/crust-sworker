@@ -18,7 +18,7 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 appdir=$instdir/Miner
 VERSION=$(cat $instdir/VERSION)
-pkgdir=$instdir/crust-$VERSION
+pkgdir=$instdir/crust-tee
 enclavefile="enclave.signed.so"
 SYNCFILE=$instdir/.syncfile
 resourceUrl="ftp://47.102.98.136/pub/resource.tar"
@@ -78,5 +78,5 @@ mv scripts/install.sh ./
 cd -
 
 cd $instdir
-tar -cvf crust-$VERSION.tar crust-$VERSION
+tar -cvf crust-tee-$VERSION.tar $(basename $pkgdir)
 cd -
