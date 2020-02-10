@@ -31,7 +31,7 @@ fi
 nohup $IPFS daemon &>$IPFSLOG &
 checkRes $? "quit"
 
-verbose INFO "Starting up crust..." h
+verbose INFO "Starting up crust-tee..." h
 sleep 3
 nohup $CRUSTTEE $startType &>$APPLOG &
 checkRes $? "quit"
