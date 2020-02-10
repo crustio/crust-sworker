@@ -10,6 +10,9 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
+#include <algorithm>
+#include <boost/algorithm/string.hpp>
 
 #define LINE_TYPE '-'
 #define LINE_SHORT_LEN 4
@@ -34,7 +37,6 @@
 extern "C"
 {
 #endif
-
     void edivider_with_text(const char *text);
     void edivider();
 
@@ -43,6 +45,16 @@ extern "C"
 
     int cfprintf(FILE *stream, const char *format, ...);
     int cfputs(const char *s);
+
+    struct UrlEndPoint
+    {
+        std::string ip;
+        std::string base;
+        int port;
+    };
+
+    UrlEndPoint *get_url_end_point(std::string url);
+    void remove_chars_from_string(std::string &str, const char *chars_to_remove);
 
 #if defined(__cplusplus)
 }

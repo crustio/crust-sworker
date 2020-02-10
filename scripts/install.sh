@@ -3,7 +3,6 @@ function installAPP()
 {
     # Install tee-app dependencies
     verbose INFO "Installing app dependencies..." h
-    execWithExpect "apt-get install libcpprest-dev"
     checkRes $? "quit"
 
     local res=0
@@ -14,7 +13,9 @@ function installAPP()
     make &>/dev/null
     checkRes $? "quit" "$SYNCFILE"
     cp $appname ../bin
-    cp $enclaveso ../etc
+    if [ ! -e "../etc/$enclaveso" ]; then
+        cp $enclaveso ../etc
+    fi
     cp $configfile ../etc
     cd - &>/dev/null
     

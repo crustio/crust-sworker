@@ -22,9 +22,8 @@ function showPlotInfo()
     if [ x"$tag" = x"status" ]; then
         curl $apiUrl/$tag
     elif [ x"$tag" = x"report" ]; then
-        curl $apiUrl/$tag\?block_hash\=$para
+        curl $apiUrl/$tag
     fi
-
     echo
 }
 
@@ -45,7 +44,7 @@ instdir=$(cd $basedir/..;pwd)
 conf=$instdir/etc/Config.json
 logfile=$instdir/log/crust.log
 CRUST=$instdir/bin/crust
-apiUrl=$(cat $conf | grep "apiBaseUrl" | grep -Po "(?=http).*(?=\")")
+apiUrl=$(cat $conf | grep "api_base_url" | grep -Po "(?=http).*(?=\")")
 
 . $basedir/utils.sh
 
@@ -58,11 +57,11 @@ while true; do
             shift
             ;;
         -r|--report)
-            showPlotInfo "report" "$2"
-            shift 2
+            showPlotInfo "report"
+            shift
             ;;
         -s|--status)
-            showProcessInfo "report"
+            showProcessInfo
             shift
             ;;
         --)

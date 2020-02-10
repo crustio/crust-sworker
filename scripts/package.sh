@@ -60,6 +60,10 @@ if [ x"$1" != x"debug" ]; then
     cp $enclavefile $instdir/etc
     make clean
     cd -
+else
+    cd $appdir
+    make clean
+    cd -
 fi
 
 cd $instdir

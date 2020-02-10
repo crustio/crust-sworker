@@ -39,23 +39,11 @@ Ipfs *get_ipfs(void)
  * */
 bool Ipfs::is_online()
 {
-    try {
-        web::uri_builder builder(U("/work"));
-        web::http::http_response response = this->ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
-        if (response.status_code() != web::http::status_codes::OK)
-        {
-            return false;
-        }
-    
+    std::string path = this->url_end_point->base + "/work";
+    auto res = this->crust_client->Get(path.c_str());
+    if (res && res->status == 200)
+    {
         return true;
-    }
-    catch (const web::http::http_exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP Exception: %s\n", e.what());
-    }
-    catch (const std::exception &e)
-    {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
     }
 
     return false;
@@ -67,9 +55,10 @@ bool Ipfs::is_online()
  */
 Ipfs::Ipfs(const char *url)
 {
+    this->url_end_point = get_url_end_point(url);
+    this->crust_client = new httplib::Client(this->url_end_point->ip, this->url_end_point->port);
     this->block_data = NULL;
     this->merkle_tree = NULL;
-    this->ipfs_client = new web::http::client::http_client(url);
     this->files_a_is_old = true;
 }
 
@@ -83,7 +72,6 @@ Ipfs::~Ipfs()
     this->files_b.clear();
     this->clear_block_data();
     this->clear_merkle_tree(this->merkle_tree);
-    delete this->ipfs_client;
 }
 
 /**
@@ -126,13 +114,13 @@ void Ipfs::clear_merkle_tree(MerkleTree *&root)
  * @param hash_array -> json array
  * @return: byte vector
  */
-std::vector<unsigned char> Ipfs::get_hash_from_json_array(web::json::array hash_array)
+std::vector<unsigned char> Ipfs::get_hash_from_json_array(json::JSON hash_array)
 {
     std::vector<unsigned char> result(hash_array.size());
 
-    for (size_t i = 0; i < hash_array.size(); i++)
+    for (int i = 0; i < hash_array.size(); i++)
     {
-        result[i] = (unsigned char)hash_array[i].as_integer();
+        result[i] = (unsigned char)hash_array[i].ToInt();
     }
 
     return result;
@@ -196,24 +184,22 @@ bool Ipfs::generate_diff_files(void)
     new_files->clear();
     this->files_a_is_old = !this->files_a_is_old;
 
-    /* Get files' information from ipfs */
-    web::uri_builder builder(U("/work"));
-    web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
-
-    if (response.status_code() != web::http::status_codes::OK)
+    std::string path = this->url_end_point->base + "/work";
+    auto res = this->crust_client->Get(path.c_str());
+    if (!res || res->status != 200)
     {
         return false;
     }
 
-    std::string work_data = response.extract_utf8string().get();
-    web::json::array files_raw_array = web::json::value::parse(work_data)["Files"].as_array();
+    json::JSON res_json = json::JSON::Load(res->body);
+    json::JSON files_raw_array = res_json["Files"];
 
     /* Generate diff files */
-    for (size_t i = 0; i < files_raw_array.size(); i++)
+    for (int i = 0; i < files_raw_array.size(); i++)
     {
-        web::json::value file_raw = files_raw_array[i];
-        std::vector<unsigned char> hash = get_hash_from_json_array(file_raw["Hash"].as_array());
-        size_t size = (size_t)file_raw["Size"].as_integer();
+        json::JSON file_raw = files_raw_array[i];
+        std::vector<unsigned char> hash = get_hash_from_json_array(file_raw["Hash"]);
+        size_t size = (size_t)file_raw["Size"].ToInt();
 
         new_files->insert(std::pair<std::vector<unsigned char>, size_t>(hash, size));
         if (old_files->find(hash) == old_files->end())
@@ -265,14 +251,14 @@ size_t Ipfs::get_diff_files_num(void)
  * @param root -> the root of merkle tree
  * @param merkle_data -> merkle data of json format
  */
-void Ipfs::fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data)
+void Ipfs::fill_merkle_tree(MerkleTree *&root, json::JSON merkle_data)
 {
     /* Fill root */
     root = new MerkleTree();
-    root->hash = strdup(merkle_data["Hash"].as_string().c_str());
-    root->size = merkle_data["Size"].as_integer();
+    root->hash = strdup(merkle_data["Hash"].ToString().c_str());
+    root->size = merkle_data["Size"].ToInt();
 
-    web::json::array links_array = merkle_data["Links"].as_array();
+    json::JSON links_array = merkle_data["Links"];
     root->links_num = links_array.size();
     if (root->links_num == 0)
     {
@@ -282,7 +268,7 @@ void Ipfs::fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data)
 
     /* Fill links */
     root->links = new MerkleTree *[root->links_num];
-    for (size_t i = 0; i < links_array.size(); i++)
+    for (int i = 0; i < links_array.size(); i++)
     {
         this->fill_merkle_tree(root->links[i], links_array[i]);
     }
@@ -296,16 +282,14 @@ void Ipfs::fill_merkle_tree(MerkleTree *&root, web::json::value merkle_data)
 MerkleTree *Ipfs::get_merkle_tree(const char *root_hash)
 {
     this->clear_merkle_tree(this->merkle_tree);
-    web::uri_builder builder(U("/merkle"));
-    builder.append_query(U("arg"), U(root_hash));
-    web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
+    std::string path = this->url_end_point->base + "/merkle?arg=" + root_hash;
+    auto res = this->crust_client->Get(path.c_str());
 
-    if (response.status_code() != web::http::status_codes::OK)
+    if (!res || res->status != 200)
     {
         return NULL;
     }
-
-    web::json::value merkle_data = response.extract_json().get();
+    json::JSON merkle_data = json::JSON::Load(res->body);
     this->fill_merkle_tree(this->merkle_tree, merkle_data);
 
     return this->merkle_tree;
@@ -321,16 +305,17 @@ unsigned char *Ipfs::get_block_data(const char *hash, size_t *len)
 {
     /* Get block data from ipfs */
     this->clear_block_data();
-    web::uri_builder builder(U("/block/hashget"));
-    builder.append_query(U("arg"), U(hash));
-    web::http::http_response response = ipfs_client->request(web::http::methods::GET, builder.to_string()).get();
 
-    if (response.status_code() != web::http::status_codes::OK)
+    std::string path = this->url_end_point->base + "/block/hashget?arg=" + hash;
+    auto res = this->crust_client->Get(path.c_str());
+
+    if (!res || res->status != 200)
     {
         return NULL;
     }
 
-    std::vector<unsigned char> result = response.extract_vector().get();
+    std::vector<unsigned char> result = std::vector<unsigned char>(res->body.data(), res->body.data() + res->body.length());
+    
     *len = result.size();
     this->block_data = new unsigned char[result.size()];
     for (size_t i = 0; i < result.size(); i++)

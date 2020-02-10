@@ -28,7 +28,10 @@
 /* The length of hash */
 #define HASH_LENGTH 32
 
+
 int eprintf(const char* fmt, ...);
 unsigned char *hexstring(const void *vsrc, size_t len);
+uint8_t *hex_string_to_bytes(const char *src, size_t len);
+uint8_t *concat_bytes(uint8_t *des, size_t *des_len, uint8_t *src, size_t src_len);
 
 #endif /* !_CRUST_E_UTILS_H_ */
