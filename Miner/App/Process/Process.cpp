@@ -153,6 +153,9 @@ bool initialize_enclave(bool gen_key_pair = true)
     return true;
 }
 
+/**
+ * @description: Start http service
+ * */
 void *start_http(void *)
 {
     /* API handler component */
@@ -225,8 +228,6 @@ bool entry_network(void)
 {
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
-    //size_t pse_manifest_sz;
-    //char *pse_manifest = NULL;
     sgx_report_t report;
     sgx_report_t qe_report;
     sgx_quote_t *quote;
@@ -260,32 +261,9 @@ bool entry_network(void)
     }
 
     if (OPT_ISSET(flags, OPT_LINK))
+    {
         linkable = SGX_LINKABLE_SIGNATURE;
-
-    /* Platform services info */
-
-    /*if (OPT_ISSET(flags, OPT_PSE)) {
-		status = get_pse_manifest_size(eid, &pse_manifest_sz);
-		if (status != SGX_SUCCESS) {
-			printf("get_pse_manifest_size: %08x\n",
-				status);
-			return 1;
-		}
-
-		pse_manifest = (char *) malloc(pse_manifest_sz);
-
-		status = get_pse_manifest(eid, &sgxrv, pse_manifest, pse_manifest_sz);
-		if (status != SGX_SUCCESS) {
-			printf("get_pse_manifest: %08x\n",
-				status);
-			return 1;
-		}
-		if (sgxrv != SGX_SUCCESS) {
-			printf("get_sec_prop_desc_ex: %08x\n",
-				sgxrv);
-			return 1;
-		}
-	}*/
+    }
 
     /* Get our quote */
     memset(&report, 0, sizeof(report));
@@ -333,16 +311,15 @@ bool entry_network(void)
     fprintf(felog, "========== linkable: %d\n", linkable);
     fprintf(felog, "========== spid    : %s\n", hexstring(spid, sizeof(sgx_spid_t)));
     fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce, sizeof(sgx_quote_nonce_t)));
-    status = sgx_get_quote(
-        &report,
-        linkable,
-        spid,
-        &nonce,
-        NULL,
-        0,
-        &qe_report,
-        quote,
-        sz);
+    status = sgx_get_quote(&report,
+                           linkable,
+                           spid,
+                           &nonce,
+                           NULL,
+                           0,
+                           &qe_report,
+                           quote,
+                           sz);
     if (status != SGX_SUCCESS)
     {
         cfprintf(felog, CF_ERROR "%s sgx_get_quote: %08x\n", show_tag, status);
@@ -367,16 +344,6 @@ bool entry_network(void)
         cfprintf(felog, CF_ERROR "%s Could not base64 encode quote\n", show_tag);
         return false;
     }
-
-    // TODO: PSE supported to avoid some attacks
-    /*if (OPT_ISSET(flags, OPT_PSE)) {
-		b64manifest= base64_encode((char *) pse_manifest, pse_manifest_sz);
-		if ( b64manifest == NULL ) {
-			free(b64quote);
-			printf("Could not base64 encode manifest\n");
-			return false;
-		}
-	}*/
 
     fprintf(felog, "{\n");
     fprintf(felog, "\"isvEnclaveQuote\":\"%s\"", b64quote);
@@ -500,13 +467,12 @@ void *do_check_block(void *)
     while(true)
     {
         BlockHeader *block_header = get_crust()->get_block_header();
-        // TODO: use better number to replace 5 and 10
-        if(block_header->number % 5  == 0)
+        if(block_header->number % BLOCK_HEIGHT  == 0)
         {
             sleep(10);
             size_t report_len = 0;
             sgx_ec256_signature_t ecc_signature;
-            validate_status_t validate_status = VALIDATION_REPORT_SIGN_SUCCESS;
+            validate_status_t validate_status = VALIDATION_SUCCESS;
             // Generate validation report and get report size
             if(ecall_generate_validation_report(global_eid, block_header->hash.c_str(), &report_len) != SGX_SUCCESS)
             {
@@ -524,7 +490,7 @@ void *do_check_block(void *)
             }
             else
             {
-                if(validate_status != VALIDATION_REPORT_SIGN_SUCCESS)
+                if(validate_status != VALIDATION_SUCCESS)
                 {
                     cfprintf(felog, CF_INFO "Get signed validation report failed! Error code:%x\n", validate_status);
                 }
@@ -715,7 +681,6 @@ again:
     cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
     // Should get current pid before fork
     monitorPID = getpid();
-    is_entried_network = true;
     if ((pid = fork()) == -1)
     {
         cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);

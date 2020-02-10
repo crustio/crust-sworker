@@ -7,6 +7,7 @@
 #include "sgx_trts.h"
 #include "EUtils.h"
 #include "FormatHelper.h"
+#include "Enclave_t.h"
 
 class Workload
 {
@@ -21,6 +22,8 @@ public:
     ~Workload();
     void show(void);
     std::string serialize(const char *block_hash);
+    validate_status_t store_plot_data();
+    validate_status_t get_plot_data();
 };
 
 Workload *get_workload();

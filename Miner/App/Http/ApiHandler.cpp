@@ -30,7 +30,8 @@ int ApiHandler::start()
         return -1;
     }
 
-    server->Get("/status", [=](const Request & /*req*/, Response &res) {
+    std::string path = urlendpoint->base + "/status";
+    server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         enum ValidationStatus validation_status = ValidateStop;
 
         if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
@@ -44,7 +45,8 @@ int ApiHandler::start()
         return;
     });
 
-    server->Get("/report", [=](const Request &req, Response &res) {
+    path = urlendpoint->base + "/report";
+    server->Get(path.c_str(), [=](const Request &req, Response &res) {
         /* Get block hash from url */
         auto arg_map = req.params;
         auto arg_entry = arg_map.find("block_hash");
@@ -78,8 +80,8 @@ int ApiHandler::start()
         delete report;
     });
 
-    std::string entryPath = urlendpoint->base + "/entry/network";
-    server->Post(entryPath.c_str(), [&](const Request &req, Response &res) {
+    path = urlendpoint->base + "/entry/network";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
         sgx_status_t status_ret = SGX_SUCCESS;
         int version = IAS_API_DEF_VERSION;
         cfprintf(felog, CF_INFO "Processing entry network application...\n");
@@ -142,7 +144,7 @@ int ApiHandler::start()
             ias_res = client->Post(p_config->ias_base_path.c_str(), headers, body, "application/json");
             if (!(ias_res && ias_res->status == 200))
             {
-                cfprintf(NULL, CF_ERROR "Send to ias failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
+                cfprintf(NULL, CF_ERROR "Send to IAS failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
                 sleep(3);
                 net_tryout--;
                 continue;
@@ -176,7 +178,6 @@ int ApiHandler::start()
         // Print IAS report
         if (p_config->verbose)
         {
-            // TODO: seal log code into functions
             cfprintf(felog, "\n\n----------IAS Report - JSON - Required Fields----------\n\n");
             if (version >= 3)
             {
@@ -242,8 +243,8 @@ int ApiHandler::start()
                 // Delete line break
                 jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), '\n'), jsonstr.end());
 
-                res.set_content(jsonstr.c_str(), "text/plain");
                 cfprintf(felog, CF_INFO "Verifying IAS report in enclave successfully!\n");
+                res.set_content(jsonstr.c_str(), "text/plain");
             }
             else
             {
