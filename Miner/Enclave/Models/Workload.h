@@ -21,7 +21,7 @@ public:
     Workload();
     ~Workload();
     void show(void);
-    std::string serialize(const char *block_hash);
+    std::string serialize();
     validate_status_t store_plot_data();
     validate_status_t get_plot_data();
 };

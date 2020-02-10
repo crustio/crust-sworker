@@ -26,9 +26,9 @@ int SGX_CDECL main(int argc, char *argv[])
         run_as_server = true;
         return main_daemon();
     }
-    else if (argc == 3 && strcmp(argv[1], "report") == 0)
+    else if (strcmp(argv[1], "report") == 0)
     {
-        return main_report(argv[2]);
+        return main_report();
     }
     else
     {
@@ -68,7 +68,7 @@ int main_status()
     auto res = client->Get(path.c_str());
     if(!(res && res->status == 200))
     {
-        cfprintf(NULL, CF_INFO "Get report failed!");
+        cfprintf(NULL, CF_INFO "Get status failed!");
         return -1;
     }
     cfprintf(NULL, CF_INFO "%s", res->body.c_str());
@@ -80,10 +80,9 @@ int main_status()
 
 /**
  * @description: run report command to get and printf work report
- * @param block_hash -> use this hash to create report
  * @return: exit flag
  */
-int main_report(const char *block_hash)
+int main_report()
 {
     /* Get configurations */
     Config *p_config = Config::get_instance();
@@ -96,7 +95,7 @@ int main_report(const char *block_hash)
     /* Call internal api interface to get information */
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->api_base_url);
     httplib::Client *client = new httplib::Client(urlendpoint->ip, urlendpoint->port);
-    std::string path = urlendpoint->base + "/report?block_hash=" + block_hash;
+    std::string path = urlendpoint->base + "/report";
     auto res = client->Get(path.c_str());
     if(!(res && res->status == 200))
     {
