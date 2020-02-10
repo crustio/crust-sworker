@@ -489,4 +489,4 @@ verbose INFO "---------- Installing IPFS ----------" n
 installIPFS
 echo
 
-verbose INFO "Crust-tee has been installed in /opt/crust! Go to /opt/crust-tee and run scripts/start.sh to start crust.\n"
+verbose INFO "Crust-tee has been installed in /opt/crust! Go to /opt/crust/crust-tee and run scripts/start.sh to start crust.\n"
