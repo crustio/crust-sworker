@@ -28,9 +28,9 @@ public:
 
     // entry network related
     std::string spid;
-    int linkable;
-    int random_nonce;
-    int use_platform_services;
+    bool linkable;
+    bool random_nonce;
+    bool use_platform_services;
     std::string ias_primary_subscription_key;
     std::string ias_secondary_subscription_key;
     std::string ias_base_url;
@@ -38,8 +38,8 @@ public:
     std::string ias_base_path;
     uint32_t flags;
     // debug related
-    int debug;
-    int verbose;
+    bool debug;
+    bool verbose;
 
     static Config *config;
 

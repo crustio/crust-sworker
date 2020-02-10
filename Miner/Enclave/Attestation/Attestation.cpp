@@ -39,7 +39,6 @@ ipc_status_t ecall_attest_session_starter(int datatype)
     }
     else if(datatype == IPC_DATATYPE_REPORT)
     {
-        // TODO: transfer report data
         eprintf("[enclave]===========get report data\n");
     }
     else
@@ -327,7 +326,7 @@ ipc_status_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_e
         return INVALID_PARAMETER_ERROR;
     }
     //if(peer_enclave_identity->isv_prod_id != 0 || !(peer_enclave_identity->attributes.flags & SGX_FLAGS_INITTED))
-        // || peer_enclave_identity->attributes.xfrm !=3)// || peer_enclave_identity->mr_signer != xx //TODO: To be hardcoded with values to check
+        // || peer_enclave_identity->attributes.xfrm !=3)// || peer_enclave_identity->mr_signer != xx // tips: To be hardcoded with values to check
     if(memcmp(&peer_enclave_identity->mr_enclave, &current_mr_enclave, sizeof(sgx_measurement_t)) != 0)
     {
         return ENCLAVE_TRUST_ERROR;

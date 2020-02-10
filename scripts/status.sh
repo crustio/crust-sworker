@@ -44,9 +44,13 @@ instdir=$(cd $basedir/..;pwd)
 conf=$instdir/etc/Config.json
 logfile=$instdir/log/crust.log
 CRUST=$instdir/bin/crust
-apiUrl=$(cat $conf | grep "api_base_url" | grep -Po "(?=http).*(?=\")")
+apiUrl=$(cat $conf | grep "\bapi_base_url\b" | grep -Po "(?=http).*(?=\")")
 
 . $basedir/utils.sh
+
+if [ x"$1" = x"" ]; then
+    usage
+fi
 
 eval set -- `getopt -o pr:s --long plot,report:,status -n 'Error' -- "$@"`
 

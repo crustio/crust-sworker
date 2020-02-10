@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -157,7 +158,6 @@ void ocall_get_diff_files(Node **node)
 {
     get_ipfs()->generate_diff_files();
     *node = get_ipfs()->get_diff_files();
-    //return get_ipfs()->get_diff_files();
 }
 
 /**
@@ -364,9 +364,47 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
     sem_p(semid);
     memcpy(req_message, shm, len);
     sem_v(semid);
-    cfprintf(NULL, CF_INFO "len:%d, Get key pair:%s\n", len, hexstring(req_message, len));
+    //cfprintf(NULL, CF_INFO "len:%d, Get key pair:%s\n", len, hexstring(req_message, len));
 
     return IPC_SUCCESS;
+}
+
+/**
+ * @description: Store plot data in file
+ * @param p_sealed_data -> sealed data
+ * @param sealed_data_size -> sealed data size
+ * @return: Store status
+ * */
+validate_status_t ocall_store_plot_data(sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size)
+{
+    validate_status_t validate_status = VALIDATION_SUCCESS;
+
+    std::ofstream work_report_stream(WORK_REPORT_PATH);
+    work_report_stream << hexstring(p_sealed_data, sealed_data_size) ;
+    work_report_stream.close();
+
+    return validate_status;
+}
+
+/**
+ * @description: Get stored sealed data from file
+ * @param p_sealed_data -> sealed data to be transfered to enclave
+ * @param sealed_data_size -> a pointer to sealed data size
+ * @return: Get plot data status
+ * */
+validate_status_t ocall_get_plot_data(sgx_sealed_data_t **p_sealed_data, uint32_t *sealed_data_size)
+{
+    validate_status_t validate_status = VALIDATION_SUCCESS;
+
+    std::ifstream work_report_stream(WORK_REPORT_PATH);
+    std::string sealed_data_str((std::istreambuf_iterator<char>(work_report_stream)),
+                                 std::istreambuf_iterator<char>());
+
+    *p_sealed_data = (sgx_sealed_data_t*)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
+
+    *sealed_data_size = sealed_data_str.size() / 2;
+
+    return validate_status;
 }
 
 #endif /* !_OCALLS_APP_H_ */
