@@ -32,5 +32,5 @@ fi
 $killIPFS && verbose INFO "SUCCESS" t
 
 verbose INFO "Shutting down crust..." h
-ps -ef | grep -v grep | grep "bin/crust" | awk '{print $2}' | xargs -I {} kill -9 {}
+ps -ef | grep -v grep | grep "bin/crust-tee" | awk '{print $2}' | xargs -I {} kill -9 {}
 checkRes $? "quit"

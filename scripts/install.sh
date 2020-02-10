@@ -20,11 +20,12 @@ function installAPP()
     cd - &>/dev/null
     
     # Copy related files to install directory
-    cp -r $instdir/bin $crustdir
-    cp -r $instdir/etc $crustdir
-    cp -r $instdir/scripts $crustdir
-    mkdir -p $crustdir/log
-    true > $crustdir/.ipc
+    cp -r $instdir/bin $crustteedir
+    cp -r $instdir/etc $crustteedir
+    cp -r $instdir/scripts $crustteedir
+    cp -r $instdir/VERSION $crustteedir
+    mkdir -p $crustteedir/log
+    true > $crustteedir/.ipc
 
     # Set environment
     setEnv
@@ -167,11 +168,11 @@ function uninstallOldCrust()
 {
     verbose INFO "Removing old crust..." h
     local ret=0
-    if [ ! -e "$crustdir" ]; then
+    if [ ! -e "$crustteedir" ]; then
         verbose INFO "SUCCESS" t
         return
     fi
-    cd $crustdir
+    cd $crustteedir
     if [ -e "scripts/uninstall.sh" ]; then
         ./scripts/uninstall.sh &>/dev/null
         ret=$?
@@ -376,7 +377,7 @@ appdir=$basedir/Miner
 instdir=$basedir
 TMPFILE=$appdir/tmp.$$
 rsrcdir=$instdir/resource
-crustdir=/opt/crust
+crustteedir=/opt/crust/crust-tee
 inteldir=/opt/intel
 installEnv=false
 sgxssldir=""
@@ -417,17 +418,17 @@ sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
 delOrder=(libsgx-enclave-common sgxdriver sgxsdk)
 declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 # App related
-appname="crust"
+appname="crust-tee"
 enclaveso="enclave.signed.so"
 configfile="Config.json"
 # IPFS related
 IPFSDIR=$HOME/.ipfs
-IPFS=$crustdir/bin/ipfs
-SWARMKEY=$crustdir/etc/swarm.key
+IPFS=$crustteedir/bin/ipfs
+SWARMKEY=$crustteedir/etc/swarm.key
 IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
 IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
 # Crust related
-crust_env_file=$crustdir/etc/environment
+crust_env_file=$crustteedir/etc/environment
 
 trap "success_exit" INT
 trap "success_exit" EXIT
@@ -449,15 +450,15 @@ if [ $? -ne 0 ]; then
 fi
 
 echo
-verbose INFO "---------- Uninstalling previous crust ----------" n
+verbose INFO "---------- Uninstalling previous crust-tee ----------" n
 uninstallOldCrust
 
 # Create directory
 verbose INFO "Creating and setting diretory related..." h
 res=0
-execWithExpect "mkdir -p $crustdir"
+execWithExpect "mkdir -p $crustteedir"
 res=$(($?|$res))
-execWithExpect "chown -R $uid:$uid $crustdir"
+execWithExpect "chown -R $uid:$uid $crustteedir"
 res=$(($?|$res))
 execWithExpect "mkdir -p $inteldir"
 res=$(($?|$res))
@@ -488,4 +489,4 @@ verbose INFO "---------- Installing IPFS ----------" n
 installIPFS
 echo
 
-verbose INFO "Crust has been installed in /opt/crust! Go to /opt/crust and run scripts/start.sh to start crust.\n"
+verbose INFO "Crust-tee has been installed in /opt/crust! Go to /opt/crust-tee and run scripts/start.sh to start crust.\n"

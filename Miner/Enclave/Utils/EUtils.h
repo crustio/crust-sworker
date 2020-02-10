@@ -15,13 +15,6 @@
 /* Used to store all M hashs under G path */
 #define PLOT_M_HASHS "m-hashs.bin"
 
-/* Empty disk file verification ratio */
-#define EMPTY_VALIDATE_RATE 0.25
-/* Meaningful disk file verification ratio */
-#define MEANINGFUL_FILE_VALIDATE_RATE 0.10
-/* The blocks of meaningful disk file verification ratio */
-#define MEANINGFUL_BLOCK_VALIDATE_RATE 0.05
-
 /* Main loop waiting time (us) */
 #define MAIN_LOOP_WAIT_TIME 10000000
 #define BUFSIZE 10000000
