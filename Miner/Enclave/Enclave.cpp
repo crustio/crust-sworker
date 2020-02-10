@@ -35,6 +35,10 @@ void ecall_main_loop(const char *empty_path)
         /* Show result */
         validation_status = ValidateWaiting;
         get_workload()->show();
+        //if(get_workload()->get_plot_data() != VALIDATION_SUCCESS)
+        //{
+        //    get_workload()->store_plot_data();
+        //}
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
 }
@@ -132,7 +136,7 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
 
     /* Sign work report */
 	sgx_ecc_state_handle_t ecc_state = NULL;
-    validate_status_t validate_status = VALIDATION_REPORT_SIGN_SUCCESS;
+    validate_status_t validate_status = VALIDATION_SUCCESS;
     sgx_status_t sgx_status;
 	sgx_status = sgx_ecc256_open_context(&ecc_state);
 	if (SGX_SUCCESS != sgx_status)
@@ -177,14 +181,13 @@ cleanup:
  * to deal with that.
  */
 
-// TODO: post this function into other ecall
 /**
  * @description: generate ecc key pair and store it in enclave
  * @return: generate status
  * */
 sgx_status_t ecall_gen_key_pair()
 {
-    // generate public and private key
+    // Generate public and private key
     sgx_ec256_public_t pub_key;
     sgx_ec256_private_t pri_key;
     memset(&pub_key, 0, sizeof(pub_key));

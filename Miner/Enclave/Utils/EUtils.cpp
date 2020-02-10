@@ -1,6 +1,6 @@
 #include "EUtils.h"
 
-static unsigned char *_hex_buffer = NULL;
+static char *_hex_buffer = NULL;
 static size_t _hex_buffer_size = 0;
 const char _hextable[] = "0123456789abcdef";
 
@@ -19,6 +19,10 @@ int eprintf(const char *fmt, ...)
 	return (int)strnlen(buf, 100000 - 1) + 1;
 }
 
+/**
+ * @description: Change char to int
+ * @return: Corresponding int
+ * */
 int char_to_int(char input)
 {
 	if (input >= '0' && input <= '9')
@@ -32,13 +36,15 @@ int char_to_int(char input)
 
 /**
  * @description: Transform string to hexstring
+ * @param vsrc -> Source byte array
+ * @param len -> Srouce byte array length
  * @return: Hexstringed data
  * */
-unsigned char *hexstring(const void *vsrc, size_t len)
+char *hexstring(const void *vsrc, size_t len)
 {
 	size_t i, bsz;
 	const unsigned char *src = (const unsigned char *)vsrc;
-	unsigned char *bp;
+	char *bp;
 
 	bsz = len * 2 + 1; /* Make room for NULL byte */
 	if (bsz >= _hex_buffer_size)
@@ -46,7 +52,7 @@ unsigned char *hexstring(const void *vsrc, size_t len)
 		/* Allocate in 1K increments. Make room for the NULL byte. */
 		size_t newsz = 1024 * (bsz / 1024) + ((bsz % 1024) ? 1024 : 0);
 		_hex_buffer_size = newsz;
-		_hex_buffer = (unsigned char *)realloc(_hex_buffer, newsz);
+		_hex_buffer = (char *)realloc(_hex_buffer, newsz);
 		if (_hex_buffer == NULL)
 		{
 			return NULL;
@@ -65,6 +71,12 @@ unsigned char *hexstring(const void *vsrc, size_t len)
 	return _hex_buffer;
 }
 
+/**
+ * @description: Convert hexstring to bytes array
+ * @param src -> Source char*
+ * @param len -> Source char* length
+ * @return: Bytes array
+ * */
 uint8_t *hex_string_to_bytes(const char *src, size_t len)
 {
 	if (len % 2 != 0)

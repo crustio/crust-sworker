@@ -49,21 +49,19 @@ Config::Config(std::string path)
     remove_chars_from_string(backup_temp, "\\");
     this->crust_backup = backup_temp;
 
-    // TODO: true or false, include linkable, random nonce, verbose ...
     // tee identity validation configurations
     this->spid = config_value["spid"].ToString();
-    this->linkable = config_value["linkable"].ToInt();
-    this->random_nonce = config_value["random_nonce"].ToInt();
-    this->use_platform_services = config_value["use_platform_services"].ToInt();
+    this->linkable = config_value["linkable"].ToBool();
+    this->random_nonce = config_value["random_nonce"].ToBool();
+    this->use_platform_services = config_value["use_platform_services"].ToBool();
     this->ias_primary_subscription_key = config_value["ias_primary_subscription_key"].ToString();
     this->ias_secondary_subscription_key = config_value["ias_secondary_subscription_key"].ToString();
     this->ias_base_url = config_value["ias_base_url"].ToString();
     this->ias_base_path = config_value["ias_base_path"].ToString();
 
-    // TODO: session related
     this->flags = config_value["flags"].ToInt();
-    this->verbose = config_value["verbose"].ToInt();
-    this->debug = config_value["debug"].ToInt();
+    this->verbose = config_value["verbose"].ToBool();
+    this->debug = config_value["debug"].ToBool();
 }
 
 /**
@@ -86,16 +84,16 @@ void Config::show(void)
     printf("    'crust backup' : '%s',\n", this->crust_backup.c_str());
 
     printf("    'spid' : '%s',\n", this->spid.c_str());
-    printf("    'linkable' : '%d',\n", this->linkable);
-    printf("    'random nonce' : '%d',\n", this->random_nonce);
-    printf("    'use platform services' : '%d',\n", this->use_platform_services);
+    printf("    'linkable' : '%s',\n", this->linkable ? "true" : "false");
+    printf("    'random nonce' : '%s',\n", this->random_nonce ? "true" : "false");
+    printf("    'use platform services' : '%s',\n", this->use_platform_services ? "true" : "false");
     printf("    'IAS Primary subscription key' : '%s',\n", this->ias_primary_subscription_key.c_str());
     printf("    'IAS Secondary subscription key' : '%s',\n", this->ias_secondary_subscription_key.c_str());
     printf("    'IAS base url' : '%s',\n", this->ias_base_url.c_str());
     printf("    'IAS base path' : '%s',\n", this->ias_base_path.c_str());
 
     printf("    'flags' : '%d',\n", this->flags);
-    printf("    'verbose info' : '%d',\n", this->verbose);
-    printf("    'debug info' : '%d',\n", this->debug);
+    printf("    'verbose info' : '%s',\n", this->verbose ? "true" : "false");
+    printf("    'debug info' : '%s',\n", this->debug ? "true" : "false");
     printf("}\n");
 }

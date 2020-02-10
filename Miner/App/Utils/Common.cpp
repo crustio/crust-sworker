@@ -93,6 +93,7 @@ int cfprintf(FILE *stream, const char *format, ...)
 		va_start(va, format);
 		rv = vfprintf(stream, format, va);
 		va_end(va);
+        fflush(stream);
 	}
 
 	return rv;
