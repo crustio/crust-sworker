@@ -37,20 +37,26 @@ function installSGXSDK()
 {
     local cmd=""
     local expCmd=""
+    local ret=0
     echo
     verbose INFO "Uninstalling previous SGX SDK..."
     uninstallSGXSDK
 
     cd $rsrcdir
     echo
+    verbose INFO "Installing SGX SDK..."
     for dep in ${sdkInstOrd[@]}; do 
         verbose INFO "Installing $dep..." h
-        cmd=""
-        echo $dep | grep lib &>/dev/null && cmd="dpkg -i"
-        expCmd="execWithExpect"
-        [[ $dep =~ sdk ]] && expCmd="execWithExpect_sdk"
-        $expCmd "$cmd" $rsrcdir/$dep
-        checkRes $? "quit"
+        if echo $dep | grep lib &>/dev/null; then
+            dpkg -i $rsrcdir/$dep &>/dev/null
+            ret=$?
+        elif [[ $dep =~ sdk ]]; then
+            execWithExpect_sdk "" "$rsrcdir/$dep"
+            ret=$?
+        else
+            $rsrcdir/$dep &>/dev/null
+        fi
+        checkRes $ret "quit"
     done
     cd - &>/dev/null
     verbose INFO "Install SGX SDK successfully!!!"
@@ -90,7 +96,7 @@ function installSGXSSL()
     checkRes $? "quit" "$SYNCFILE"
     echo
     verbose INFO "Installing SGX SSL..." h
-    execWithExpect "make install"
+    make install
     checkRes $? "quit"
     cd - &>/dev/null
 
@@ -112,7 +118,7 @@ function installIPFS()
             kill -9 $ipfspid
             if [ $? -ne 0 ]; then
                 # If failed by using current user, kill it using root
-                execWithExpect "kill -9 $ipfspid"
+                kill -9 $ipfspid
             fi
         fi
         verbose INFO "Init ipfs..." h
@@ -137,15 +143,15 @@ function installIPFS()
         fi
     
         verbose INFO "Set system fire wall..." h
-        execWithExpect "ufw allow 22"
+        ufw allow 22
         res=$(($?|$res))
-        execWithExpect "ufw allow 5001"
+        ufw allow 5001
         res=$(($?|$res))
-        execWithExpect "ufw allow 4001"
+        ufw allow 4001
         res=$(($?|$res))
-        execWithExpect "ufw enable"
+        ufw enable
         res=$(($?|$res))
-        execWithExpect "ufw reload"
+        ufw reload
         res=$(($?|$res))
         checkRes $res "return"
     
@@ -190,11 +196,11 @@ function uninstallSGXSDK()
         if [ ${checkArry[$el]} -eq 1 ]; then
             verbose INFO "Uninstalling previous SGX $el..." h
             if echo $el | grep lib &>/dev/null; then
-                execWithExpect "dpkg -r" ${el}-dev
-                execWithExpect "dpkg -r" ${el}
+                dpkg -r "${el}-dev" &>/dev/null
+                dpkg -r "${el}" &>/dev/null
                 checkRes $?
             else
-                execWithExpect "" $inteldir/$el/uninstall.sh
+                $inteldir/$el/uninstall.sh &>/dev/null
                 checkRes $?
             fi
         fi
@@ -221,8 +227,7 @@ function execWithExpect_sdk()
     local pkgPath=$2
 expect << EOF > $TMPFILE
     set timeout $instTimeout
-    spawn sudo $cmd $pkgPath
-    expect "password"        { send "$passwd\n"  }
+    spawn $cmd $pkgPath
     expect "yes/no"          { send "no\n"  }
     expect "to install in :" { send "/opt/intel\n" }
     expect eof
@@ -319,7 +324,7 @@ function verbose()
     local time=`date "+%Y/%m/%d %T.%3N"`
 
     case $type in
-        ERROR)  color=$RED ;;
+        ERROR)  color=$HRED ;;
         WARN)   color=$YELLOW ;;
         INFO)   color=$GREEN ;;
     esac
@@ -390,7 +395,7 @@ OSVERSION=$(cat /etc/os-release | grep 'VERSION_ID' | grep -Po "(?<==\").*(?=\")
 tmo=180
 SYNCFILE=$instdir/.syncfile
 res=0
-uid=$(id -u)
+uid=$(stat -c '%U' $basedir)
 # Control configuration
 instTimeout=30
 toKillPID=()
@@ -433,16 +438,27 @@ crust_env_file=$crustteedir/etc/environment
 trap "success_exit" INT
 trap "success_exit" EXIT
 
+if [ $(id -u) -ne 0 ]; then
+    verbose ERROR "Please run with sudo!"
+    exit 1
+fi
 
-verbose WARN "Make sure $USER can run 'sudo'!"
-
-read -p "Please input your password: " -s passwd
-echo
+#read -p "Please input your password: " -s passwd
+#tryout=3
+#while ! echo "$password" | sudo -S ls &>/dev/null; do
+#    echo
+#    if [ $tryout -le 0 ]; then
+#        verbose ERROR "Wrong password!!!"
+#        exit 1
+#    fi
+#    ((tryout--))
+#    read -p "Wrong password, please try it again:" -s passwd
+#done
 
 # check if there is expect installed
 which expect &>/dev/null
 if [ $? -ne 0 ]; then
-    sudo apt-get install expect
+    apt-get install expect
     if [ $? -ne 0 ]; then
         verbose ERROR "Please install expect with root!"
         exit 1
@@ -456,13 +472,12 @@ uninstallOldCrust
 # Create directory
 verbose INFO "Creating and setting diretory related..." h
 res=0
-execWithExpect "mkdir -p $crustteedir"
+mkdir -p $crustteedir
 res=$(($?|$res))
-execWithExpect "chown -R $uid:$uid $crustteedir"
-res=$(($?|$res))
-execWithExpect "mkdir -p $inteldir"
+mkdir -p $inteldir
 res=$(($?|$res))
 checkRes $res "quit"
+
 
 echo
 verbose INFO "---------- Installing SGX SDK ----------" n
@@ -489,4 +504,9 @@ verbose INFO "---------- Installing IPFS ----------" n
 installIPFS
 echo
 
-verbose INFO "Crust-tee has been installed in /opt/crust! Go to /opt/crust/crust-tee and run scripts/start.sh to start crust.\n"
+verbose INFO "Changing diretory owner..." h
+chown -R $uid:$uid $crustteedir
+checkRes $res "quit"
+
+
+verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee! Go to /opt/crust/crust-tee and run scripts/start.sh to start crust.\n"
