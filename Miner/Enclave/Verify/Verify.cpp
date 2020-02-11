@@ -155,6 +155,9 @@ cleanup:
 	return (error_type == e_none);
 }
 
+/**
+ * @description: Free cert stack
+ * */
 void cert_stack_free(STACK_OF(X509) * chain)
 {
 	sk_X509_free(chain);

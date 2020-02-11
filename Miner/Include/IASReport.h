@@ -6,8 +6,8 @@
 #define SIGNER_ID_SIZE          SGX_ECP256_KEY_SIZE*2
 
 #define IAS_TRYOUT              3
-#define IAS_TIMEOUT             10000
-#define CLIENT_TIMEOUT          30000
+#define IAS_TIMEOUT             10
+#define CLIENT_TIMEOUT          30
 
 #define IAS_API_DEF_VERSION     3
 

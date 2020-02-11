@@ -19,8 +19,8 @@ Crust TEE apllication is installed in /opt/crust.
 1. Run '**scripts/stop.sh**' to stop TEE application.
 1. Run '**scripts/status.sh -s,--status**' to get process information.
 1. Run '**scripts/status.sh -p,--plot**' to get and printf validation status.
-1. Run '**scripts/status.sh -r,--report <block_hash>**' to get work report.
+1. Run '**scripts/status.sh -r,--report**' to get work report.
 
 ## API
 - Use 'curl http://<url_in_Config.json>/api/v0/status' to get validation status
-- Use 'curl http://<url_in_Config.json>/api/v0/report\?block_hash\=XXXXX' to get work report
+- Use 'curl http://<url_in_Config.json>/api/v0/report' to get work report
