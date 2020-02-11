@@ -7,11 +7,27 @@ function showProcessInfo()
     fi
     local monitorpid=$(cat $logfile | grep 'MonitorPID' | tail -n 1 | grep -Po "(?<==).*")
     local monitor2pid=$(cat $logfile | grep 'Monitor2PID' | tail -n 1 | grep -Po "(?<==).*")
-    local workerpid=$(cat $logfile | grep 'WorkerPID' | tail -n 1 | grep -Po "(?<==).*")
+    local workerpid=$(lsof -i :12222 | tail -n 1 | awk '{print $2}')
 
-    echo "Monitor  process pid: $monitorpid"
-    echo "Monitor2 process pid: $monitor2pid"
-    echo "Worker   process pid: $workerpid"
+    if [ x"$monitorpid" = x"" ] || ! ps -ef | grep -v grep | grep $monitorpid &>/dev/null; then
+        monitorpid="${HRED}stopped${NC}"
+    else
+        monitorpid="${HGREEN}$monitorpid${NC}"
+    fi
+    if [ x"$monitor2pid" = x"" ] || ! ps -ef | grep -v grep | grep $monitor2pid &>/dev/null; then
+        monitor2pid="${HRED}stopped${NC}"
+    else
+        monitor2pid="${HGREEN}$monitor2pid${NC}"
+    fi
+    if [ x"$workerpid" = x"" ]; then
+        workerpid="${HRED}stopped${NC}"
+    else
+        workerpid="${HGREEN}$workerpid${NC}"
+    fi
+
+    verbose INFO "Monitor  process pid: $monitorpid" n
+    verbose INFO "Monitor2 process pid: $monitor2pid" n
+    verbose INFO "Worker   process pid: $workerpid" n
 }
 
 function showPlotInfo()
@@ -52,7 +68,7 @@ if [ x"$1" = x"" ]; then
     usage
 fi
 
-eval set -- `getopt -o pr:s --long plot,report:,status -n 'Error' -- "$@"`
+eval set -- `getopt -o prs --long plot,report,status -n 'Error' -- "$@"`
 
 while true; do
     case "$1" in
