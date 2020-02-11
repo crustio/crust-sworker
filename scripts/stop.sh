@@ -31,6 +31,6 @@ if [ x"$ipfspid" != x"" ]; then
 fi
 $killIPFS && verbose INFO "SUCCESS" t
 
-verbose INFO "Shutting down crust..." h
+verbose INFO "Shutting down crust-tee..." h
 ps -ef | grep -v grep | grep "bin/crust-tee" | awk '{print $2}' | xargs -I {} kill -9 {}
 checkRes $? "quit"

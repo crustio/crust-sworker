@@ -4,7 +4,7 @@
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 IPFS=$instdir/bin/ipfs
-CRUST=$instdir/bin/crust-tee
+CRUSTTEE=$instdir/bin/crust-tee
 APPLOG=$instdir/log/crust.log
 IPFSLOG=$instdir/log/ipfs.log
 startType=$1
@@ -31,7 +31,7 @@ fi
 nohup $IPFS daemon &>$IPFSLOG &
 checkRes $? "quit"
 
-verbose INFO "Starting up crust..." h
+verbose INFO "Starting up crust-tee..." h
 sleep 3
 nohup $CRUSTTEE $startType &>$APPLOG &
 checkRes $? "quit"
