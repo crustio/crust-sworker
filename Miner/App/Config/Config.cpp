@@ -3,6 +3,7 @@
 using namespace std;
 
 Config *Config::config = NULL;
+std::string config_file_path;
 
 /**
  * @desination: Single instance class function to get instance
@@ -12,7 +13,14 @@ Config *Config::get_instance()
 {
     if (Config::config == NULL)
     {
-        Config::config = new Config(CONFIG_FILE_PATH);
+        if(config_file_path.size() == 0)
+        {
+            Config::config = new Config(CONFIG_FILE_PATH);
+        }
+        else
+        {
+            Config::config = new Config(config_file_path);
+        }
     }
 
     return Config::config;

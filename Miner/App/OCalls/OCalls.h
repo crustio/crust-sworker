@@ -401,6 +401,10 @@ validate_status_t ocall_get_plot_data(sgx_sealed_data_t **p_sealed_data, uint32_
                                  std::istreambuf_iterator<char>());
 
     *p_sealed_data = (sgx_sealed_data_t*)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
+    if (p_sealed_data == NULL)
+    {
+        return PLOT_GET_DATA_FROM_FILE_FAILED;
+    }
 
     *sealed_data_size = sealed_data_str.size() / 2;
 
