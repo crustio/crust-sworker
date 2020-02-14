@@ -1,6 +1,7 @@
 #include "App.h"
 
 bool run_as_server = false;
+extern std::string config_file_path;
 
 /**
  * @description: application entry:
@@ -13,26 +14,64 @@ bool run_as_server = false;
  */
 int SGX_CDECL main(int argc, char *argv[])
 {
-    if (argc == 1 || strcmp(argv[1], "daemon") == 0)
+    // Get configure file path if exists
+    std::string run_type;
+    for(int i=1;i<argc;i++)
     {
-        return main_daemon();
+        if(strcmp(argv[i], "-c") == 0)
+        {
+            if(i+1 < argc)
+            {
+                config_file_path = std::string(argv[i+1]);
+                i++;
+            }
+            else
+            {
+                cfprintf(NULL, CF_ERROR "-c option needs configure file path as argument!\n");
+                return 1;
+            }
+        }
+        else
+        {
+            if(run_type.compare("") != 0)
+            {
+                cfprintf(NULL, CF_ERROR "Ambiguos run mode!\n");
+                return 1;
+            }
+            run_type = argv[i];
+        }
     }
-    else if (strcmp(argv[1], "status") == 0)
+
+    // Main branch
+    if(run_type.compare("status") == 0)
     {
         return main_status();
     }
-    else if (strcmp(argv[1], "server") == 0)
+    else if(run_type.compare("report") == 0)
+    {
+        return main_report();
+    }
+    else if(run_type.compare("daemon") == 0 || run_type.compare("") == 0)
+    {
+        return main_daemon();
+    }
+    else if(run_type.compare("server") == 0)
     {
         run_as_server = true;
         return main_daemon();
     }
-    else if (strcmp(argv[1], "report") == 0)
-    {
-        return main_report();
-    }
     else
     {
-        printf("help txt\n");
+        printf("    Usage: \n");
+        printf("        %s <option> <argument>\n", argv[0]);
+        printf("          option: \n");
+        printf("           -h: help information. \n");
+        printf("           -c: indicate configure file path, followed by configure file path. \n");
+        printf("               If no file provided, default path is <crust_dir>/etc/Config.json. \n");
+        printf("           status: show plot disk status. \n");
+        printf("           report: show plot work report. \n");
+        printf("           daemon: run as daemon process. \n");
+        printf("           server: run as server node. \n");
     }
 
     return 0;

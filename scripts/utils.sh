@@ -55,7 +55,7 @@ function verbose()
     local time=`date "+%Y/%m/%d %T.%3N"`
 
     case $type in
-        ERROR)  color=$RED ;;
+        ERROR)  color=$HRED ;;
         WARN)   color=$YELLOW ;;
         INFO)   color=$GREEN ;;
     esac
