@@ -393,7 +393,7 @@ bool entry_network(void)
 
     if (!res || res->status != 200)
     {
-        if(res)
+        if (res)
         {
             cfprintf(felog, CF_ERROR "%s Entry network failed!Error code:%d\n", show_tag, res->status);
         }
@@ -407,6 +407,8 @@ bool entry_network(void)
 
     entryRes = res->body;
     cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entryRes.c_str());
+
+    wait_chain_run();
     if (!get_crust()->post_tee_identity(entryRes))
     {
         cfprintf(felog, CF_ERROR "Send identity to crust chain failed!\n");
@@ -420,6 +422,26 @@ cleanup:
     delete client;
 
     return entry_status;
+}
+
+/**
+ * @description: waitting for the crust chain to run
+ * */
+void wait_chain_run()
+{
+    while (true)
+    {
+        BlockHeader *block_header = get_crust()->get_block_header();
+        if (block_header->number > 0)
+        {
+           break;
+        }
+        else
+        {
+            cfprintf(NULL, CF_INFO "Waitting for chain to run...\n");
+            sleep(3);
+        }
+    }
 }
 
 /**
@@ -464,33 +486,33 @@ ipc_status_t attest_session()
  * */
 void *do_check_block(void *)
 {
-    while(true)
+    while (true)
     {
         BlockHeader *block_header = get_crust()->get_block_header();
-        if(block_header->number % BLOCK_HEIGHT  == 0)
+        if (block_header->number % BLOCK_HEIGHT == 0)
         {
             sleep(10);
             size_t report_len = 0;
             sgx_ec256_signature_t ecc_signature;
             validate_status_t validate_status = VALIDATION_SUCCESS;
             // Generate validation report and get report size
-            if(ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
+            if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
             {
                 cfprintf(felog, CF_ERROR "Generate validation report failed!\n");
                 continue;
             }
 
             // Get signed validation report
-            char *report = (char*)malloc(report_len);
+            char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
-            if(ecall_get_signed_validation_report(global_eid, &validate_status, 
-                        block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len) != SGX_SUCCESS)
+            if (ecall_get_signed_validation_report(global_eid, &validate_status,
+                                                   block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len) != SGX_SUCCESS)
             {
                 cfprintf(felog, CF_ERROR "Get signed validation report failed!\n");
             }
             else
             {
-                if(validate_status != VALIDATION_SUCCESS)
+                if (validate_status != VALIDATION_SUCCESS)
                 {
                     cfprintf(felog, CF_INFO "Get signed validation report failed! Error code:%x\n", validate_status);
                 }
@@ -498,7 +520,7 @@ void *do_check_block(void *)
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
-                    work_json["sig"] = hexstring((const uint8_t*)&ecc_signature, sizeof(ecc_signature));
+                    work_json["sig"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
                     work_json["block_height"] = block_header->number;
                     work_json["block_hash"] = block_header->hash;
                     std::string workStr = work_json.dump();
@@ -506,7 +528,7 @@ void *do_check_block(void *)
                     // Delete space and line break
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
-                    if(!get_crust()->post_tee_work_report(workStr))
+                    if (!get_crust()->post_tee_work_report(workStr))
                     {
                         cfprintf(felog, CF_ERROR "Send work report to crust chain failed!\n");
                     }
