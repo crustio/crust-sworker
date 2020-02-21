@@ -1,6 +1,6 @@
 {
     "empty_path" : "/opt/crust/crust-tee/empty_store",
-    "empty_capacity" : 4,
+    "empty_capacity" : 1,
     
     "ipfs_api_base_url" : "http://127.0.0.1:5001/api/v0",
     "api_base_url": "http://127.0.0.1:12222/api/v0",

@@ -11,7 +11,7 @@
 /* The size of a empty disk leaf file */
 #define PLOT_RAND_DATA_LENGTH 1048576
 /* The number of empty disk leaf files under a G path */
-#define PLOT_RAND_DATA_NUM 10
+#define PLOT_RAND_DATA_NUM 1024
 /* Used to store all M hashs under G path */
 #define PLOT_M_HASHS "m-hashs.bin"
 
