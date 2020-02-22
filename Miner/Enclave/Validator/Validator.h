@@ -9,7 +9,7 @@
 #include "PathHelper.h"
 
 /* Empty disk file verification ratio */
-#define EMPTY_VALIDATE_RATE 0.25
+#define EMPTY_VALIDATE_RATE 1
 /* Meaningful disk file verification ratio */
 #define MEANINGFUL_FILE_VALIDATE_RATE 0.10
 /* The blocks of meaningful disk file verification ratio */
