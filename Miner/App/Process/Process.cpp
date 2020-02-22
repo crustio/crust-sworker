@@ -939,22 +939,20 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
     /* Entry network */
-    cfprintf(felog, CF_INFO "Entrying network...\n");
-    if (!is_entried_network && !run_as_server && !entry_network())
+    if (!is_entried_network && !run_as_server)
     {
-        ipc_status = ENTRY_NETWORK_ERROR;
-        goto cleanup;
-    }
-    if (!is_entried_network)
-    {
+        cfprintf(felog, CF_INFO "Entrying network...\n");
+        if(!entry_network())
+        {
+            ipc_status = ENTRY_NETWORK_ERROR;
+            goto cleanup;
+        }
+        // Notify monitor that worker has entried network successfully
         if (kill(monitorPID, SIGUSR1) == -1)
         {
             cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
         }
-        else
-        {
-            is_entried_network = true;
-        }
+        is_entried_network = true;
     }
 
     /* Do disk related */
@@ -984,7 +982,7 @@ again:
         cfprintf(felog, CF_INFO "%s Get monitor pid successfully!pid:%d\n", show_tag, monitorPID);
     }
 
-    /* Monitor worker process */
+    /* Monitor monitor process */
     while (true)
     {
         sleep(heart_beat_timeout);
