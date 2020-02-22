@@ -1,0 +1,13 @@
+name: TEE compilation test when pr
+on: 
+  pull_request:
+    branches: 
+      - master_intel_sgx
+
+jobs:
+  compilation test:
+    name: compilation test
+    runs-on: ubuntu-16.04
+    steps:
+    - name: compilation_test
+      run: cd Miner && make; if [ $? -ne 0 ]; then echo "Compiling TEE source code failed!"; fi
