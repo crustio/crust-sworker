@@ -31,5 +31,9 @@ Crust TEE apllication is installed in /opt/crust/crust-tee.
 1. Run '**bin/crust-tee -c \<config_file_path\>**' to use customized configure file, if not provided **etc/Config.json** will be used as the default one.
 
 ## API
-- Use 'curl http://<url_in_Config.json>/api/v0/status' to get validation status
-- Use 'curl http://<url_in_Config.json>/api/v0/report' to get work report
+- Use 'curl http://<api_base_url_in_Config.json>/api/v0/status' to get validation status
+- Use 'curl http://<api_base_url_in_Config.json>/api/v0/report' to get work report
+
+## License
+
+[GPL v3](LICENSE)
