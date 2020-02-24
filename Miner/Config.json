@@ -1,0 +1,27 @@
+{
+    "empty_path" : "/opt/crust/crust-tee/empty_store",
+    "empty_capacity" : 1,
+    
+    "ipfs_api_base_url" : "http://127.0.0.1:5001/api/v0",
+    "api_base_url": "http://127.0.0.1:12222/api/v0",
+    "validator_api_base_url": "http://127.0.0.1:12222/api/v0",
+
+    "crust_api_base_url" : "http://139.196.122.228:6009/api/v1",
+    "crust_address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",
+    "crust_account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
+    "crust_password" : "123456",
+    "crust_backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}",
+    
+    "spid": "FEF23C7E73A379823CE71FF289CFBC07",
+    "linkable": true,
+    "random_nonce": true,
+    "use_platform_services": false,
+    "ias_primary_subscription_key": "e2e08166ca0f41ef88af2797f007c7cd",
+    "ias_secondary_subscription_key": "2ecdd9cb7a004f3e8e0e45ed2ebd1fb4",
+    "ias_base_url": "api.trustedservices.intel.com",
+    "ias_base_path": "/sgx/dev/attestation/v3/report",
+
+    "flags": 4,
+    "debug": false,
+    "verbose": false
+}
