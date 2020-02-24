@@ -32,6 +32,7 @@ extern msg_form msg;
 void start_monitor(void);
 void start_monitor2(void);
 void start_worker(void);
+void wait_chain_run(void);
 ipc_status_t attest_session();
 
 /**
@@ -427,7 +428,7 @@ cleanup:
 /**
  * @description: waitting for the crust chain to run
  * */
-void wait_chain_run()
+void wait_chain_run(void)
 {
     while (true)
     {
