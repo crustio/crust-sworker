@@ -38,6 +38,9 @@ typedef enum _ipc_status_t {
     ENTRY_NETWORK_ERROR         = IPC_MK_ERROR(0x00FD),
     WAITPID_ERROR               = IPC_MK_ERROR(0x00FE),
     FORK_NEW_PROCESS_ERROR      = IPC_MK_ERROR(0x00FF),
+    PLOT_EMPTY_DISK_ERROR       = IPC_MK_ERROR(0x0100),
+    SEND_IDENTITY_ERROR         = IPC_MK_ERROR(0x0101),
+    WAIT_CHAIN_RUN_ERROR        = IPC_MK_ERROR(0x0102),
 } ipc_status_t;
 
 #endif
