@@ -166,9 +166,7 @@ int ApiHandler::start()
 
         // Identity info
         ias_report.push_back(off_chain_crust_account_id.c_str()); //[3]
-        // TODO: hard code “Alice” identity as validator for now, waiting for crust chain finishs genesis validators
-        // ias_report.push_back(p_config->crust_account_id.c_str()); //[4]
-        ias_report.push_back("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"); //[4]
+        ias_report.push_back(p_config->crust_account_id.c_str()); //[4]
 
         // Print IAS report
         if (p_config->verbose)
@@ -225,12 +223,9 @@ int ApiHandler::start()
             {
                 json::JSON identity_json;
                 identity_json["pub_key"] = hexstring((const char *)&ensig.pub_key, sizeof(ensig.pub_key));
-                // TODO: substrust will convert address to account id automaticly
                 identity_json["account_id"] = off_chain_crust_address;
                 identity_json["validator_pub_key"] = hexstring((const char *)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
-                // TODO: hard code “Alice” identity as validator for now, waiting for crust chain finishs genesis validators
-                // identity_json["validator_account_id"] = p_config->crust_address;
-                identity_json["validator_account_id"] = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
+                identity_json["validator_account_id"] = p_config->crust_address;
                 identity_json["sig"] = hexstring((const char *)&ensig.signature, sizeof(ensig.signature));
                 std::string jsonstr = identity_json.dump();
                 // Delete space
