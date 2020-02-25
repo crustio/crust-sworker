@@ -36,7 +36,11 @@ void ecall_plot_disk(const char *path)
         }
 
         save_file(g_path.c_str(), i, out_hash256, rand_data, sizeof(rand_data));
-        eprintf("Save file: %luG/%luM\n", now_index + 1, i + 1);
+
+        if ((i + 1) == 1 || (i + 1) % 50 == 0 || (i + 1) == PLOT_RAND_DATA_NUM)
+        {
+            eprintf("Save file: %luG/%luM\n", now_index + 1, i + 1);
+        }
     }
 
     /* Generate G hashs */
@@ -63,7 +67,7 @@ void ecall_plot_disk(const char *path)
  */
 void ecall_generate_empty_root(void)
 {
-    if(get_workload()->empty_g_hashs.size() == 0)
+    if (get_workload()->empty_g_hashs.size() == 0)
     {
         get_workload()->empty_disk_capacity = 0;
         get_workload()->empty_root_hash[0] = 0;
