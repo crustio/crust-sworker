@@ -17,59 +17,56 @@ void validate_empty_disk(const char *path)
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
 
-        if (rand_val < 256 * EMPTY_VALIDATE_RATE)
+        /* Get M hashs */
+        unsigned char *m_hashs = NULL;
+        std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
+        ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
+
+        if (m_hashs == NULL)
         {
-            /* Get M hashs */
-            unsigned char *m_hashs = NULL;
-            std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
-            ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
+            eprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
+            return;
+        }
 
-            if (m_hashs == NULL)
+        /* Compare m hashs */
+        sgx_sha256_hash_t m_hashs_hash256;
+        sgx_sha256_msg(m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH, &m_hashs_hash256);
+
+        for (size_t j = 0; j < HASH_LENGTH; j++)
+        {
+            if (workload->empty_g_hashs[i][j] != m_hashs_hash256[j])
             {
-                eprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
+                eprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
                 return;
             }
+        }
 
-            /* Compare m hashs */
-            sgx_sha256_hash_t m_hashs_hash256;
-            sgx_sha256_msg(m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH, &m_hashs_hash256);
+        /* Get leaf data */
+        unsigned int rand_val_m;
+        sgx_read_rand((unsigned char *)&rand_val_m, 4);
+        size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
+        std::string leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
+        // eprintf("Select path: %s\n", leaf_path.c_str());
 
-            for (size_t j = 0; j < HASH_LENGTH; j++)
+        unsigned char *leaf_data = NULL;
+        ocall_get_file(leaf_path.c_str(), &leaf_data, PLOT_RAND_DATA_LENGTH);
+
+        if (leaf_data == NULL)
+        {
+            eprintf("\n!!!!USER CHEAT: GET LEAF DATA FAILED!!!!\n");
+            return;
+        }
+
+        /* Compare leaf data */
+        sgx_sha256_hash_t leaf_data_hash256;
+        sgx_sha256_msg(leaf_data, PLOT_RAND_DATA_LENGTH, &leaf_data_hash256);
+
+        for (size_t j = 0; j < HASH_LENGTH; j++)
+        {
+            if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
             {
-                if (workload->empty_g_hashs[i][j] != m_hashs_hash256[j])
-                {
-                    eprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
-                    return;
-                }
-            }
-
-            /* Get leaf data */
-            unsigned int rand_val_m;
-            sgx_read_rand((unsigned char *)&rand_val_m, 4);
-            size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
-            std::string leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
-            // eprintf("Select path: %s\n", leaf_path.c_str());
-
-            unsigned char *leaf_data = NULL;
-            ocall_get_file(leaf_path.c_str(), &leaf_data, PLOT_RAND_DATA_LENGTH);
-
-            if (leaf_data == NULL)
-            {
-                eprintf("\n!!!!USER CHEAT: GET LEAF DATA FAILED!!!!\n");
+                eprintf("\n!!!!USER CHEAT: WRONG LEAF DATA HASHS!!!!\n");
                 return;
-            }
-
-            /* Compare leaf data */
-            sgx_sha256_hash_t leaf_data_hash256;
-            sgx_sha256_msg(leaf_data, PLOT_RAND_DATA_LENGTH, &leaf_data_hash256);
-
-            for (size_t j = 0; j < HASH_LENGTH; j++)
-            {
-                if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
-                {
-                    eprintf("\n!!!!USER CHEAT: WRONG LEAF DATA HASHS!!!!\n");
-                    return;
-                }
             }
         }
     }

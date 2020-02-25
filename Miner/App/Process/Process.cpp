@@ -32,7 +32,7 @@ extern msg_form msg;
 void start_monitor(void);
 void start_monitor2(void);
 void start_worker(void);
-void wait_chain_run(void);
+bool wait_chain_run(void);
 ipc_status_t attest_session();
 bool do_plot_disk(void);
 
@@ -572,16 +572,11 @@ bool do_plot_disk(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-#pragma omp parallel for
+    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+    #pragma omp parallel for
     for (size_t i = 0; i < p_config->empty_capacity; i++)
     {
-        ret = ecall_plot_disk(global_eid, p_config->empty_path.c_str());
-        if (ret != SGX_SUCCESS)
-        {
-            cfprintf(felog, CF_ERROR "%s Plot empty disk failed. Error code:%08x\n", show_tag, ret);
-            return false;
-        }
+        ecall_plot_disk(global_eid, p_config->empty_path.c_str());
     }
 
     // Generate empty root
@@ -900,6 +895,7 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s WorkerPID=%d\n", show_tag, workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
+    std::string entry_res = "";
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
 
     /* Signal function */
@@ -958,7 +954,6 @@ void start_worker(void)
     }
     cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
 
-    std::string entry_res = "";
     /* Entry network */
     if (!is_entried_network && !run_as_server)
     {
