@@ -492,7 +492,7 @@ void *do_check_block(void *)
         BlockHeader *block_header = get_crust()->get_block_header();
         if (block_header->number % BLOCK_HEIGHT == 0)
         {
-            sleep(10);
+            sleep(20);
             size_t report_len = 0;
             sgx_ec256_signature_t ecc_signature;
             validate_status_t validate_status = VALIDATION_SUCCESS;
