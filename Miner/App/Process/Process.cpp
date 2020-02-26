@@ -23,6 +23,8 @@ const char *show_tag = "<monitor>";
 Config *p_config = NULL;
 // Pointer to http handler instance
 ApiHandler *p_api_handler = NULL;
+// Store tee identity
+std::string entry_res = "";
 
 extern FILE *felog;
 extern bool run_as_server;
@@ -547,11 +549,32 @@ void *do_check_block(void *)
 }
 
 /**
- * @description: Do validating disk
+ * @description: Do disk related
  * */
-void *do_validate_disk(void *)
+void *do_disk_related(void *)
 {
     pthread_t wthread;
+
+    /* Plot empty disk */
+    if (!do_plot_disk())
+    {
+        cfprintf(felog, CF_ERROR "%s Plot empty disk failed!\n", show_tag);
+        return NULL; 
+    }
+    cfprintf(felog, CF_INFO "%s Plot empty successfully!\n", show_tag);
+
+    /* Send identity to crust chain */
+    if (!wait_chain_run())
+    {
+        return NULL;
+    }
+    
+    if (!get_crust()->post_tee_identity(entry_res))
+    {
+        cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
+        return NULL;
+    }
+    cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
 
     if (pthread_create(&wthread, NULL, do_check_block, NULL) != 0)
     {
@@ -895,7 +918,6 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s WorkerPID=%d\n", show_tag, workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
-    std::string entry_res = "";
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
 
     /* Signal function */
@@ -972,34 +994,9 @@ void start_worker(void)
     }
 
     cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entry_res.c_str());
-
-    /* Plot empty disk */
-    if (!do_plot_disk())
-    {
-        cfprintf(felog, CF_ERROR "%s Plot empty disk failed!\n", show_tag);
-        ipc_status = PLOT_EMPTY_DISK_ERROR;
-        goto cleanup;
-    }
-    cfprintf(felog, CF_INFO "%s Plot empty successfully!\n", show_tag);
-
-    /* Send identity to crust chain */
-    if (!wait_chain_run())
-    {
-        ipc_status = WAIT_CHAIN_RUN_ERROR;
-        goto cleanup;
-    }
-    
-    if (!get_crust()->post_tee_identity(entry_res))
-    {
-        cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
-        ipc_status = SEND_IDENTITY_ERROR;
-        goto cleanup;
-    }
-    cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
     
     /* Do Validate disk */
-    cfprintf(felog, CF_INFO "%s Validate disk...\n", show_tag);
-    if (pthread_create(&wthread, NULL, do_validate_disk, NULL) != 0)
+    if (pthread_create(&wthread, NULL, do_disk_related, NULL) != 0)
     {
         cfprintf(felog, CF_ERROR "%s Create worker thread failed!\n", show_tag);
         ipc_status = IPC_CREATE_THREAD_ERR;
