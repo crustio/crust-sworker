@@ -21,6 +21,7 @@ enclave {
         public validate_status_t ecall_get_signed_validation_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
         public ipc_status_t ecall_attest_session_starter(int datatype); 
         public ipc_status_t ecall_attest_session_receiver(int datatype); 
+        public validate_status_t ecall_read_workload();
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
 		public sgx_status_t ecall_store_quote([in, size=len] const char* quote, size_t len);
@@ -32,6 +33,7 @@ enclave {
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
+        void ocall_eprint_string([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
         void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
         void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);

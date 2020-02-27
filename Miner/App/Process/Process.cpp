@@ -554,6 +554,7 @@ void *do_check_block(void *)
 void *do_disk_related(void *)
 {
     pthread_t wthread;
+    validate_status_t validate_status = VALIDATION_SUCCESS;
 
     /* Plot empty disk */
     if (!do_plot_disk())
@@ -594,20 +595,25 @@ void *do_disk_related(void *)
 bool do_plot_disk(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    validate_status_t validate_status = VALIDATION_SUCCESS;
 
-    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-    #pragma omp parallel for
-    for (size_t i = 0; i < p_config->empty_capacity; i++)
+    if (SGX_SUCCESS != ecall_read_workload(ret, &validate_status) || VALIDATION_SUCCESS != validate_status)
     {
-        ecall_plot_disk(global_eid, p_config->empty_path.c_str());
-    }
+        cfprintf(felog, CF_INFO "Read workload from file failed(Code:%lx). Start ploting data.\n", validate_status);
+        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+        #pragma omp parallel for
+        for (size_t i = 0; i < p_config->empty_capacity; i++)
+        {
+            ecall_plot_disk(global_eid, p_config->empty_path.c_str());
+        }
 
-    // Generate empty root
-    ret = ecall_generate_empty_root(global_eid);
-    if (ret != SGX_SUCCESS)
-    {
-        cfprintf(felog, CF_ERROR "%s Generate empty root failed. Error code:%08x\n", show_tag, ret);
-        return false;
+        // Generate empty root
+        ret = ecall_generate_empty_root(global_eid);
+        if (ret != SGX_SUCCESS)
+        {
+            cfprintf(felog, CF_ERROR "%s Generate empty root failed. Error code:%08x\n", show_tag, ret);
+            return false;
+        }
     }
 
     return true;

@@ -19,6 +19,17 @@ int eprintf(const char *fmt, ...)
 	return (int)strnlen(buf, 100000 - 1) + 1;
 }
 
+int cfeprintf(const char *fmt, ...)
+{
+	char buf[100000] = {'\0'};
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(buf, 100000, fmt, ap);
+	va_end(ap);
+	ocall_eprint_string(buf);
+	return (int)strnlen(buf, 100000 - 1) + 1;
+}
+
 /**
  * @description: Change char to int
  * @return: Corresponding int

@@ -110,7 +110,7 @@ validate_status_t Workload::store_plot_data()
     }
     file_str += "}";
     plot_data += file_str + ";";
-    eprintf("==========[enclave] workload string:%s\n", plot_data.c_str());
+    eprintf("==========[enclave] size: %d,workload string:%s\n", plot_data.size(), plot_data.c_str());
     
     // Seal workload string
     sgx_status_t sgx_status = SGX_SUCCESS;

@@ -35,10 +35,11 @@ void ecall_main_loop(const char *empty_path)
         /* Show result */
         validation_status = ValidateWaiting;
         get_workload()->show();
-        //if(get_workload()->get_plot_data() != VALIDATION_SUCCESS)
-        //{
-        //    get_workload()->store_plot_data();
-        //}
+        if (VALIDATION_SUCCESS != get_workload()->store_plot_data())
+        {
+            cfeprintf("Store workload failed!\n");
+        }
+
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
 }
@@ -171,6 +172,19 @@ cleanup:
     free(p_sigbuf);
 
     return validate_status;
+}
+
+/**
+ * @description: Read work load from file
+ * @return: Read status
+ * */
+validate_status_t ecall_read_workload()
+{
+    if (VALIDATION_SUCCESS != get_workload()->get_plot_data())
+    {
+        return PLOT_GET_DATA_FROM_FILE_FAILED;
+    }
+    return VALIDATION_SUCCESS;
 }
 
 /*

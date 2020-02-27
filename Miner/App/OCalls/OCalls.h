@@ -39,6 +39,11 @@ void ocall_print_string(const char *str)
     printf("%s", str);
 }
 
+void ocall_eprint_string(const char *str)
+{
+    cfprintf(felog, CF_INFO "%s", str);
+}
+
 /**
  * @description: ocall for creating directory
  * @param path -> the path of directory
