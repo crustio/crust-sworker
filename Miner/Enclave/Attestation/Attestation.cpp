@@ -321,8 +321,8 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
         }
         else if(data_type == ATTEST_DATATYPE_WORKLOAD)
         {
-            get_workload()->restore_workload(std::string((char*)decrypted_data));
-            eprintf("[enclave]=========== receive report:%s\n",(char*)decrypted_data);
+            get_workload()->restore_workload(std::string((char*)decrypted_data, secret_size));
+            eprintf("[enclave]=========== receive report:%s\n",std::string((char*)decrypted_data, secret_size).c_str());
         }
 
     } while(0);
