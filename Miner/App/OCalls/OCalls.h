@@ -20,7 +20,7 @@
 
 #define HEXSTRING_BUF   128
 #define BUFSIZE         1024
-#define IPC_TIMEOUT     60
+#define IPC_TIMEOUT     30
 
 extern FILE* felog;
 
@@ -37,6 +37,11 @@ extern msg_form msg;
 void ocall_print_string(const char *str)
 {
     printf("%s", str);
+}
+
+void ocall_eprint_string(const char *str)
+{
+    cfprintf(felog, CF_INFO "%s", str);
 }
 
 /**
@@ -199,7 +204,7 @@ int Msgrcv_to(int msgqid, void *msgp, size_t msgsz, long msgtype)
  * @description: Worker process sends session request and receives Message1
  * @return: ocall status
  * */
-ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secret_size)
+ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secret_size, attest_data_type_t data_type)
 {
     // Request session to monitor process
     cfprintf(NULL, CF_INFO "Sending session request:secret size:%d\n", secret_size);
@@ -208,7 +213,9 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
     sem_v(semid);
     msg.type = 100;
     msg.text = secret_size;
-    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
+    msg.data_type = data_type;
+    int send_len = sizeof(msg.text) + sizeof(msg.data_type);
+    if(msgsnd(msqid, &msg, send_len, 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
@@ -222,7 +229,8 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
     sem_p(semid);
     memcpy(dh_msg1, shm, sizeof(sgx_dh_msg1_t));
     sem_v(semid);
-    cfprintf(NULL, CF_INFO "type:%d,Get msg1:%s\n", msg.type, hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
+    cfprintf(NULL, CF_INFO "type:%d,Get msg1.\n");
+    //cfprintf(NULL, CF_INFO "type:%d,Get msg1:%s\n", msg.type, hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
 
     return IPC_SUCCESS;
 }
@@ -231,20 +239,33 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
  * @description: Monitor process receives session request
  * @return: ocall status
  * */
-ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size)
+ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, attest_data_type_t data_type)
 {
     // Waiting for session request
+    int retry = 3;
     cfprintf(NULL, CF_INFO "Waiting for session request\n");
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 100) == -1)
+    int recv_len = sizeof(msg.text) + sizeof(msg.data_type);
+    do
     {
-        return IPC_RECVMSG_ERROR;
-    }
-    memcpy(secret_size, &msg.text, sizeof(msg.text));
-    cfprintf(NULL, CF_INFO "secret size:%d\n", *secret_size);
-    sem_p(semid);
-    memcpy(request, shm, 20);
-    sem_v(semid);
-    cfprintf(NULL, CF_INFO "Get session request:%s\n", shm);
+        if(Msgrcv_to(msqid, &msg, recv_len, 100) == -1)
+        {
+            return IPC_RECVMSG_ERROR;
+        }
+        if (msg.data_type == data_type)
+        {
+            memcpy(secret_size, &msg.text, sizeof(msg.text));
+            cfprintf(NULL, CF_INFO "secret size:%d\n", *secret_size);
+            sem_p(semid);
+            memcpy(request, shm, 20);
+            sem_v(semid);
+            if (strcmp(request, "SessionRequest") == 0)
+            {
+                cfprintf(NULL, CF_INFO "Get session request.\n");
+                break;
+            }
+        }
+        sleep(3);
+    } while(--retry > 0);
 
     return IPC_SUCCESS;
 }
@@ -256,7 +277,8 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size)
 ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh_msg2)
 {
     // Send Message1 to worker
-    cfprintf(NULL, CF_INFO "Sending msg1:%s\n", hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
+    //cfprintf(NULL, CF_INFO "Sending msg1:%s\n", hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
+    cfprintf(NULL, CF_INFO "Sending msg1.\n");
     sem_p(semid);
     memcpy(shm, dh_msg1, sizeof(sgx_dh_msg1_t));
     sem_v(semid);
@@ -275,7 +297,8 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
     sem_p(semid);
     memcpy(dh_msg2, shm, sizeof(sgx_dh_msg2_t));
     sem_v(semid);
-    cfprintf(NULL, CF_INFO "Get msg2:%s\n", hexstring(dh_msg2, sizeof(sgx_dh_msg2_t)));
+    cfprintf(NULL, CF_INFO "Get msg2.\n");
+    //cfprintf(NULL, CF_INFO "Get msg2:%s\n", hexstring(dh_msg2, sizeof(sgx_dh_msg2_t)));
 
     return IPC_SUCCESS;
 }
@@ -287,7 +310,8 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
 ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh_msg3)
 {
     // Send Message2 to Monitor
-    cfprintf(NULL, CF_INFO "Sending msg2:%s\n", hexstring(dh_msg2, sizeof(sgx_dh_msg2_t)));
+    //cfprintf(NULL, CF_INFO "Sending msg2:%s\n", hexstring(dh_msg2, sizeof(sgx_dh_msg2_t)));
+    cfprintf(NULL, CF_INFO "Sending msg2.\n");
     sem_p(semid);
     memcpy(shm, dh_msg2, sizeof(sgx_dh_msg2_t));
     sem_v(semid);
@@ -306,7 +330,8 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
     sem_p(semid);
     memcpy(dh_msg3, shm, sizeof(sgx_dh_msg3_t));
     sem_v(semid);
-    cfprintf(NULL, CF_INFO "Get msg3:%s\n", hexstring(dh_msg3, sizeof(sgx_dh_msg3_t)));
+    cfprintf(NULL, CF_INFO "Get msg3.\n");
+    //cfprintf(NULL, CF_INFO "Get msg3:%s\n", hexstring(dh_msg3, sizeof(sgx_dh_msg3_t)));
 
     return IPC_SUCCESS;
 }
@@ -318,7 +343,8 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
 ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3)
 {
     // Send Message3 to worker
-    cfprintf(NULL, CF_INFO "Sending msg3:%s\n", hexstring(dh_msg3, sizeof(sgx_dh_msg3_t)));
+    //cfprintf(NULL, CF_INFO "Sending msg3:%s\n", hexstring(dh_msg3, sizeof(sgx_dh_msg3_t)));
+    cfprintf(NULL, CF_INFO "Sending msg3.\n");
     sem_p(semid);
     memcpy(shm, dh_msg3, sizeof(sgx_dh_msg3_t));
     sem_v(semid);
@@ -337,7 +363,8 @@ ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3)
  * */
 ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
 {
-    cfprintf(NULL, CF_INFO "len:%d, Sending key pair:%s\n", len, hexstring(req_message, len));
+    //cfprintf(NULL, CF_INFO "len:%d, Sending key pair:%s\n", len, hexstring(req_message, len));
+    cfprintf(NULL, CF_INFO "len:%d, Sending key pair.\n", len);
     sem_p(semid);
     memcpy(shm, req_message, len);
     sem_v(semid);

@@ -7,6 +7,7 @@
 #include <string.h>
 #include "Common.h"
 #include "Resource.h"
+#include "IPCReport.h"
 
 #define WORKERTYPE  200
 #define MONITORTYPE 201
@@ -14,6 +15,7 @@
 struct msg_form {
     long type;
     uint32_t text;
+    attest_data_type_t data_type;
 };
 
 union semun
