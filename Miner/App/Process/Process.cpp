@@ -17,6 +17,8 @@ const int heart_beat_timeout = 15;
 bool is_entried_network = false;
 // Indicate if exit whole process
 bool exit_process = false;
+// indicates whether received workload or not
+bool is_monitor_recv_workload = false; 
 // Indicate current process in show info
 const char *show_tag = "<monitor>";
 // Pointor to configure instance
@@ -633,7 +635,7 @@ bool do_plot_disk(void)
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     validate_status_t validate_status = VALIDATION_SUCCESS;
 
-    cfprintf(felog, CF_INFO "Read workload from file failed(Code:%lx). Start ploting data.\n", validate_status);
+    cfprintf(felog, CF_INFO "Start ploting disk...\n");
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
     #pragma omp parallel for
     for (size_t i = 0; i < p_config->empty_capacity; i++)
@@ -667,6 +669,7 @@ void start_monitor(void)
     bool is_break_check = false;
     bool doAttest = true; // Used to indicate if worker terminated
     std::pair<std::string, pid_t> exit_entry;
+    is_monitor_recv_workload = false;
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
@@ -712,7 +715,7 @@ again:
         {
             cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
             /* Send workload to worker */
-            if (session_type == SESSION_STARTER)
+            if (session_type == SESSION_STARTER && is_monitor_recv_workload)
             {
                 sleep(5); // Waiting for key pair attestation end
                 cfprintf(felog, CF_INFO "%s Do workload attestation(starter)....\n", show_tag);
@@ -792,6 +795,8 @@ again:
         }
         else
         {
+            // If the newest workload not recevied? 
+            is_monitor_recv_workload = true;
             cfprintf(felog, CF_INFO "%s Receive workload from worker successfully!\n", show_tag);
         }
     }
@@ -1047,7 +1052,7 @@ void start_worker(void)
     else
     {
         cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
-        if (session_type == SESSION_RECEIVER)
+        if (session_type == SESSION_RECEIVER && is_monitor_recv_workload)
         {
             cfprintf(felog, CF_INFO "%s Do workload attestation(receiver)...\n", show_tag);
             if(SGX_SUCCESS != ecall_attest_session_receiver(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD)
@@ -1072,6 +1077,7 @@ void start_worker(void)
             ipc_status = ENTRY_NETWORK_ERROR;
             goto cleanup;
         }
+        cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entry_res.c_str());
         // Notify monitor that worker has entried network successfully
         if (kill(monitorPID, SIGUSR1) == -1)
         {
@@ -1079,8 +1085,6 @@ void start_worker(void)
         }
         is_entried_network = true;
     }
-
-    cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entry_res.c_str());
     
     /* Do Validate disk */
     if (pthread_create(&wthread, NULL, do_disk_related, (void*)&need_plot_disk) != 0)
