@@ -32,6 +32,7 @@
 #include "Utils/EUtils.h"
 #include "Validator/Validator.h"
 #include "Verify/Verify.h"
+#include "Attestation/Attestation.h"
 #include "ValidationStatus.h"
 
 static const sgx_ec256_public_t def_service_public_key = 

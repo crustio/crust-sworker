@@ -1,9 +1,6 @@
 #ifndef IPCREPORT_H_
 #define IPCREPORT_H_
 
-#define IPC_DATATYPE_KEYPAIR    1
-#define IPC_DATATYPE_REPORT     2
-
 #define IPC_MK_ERROR(x)     (0x00000000|(x))
 
 typedef enum _ipc_status_t {
@@ -41,6 +38,19 @@ typedef enum _ipc_status_t {
     PLOT_EMPTY_DISK_ERROR       = IPC_MK_ERROR(0x0100),
     SEND_IDENTITY_ERROR         = IPC_MK_ERROR(0x0101),
     WAIT_CHAIN_RUN_ERROR        = IPC_MK_ERROR(0x0102),
+    IPC_ATTEST_BUSY             = IPC_MK_ERROR(0x0103),
 } ipc_status_t;
+
+typedef enum _attest_data_type_t
+{
+    ATTEST_DATATYPE_KEYPAIR = IPC_MK_ERROR(0),
+    ATTEST_DATATYPE_WORKLOAD = IPC_MK_ERROR(1),
+} attest_data_type_t;
+
+typedef enum _attest_status_t
+{
+    ATTEST_IDLE = IPC_MK_ERROR(0),
+    ATTEST_WAITING = IPC_MK_ERROR(1),
+} attest_status_t;
 
 #endif

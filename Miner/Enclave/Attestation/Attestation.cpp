@@ -5,6 +5,7 @@
 extern ecc_key_pair id_key_pair;
 extern Workload *workload;
 extern sgx_measurement_t current_mr_enclave;
+attest_status_t g_att_status = ATTEST_IDLE;
 
 ipc_status_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_enclave_identity);
 
@@ -13,7 +14,7 @@ ipc_status_t verify_peer_enclave_trust(sgx_dh_session_enclave_identity_t* peer_e
  *  used to transform work data to monitor process for backup
  * @return: ipc status
  * */
-ipc_status_t ecall_attest_session_starter(int datatype)
+ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
 {
     sgx_dh_msg1_t dh_msg1;            //Diffie-Hellman Message 1
     sgx_key_128bit_t dh_aek;          // Session Key
@@ -31,15 +32,27 @@ ipc_status_t ecall_attest_session_starter(int datatype)
     uint8_t *p_data;
     uint32_t secret_size = 0;
 
+    // Check if msg queue busy
+    if (g_att_status != ATTEST_IDLE)
+    {
+        return IPC_ATTEST_BUSY;
+    }
+    g_att_status = ATTEST_WAITING;
+
     // Set transfered data
-    if(datatype ==  IPC_DATATYPE_KEYPAIR)
+    if(data_type ==  ATTEST_DATATYPE_KEYPAIR)
     {
         p_data = (uint8_t*)&id_key_pair;
         secret_size = sizeof(ecc_key_pair);
     }
-    else if(datatype == IPC_DATATYPE_REPORT)
+    else if(data_type == ATTEST_DATATYPE_WORKLOAD)
     {
-        eprintf("[enclave]===========get report data\n");
+        std::string workload = get_workload()->serialize_workload().c_str();
+        secret_size = workload.size();
+        p_data = (uint8_t*)malloc(secret_size);
+        memset(p_data, 0, secret_size);
+        memcpy(p_data, workload.c_str(), secret_size);
+        eprintf("[enclave]=========== send report data:%s\n",(char*)p_data);
     }
     else
     {
@@ -71,7 +84,7 @@ ipc_status_t ecall_attest_session_starter(int datatype)
     }
 
     //Ocall to request for a session with the destination enclave and obtain session id and Message 1 if successful
-    status = ocall_send_request_recv_msg1(&ipc_status, &dh_msg1, secret_size);
+    status = ocall_send_request_recv_msg1(&ipc_status, &dh_msg1, secret_size, data_type);
     if (status == SGX_SUCCESS)
     {
         if (ipc_status != IPC_SUCCESS)
@@ -85,7 +98,7 @@ ipc_status_t ecall_attest_session_starter(int datatype)
     status = sgx_dh_initiator_proc_msg1(&dh_msg1, &dh_msg2, &sgx_dh_session);
     if(SGX_SUCCESS != status)
     {
-         return IPC_SGX_ERROR;
+        return IPC_SGX_ERROR;
     }
 
     //Send Message 2 to Destination Enclave and get Message 3 in return
@@ -142,6 +155,8 @@ ipc_status_t ecall_attest_session_starter(int datatype)
         return IPC_SGX_ERROR;
     }
 
+    g_att_status = ATTEST_IDLE;
+
     return IPC_SUCCESS;
 }
 
@@ -150,7 +165,7 @@ ipc_status_t ecall_attest_session_starter(int datatype)
  *  which will receive work data from worker process for backup
  * @return: ipc status
  * */
-ipc_status_t ecall_attest_session_receiver(int datatype)
+ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
 {
     sgx_dh_session_t sgx_dh_session;
     sgx_status_t status = SGX_SUCCESS;
@@ -181,7 +196,7 @@ ipc_status_t ecall_attest_session_receiver(int datatype)
     }
 
     // Waiting for session request
-    status = ocall_recv_session_request(&ipc_status, request, &secret_size);
+    status = ocall_recv_session_request(&ipc_status, request, &secret_size, data_type);
     if(SGX_SUCCESS == status)
     {
         if(IPC_SUCCESS != ipc_status)
@@ -230,10 +245,10 @@ ipc_status_t ecall_attest_session_receiver(int datatype)
         dh_msg3.msg3_body.additional_prop_length = 0;
         // Process message 2 from source enclave and obtain message 3
         sgx_status_t se_ret = sgx_dh_responder_proc_msg2(&dh_msg2,
-                                                       &dh_msg3,
-                                                       &sgx_dh_session,
-                                                       &dh_aek,
-                                                       &initiator_identity);
+                                                         &dh_msg3,
+                                                         &sgx_dh_session,
+                                                         &dh_aek,
+                                                         &initiator_identity);
         if(SGX_SUCCESS != se_ret)
         {
             status = se_ret;
@@ -297,16 +312,17 @@ ipc_status_t ecall_attest_session_receiver(int datatype)
             return IPC_SGX_ERROR;
         }
 
-        eprintf("[enclave]===========received data:%s\n",hexstring(decrypted_data, decrypted_data_length));
+        //eprintf("[enclave]===========received data:%s\n",hexstring(decrypted_data, decrypted_data_length));
 
         // Recevie data by data type
-        if(datatype == IPC_DATATYPE_KEYPAIR)
+        if(data_type == ATTEST_DATATYPE_KEYPAIR)
         {
             memcpy(&id_key_pair, decrypted_data, decrypted_data_length);
         }
-        else if(datatype == IPC_DATATYPE_REPORT)
+        else if(data_type == ATTEST_DATATYPE_WORKLOAD)
         {
-            eprintf("[enclave]===========receive report\n");
+            get_workload()->restore_workload(std::string((char*)decrypted_data, secret_size));
+            eprintf("[enclave]=========== receive report:%s\n",std::string((char*)decrypted_data, secret_size).c_str());
         }
 
     } while(0);
