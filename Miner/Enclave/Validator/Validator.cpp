@@ -18,14 +18,19 @@ void validate_empty_disk(const char *path)
         sgx_read_rand((unsigned char *)&rand_val, 1);
 
         /* Get M hashs */
-        unsigned char *m_hashs = NULL;
+        unsigned char *m_hashs_o = NULL;
         std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
-        ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
-
-        if (m_hashs == NULL)
+        ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, PLOT_RAND_DATA_NUM * HASH_LENGTH);
+        if (m_hashs_o == NULL)
         {
             eprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
             return;
+        }
+
+        unsigned char *m_hashs = new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
+        for (size_t j = 0; j < PLOT_RAND_DATA_NUM * HASH_LENGTH; j++)
+        {
+            m_hashs[j] = m_hashs_o[j];
         }
 
         /* Compare m hashs */
@@ -69,6 +74,8 @@ void validate_empty_disk(const char *path)
                 return;
             }
         }
+
+        delete[] m_hashs;
     }
 
     for (size_t i = workload->empty_g_hashs.size() - 1; i > current_capacity - 1; i--)
