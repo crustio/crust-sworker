@@ -27,10 +27,10 @@ void validate_empty_disk(const char *path)
             return;
         }
 
-        unsigned char *m_hashs = new new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
-        for (size_t i = 0; i < PLOT_RAND_DATA_NUM * HASH_LENGTH; i++)
+        unsigned char *m_hashs = new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
+        for (size_t j = 0; j < PLOT_RAND_DATA_NUM * HASH_LENGTH; j++)
         {
-            m_hashs[i] = m_hashs_o[i];
+            m_hashs[j] = m_hashs_o[j];
         }
 
         /* Compare m hashs */
