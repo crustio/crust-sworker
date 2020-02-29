@@ -18,17 +18,20 @@
 #include "Ipc.h"
 #include "IPCReport.h"
 
-#define HEXSTRING_BUF   128
-#define BUFSIZE         1024
-#define IPC_TIMEOUT     30
+#define HEXSTRING_BUF 128
+#define BUFSIZE 1024
+#define IPC_TIMEOUT 30
 
-extern FILE* felog;
+extern FILE *felog;
 
 extern int shmid, semid, msqid;
 extern char *shm;
 extern shmid_ds buf1;
 extern msqid_ds buf2;
 extern msg_form msg;
+
+// Used to store ocall file data
+unsigned char *ocall_file_data = NULL;
 
 /**
  * @description: ocall for printing string
@@ -110,26 +113,32 @@ size_t ocall_get_folders_number_under_path(const char *path)
 }
 
 /**
- * @description: ocall for getting file
+ * @description: ocall for getting file (ps: can't used by multithreading)
  * @param path -> the path of file
  * @param len -> the length of data
  * @return file data
  */
+
 void ocall_get_file(const char *file_path, unsigned char **p_file, size_t len)
 {
     if (access(file_path, 0) == -1)
     {
-        return ;
+        return;
     }
 
-    unsigned char *data = new unsigned char[len];
+    if (ocall_file_data != NULL)
+    {
+        delete [] ocall_file_data;
+    }
+
+    ocall_file_data = new unsigned char[len];
     std::ifstream in;
 
     in.open(file_path, std::ios::out | std::ios::binary);
-    in.read(reinterpret_cast<char *>(data), len);
+    in.read(reinterpret_cast<char *>(ocall_file_data), len);
     in.close();
 
-    *p_file = data;
+    *p_file = ocall_file_data;
 }
 
 /**
@@ -183,7 +192,6 @@ void ocall_usleep(int u)
     usleep(u);
 }
 
-
 /**
  * @description: message receive function wrapper to do timeout check
  * @return: receive status
@@ -192,7 +200,7 @@ int Msgrcv_to(int msgqid, void *msgp, size_t msgsz, long msgtype)
 {
     ssize_t res = 0;
     int timeout = 0;
-    while((res=msgrcv(msgqid, msgp, msgsz, msgtype, IPC_NOWAIT)) == -1 && timeout < IPC_TIMEOUT)
+    while ((res = msgrcv(msgqid, msgp, msgsz, msgtype, IPC_NOWAIT)) == -1 && timeout < IPC_TIMEOUT)
     {
         timeout++;
         sleep(1);
@@ -215,14 +223,14 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
     msg.text = secret_size;
     msg.data_type = data_type;
     int send_len = sizeof(msg.text) + sizeof(msg.data_type);
-    if(msgsnd(msqid, &msg, send_len, 0) == -1)
+    if (msgsnd(msqid, &msg, send_len, 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
 
     // Read Message1
     cfprintf(NULL, CF_INFO "Waiting for msg1\n");
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 101) == -1)
+    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), 101) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -247,7 +255,7 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, at
     int recv_len = sizeof(msg.text) + sizeof(msg.data_type);
     do
     {
-        if(Msgrcv_to(msqid, &msg, recv_len, 100) == -1)
+        if (Msgrcv_to(msqid, &msg, recv_len, 100) == -1)
         {
             return IPC_RECVMSG_ERROR;
         }
@@ -265,7 +273,7 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, at
             }
         }
         sleep(3);
-    } while(--retry > 0);
+    } while (--retry > 0);
 
     return IPC_SUCCESS;
 }
@@ -283,14 +291,14 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
     memcpy(shm, dh_msg1, sizeof(sgx_dh_msg1_t));
     sem_v(semid);
     msg.type = 101;
-    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
 
     // Receive Message2 from worker
     cfprintf(NULL, CF_INFO "Waiting for msg2\n");
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 102) == -1)
+    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), 102) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -316,14 +324,14 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
     memcpy(shm, dh_msg2, sizeof(sgx_dh_msg2_t));
     sem_v(semid);
     msg.type = 102;
-    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
 
     // Receive Message3 from worker
     cfprintf(NULL, CF_INFO "Waiting for msg3\n");
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 103) == -1)
+    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), 103) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -349,7 +357,7 @@ ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3)
     memcpy(shm, dh_msg3, sizeof(sgx_dh_msg3_t));
     sem_v(semid);
     msg.type = 103;
-    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
@@ -369,7 +377,7 @@ ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
     memcpy(shm, req_message, len);
     sem_v(semid);
     msg.type = 104;
-    if(msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
@@ -384,7 +392,7 @@ ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
 ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len)
 {
     cfprintf(NULL, CF_INFO "Waiting for key pair\n");
-    if(Msgrcv_to(msqid, &msg, sizeof(msg.text), 104) == -1)
+    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), 104) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -407,7 +415,7 @@ validate_status_t ocall_store_plot_data(sgx_sealed_data_t *p_sealed_data, uint32
     validate_status_t validate_status = VALIDATION_SUCCESS;
 
     std::ofstream work_report_stream(WORK_REPORT_PATH);
-    work_report_stream << hexstring(p_sealed_data, sealed_data_size) ;
+    work_report_stream << hexstring(p_sealed_data, sealed_data_size);
     work_report_stream.close();
 
     return validate_status;
@@ -425,9 +433,9 @@ validate_status_t ocall_get_plot_data(sgx_sealed_data_t **p_sealed_data, uint32_
 
     std::ifstream work_report_stream(WORK_REPORT_PATH);
     std::string sealed_data_str((std::istreambuf_iterator<char>(work_report_stream)),
-                                 std::istreambuf_iterator<char>());
+                                std::istreambuf_iterator<char>());
 
-    *p_sealed_data = (sgx_sealed_data_t*)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
+    *p_sealed_data = (sgx_sealed_data_t *)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
     if (p_sealed_data == NULL)
     {
         return PLOT_GET_DATA_FROM_FILE_FAILED;
