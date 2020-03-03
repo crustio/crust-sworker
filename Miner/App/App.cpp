@@ -27,7 +27,7 @@ int SGX_CDECL main(int argc, char *argv[])
             }
             else
             {
-                cfprintf(NULL, CF_ERROR "-c option needs configure file path as argument!\n");
+                cprintf_err(NULL, "-c option needs configure file path as argument!\n");
                 return 1;
             }
         }
@@ -35,7 +35,7 @@ int SGX_CDECL main(int argc, char *argv[])
         {
             if(run_type.compare("") != 0)
             {
-                cfprintf(NULL, CF_ERROR "Ambiguos run mode!\n");
+                cprintf_err(NULL, "Ambiguos run mode!\n");
                 return 1;
             }
             run_type = argv[i];
@@ -96,7 +96,7 @@ int main_status()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        cfprintf(NULL, CF_ERROR "Init config failed.\n");
+        cprintf_err(NULL, "Init config failed.\n");
         return -1;
     }
 
@@ -107,10 +107,10 @@ int main_status()
     auto res = client->Get(path.c_str());
     if(!(res && res->status == 200))
     {
-        cfprintf(NULL, CF_INFO "Get status failed!");
+        cprintf_info(NULL, "Get status failed!");
         return -1;
     }
-    cfprintf(NULL, CF_INFO "%s", res->body.c_str());
+    cprintf_info(NULL, "%s", res->body.c_str());
 
     delete p_config;
     delete client;
@@ -127,7 +127,7 @@ int main_report()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        cfprintf(NULL, CF_ERROR "Init config failed.\n");
+        cprintf_err(NULL, "Init config failed.\n");
         return false;
     }
 
@@ -138,10 +138,10 @@ int main_report()
     auto res = client->Get(path.c_str());
     if(!(res && res->status == 200))
     {
-        cfprintf(NULL, CF_INFO "Get report failed!");
+        cprintf_info(NULL, "Get report failed!");
         return -1;
     }
-    cfprintf(NULL, CF_INFO "%s", res->body.c_str());
+    cprintf_info(NULL, "%s", res->body.c_str());
 
 
     delete p_config;

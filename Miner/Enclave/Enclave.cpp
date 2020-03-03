@@ -47,10 +47,6 @@ void ecall_main_loop(const char *empty_path)
         {
             cfeprintf("Send workload to monitor successfully!\n");
         }
-        if (IPC_ATTEST_BUSY != ipc_status)
-        {
-            g_att_status = ATTEST_IDLE;
-        }
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }

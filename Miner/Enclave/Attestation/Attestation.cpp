@@ -32,12 +32,6 @@ ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
     uint8_t *p_data;
     uint32_t secret_size = 0;
 
-    // Check if msg queue busy
-    if (g_att_status != ATTEST_IDLE)
-    {
-        return IPC_ATTEST_BUSY;
-    }
-    g_att_status = ATTEST_WAITING;
 
     // Set transfered data
     if(data_type ==  ATTEST_DATATYPE_KEYPAIR)
@@ -102,7 +96,7 @@ ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
     }
 
     //Send Message 2 to Destination Enclave and get Message 3 in return
-    status = ocall_send_msg2_recv_msg3(&ipc_status, &dh_msg2, &dh_msg3);
+    status = ocall_send_msg2_recv_msg3(&ipc_status, &dh_msg2, &dh_msg3, data_type);
     if (status == SGX_SUCCESS)
     {
         if (ipc_status != IPC_SUCCESS)
@@ -141,7 +135,7 @@ ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
     }
     //eprintf("[enclave]===========received data:%s\n", hexstring(&id_key_pair, sizeof(ecc_key_pair)));
 
-    status = ocall_send_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size);
+    status = ocall_send_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size, data_type);
     if(SGX_SUCCESS == status)
     {
         if(IPC_SUCCESS != ipc_status)
@@ -225,7 +219,7 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
     }
 
     // Send Message1 and receive Message2 from worker
-    status = ocall_send_msg1_recv_msg2(&ipc_status, &dh_msg1, &dh_msg2);
+    status = ocall_send_msg1_recv_msg2(&ipc_status, &dh_msg1, &dh_msg2, data_type);
     if(SGX_SUCCESS == status)
     {
         if(IPC_SUCCESS != ipc_status)
@@ -256,7 +250,7 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
         }
 
         // Send Message3 to worker
-        status = ocall_send_msg3(&ipc_status, &dh_msg3);
+        status = ocall_send_msg3(&ipc_status, &dh_msg3, data_type);
         if(SGX_SUCCESS == status)
         {
             if(IPC_SUCCESS != ipc_status)
@@ -276,7 +270,7 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
         }
 
         // Receive tee key pair from worker process
-        status = ocall_recv_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size);
+        status = ocall_recv_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size, data_type);
         if(SGX_SUCCESS == status)
         {
             if(IPC_SUCCESS != ipc_status)

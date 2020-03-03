@@ -1,45 +1,57 @@
 #include "Process.h"
 #include "OCalls.h"
 #include <map>
+#include <fstream>
+
+#define RECEIVE_PID_RETRY 30
+#define IPC_RETRY 10
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid;
 // Indicate if run current process as server
 // Record monitor and worker process id
-pid_t workerPID = -1, monitorPID = -1, monitorPID2 = -1;
+pid_t workerPID = -1, monitorPID = -1, monitor2PID = -1;
 // Local attestation session type
-int session_type;
-// Local attestation transfered data type
-attest_data_type_t datatype = ATTEST_DATATYPE_KEYPAIR;
+int g_session_type;
 // Heart beat timeout between monitor and worker process
 const int heart_beat_timeout = 15;
-// Indicate if entry network has been done
-bool is_entried_network = false;
 // Indicate if exit whole process
-bool exit_process = false;
-// indicates whether received workload or not
-bool is_monitor_recv_workload = false;
+bool g_exit_process = false;
 // Indicate current process in show info
-const char *show_tag = "<monitor>";
+const char *g_show_tag = "<monitor>";
 // Pointor to configure instance
 Config *p_config = NULL;
 // Pointer to http handler instance
 ApiHandler *p_api_handler = NULL;
+
+/* monitor and worker ipc related */
+Ipc *g_wl_ipc = NULL; // workload ipc
+Ipc *g_kp_ipc = NULL; // key pair ipc
+Ipc *g_mw_ipc = NULL; // monitor worker ipc
+
+/* Should be shared between monitor and worker */
+// Indicate if entry network has been done
+bool g_entried_network = false;
+// Indicate if entry network has been done
+bool g_entried_chain = false;
+// indicates whether received workload or not
+bool g_monitor_recv_workload = false; 
 // Store tee identity
-std::string entry_res = "";
+std::string g_entry_net_res = "";
 
 extern FILE *felog;
 extern bool run_as_server;
-extern int msqid;
-extern msg_form msg;
 
 void start_monitor(void);
 void start_monitor2(void);
 void start_worker(void);
 bool wait_chain_run(void);
-void wait_workload_attest_end(void);
-ipc_status_t attest_session_keypair();
+ipc_status_t attest_session(attest_data_type_t data_type, bool starter);
 bool do_plot_disk(void);
+void *do_workload_receive(void*);
+bool send_msg(monitor_worker_msg_t msg_type);
+bool recv_msg();
+void empty_ipc();
 
 /**
  * @description: Signal process function to deal with signals transfered
@@ -52,10 +64,10 @@ static void sig_handler(int signum)
     switch (signum)
     {
     case SIGUSR1:
-        is_entried_network = true;
+        recv_msg();
         break;
     case SIGUSR2:
-        exit_process = true;
+        g_exit_process = true;
         break;
     case SIGCHLD:
         /* Deal with child process */
@@ -64,15 +76,198 @@ static void sig_handler(int signum)
         {
             if (WIFEXITED(status))
             {
-                cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, WEXITSTATUS(status));
+                cprintf_info(felog, "child %d terminated!Error code:%lx\n", 
+                         pid, WEXITSTATUS(status));
             }
             else
             {
-                cfprintf(felog, CF_INFO "%s child %d terminated!Error code:%lx\n", show_tag, pid, status);
+                cprintf_info(felog, "child %d terminated!Error code:%lx\n", 
+                         pid, status);
             }
         }
         break;
     }
+}
+
+/**
+ * @description: Erase all messages in three message queue
+ * */
+void empty_ipc()
+{
+    msg_form_t msg;
+    while (msgrcv(g_mw_ipc->msqid, &msg, sizeof(msg.text), 0, IPC_NOWAIT) != -1);
+    while (msgrcv(g_kp_ipc->msqid, &msg, sizeof(msg.text), 0, IPC_NOWAIT) != -1);
+    while (msgrcv(g_wl_ipc->msqid, &msg, sizeof(msg.text), 0, IPC_NOWAIT) != -1);
+}
+
+/**
+ * @description: Send data to another thread
+ * @param msg_type -> indicate to be sent data type
+ * @param pid -> the receiver process id
+ * @return: Send message and receive reply successfully or not
+ * */
+bool send_msg(monitor_worker_msg_t msg_type, pid_t pid)
+{
+    msg_form_t msg;
+    msg.type = msg_type;
+
+    // Put data to shared memory
+    if (msg.type == MW_MSG_ENTRYNETWORK)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(g_mw_ipc->shm, &g_entried_network, sizeof(g_entried_network));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Send entried network:%d(type:%d)!\n",
+                 g_entried_network, msg.type);
+    }
+    else if (msg.type == MW_MSG_ENTRYCHAIN)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(g_mw_ipc->shm, &g_entried_chain, sizeof(g_entried_chain));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Send entried chain:%d(type:%d)!\n",
+                 g_entried_chain, msg.type);
+    }
+    else if (msg.type == MW_MSG_WORKER_PID)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(g_mw_ipc->shm, &workerPID, sizeof(workerPID));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Send workerPID:%d(type:%d)!\n",
+                 workerPID, msg.type);
+    }
+    else if (msg.type == MW_MSG_MONITOR_PID)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(g_mw_ipc->shm, &monitorPID, sizeof(monitorPID));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Send monitorPID:%d(type:%d)!\n",
+                 monitorPID, msg.type);
+    }
+    else if (msg.type == MW_MSG_ENTRYNETWORK_DATA)
+    {
+        msg.text = g_entry_net_res.size();
+        cprintf_info(felog, "entry result size:%d, gsize:%d\n", msg.text, g_entry_net_res.size());
+        sem_p(g_mw_ipc->semid);
+        memcpy(g_mw_ipc->shm, g_entry_net_res.c_str(), g_entry_net_res.size());
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Send monitorPID:%d(type:%d)!\n",
+                 monitorPID, msg.type);
+    }
+    else
+    {
+        cprintf_info(felog, "Can't send unknown message type:%d!\n", msg.type);
+        return false;
+    }
+
+    // Send data
+    if (msgsnd(g_mw_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    {
+        cprintf_err(felog, "Send message type:%d failed!Error:%s\n",
+                 msg_type, strerror(errno));
+        return false;
+    }
+    // Notify receiver to receive
+    if (kill(pid, SIGUSR1) == -1)
+    {
+        cprintf_err(felog, "Send notification failed!\n");
+        return false;
+    }
+
+    msg.type++;
+    if (Msgrcv_to(g_mw_ipc->msqid, &msg, sizeof(msg.text), msg.type) == -1)
+    {
+        cprintf_err(felog, "Receive message type:%d failed!\n", msg.type);
+        return false;
+    }
+    cprintf_info(felog, "Receive reply(type:%d) successfully!\n", msg.type);
+
+    return true;
+}
+
+/**
+ * @description: Receive message from message queue
+ * @return: Receive message successfully or not
+ * */
+bool recv_msg()
+{
+    int ipc_retry = IPC_RETRY;
+    msg_form_t msg;
+    // Wait message
+    while (ipc_retry > 0)
+    {
+        if (Msgrcv_to(g_mw_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+        {
+            cprintf_err(felog, "Receive message failed!\n");
+            return false;
+        }
+        ipc_retry--;
+        if (msg.type < 400 || msg.type > 500)
+            continue;
+        break;
+    }
+
+    // Get data
+    if (msg.type == MW_MSG_ENTRYNETWORK)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(&g_entried_network, g_mw_ipc->shm, sizeof(g_entried_network));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Get entried network:%d(type:%d)!\n",
+                 g_entried_network, msg.type);
+    }
+    else if (msg.type == MW_MSG_ENTRYCHAIN)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(&g_entried_chain, g_mw_ipc->shm, sizeof(g_entried_chain));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Get entried chain:%d(type:%d)!\n",
+                 g_entried_chain, msg.type);
+    }
+    else if (msg.type == MW_MSG_WORKER_PID)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(&workerPID, g_mw_ipc->shm, sizeof(workerPID));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Get workerPID:%d(type:%d)!\n",
+                 workerPID, msg.type);
+    }
+    else if (msg.type == MW_MSG_MONITOR_PID)
+    {
+        sem_p(g_mw_ipc->semid);
+        memcpy(&monitorPID, g_mw_ipc->shm, sizeof(monitorPID));
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Get monitorPID:%d(type:%d)!\n",
+                 monitorPID, msg.type);
+    }
+    else if (msg.type == MW_MSG_ENTRYNETWORK_DATA)
+    {
+        sem_p(g_mw_ipc->semid);
+        cprintf_info(felog, "Get entry network size:%d\n",
+                 msg.text);
+        g_entry_net_res = std::string(g_mw_ipc->shm, msg.text);
+        sem_v(g_mw_ipc->semid);
+        cprintf_info(felog, "Get entry network result(type:%d):%s!\n",
+                 msg.type, g_entry_net_res.c_str());
+    }
+    else
+    {
+        cprintf_info(felog, "Receive unknown message type:%d!\n", msg.type);
+        return false;
+    }
+
+    // Send response
+    msg.type++;
+    if (msgsnd(g_mw_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    {
+        cprintf_err(felog, "Send message type:%d failed!\n",
+                 msg.type);
+        return false;
+    }
+    cprintf_info(felog, "send back type:%d successfully!\n", msg.type);
+
+    return true;
+
 }
 
 /**
@@ -93,39 +288,74 @@ bool initialize_config(void)
 }
 
 /**
+ * @description: New three ipc objects
+ * @return: Create three ipc objects successfully or not
+ * */
+bool initialize_ipc(void)
+{
+    std::ofstream(WL_FILE_PATH);
+    std::ofstream(KP_FILE_PATH);
+    std::ofstream(MW_FILE_PATH);
+    // Create workload ipc
+    g_wl_ipc = new Ipc();
+    if (!g_wl_ipc->init(WL_FILE_PATH, WL_IPC_NUM))
+    {
+        cprintf_err(felog, "Init workload ipc failed!\n");
+        return false;
+    }
+
+    // Create key pair ipc
+    g_kp_ipc = new Ipc();
+    if (!g_kp_ipc->init(KP_FILE_PATH, KP_IPC_NUM))
+    {
+        cprintf_err(felog, "Init key pair ipc failed!\n");
+        return false;
+    }
+
+    // Create monitor worker ipc
+    g_mw_ipc = new Ipc();
+    if (!g_mw_ipc->init(MW_FILE_PATH, MW_IPC_NUM))
+    {
+        cprintf_err(felog, "Init monitor worker ipc failed!\n");
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * @description: call sgx_create_enclave to initialize an enclave instance
  * @return: success or failure
  */
-bool initialize_enclave(bool gen_key_pair = true)
+bool initialize_enclave()
 {
     int sgx_support;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     /* Can we run SGX? */
-    cfprintf(felog, CF_INFO "%s Initial enclave...\n", show_tag);
+    cprintf_info(felog, "Initial enclave...\n");
     sgx_support = get_sgx_support();
     if (sgx_support & SGX_SUPPORT_NO)
     {
-        cfprintf(felog, CF_ERROR "%s This system does not support Intel SGX.\n", show_tag);
+        cprintf_err(felog, "This system does not support Intel SGX.\n");
         return -1;
     }
     else
     {
         if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED)
         {
-            cfprintf(felog, CF_ERROR "%s Intel SGX is supported on this system but disabled in the BIOS\n", show_tag);
+            cprintf_err(felog, "Intel SGX is supported on this system but disabled in the BIOS\n");
             return -1;
         }
         else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED)
         {
-            cfprintf(felog, CF_ERROR "%s Intel SGX will be enabled after the next reboot\n", show_tag);
+            cprintf_err(felog, "Intel SGX will be enabled after the next reboot\n");
             return -1;
         }
         else if (!(sgx_support & SGX_SUPPORT_ENABLED))
         {
-            cfprintf(felog, CF_ERROR "%s Intel SGX is supported on this sytem but not available for use. \
-                    The system may lock BIOS support, or the Platform Software is not available\n",
-                     show_tag);
+            cprintf_err(felog, "Intel SGX is supported on this sytem but not available for use. \
+                    The system may lock BIOS support, or the Platform Software is not available\n");
             return -1;
         }
     }
@@ -134,28 +364,28 @@ bool initialize_enclave(bool gen_key_pair = true)
     ret = sgx_create_enclave(ENCLAVE_FILE_PATH, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s Init enclave failed.Error code:%08x\n", show_tag, ret);
+        cprintf_err(felog, "Init enclave failed.Error code:%08x\n", ret);
         return false;
     }
 
     /* Generate code measurement */
     if (SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
     {
-        cfprintf(felog, CF_ERROR "%s Generate code measurement failed!error code:%08x\n", show_tag, ret);
+        cprintf_err(felog, "Generate code measurement failed!error code:%08x\n", ret);
         return false;
     }
 
     /* Generate ecc key pair */
-    if (gen_key_pair)
+    if (g_session_type == SESSION_STARTER)
     {
         if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret))
         {
-            cfprintf(felog, CF_ERROR "%s Generate key pair failed!\n", show_tag);
+            cprintf_err(felog, "Generate key pair failed!\n");
             return false;
         }
-        cfprintf(felog, CF_INFO "%s Generate key pair successfully!\n", show_tag);
+        cprintf_info(felog, "Generate key pair successfully!\n");
     }
-    cfprintf(felog, CF_INFO "%s Initial enclave successfully!\n", show_tag);
+    cprintf_info(felog, "Initial enclave successfully!\n");
 
     return true;
 }
@@ -166,16 +396,16 @@ bool initialize_enclave(bool gen_key_pair = true)
 void *start_http(void *)
 {
     /* API handler component */
-    cfprintf(felog, CF_INFO "%s Initing api url:%s...\n", show_tag, p_config->api_base_url.c_str());
+    cprintf_info(felog, "Initing api url:%s...\n", p_config->api_base_url.c_str());
     p_api_handler = new ApiHandler(&global_eid);
     if (p_api_handler == NULL)
     {
-        cfprintf(felog, CF_ERROR "%s Init api handler failed.\n", show_tag);
+        cprintf_err(felog, "Init api handler failed.\n");
         return NULL;
     }
-    //cfprintf(felog, CF_INFO "%s Init api handler successfully.\n", show_tag);
+    //cprintf_info(felog, "Init api handler successfully.\n");
     p_api_handler->start();
-    cfprintf(felog, CF_ERROR "%s Start network service failed!\n", show_tag);
+    cprintf_err(felog, "Start network service failed!\n");
     return NULL;
 }
 
@@ -191,23 +421,23 @@ bool initialize_components(void)
     /* IPFS component */
     if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
     {
-        cfprintf(felog, CF_ERROR "%s Init ipfs failed.\n", show_tag);
+        cprintf_err(felog, "Init ipfs failed.\n");
         return false;
     }
 
     if (!get_ipfs()->is_online())
     {
-        cfprintf(felog, CF_ERROR "%s ipfs daemon is not started up! Please start it up!\n", show_tag);
+        cprintf_err(felog, "ipfs daemon is not started up! Please start it up!\n");
         return false;
     }
 
     pthread_t wthread;
     if (pthread_create(&wthread, NULL, start_http, NULL) != 0)
     {
-        cfprintf(felog, CF_ERROR "%s Create rest service thread failed!\n", show_tag);
+        cprintf_err(felog, "Create rest service thread failed!\n");
         return false;
     }
-    cfprintf(felog, CF_INFO "%s Start rest service successfully!\n", show_tag);
+    cprintf_info(felog, "Start rest service successfully!\n");
 
     return true;
 }
@@ -217,7 +447,7 @@ bool initialize_components(void)
  *   to verify identity
  * @return: success or failure
  * */
-bool entry_network(std::string &entry_res)
+bool entry_network()
 {
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
@@ -263,19 +493,19 @@ bool entry_network(std::string &entry_res)
     status = sgx_init_quote(&target_info, &epid_gid);
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s sgx_init_quote: %08x\n", show_tag, status);
+        cprintf_err(felog, "sgx_init_quote: %08x\n", status);
         return false;
     }
 
     status = ecall_get_report(global_eid, &sgxrv, &report, &target_info);
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s get_report: %08x\n", show_tag, status);
+        cprintf_err(felog, "get_report: %08x\n", status);
         return false;
     }
     if (sgxrv != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s sgx_create_report: %08x\n", show_tag, sgxrv);
+        cprintf_err(felog, "sgx_create_report: %08x\n", sgxrv);
         return false;
     }
 
@@ -283,19 +513,19 @@ bool entry_network(std::string &entry_res)
     // so use a wrapper function.
     if (!get_quote_size(&status, &sz))
     {
-        cfprintf(felog, CF_ERROR "%s PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n", show_tag);
+        cprintf_err(felog, "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
         return false;
     }
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s SGX error while getting quote size: %08x\n", show_tag, status);
+        cprintf_err(felog, "SGX error while getting quote size: %08x\n", status);
         return false;
     }
 
     quote = (sgx_quote_t *)malloc(sz);
     if (quote == NULL)
     {
-        cfprintf(felog, CF_ERROR "%s out of memory\n", show_tag);
+        cprintf_err(felog, "out of memory\n");
         return false;
     }
 
@@ -314,7 +544,7 @@ bool entry_network(std::string &entry_res)
                            sz);
     if (status != SGX_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s sgx_get_quote: %08x\n", show_tag, status);
+        cprintf_err(felog, "sgx_get_quote: %08x\n", status);
         return false;
     }
 
@@ -333,7 +563,7 @@ bool entry_network(std::string &entry_res)
     b64quote = base64_encode((char *)quote, sz);
     if (b64quote == NULL)
     {
-        cfprintf(felog, CF_ERROR "%s Could not base64 encode quote\n", show_tag);
+        cprintf_err(felog, "Could not base64 encode quote\n");
         return false;
     }
 
@@ -353,7 +583,7 @@ bool entry_network(std::string &entry_res)
     fprintf(felog, "\n}\n");
 
     /* Send quote to validation node */
-    cfprintf(felog, CF_INFO "%s Sending quote to on-chain node...\n", show_tag);
+    cprintf_info(felog, "Sending quote to on-chain node...\n");
 
     // Send quote to validation node, try out 3 times for network error.
     std::string req_data;
@@ -375,7 +605,7 @@ bool entry_network(std::string &entry_res)
         res = client->Post(path.c_str(), params);
         if (!(res && res->status == 200))
         {
-            cfprintf(NULL, CF_INFO "Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
+            cprintf_info(NULL, "Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
             sleep(3);
             net_tryout--;
             continue;
@@ -387,44 +617,23 @@ bool entry_network(std::string &entry_res)
     {
         if (res)
         {
-            cfprintf(felog, CF_ERROR "%s Entry network failed!Error code:%d\n", show_tag, res->status);
+            cprintf_err(felog, "Entry network failed!Error code:%d\n", res->status);
         }
         else
         {
-            cfprintf(felog, CF_ERROR "%s Entry network failed!Error: Get response failed!\n", show_tag);
+            cprintf_err(felog, "Entry network failed!Error: Get response failed!\n");
         }
         entry_status = false;
         goto cleanup;
     }
 
-    entry_res = res->body;
+    g_entry_net_res = res->body;
 
 cleanup:
 
     delete client;
 
     return entry_status;
-}
-
-/**
- * @description: Because worker continually sends workload, so wait for this attestation end.
- * And then worker can send key pair attestation
- * */
-void wait_workload_attest_end(void)
-{
-    cfprintf(felog, CF_INFO "%s Waiting last-time workload attestation stop...\n", show_tag);
-    attest_status_t attest_status = ATTEST_WAITING;
-    while (true)
-    {
-        if (SGX_SUCCESS == ecall_get_attest_status(global_eid, &attest_status))
-        {
-            if (ATTEST_IDLE == attest_status)
-            {
-                break;
-            }
-        }
-        sleep(1);
-    }
 }
 
 /**
@@ -435,7 +644,7 @@ bool wait_chain_run(void)
 {
     if (new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
     {
-        cfprintf(felog, CF_ERROR "%s Init crust chain failed.\n", show_tag);
+        cprintf_err(felog, "Init crust chain failed.\n");
         return false;
     }
 
@@ -447,7 +656,7 @@ bool wait_chain_run(void)
         }
         else
         {
-            cfprintf(NULL, CF_INFO "%s Waitting for chain to run...\n", show_tag);
+            cprintf_info(NULL, "Waitting for chain to run...\n");
             sleep(3);
         }
     }
@@ -461,7 +670,7 @@ bool wait_chain_run(void)
         }
         else
         {
-            cfprintf(NULL, CF_INFO "%s Waitting for chain to run...\n", show_tag);
+            cprintf_info(NULL, "Waitting for chain to run...\n");
             sleep(3);
         }
     }
@@ -473,36 +682,50 @@ bool wait_chain_run(void)
  * @description: Execute different session based on parameter
  * @return: session result
  * */
-ipc_status_t attest_session_keypair()
+ipc_status_t attest_session(attest_data_type_t data_type)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     ipc_status_t ipc_status = IPC_SUCCESS;
-    if (session_type == SESSION_STARTER)
+    const char *p_data_type;
+    if (data_type == ATTEST_DATATYPE_KEYPAIR)
     {
-        cfprintf(felog, CF_INFO "%s Do key pair attestation(starter)...\n", show_tag);
-        sgx_status = ecall_attest_session_starter(global_eid, &ipc_status, datatype);
+        p_data_type = "key pair";
     }
-    else if (session_type == SESSION_RECEIVER)
+    else if (data_type == ATTEST_DATATYPE_WORKLOAD)
     {
-        cfprintf(felog, CF_INFO "%s Do key pair attestation(receiver)...\n", show_tag);
-        sgx_status = ecall_attest_session_receiver(global_eid, &ipc_status, datatype);
+        p_data_type = "workload";
+    }
+
+    if (g_session_type == SESSION_STARTER)
+    {
+        cprintf_info(felog, "Do %s attestation(starter)...\n", p_data_type);
+        sgx_status = ecall_attest_session_starter(global_eid, &ipc_status, data_type);
+    }
+    else if (g_session_type == SESSION_RECEIVER)
+    {
+        cprintf_info(felog, "Do %s attestation(receiver)...\n", p_data_type);
+        sgx_status = ecall_attest_session_receiver(global_eid, &ipc_status, data_type);
     }
     else
     {
         return IPC_BADSESSIONTYPE;
     }
     // Judge by result
-    if (SGX_SUCCESS == sgx_status)
+    if (SGX_SUCCESS != sgx_status)
     {
-        if (IPC_SUCCESS != ipc_status)
-        {
-            return ipc_status;
-        }
+        ipc_status =  IPC_SGX_ERROR;
+    }
+
+    if (IPC_SUCCESS != ipc_status)
+    {
+        cprintf_err(felog, "Do %s attestation failed!Error code:%lx\n", 
+                p_data_type, ipc_status);
     }
     else
     {
-        return IPC_SGX_ERROR;
+        cprintf_info(felog, "Do %s attestation successfully!\n", p_data_type);
     }
+
 
     return ipc_status;
 }
@@ -524,7 +747,7 @@ void *do_check_block(void *)
             // Generate validation report and get report size
             if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
             {
-                cfprintf(felog, CF_ERROR "Generate validation report failed!\n");
+                cprintf_err(felog, "Generate validation report failed!\n");
                 continue;
             }
 
@@ -534,43 +757,62 @@ void *do_check_block(void *)
             if (ecall_get_signed_validation_report(global_eid, &validate_status,
                                                    block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len) != SGX_SUCCESS)
             {
-                cfprintf(felog, CF_ERROR "Get signed validation report failed!\n");
+                cprintf_err(felog, "Get signed validation report failed!\n");
             }
             else
             {
                 if (validate_status != VALIDATION_SUCCESS)
                 {
-                    cfprintf(felog, CF_INFO "Get signed validation report failed! Error code:%x\n", validate_status);
+                    cprintf_info(felog, "Get signed validation report failed! Error code:%x\n", validate_status);
                 }
                 else
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
-                    work_json["sig"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
+                    work_json["signal"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
                     work_json["block_height"] = block_header->number;
                     work_json["block_hash"] = block_header->hash;
                     std::string workStr = work_json.dump();
-                    cfprintf(felog, CF_INFO "Sign validation report successfully!\n%s\n", workStr.c_str());
+                    cprintf_info(felog, "Sign validation report successfully!\n%s\n", workStr.c_str());
                     // Delete space and line break
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
                     if (!get_crust()->post_tee_work_report(workStr))
                     {
-                        cfprintf(felog, CF_ERROR "Send work report to crust chain failed!\n");
+                        cprintf_err(felog, "Send work report to crust chain failed!\n");
                     }
                     else
                     {
-                        cfprintf(felog, CF_INFO "Send work report to crust chain successfully!\n");
+                        cprintf_info(felog, "Send work report to crust chain successfully!\n");
                     }
                 }
             }
         }
         else
         {
-            cfprintf(NULL, CF_INFO "Block height:%d is not enough!\n", block_header->number);
+            cprintf_info(NULL, "Block height:%d is not enough!\n", block_header->number);
             sleep(3);
         }
     }
+}
+
+/**
+ * @description: Thread work function to receive workload from worker
+ * */
+void *do_workload_receive(void*)
+{
+    ipc_status_t ipc_status = IPC_SUCCESS;
+    while(true)
+    {
+        if(IPC_SUCCESS == (ipc_status = attest_session(ATTEST_DATATYPE_WORKLOAD)))
+        {
+            // If the newest workload not recevied? 
+            g_monitor_recv_workload = true;
+        }
+        pthread_testcancel();
+        sleep(5);
+    }
+
 }
 
 /**
@@ -580,26 +822,25 @@ void *do_disk_related(void *args)
 {
     bool need_plot_disk = *((bool *)args);
     pthread_t wthread;
-    validate_status_t validate_status = VALIDATION_SUCCESS;
 
     /* Plot empty disk */
     if (need_plot_disk)
     {
         if (!do_plot_disk())
         {
-            cfprintf(felog, CF_ERROR "%s Plot empty disk failed!\n", show_tag);
-            return NULL;
+            cprintf_err(felog, "Plot empty disk failed!\n");
+            return NULL; 
         }
-        cfprintf(felog, CF_INFO "%s Plot empty successfully!\n", show_tag);
+        cprintf_info(felog, "Plot empty disk successfully!\n");
     }
     else
     {
-        cfprintf(felog, CF_INFO "%s Have received workload from monitor successfully!\n", show_tag);
+        cprintf_info(felog, "Have received workload from monitor successfully!\n");
     }
 
     if (new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
     {
-        cfprintf(felog, CF_ERROR "%s Init crust chain failed.\n", show_tag);
+        cprintf_err(felog, "Init crust chain failed.\n");
         return NULL;
     }
 
@@ -608,30 +849,25 @@ void *do_disk_related(void *args)
     {
         return NULL;
     }
-
-    if (!is_entried_network)
+    
+    if (!g_entried_chain)
     {
-        if (!get_crust()->post_tee_identity(entry_res))
+        if (!get_crust()->post_tee_identity(g_entry_net_res))
         {
-            cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
+            cprintf_err(felog, "Send identity to crust chain failed!\n");
             return NULL;
         }
-        cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
-
-        // Notify monitor that worker has entried network successfully
-        if (kill(monitorPID, SIGUSR1) == -1)
-        {
-            cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
-            return NULL;
-        }
-        is_entried_network = true;
-        cfprintf(felog, CF_INFO "%s Send entry network status to monitor successfully!\n", show_tag);
+        cprintf_info(felog, "Send identity to crust chain successfully!\n");
+        g_entried_chain = true;
+        send_msg(MW_MSG_ENTRYCHAIN, monitorPID);
     }
 
+    // Check block height and post report to chain
     if (pthread_create(&wthread, NULL, do_check_block, NULL) != 0)
     {
-        cfprintf(NULL, CF_ERROR "Create checking block info thread failed!\n");
+        cprintf_err(felog, "Create checking block info thread failed!\n");
     }
+
     /* Main validate loop */
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
 
@@ -645,28 +881,22 @@ void *do_disk_related(void *args)
 bool do_plot_disk(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    validate_status_t validate_status = VALIDATION_SUCCESS;
 
-    cfprintf(felog, CF_INFO "Start ploting disk...\n");
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-#pragma omp parallel for
+    cprintf_info(felog, "Start ploting disk...\n");
+    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+    #pragma omp parallel for
     for (size_t i = 0; i < p_config->empty_capacity; i++)
     {
-        cfprintf(felog, CF_INFO "Read workload from file failed(Code:%lx). Start ploting data.\n", validate_status);
-        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-        #pragma omp parallel for
-        for (size_t i = 0; i < p_config->empty_capacity; i++)
-        {
-            ecall_plot_disk(global_eid, p_config->empty_path.c_str());
-        }
+        ecall_plot_disk(global_eid, p_config->empty_path.c_str());
+    }
 
-        // Generate empty root
-        ret = ecall_generate_empty_root(global_eid);
-        if (ret != SGX_SUCCESS)
-        {
-            cfprintf(felog, CF_ERROR "%s Generate empty root failed. Error code:%08x\n", show_tag, ret);
-            return false;
-        }
+    // Generate empty root
+    ret = ecall_generate_empty_root(global_eid);
+    if (ret != SGX_SUCCESS)
+    {
+        cprintf_err(felog, "Generate empty root failed. Error code:%08x\n", 
+                 ret);
+        return false;
     }
 
     return true;
@@ -678,16 +908,20 @@ bool do_plot_disk(void)
  */
 void start_monitor(void)
 {
-    cfprintf(felog, CF_INFO "%s MonitorPID=%d\n", show_tag, monitorPID);
+    g_show_tag = "<monitor>";
+    monitorPID = getpid();
+    cprintf_info(felog, "MonitorPID=%d\n", monitorPID);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
     std::map<std::string, pid_t> pids_m;
     pids_m["worker"] = workerPID;
-    pids_m["monitor2"] = monitorPID2;
+    pids_m["monitor2"] = monitor2PID;
     bool is_break_check = false;
     bool doAttest = true; // Used to indicate if worker terminated
     std::pair<std::string, pid_t> exit_entry;
-    is_monitor_recv_workload = false;
+    g_monitor_recv_workload = false;
+    pthread_t wthread;
+    void *wthread_ret = NULL;
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
@@ -698,9 +932,9 @@ void start_monitor(void)
     signal(SIGCHLD, sig_handler);
 
     /* Init IPC */
-    if (init_ipc() == -1)
+    if (!initialize_ipc())
     {
-        cfprintf(felog, CF_ERROR "%s Init IPC failed!\n", show_tag);
+        cprintf_err(felog, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
         goto cleanup;
     }
@@ -712,57 +946,36 @@ void start_monitor(void)
         // delete copied sgx enclave memory space
         sgx_destroy_enclave(global_eid);
     }
-    if (!initialize_enclave(false))
+    if (!initialize_enclave())
     {
-        cfprintf(felog, CF_ERROR "%s Monitor process init enclave failed!\n", show_tag);
+        cprintf_err(felog, "Monitor process init enclave failed!\n");
         ipc_status = INIT_ENCLAVE_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Monitor process init enclave successfully!id:%d\n", show_tag, global_eid);
+    cprintf_info(felog, "Monitor process init enclave successfully!id:%d\n", 
+             global_eid);
 
 again:
     /* Do local attestation and exchange pid with worker */
     if (doAttest)
     {
-        if ((ipc_status = attest_session_keypair()) != IPC_SUCCESS)
+        // Do key pair attestation
+        if (IPC_SUCCESS != (ipc_status = attest_session(ATTEST_DATATYPE_KEYPAIR)))
         {
-            cfprintf(felog, CF_ERROR "%s Do key pair attestation failed!Error code:%lx\n", show_tag, ipc_status);
             goto cleanup;
         }
-        else
+
+        /* Send workload to worker or not */
+        if (g_session_type == SESSION_STARTER && g_monitor_recv_workload)
         {
-            cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
-            /* Send workload to worker */
-            if (session_type == SESSION_STARTER && is_monitor_recv_workload)
-            {
-                sleep(5); // Waiting for key pair attestation end
-                cfprintf(felog, CF_INFO "%s Do workload attestation(starter)....\n", show_tag);
-                if (SGX_SUCCESS != ecall_attest_session_starter(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD) || IPC_SUCCESS != ipc_status)
-                {
-                    cfprintf(felog, CF_WARN "Send workload to worker failed!Error code:%lx\n", ipc_status);
-                }
-                else
-                {
-                    cfprintf(felog, CF_INFO "Send workload to worker successfully!\n");
-                }
-            }
-            /* Exchange pid with worker */
-            msg.type = MSG_PID_MONITOR;
-            msg.text = getpid();
-            if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
-            {
-                cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
-            }
-            if (Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_WORKER) == -1)
-            {
-                cfprintf(felog, CF_ERROR "%s Get worker pid failed!!\n", show_tag);
-            }
-            else
-            {
-                workerPID = msg.text;
-                pids_m["worker"] = workerPID;
-                cfprintf(felog, CF_INFO "%s Get worker pid successfully!pid:%d\n", show_tag, workerPID);
-            }
+            attest_session(ATTEST_DATATYPE_WORKLOAD);
+        }
+        // Set session type to receiver to receive workload
+        g_session_type = SESSION_RECEIVER;
+        // Create a thread to receive workload from worker
+        if (pthread_create(&wthread, NULL, do_workload_receive, NULL) != 0)
+        {
+            cprintf_warn(felog, "Create receiver thread failed!\n");
         }
         doAttest = false;
     }
@@ -777,24 +990,24 @@ again:
             {
                 if (errno == ESRCH)
                 {
-                    cfprintf(felog, CF_ERROR "%s %s process is not existed!pid:%d\n",
-                             show_tag, it.first.c_str(), it.second);
+                    cprintf_err(felog, "%s process is not existed!pid:%d\n", 
+                             it.first.c_str(), it.second);
                 }
                 else if (errno == EPERM)
                 {
-                    cfprintf(felog, CF_ERROR "%s %s has no right to send sig to worker!\n",
-                             show_tag, it.first.c_str());
+                    cprintf_err(felog, "%s has no right to send signal to worker!\n", 
+                             it.first.c_str());
                 }
                 else if (errno == EINVAL)
                 {
-                    cfprintf(felog, CF_ERROR "%s Invalid sig!\n", show_tag);
+                    cprintf_err(felog, "Invalid signal!\n");
                 }
                 else
                 {
-                    cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
+                    cprintf_err(felog, "Unknown error!\n");
                 }
-                cfprintf(felog, CF_ERROR "%s %s sends sig to worker failed!Error code:%d\n",
-                         show_tag, it.first.c_str(), errno);
+                cprintf_err(felog, "%s sends signal to worker failed!Error code:%d\n", 
+                         it.first.c_str(), errno);
                 is_break_check = true;
                 exit_entry = it;
                 break;
@@ -804,77 +1017,85 @@ again:
         {
             break;
         }
-        cfprintf(felog, CF_INFO "%s Do workload attestation(receiver)....\n", show_tag);
-        if (SGX_SUCCESS != ecall_attest_session_receiver(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD) || IPC_SUCCESS != ipc_status)
-        {
-            cfprintf(felog, CF_INFO "%s Receive workload from worker failed!Error code:%lx\n", show_tag, ipc_status);
-        }
-        else
-        {
-            // If the newest workload not recevied?
-            is_monitor_recv_workload = true;
-            cfprintf(felog, CF_INFO "%s Receive workload from worker successfully!\n", show_tag);
-        }
     }
     is_break_check = false;
-    cfprintf(felog, CF_INFO "%s %s process exit unexpectly!Restart it again\n",
-             show_tag, exit_entry.first.c_str());
+    cprintf_info(felog, "%s process exit unexpectly!Restart it again\n", 
+             exit_entry.first.c_str());
+
+    //++++++++++ This session deals with monitor or worker exit unexpectly ++++++++++//
 
     // Check if worker process exit because of entry network or creating work thread failed,
     // then monitor process should end.
-    if (exit_process)
+    if (g_exit_process)
     {
-        cfprintf(felog, CF_ERROR "%s Worker process entries network or creates work thread failed!Exit monitor process!\n", show_tag);
+        cprintf_err(felog, "Worker process entries network or creates work thread failed! \
+                Exit monitor process!\n");
         goto cleanup;
     }
 
+    if (exit_entry.first.compare("worker") == 0)
+    {
+        // Empty message queue
+        empty_ipc();
+
+        // Stop workload receive thread
+        cprintf_info(felog, "Stopping workload receive thread...\n");
+        pthread_cancel(wthread);
+        pthread_join(wthread, &wthread_ret);
+        if (wthread_ret != PTHREAD_CANCELED)
+        {
+            cprintf_err(felog, "Stop workload receiver failed!\n");
+        }
+    }
+
     /* Fork new child process */
-    cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
-    // Should get current pid before fork
-    monitorPID = getpid();
+    cprintf_info(felog, "Do fork\n");
     if ((pid = fork()) == -1)
     {
-        cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
+        cprintf_err(felog, "Create worker process failed!\n");
         ipc_status = FORK_NEW_PROCESS_ERROR;
         goto cleanup;
     }
 
     if (pid == 0)
     {
-        cfprintf(felog, CF_INFO "%s Start new %s...\n", show_tag, exit_entry.first.c_str());
-        show_tag = ("<" + exit_entry.first + ">").c_str();
+        // New child process
+        cprintf_info(felog, "Start new %s...\n", exit_entry.first.c_str());
         if (exit_entry.first.compare("worker") == 0)
         {
-            session_type = SESSION_RECEIVER;
-            workerPID = getpid();
+            // Change session type to receiver, prepare to receive data from monitor
+            g_session_type = SESSION_RECEIVER;
             start_worker();
         }
         else if (exit_entry.first.compare("monitor2") == 0)
         {
-            monitorPID2 = getpid();
             start_monitor2();
         }
         else
         {
-            cfprintf(NULL, CF_ERROR "Unknown process!\n");
+            cprintf_err(felog, "Unknown process!\n");
             goto cleanup;
         }
     }
     else
     {
+        // Monitor process
         if (exit_entry.first.compare("worker") == 0)
         {
             workerPID = pid;
-            session_type = SESSION_STARTER;
+            // Change session type to start, prepare to send data to worker
+            g_session_type = SESSION_STARTER;
+            // Send workerPID to monitor2
+            send_msg(MW_MSG_WORKER_PID, monitor2PID);
             doAttest = true;
         }
         else if (exit_entry.first.compare("monitor2") == 0)
         {
-            monitorPID2 = pid;
+            monitor2PID = pid;
         }
         else
         {
-            cfprintf(NULL, CF_ERROR "Unknown process!\n");
+            cprintf_err(felog, "Unknown process!\n");
             goto cleanup;
         }
         // Update related pid
@@ -885,24 +1106,28 @@ again:
 cleanup:
     /* End and release*/
     if (global_eid != 0)
-    {
         sgx_destroy_enclave(global_eid);
-    }
-    destroy_ipc();
 
-    cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
+    if (g_mw_ipc != NULL)
+        delete g_mw_ipc;
+
+    if (g_kp_ipc != NULL)
+        delete g_kp_ipc;
+
+    if (g_wl_ipc != NULL)
+        delete g_wl_ipc;
+
+    cprintf_err(felog, "Monitor process exits with error code:%lx\n", ipc_status);
 
     // Send SIGKILL to monitor2 to prevent it starts up monitor again
-    cfprintf(felog, CF_ERROR "%s Kill monitor2 process\n", show_tag);
+    cprintf_err(felog, "Kill monitor2 process\n");
     if (kill(pids_m["monitor2"], SIGKILL) == -1)
     {
-        cfprintf(felog, CF_ERROR "Send SIGKILL to monitor2 failed!\n");
+        cprintf_err(felog, "Send SIGKILL to monitor2 failed!\n");
     }
 
     if (felog != NULL)
-    {
         close_logfile(felog);
-    }
 
     exit(ipc_status);
 }
@@ -912,7 +1137,9 @@ cleanup:
  * */
 void start_monitor2(void)
 {
-    cfprintf(felog, CF_INFO "%s Monitor2PID=%d\n", show_tag, monitorPID2);
+    g_show_tag = "<monitor2>";
+    monitor2PID = getpid();
+    cprintf_info(felog, "Monitor2PID=%d\n", monitor2PID);
     ipc_status_t ipc_status = IPC_SUCCESS;
     pid_t pid = -1;
 
@@ -925,9 +1152,9 @@ void start_monitor2(void)
     signal(SIGCHLD, sig_handler);
 
     /* Init IPC */
-    if (init_ipc() == -1)
+    if (!initialize_ipc())
     {
-        cfprintf(felog, CF_ERROR "%s Init IPC failed!\n", show_tag);
+        cprintf_err(felog, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
         goto cleanup;
     }
@@ -941,61 +1168,70 @@ again:
         {
             if (errno == ESRCH)
             {
-                cfprintf(felog, CF_ERROR "%s Monitor process is not existed!\n", show_tag);
+                cprintf_err(felog, "Monitor process is not existed!\n");
             }
             else if (errno == EPERM)
             {
-                cfprintf(felog, CF_ERROR "%s Monitor2 has no right to send sig to monitor!\n", show_tag);
+                cprintf_err(felog, "Monitor2 has no right to send signal to monitor!\n");
             }
             else if (errno == EINVAL)
             {
-                cfprintf(felog, CF_ERROR "%s Invalid sig!\n", show_tag);
+                cprintf_err(felog, "Invalid signal!\n");
             }
             else
             {
-                cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
+                cprintf_err(felog, "Unknown error!\n");
             }
-            cfprintf(felog, CF_ERROR "%s Monitor2 sends sig to monitor failed!Error code:%d\n", show_tag, errno);
+            cprintf_err(felog, "Monitor2 sends signal to monitor failed!Error code:%d\n", 
+                     errno);
             break;
         }
     }
-    cfprintf(felog, CF_INFO "%s Monitor process exit unexpectly!Restart it again\n", show_tag);
+    cprintf_info(felog, "Monitor process exit unexpectly!Restart it again\n");
+
+    //++++++++++ This session deals with monitor exit unexpectly ++++++++++//
 
     /* Fork new child process */
-    cfprintf(felog, CF_INFO "%s Do fork\n", show_tag);
+    cprintf_info(felog, "Do fork\n");
     // Should get current pid before fork
-    monitorPID2 = getpid();
     if ((pid = fork()) == -1)
     {
-        cfprintf(felog, CF_ERROR "%s Create monitor process failed!\n", show_tag);
+        cprintf_err(felog, "Create monitor process failed!\n");
         ipc_status = FORK_NEW_PROCESS_ERROR;
         goto cleanup;
     }
     if (pid == 0)
     {
-        // Child process used for worker
-        cfprintf(felog, CF_INFO "%s Start new monitor:monitor2:%d...\n", show_tag, monitorPID2);
-        show_tag = "<monitor>";
-        session_type = SESSION_RECEIVER;
-        monitorPID = getpid();
+        // Child process used for monitor
+        cprintf_info(felog, "Start new monitor:monitor2:%d...\n", 
+                 monitor2PID);
+        g_session_type = SESSION_RECEIVER;
         start_monitor();
     }
     else
     {
         monitorPID = pid;
+        // Send monitorPID to worker
+        send_msg(MW_MSG_MONITOR_PID, workerPID);
         goto again;
     }
 
 cleanup:
     /* End and release*/
-    destroy_ipc();
+    cprintf_err(felog, "Monitor process exits with error code:%lx\n", 
+             ipc_status);
 
-    cfprintf(felog, CF_ERROR "%s Monitor process exits with error code:%lx\n", show_tag, ipc_status);
+    if (g_mw_ipc != NULL)
+        delete g_mw_ipc;
+
+    if (g_kp_ipc != NULL)
+        delete g_kp_ipc;
+
+    if (g_wl_ipc != NULL)
+        delete g_wl_ipc;
 
     if (felog != NULL)
-    {
         close_logfile(felog);
-    }
 
     exit(ipc_status);
 }
@@ -1005,11 +1241,15 @@ cleanup:
  */
 void start_worker(void)
 {
-    cfprintf(felog, CF_INFO "%s WorkerPID=%d\n", show_tag, workerPID);
+    g_show_tag = "<worker>";
+    workerPID = getpid();
+    cprintf_info(felog, "WorkerPID=%d\n", workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
     bool need_plot_disk = true;
-    cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
+    pid_t monitorPID_old = monitorPID;
+    int receive_pid_retry = 0;
+    cprintf_info(felog, "Worker global eid:%d\n", global_eid);
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
@@ -1022,27 +1262,27 @@ void start_worker(void)
     /* Init conifigure */
     if (!initialize_config())
     {
-        cfprintf(felog, CF_ERROR "%s Init configuration failed!\n", show_tag);
+        cprintf_err(felog, "Init configuration failed!\n");
         exit(INIT_CONFIG_ERROR);
     }
 
     /* Init related components */
     if (!initialize_components())
     {
-        cfprintf(felog, CF_ERROR "%s Init component failed!\n", show_tag);
+        cprintf_err(felog, "Init component failed!\n");
         ipc_status = INIT_COMPONENT_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Init components successfully!\n", show_tag);
+    cprintf_info(felog, "Init components successfully!\n");
 
     /* Init IPC */
-    if (init_ipc() == -1)
+    if (!initialize_ipc())
     {
-        cfprintf(felog, CF_ERROR "%s Init IPC failed!\n", show_tag);
+        cprintf_err(felog, "Init IPC failed!\n");
         ipc_status = INIT_IPC_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Init IPC successfully!\n", show_tag);
+    cprintf_info(felog, "Init IPC successfully!\n");
 
     /* Init enclave */
     if (global_eid != 0)
@@ -1053,136 +1293,138 @@ void start_worker(void)
     }
     if (!initialize_enclave())
     {
-        cfprintf(felog, CF_ERROR "%s Init enclave failed!\n", show_tag);
+        cprintf_err(felog, "Init enclave failed!\n");
         ipc_status = INIT_ENCLAVE_ERROR;
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Worker process int enclave successfully!id:%d\n", show_tag, global_eid);
+    cprintf_info(felog, "Worker process int enclave successfully!id:%d\n", 
+             global_eid);
 
     /* Do TEE key pair transformation */
-    if ((ipc_status = attest_session_keypair()) != IPC_SUCCESS)
+    if (IPC_SUCCESS != (ipc_status = attest_session(ATTEST_DATATYPE_KEYPAIR)))
     {
-        cfprintf(felog, CF_ERROR "%s Do key pair attestation failed!Error code:%lx\n", show_tag, ipc_status);
         goto cleanup;
     }
     else
     {
-        cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
-        if (session_type == SESSION_RECEIVER && is_monitor_recv_workload)
+        // Do workload transformation or not
+        if (g_session_type == SESSION_RECEIVER && g_monitor_recv_workload)
         {
-            cfprintf(felog, CF_INFO "%s Do workload attestation(receiver)...\n", show_tag);
-            if (SGX_SUCCESS != ecall_attest_session_receiver(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD) || IPC_SUCCESS != ipc_status)
-            {
-                cfprintf(felog, CF_WARN "%s Receive workload from monitor failed!Error code:%lx\n", show_tag, ipc_status);
-            }
-            else
+            if (IPC_SUCCESS == (ipc_status = attest_session(ATTEST_DATATYPE_WORKLOAD)))
             {
                 need_plot_disk = false;
-                cfprintf(felog, CF_INFO "%s Receive workload from monitor successfully!\n", show_tag);
             }
         }
+        g_session_type = SESSION_STARTER;
     }
 
     /* Entry network */
-    if (!is_entried_network && !run_as_server)
+    if (!g_entried_network && !run_as_server)
     {
-        cfprintf(felog, CF_INFO "Entrying network...\n");
-        if (!entry_network(entry_res))
+        cprintf_info(felog, "Entrying network...\n");
+        if (!entry_network())
         {
             ipc_status = ENTRY_NETWORK_ERROR;
             goto cleanup;
         }
-        cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entry_res.c_str());
+        cprintf_info(felog, "Entry network application successfully!Info:%s\n", 
+                 g_entry_net_res.c_str());
+        // Notify monitor that worker has entried network successfully
+        g_entried_network = true;
+        send_msg(MW_MSG_ENTRYNETWORK, monitorPID);
+        send_msg(MW_MSG_ENTRYNETWORK_DATA, monitorPID);
     }
-
+    
     /* Do Validate disk */
-    if (pthread_create(&wthread, NULL, do_disk_related, (void *)&need_plot_disk) != 0)
+    if (pthread_create(&wthread, NULL, do_disk_related, (void*)&need_plot_disk) != 0)
     {
-        cfprintf(felog, CF_ERROR "%s Create worker thread failed!\n", show_tag);
+        cprintf_err(felog, "Create worker thread failed!\n");
         ipc_status = IPC_CREATE_THREAD_ERR;
         goto cleanup;
     }
 
 again:
-    /* Exchange pid with monitor */
-    msg.type = MSG_PID_WORKER;
-    msg.text = getpid();
-    if (msgsnd(msqid, &msg, sizeof(msg.text), 0) == -1)
-    {
-        cfprintf(felog, CF_ERROR "%s Send monitor pid failed!\n", show_tag);
-    }
-    if (Msgrcv_to(msqid, &msg, sizeof(msg.text), MSG_PID_MONITOR) == -1)
-    {
-        cfprintf(felog, CF_ERROR "%s Get monitor pid failed!!\n", show_tag);
-    }
-    else
-    {
-        monitorPID = msg.text;
-        cfprintf(felog, CF_INFO "%s Get monitor pid successfully!pid:%d\n", show_tag, monitorPID);
-    }
-
     /* Monitor monitor process */
-    while (true)
+    while (true && monitorPID_old == monitorPID)
     {
         sleep(heart_beat_timeout);
         if (kill(monitorPID, 0) == -1)
         {
             if (errno == ESRCH)
             {
-                cfprintf(felog, CF_ERROR "%s Monitor process is not existed!\n", show_tag);
+                cprintf_err(felog, "Monitor process is not existed!\n");
             }
             else if (errno == EPERM)
             {
-                cfprintf(felog, CF_ERROR "%s Worker has no right to send sig to monitor!\n", show_tag);
+                cprintf_err(felog, "Worker has no right to send signal to monitor!\n");
             }
             else if (errno == EINVAL)
             {
-                cfprintf(felog, CF_ERROR "%s Invalid sig!\n", show_tag);
+                cprintf_err(felog, "Invalid signal!\n");
             }
             else
             {
-                cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
+                cprintf_err(felog, "Unknown error!\n");
             }
-            cfprintf(felog, CF_ERROR "%s Worker sends sig to monitor failed!Error code:%d\n", show_tag, errno);
+            cprintf_err(felog, "Worker sends signal to monitor failed!Error code:%d\n", 
+                     errno);
             break;
         }
     }
 
-    /* Do TEE key pair transformation */
-    session_type = SESSION_STARTER;
-    // Wait workload attestation end
-    wait_workload_attest_end();
-    if ((ipc_status = attest_session_keypair()) != IPC_SUCCESS)
+
+    //++++++++++ This session deals with data needed transfered to monitor ++++++++++//
+
+    // Empty message queue
+    empty_ipc();
+
+    // Wait for receiving monitorPID
+    receive_pid_retry = RECEIVE_PID_RETRY;
+    while(receive_pid_retry > 0)
     {
-        cfprintf(felog, CF_ERROR "%s Do key pair attestation failed!Error code:%lx\n", show_tag, ipc_status);
+        if (monitorPID_old != monitorPID)
+            break;
+        receive_pid_retry--;
+        sleep(1);
+    }
+    monitorPID_old = monitorPID;
+    
+    /* Do TEE key pair transformation */
+    // Change session type to starter
+    g_session_type = SESSION_STARTER;
+    if (IPC_SUCCESS != (ipc_status = attest_session(ATTEST_DATATYPE_KEYPAIR)))
+    {
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
 
-    /* Tell monitor process worker has entried network */
-    if (kill(monitorPID, SIGUSR1) == -1)
-    {
-        cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
-    }
+    // Send related info to monitor
+    send_msg(MW_MSG_ENTRYNETWORK, monitorPID);
+    send_msg(MW_MSG_ENTRYCHAIN, monitorPID);
+    send_msg(MW_MSG_ENTRYNETWORK_DATA, monitorPID);
 
     goto again;
+
 
 cleanup:
     /* End and release */
     delete p_config;
     if (get_ipfs() != NULL)
-    {
         delete get_ipfs();
-    }
+
     if (p_api_handler != NULL)
-    {
         delete p_api_handler;
-    }
-    destroy_ipc();
+
     if (global_eid != 0)
-    {
         sgx_destroy_enclave(global_eid);
-    }
+
+    if (g_mw_ipc != NULL)
+        delete g_mw_ipc;
+
+    if (g_kp_ipc != NULL)
+        delete g_kp_ipc;
+
+    if (g_wl_ipc != NULL)
+        delete g_wl_ipc;
 
     // If entry network or create work thread failed, notify monitor process to exit
     if (ENTRY_NETWORK_ERROR == ipc_status || IPC_CREATE_THREAD_ERR == ipc_status)
@@ -1190,12 +1432,10 @@ cleanup:
         kill(monitorPID, SIGUSR2);
     }
 
-    cfprintf(felog, CF_ERROR "%s Worker process exits with error code:%lx\n", show_tag, ipc_status);
+    cprintf_err(felog, "Worker process exits with error code:%lx\n", ipc_status);
 
     if (felog != NULL)
-    {
         close_logfile(felog);
-    }
 
     exit(ipc_status);
 }
@@ -1212,46 +1452,39 @@ int process()
 
     // Create log file
     if (felog == NULL)
-    {
         felog = create_logfile(LOG_FILE_PATH);
-    }
 
     // Create worker process
     monitorPID = getpid();
     pid_t pid;
     if ((pid = fork()) == -1)
     {
-        cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
+        cprintf_err(felog, "Create worker process failed!\n");
         return -1;
     }
     if (pid == 0)
     {
         // Worker process(child process)
-        show_tag = "<worker>";
-        session_type = SESSION_STARTER;
-        workerPID = getpid();
+        g_session_type = SESSION_STARTER;
         start_worker();
     }
     else
     {
         // Monitor process(parent process)
-        show_tag = "<monitor>";
         workerPID = pid;
         if ((pid = fork()) == -1)
         {
-            cfprintf(felog, CF_ERROR "%s Create worker process failed!\n", show_tag);
+            cprintf_err(felog, "Create worker process failed!\n");
             return -1;
         }
         if (pid == 0)
         {
-            show_tag = "<monitor2>";
-            monitorPID2 = getpid();
             start_monitor2();
         }
         else
         {
-            monitorPID2 = pid;
-            session_type = SESSION_RECEIVER;
+            monitor2PID = pid;
+            g_session_type = SESSION_RECEIVER;
             start_monitor();
         }
     }

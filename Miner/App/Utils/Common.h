@@ -43,7 +43,10 @@ extern "C"
     void divider_with_text(FILE *fd, const char *text);
     void divider(FILE *fd);
 
-    int cfprintf(FILE *stream, const char *format, ...);
+    void cprintf_info(FILE *stream, const char *format, ...);
+    void cprintf_warn(FILE *stream, const char *format, ...);
+    void cprintf_err(FILE *stream, const char *format, ...);
+    void cprintf_real(FILE *stream, std::string info, const char *info_tag);
     int cfputs(const char *s);
 
     struct UrlEndPoint

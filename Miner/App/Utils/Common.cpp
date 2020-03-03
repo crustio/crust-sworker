@@ -1,9 +1,12 @@
 #include "Common.h"
 
+#define PRINT_BUF_SIZE  10000
+
 using namespace std;
 
 extern FILE *felog;
-extern const char *show_tag;
+extern const char *g_show_tag;
+char print_buf[PRINT_BUF_SIZE];
 
 char _timeBuff[TIMESTR_SIZE];
 
@@ -46,15 +49,57 @@ void divider(FILE *fd)
 }
 
 /**
+ * @description: Print info
+ * */
+void cprintf_info(FILE *stream, const char *format, ...)
+{
+    va_list va;
+	va_start(va, format);
+	int n = vsnprintf(print_buf, PRINT_BUF_SIZE, format, va);
+	va_end(va);
+
+    std::string str(print_buf, n);
+
+    cprintf_real(stream, str, "[INFO]");
+}
+
+/**
+ * @description: Print warning
+ * */
+void cprintf_warn(FILE *stream, const char *format, ...)
+{
+    va_list va;
+	va_start(va, format);
+	int n = vsnprintf(print_buf, PRINT_BUF_SIZE, format, va);
+	va_end(va);
+
+    std::string str(print_buf, n);
+
+    cprintf_real(stream, str, "[WARN]");
+}
+
+/**
+ * @description: Print error
+ * */
+void cprintf_err(FILE *stream, const char *format, ...)
+{
+    va_list va;
+	va_start(va, format);
+	int n = vsnprintf(print_buf, PRINT_BUF_SIZE, format, va);
+	va_end(va);
+
+    std::string str(print_buf, n);
+
+    cprintf_real(stream, str, "[ERROR]");
+}
+
+/**
  * @description: print messages to stderr. If specific stream defined
  *  output messages to it.
  * @return: print status
  * */
-int cfprintf(FILE *stream, const char *format, ...)
+void cprintf_real(FILE *stream, std::string info, const char *info_tag)
 {
-	va_list va;
-	int rv;
-
 	// Print timestamp
 	time_t ts;
 	struct tm timetm, *timetmp;
@@ -65,7 +110,7 @@ int cfprintf(FILE *stream, const char *format, ...)
 	if (timetmp == NULL)
 	{
 		perror("localtime");
-		return -1;
+		return;
 	}
 	timetm = *timetmp;
 #else
@@ -78,25 +123,17 @@ int cfprintf(FILE *stream, const char *format, ...)
 		/* oops */
 		timestr[0] = 0;
 	}
-	fprintf(stderr, "[%s] ", timestr);
+	fprintf(stderr, "[%s] %s %s %s", timestr, info_tag, g_show_tag, info.c_str());
 
-	va_start(va, format);
-	rv = vfprintf(stderr, format, va);
-	va_end(va);
-
+    // Print log to indicated stream
 	if (stream != NULL)
 	{
-		if (!(strlen(format) == 1 && format[0] == '\n'))
+		if (!(info.size() == 1 && info[0] == '\n'))
 		{
-			fprintf(stream, "[%s] ", timestr);
+	        fprintf(stream, "[%s] %s %s %s", timestr, info_tag, g_show_tag, info.c_str());
 		}
-		va_start(va, format);
-		rv = vfprintf(stream, format, va);
-		va_end(va);
         fflush(stream);
 	}
-
-	return rv;
 }
 
 /**

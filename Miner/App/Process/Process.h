@@ -49,8 +49,6 @@
 #define SESSION_STARTER  1
 #define SESSION_RECEIVER 2
 
-#define MSG_PID_WORKER  200
-#define MSG_PID_MONITOR 201
 #define BLOCK_HEIGHT    100
 
 int process();
