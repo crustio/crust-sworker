@@ -18,6 +18,7 @@
 #include "IPCReport.h"
 #include "IASReport.h"
 #include "EUtils.h"
+#include "Workload.h"
 
 #define SAFE_FREE(ptr)     {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
 

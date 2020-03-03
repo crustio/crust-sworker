@@ -1,18 +1,28 @@
-# crust-tee
+# Crust TEE
 Implement the trusted layer based on TEE technology, functionally connect  the consensus layer, and be responsible for the trusted verification of the resource layer.
 
-## Dependent library
-- Intel sgx
-- Boost
+## Preparation work
+- Hardware requirements: 
 
-## Package
-Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.
+  CPU must contain SGX module, and make sure the SGX function is turned on in the bios
+- Operating system requirements:
 
-## Install
+  Unbantu 16.04
+
+## Dependent library and project
+- [Intel SGX](https://software.intel.com/en-us/sgx)
+- [Crust](https://github.com/crustio/crust)
+- [Crust API](https://github.com/crustio/crust-api)
+
+## Development launch
+### Package
+- Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.
+
+### Install
 1. Copy TEE application package to your machine, run '**tar -xvf crust-\<version\>.tar**' to extract package.
 1. Cd to the extract folder, run '**scripts/install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
 
-## Start
+### Start
 Crust TEE apllication is installed in /opt/crust/crust-tee.
 1. In etc/Config.json file you can configure your TEE application configure.
 1. After configuration, run '**scripts/start.sh**' to start TEE application.
@@ -20,6 +30,16 @@ Crust TEE apllication is installed in /opt/crust/crust-tee.
 1. Run '**scripts/status.sh -s,--status**' to get process information.
 1. Run '**scripts/status.sh -p,--plot**' to get and printf validation status.
 1. Run '**scripts/status.sh -r,--report**' to get work report.
+
+### Launch crust chain and API
+- Crust TEE will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole TEE flow, please lanuch crust chain and API.
+
+## Client launch
+### Package
+- Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.
+
+### Crust client
+- Please follow [crust client](https://github.com/crustio/crust-client) to launch.
 
 ## Crust tee executable file
 1. Run '**bin/crust-tee -h**' to show how to use **crust-tee**.

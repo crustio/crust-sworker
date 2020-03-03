@@ -4,6 +4,7 @@ using namespace std;
 
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
+extern attest_status_t g_att_status;
 extern ecc_key_pair id_key_pair;
 extern uint8_t off_chain_pub_key[];
 
@@ -20,6 +21,7 @@ void ecall_main_loop(const char *empty_path)
         eprintf("\n-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
+        ipc_status_t ipc_status = IPC_SUCCESS;
         Node *diff_files = NULL;
         ocall_get_diff_files(&diff_files);
         size_t diff_files_num = 0;
@@ -35,13 +37,32 @@ void ecall_main_loop(const char *empty_path)
         /* Show result */
         validation_status = ValidateWaiting;
         get_workload()->show();
-        if (VALIDATION_SUCCESS != get_workload()->store_plot_data())
+
+        /* Do workload attestation */
+        if (IPC_SUCCESS != (ipc_status = ecall_attest_session_starter(ATTEST_DATATYPE_WORKLOAD)))
         {
-            cfeprintf("Store workload failed!\n");
+            cfeprintf("Send workload to monitor failed!Error code:%lx\n", ipc_status);
+        }
+        else
+        {
+            cfeprintf("Send workload to monitor successfully!\n");
+        }
+        if (IPC_ATTEST_BUSY != ipc_status)
+        {
+            g_att_status = ATTEST_IDLE;
         }
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
+}
+
+/**
+ * @description: Get attestation status
+ * @return: attestation status
+ * */
+attest_status_t ecall_get_attest_status(void)
+{
+    return g_att_status;
 }
 
 /**

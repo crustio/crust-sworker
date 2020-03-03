@@ -83,11 +83,7 @@ std::string Workload::serialize()
     return this->report;
 }
 
-/**
- * @description: Store plot workload to file
- * @return: Store status
- * */
-validate_status_t Workload::store_plot_data()
+std::string Workload::serialize_workload()
 {
     std::string plot_data;
     // Store empty_g_hashs
@@ -110,7 +106,81 @@ validate_status_t Workload::store_plot_data()
     }
     file_str += "}";
     plot_data += file_str + ";";
-    eprintf("==========[enclave] size: %d,workload string:%s\n", plot_data.size(), plot_data.c_str());
+
+    return plot_data;
+}
+
+validate_status_t Workload::restore_workload(std::string plot_data)
+{
+    validate_status_t validate_status = VALIDATION_SUCCESS;
+    int spos=0, epos=0;
+    std::string empty_g_hashs_str;
+    std::string strbuf;
+    uint8_t *empty_root_hash_u;
+    std::string files_str;
+    std::string file_entry;
+    std::string hash_str;
+    size_t hash_size;
+    uint8_t *hash_u;
+    // Get empty_g_hashs
+    spos = 0;
+    epos = plot_data.find(";");
+    empty_g_hashs_str = plot_data.substr(spos,epos);
+    empty_g_hashs_str = empty_g_hashs_str.substr(1, empty_g_hashs_str.length()-2);
+    while (true)
+    {
+        epos = empty_g_hashs_str.find(",", spos);
+        if((size_t)epos == std::string::npos)
+        {
+            break;
+        }
+        strbuf = empty_g_hashs_str.substr(spos, epos-spos);
+        this->empty_g_hashs.push_back(hex_string_to_bytes(strbuf.c_str(), strbuf.size()));
+        spos = epos + 1;
+    }
+    // Get empty_root_hash
+    spos = plot_data.find(";") + 1;
+    epos = plot_data.find(";", spos);
+    empty_root_hash_u = hex_string_to_bytes(plot_data.substr(spos, epos-spos).c_str(), epos-spos);
+    if (empty_root_hash_u == NULL)
+    {
+        return VALIDATION_INVALID_ROOT_HASH;
+    }
+    memcpy(this->empty_root_hash, empty_root_hash_u, (epos - spos) / 2);
+    // Get empty_disk_capacity
+    spos = epos + 1;
+    epos = plot_data.find(";", spos);
+    this->empty_disk_capacity = std::stoi(plot_data.substr(spos, epos-spos));
+    // Get files
+    spos = epos + 1;
+    epos = plot_data.find(";", spos);
+    files_str = plot_data.substr(spos + 1, epos-spos-1);
+    spos = 0;
+    while (true)
+    {
+        epos = files_str.find(",", spos);
+        if ((size_t)epos == std::string::npos)
+        {
+            break;
+        }
+        file_entry = files_str.substr(spos, epos-spos);
+        spos = epos + 1;
+        hash_str = file_entry.substr(0, file_entry.find(":"));
+        hash_size = std::stoi(file_entry.substr(file_entry.find(":")+1, file_entry.size()));
+        hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
+        this->files.insert(make_pair(std::vector<unsigned char>(hash_u, hash_u + hash_str.size() / 2), hash_size));
+    }
+
+    return validate_status;
+}
+
+/**
+ * @description: Store plot workload to file
+ * @return: Store status
+ * */
+validate_status_t Workload::store_plot_data()
+{
+    std::string plot_data = serialize_workload();
     
     // Seal workload string
     sgx_status_t sgx_status = SGX_SUCCESS;
@@ -163,16 +233,7 @@ validate_status_t Workload::get_plot_data()
     validate_status_t validate_status = VALIDATION_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     uint32_t sealed_data_size;
-    int spos=0, epos=0;
     std::string plot_data;
-    std::string empty_g_hashs_str;
-    std::string strbuf;
-    uint8_t *empty_root_hash_u;
-    std::string files_str;
-    std::string file_entry;
-    std::string hash_str;
-    size_t hash_size;
-    uint8_t *hash_u;
     /* Unseal data */
     // Get sealed data from file
     if (SGX_SUCCESS != ocall_get_plot_data(&validate_status, &p_sealed_data, &sealed_data_size))
@@ -202,60 +263,7 @@ validate_status_t Workload::get_plot_data()
     plot_data = std::string((const char*)p_decrypted_data, decrypted_data_len);
     eprintf("===========[enclave] get plot data:%s\n", plot_data.c_str());
 
-    /* Restore plot data */
-    // Get empty_g_hashs
-    spos = 0;
-    epos = plot_data.find(";");
-    empty_g_hashs_str = plot_data.substr(spos,epos);
-    empty_g_hashs_str = empty_g_hashs_str.substr(1, empty_g_hashs_str.length()-2);
-    while (true)
-    {
-        epos = empty_g_hashs_str.find(",", spos);
-        if((size_t)epos == std::string::npos)
-        {
-            break;
-        }
-        strbuf = empty_g_hashs_str.substr(spos, epos-spos);
-        eprintf("======= +++ g_hash:%s\n", strbuf.c_str());
-        this->empty_g_hashs.push_back(hex_string_to_bytes(strbuf.c_str(), strbuf.size()));
-        spos = epos + 1;
-    }
-    // Get empty_root_hash
-    spos = plot_data.find(";") + 1;
-    epos = plot_data.find(";", spos);
-    empty_root_hash_u = hex_string_to_bytes(plot_data.substr(spos, epos-spos).c_str(), epos-spos);
-    if (empty_root_hash_u == NULL)
-    {
-        validate_status = VALIDATION_INVALID_ROOT_HASH;
-        goto cleanup;
-    }
-    memcpy(this->empty_root_hash, empty_root_hash_u, (epos - spos) / 2);
-    eprintf("======= +++ empty_root_hash:%s\n", plot_data.substr(spos, epos-spos).c_str());
-    // Get empty_disk_capacity
-    spos = epos + 1;
-    epos = plot_data.find(";", spos);
-    this->empty_disk_capacity = std::stoi(plot_data.substr(spos, epos-spos));
-    eprintf("======= +++ empty_disk_capacity:%s\n", plot_data.substr(spos, epos-spos).c_str());
-    // Get files
-    spos = epos + 1;
-    epos = plot_data.find(";", spos);
-    files_str = plot_data.substr(spos + 1, epos-spos-1);
-    spos = 0;
-    while (true)
-    {
-        epos = files_str.find(",", spos);
-        if ((size_t)epos == std::string::npos)
-        {
-            break;
-        }
-        file_entry = files_str.substr(spos, epos-spos);
-        spos = epos + 1;
-        hash_str = file_entry.substr(0, file_entry.find(":"));
-        hash_size = std::stoi(file_entry.substr(file_entry.find(":")+1, file_entry.size()));
-        hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
-        this->files.insert(make_pair(std::vector<unsigned char>(hash_u, hash_u + hash_str.size() / 2), hash_size));
-        eprintf("======= +++ hash:%s -> %d\n", hash_str.c_str(), hash_size);
-    }
+    restore_workload(plot_data);
 
 
 cleanup:

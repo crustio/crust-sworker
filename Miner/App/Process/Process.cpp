@@ -10,13 +10,15 @@ pid_t workerPID = -1, monitorPID = -1, monitorPID2 = -1;
 // Local attestation session type
 int session_type;
 // Local attestation transfered data type
-int datatype = IPC_DATATYPE_KEYPAIR;
+attest_data_type_t datatype = ATTEST_DATATYPE_KEYPAIR;
 // Heart beat timeout between monitor and worker process
 const int heart_beat_timeout = 15;
 // Indicate if entry network has been done
 bool is_entried_network = false;
 // Indicate if exit whole process
 bool exit_process = false;
+// indicates whether received workload or not
+bool is_monitor_recv_workload = false;
 // Indicate current process in show info
 const char *show_tag = "<monitor>";
 // Pointor to configure instance
@@ -35,7 +37,8 @@ void start_monitor(void);
 void start_monitor2(void);
 void start_worker(void);
 bool wait_chain_run(void);
-ipc_status_t attest_session();
+void wait_workload_attest_end(void);
+ipc_status_t attest_session_keypair();
 bool do_plot_disk(void);
 
 /**
@@ -404,6 +407,27 @@ cleanup:
 }
 
 /**
+ * @description: Because worker continually sends workload, so wait for this attestation end.
+ * And then worker can send key pair attestation
+ * */
+void wait_workload_attest_end(void)
+{
+    cfprintf(felog, CF_INFO "%s Waiting last-time workload attestation stop...\n", show_tag);
+    attest_status_t attest_status = ATTEST_WAITING;
+    while (true)
+    {
+        if (SGX_SUCCESS == ecall_get_attest_status(global_eid, &attest_status))
+        {
+            if (ATTEST_IDLE == attest_status)
+            {
+                break;
+            }
+        }
+        sleep(1);
+    }
+}
+
+/**
  * @description: waitting for the crust chain to run
  * @return: success or not
  * */
@@ -449,17 +473,18 @@ bool wait_chain_run(void)
  * @description: Execute different session based on parameter
  * @return: session result
  * */
-ipc_status_t attest_session()
+ipc_status_t attest_session_keypair()
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     ipc_status_t ipc_status = IPC_SUCCESS;
     if (session_type == SESSION_STARTER)
     {
-        cfprintf(felog, CF_INFO "%s do attestation....\n", show_tag);
+        cfprintf(felog, CF_INFO "%s Do key pair attestation(starter)...\n", show_tag);
         sgx_status = ecall_attest_session_starter(global_eid, &ipc_status, datatype);
     }
     else if (session_type == SESSION_RECEIVER)
     {
+        cfprintf(felog, CF_INFO "%s Do key pair attestation(receiver)...\n", show_tag);
         sgx_status = ecall_attest_session_receiver(global_eid, &ipc_status, datatype);
     }
     else
@@ -551,37 +576,62 @@ void *do_check_block(void *)
 /**
  * @description: Do disk related
  * */
-void *do_disk_related(void *)
+void *do_disk_related(void *args)
 {
+    bool need_plot_disk = *((bool *)args);
     pthread_t wthread;
     validate_status_t validate_status = VALIDATION_SUCCESS;
 
     /* Plot empty disk */
-    if (!do_plot_disk())
+    if (need_plot_disk)
     {
-        cfprintf(felog, CF_ERROR "%s Plot empty disk failed!\n", show_tag);
-        return NULL; 
+        if (!do_plot_disk())
+        {
+            cfprintf(felog, CF_ERROR "%s Plot empty disk failed!\n", show_tag);
+            return NULL;
+        }
+        cfprintf(felog, CF_INFO "%s Plot empty successfully!\n", show_tag);
     }
-    cfprintf(felog, CF_INFO "%s Plot empty successfully!\n", show_tag);
+    else
+    {
+        cfprintf(felog, CF_INFO "%s Have received workload from monitor successfully!\n", show_tag);
+    }
+
+    if (new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
+    {
+        cfprintf(felog, CF_ERROR "%s Init crust chain failed.\n", show_tag);
+        return NULL;
+    }
 
     /* Send identity to crust chain */
     if (!wait_chain_run())
     {
         return NULL;
     }
-    
-    if (!get_crust()->post_tee_identity(entry_res))
+
+    if (!is_entried_network)
     {
-        cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
-        return NULL;
+        if (!get_crust()->post_tee_identity(entry_res))
+        {
+            cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
+            return NULL;
+        }
+        cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
+
+        // Notify monitor that worker has entried network successfully
+        if (kill(monitorPID, SIGUSR1) == -1)
+        {
+            cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
+            return NULL;
+        }
+        is_entried_network = true;
+        cfprintf(felog, CF_INFO "%s Send entry network status to monitor successfully!\n", show_tag);
     }
-    cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
 
     if (pthread_create(&wthread, NULL, do_check_block, NULL) != 0)
     {
         cfprintf(NULL, CF_ERROR "Create checking block info thread failed!\n");
     }
-
     /* Main validate loop */
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
 
@@ -597,7 +647,10 @@ bool do_plot_disk(void)
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     validate_status_t validate_status = VALIDATION_SUCCESS;
 
-    if (SGX_SUCCESS != ecall_read_workload(ret, &validate_status) || VALIDATION_SUCCESS != validate_status)
+    cfprintf(felog, CF_INFO "Start ploting disk...\n");
+// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+#pragma omp parallel for
+    for (size_t i = 0; i < p_config->empty_capacity; i++)
     {
         cfprintf(felog, CF_INFO "Read workload from file failed(Code:%lx). Start ploting data.\n", validate_status);
         // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
@@ -634,6 +687,7 @@ void start_monitor(void)
     bool is_break_check = false;
     bool doAttest = true; // Used to indicate if worker terminated
     std::pair<std::string, pid_t> exit_entry;
+    is_monitor_recv_workload = false;
 
     /* Signal function */
     // SIGUSR1 used to notify that entry network has been done,
@@ -670,14 +724,28 @@ again:
     /* Do local attestation and exchange pid with worker */
     if (doAttest)
     {
-        if ((ipc_status = attest_session()) != IPC_SUCCESS)
+        if ((ipc_status = attest_session_keypair()) != IPC_SUCCESS)
         {
-            cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
+            cfprintf(felog, CF_ERROR "%s Do key pair attestation failed!Error code:%lx\n", show_tag, ipc_status);
             goto cleanup;
         }
         else
         {
-            cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
+            cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
+            /* Send workload to worker */
+            if (session_type == SESSION_STARTER && is_monitor_recv_workload)
+            {
+                sleep(5); // Waiting for key pair attestation end
+                cfprintf(felog, CF_INFO "%s Do workload attestation(starter)....\n", show_tag);
+                if (SGX_SUCCESS != ecall_attest_session_starter(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD) || IPC_SUCCESS != ipc_status)
+                {
+                    cfprintf(felog, CF_WARN "Send workload to worker failed!Error code:%lx\n", ipc_status);
+                }
+                else
+                {
+                    cfprintf(felog, CF_INFO "Send workload to worker successfully!\n");
+                }
+            }
             /* Exchange pid with worker */
             msg.type = MSG_PID_MONITOR;
             msg.text = getpid();
@@ -709,11 +777,13 @@ again:
             {
                 if (errno == ESRCH)
                 {
-                    cfprintf(felog, CF_ERROR "%s %s process is not existed!pid:%d\n", show_tag, it.first.c_str(), it.second);
+                    cfprintf(felog, CF_ERROR "%s %s process is not existed!pid:%d\n",
+                             show_tag, it.first.c_str(), it.second);
                 }
                 else if (errno == EPERM)
                 {
-                    cfprintf(felog, CF_ERROR "%s %s has no right to send sig to worker!\n", show_tag, it.first.c_str());
+                    cfprintf(felog, CF_ERROR "%s %s has no right to send sig to worker!\n",
+                             show_tag, it.first.c_str());
                 }
                 else if (errno == EINVAL)
                 {
@@ -723,24 +793,38 @@ again:
                 {
                     cfprintf(felog, CF_ERROR "%s Unknown error!\n", show_tag);
                 }
-                cfprintf(felog, CF_ERROR "%s %s sends sig to worker failed!Error code:%d\n", show_tag, it.first.c_str(), errno);
+                cfprintf(felog, CF_ERROR "%s %s sends sig to worker failed!Error code:%d\n",
+                         show_tag, it.first.c_str(), errno);
                 is_break_check = true;
                 exit_entry = it;
                 break;
             }
         }
         if (is_break_check)
+        {
             break;
+        }
+        cfprintf(felog, CF_INFO "%s Do workload attestation(receiver)....\n", show_tag);
+        if (SGX_SUCCESS != ecall_attest_session_receiver(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD) || IPC_SUCCESS != ipc_status)
+        {
+            cfprintf(felog, CF_INFO "%s Receive workload from worker failed!Error code:%lx\n", show_tag, ipc_status);
+        }
+        else
+        {
+            // If the newest workload not recevied?
+            is_monitor_recv_workload = true;
+            cfprintf(felog, CF_INFO "%s Receive workload from worker successfully!\n", show_tag);
+        }
     }
     is_break_check = false;
-    cfprintf(felog, CF_INFO "%s %s process exit unexpectly!Restart it again\n", show_tag, exit_entry.first.c_str());
+    cfprintf(felog, CF_INFO "%s %s process exit unexpectly!Restart it again\n",
+             show_tag, exit_entry.first.c_str());
 
     // Check if worker process exit because of entry network or creating work thread failed,
     // then monitor process should end.
     if (exit_process)
     {
-        cfprintf(felog, CF_ERROR "%s Worker process entries network or creates work thread failed! Exit monitor process!\n",
-                 show_tag);
+        cfprintf(felog, CF_ERROR "%s Worker process entries network or creates work thread failed!Exit monitor process!\n", show_tag);
         goto cleanup;
     }
 
@@ -924,6 +1008,7 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s WorkerPID=%d\n", show_tag, workerPID);
     pthread_t wthread;
     ipc_status_t ipc_status = IPC_SUCCESS;
+    bool need_plot_disk = true;
     cfprintf(felog, CF_INFO "%s Worker global eid:%d\n", show_tag, global_eid);
 
     /* Signal function */
@@ -975,12 +1060,28 @@ void start_worker(void)
     cfprintf(felog, CF_INFO "%s Worker process int enclave successfully!id:%d\n", show_tag, global_eid);
 
     /* Do TEE key pair transformation */
-    if ((ipc_status = attest_session()) != IPC_SUCCESS)
+    if ((ipc_status = attest_session_keypair()) != IPC_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
+        cfprintf(felog, CF_ERROR "%s Do key pair attestation failed!Error code:%lx\n", show_tag, ipc_status);
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
+    else
+    {
+        cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
+        if (session_type == SESSION_RECEIVER && is_monitor_recv_workload)
+        {
+            cfprintf(felog, CF_INFO "%s Do workload attestation(receiver)...\n", show_tag);
+            if (SGX_SUCCESS != ecall_attest_session_receiver(global_eid, &ipc_status, ATTEST_DATATYPE_WORKLOAD) || IPC_SUCCESS != ipc_status)
+            {
+                cfprintf(felog, CF_WARN "%s Receive workload from monitor failed!Error code:%lx\n", show_tag, ipc_status);
+            }
+            else
+            {
+                need_plot_disk = false;
+                cfprintf(felog, CF_INFO "%s Receive workload from monitor successfully!\n", show_tag);
+            }
+        }
+    }
 
     /* Entry network */
     if (!is_entried_network && !run_as_server)
@@ -991,18 +1092,11 @@ void start_worker(void)
             ipc_status = ENTRY_NETWORK_ERROR;
             goto cleanup;
         }
-        // Notify monitor that worker has entried network successfully
-        if (kill(monitorPID, SIGUSR1) == -1)
-        {
-            cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
-        }
-        is_entried_network = true;
+        cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entry_res.c_str());
     }
 
-    cfprintf(felog, CF_INFO "%s Entry network application successfully!Info:%s\n", show_tag, entry_res.c_str());
-    
     /* Do Validate disk */
-    if (pthread_create(&wthread, NULL, do_disk_related, NULL) != 0)
+    if (pthread_create(&wthread, NULL, do_disk_related, (void *)&need_plot_disk) != 0)
     {
         cfprintf(felog, CF_ERROR "%s Create worker thread failed!\n", show_tag);
         ipc_status = IPC_CREATE_THREAD_ERR;
@@ -1056,12 +1150,14 @@ again:
 
     /* Do TEE key pair transformation */
     session_type = SESSION_STARTER;
-    if ((ipc_status = attest_session()) != IPC_SUCCESS)
+    // Wait workload attestation end
+    wait_workload_attest_end();
+    if ((ipc_status = attest_session_keypair()) != IPC_SUCCESS)
     {
-        cfprintf(felog, CF_ERROR "%s Do local attestation failed!\n", show_tag);
+        cfprintf(felog, CF_ERROR "%s Do key pair attestation failed!Error code:%lx\n", show_tag, ipc_status);
         goto cleanup;
     }
-    cfprintf(felog, CF_INFO "%s Do local attestation successfully!\n", show_tag);
+    cfprintf(felog, CF_INFO "%s Do key pair attestation successfully!\n", show_tag);
 
     /* Tell monitor process worker has entried network */
     if (kill(monitorPID, SIGUSR1) == -1)

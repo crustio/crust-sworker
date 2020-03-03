@@ -22,6 +22,8 @@ public:
     ~Workload();
     void show(void);
     std::string serialize();
+    std::string serialize_workload();
+    validate_status_t restore_workload(std::string plot_data);
     validate_status_t store_plot_data();
     validate_status_t get_plot_data();
 };
