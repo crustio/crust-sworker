@@ -653,7 +653,7 @@ bool do_plot_disk(void)
     validate_status_t validate_status = VALIDATION_SUCCESS;
 
     cfprintf(felog, CF_INFO "Start ploting disk...\n");
-    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
 #pragma omp parallel for
     for (size_t i = 0; i < p_config->empty_capacity; i++)
     {
