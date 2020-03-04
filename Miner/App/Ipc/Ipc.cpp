@@ -1,26 +1,78 @@
 #include "Ipc.h"
 
-key_t ipc_key = -1;
-int shmid=-1, semid=-1, msqid=-1;
-char *shm = NULL;
-struct shmid_ds buf1;
-struct msqid_ds buf2;
-struct msg_form msg;
+extern FILE *felog;
 
-/**
- * @description: Init semaphore
- * @return: Initial status
- * */
-int init_sem(int sem_id, int value)
+Ipc::~Ipc()
 {
+    struct shmid_ds buf1;
+    struct msqid_ds buf2;
+    if(this->shmid != -1)
+    {
+	    shmctl(this->shmid, IPC_RMID, &buf1);
+    }
+    if(this->msqid != -1)
+    {
+        msgctl(this->msqid, IPC_RMID, &buf2);
+    }
+    if(this->semid != -1)
+    {
+        del_sem(this->semid);
+    }
+}
+
+bool Ipc::init(const char* key_file_path, int key_num)
+{
+    if(key_num < 0 || key_num > 255)
+    {
+        cprintf_err(felog, "Invalid generate_num\n");
+        return false;
+    }
+
+    // Get IPC key
+    if((this->ipc_key = ftok(key_file_path, key_num)) < 0)
+    {
+        cprintf_err(felog, "ftok ipc error\n");
+        return false;
+    }
+
+    // Create shared memory
+    if((this->shmid = shmget(this->ipc_key, 1024, IPC_CREAT|0666)) == -1)
+    {
+        cprintf_err(felog, "Create Shared Memory Error\n");
+        return false;
+    }
+
+    // Link shared memory to current process
+    this->shm = (char*)shmat(this->shmid, 0, 0);
+    if(this->shm == NULL)
+    {
+        cprintf_err(felog, "Attach Shared Memory Error\n");
+        return false;
+    }
+
+    // Create message queue for attestation
+    if((this->msqid = msgget(this->ipc_key, IPC_CREAT|0777)) == -1)
+    {
+        cprintf_err(felog, "msgget error\n");
+        return false;
+    }
+
+    /* Create semaphore */
+    if((this->semid = semget(this->ipc_key, 1, IPC_CREAT|0666)) == -1)
+    {
+        perror("semget error");
+        return false;
+    }
+    // init semaphore
     union semun tmp;
-    tmp.val = value;
-    if(semctl(sem_id, 0, SETVAL, tmp) == -1)
+    tmp.val = 1;
+    if(semctl(this->semid, 0, SETVAL, tmp) == -1)
     {
         perror("Init Semaphore Error");
-        return -1;
+        return false;
     }
-    return 0;
+
+    return true;
 }
 
 /**
@@ -77,106 +129,44 @@ int del_sem(int sem_id)
 }
 
 /**
- * @description: Create semaphore
- * @return: Create status
- * */
-int creat_sem(key_t key)
-{
-    int sem_id;
-    if((sem_id = semget(key, 1, IPC_CREAT|0666)) == -1)
-    {
-        perror("semget error");
-        exit(-1);
-    }
-    init_sem(sem_id, 1);
-    return sem_id;
-}
-
-/**
- * @description: Init monitor IPC, including creating shared memory,
- *  message queue and sem
- * @return: 0 for success while other for fail
- * */
-int init_ipc()
-{
-    // Get IPC key
-    if((ipc_key = ftok(IPC_FILE_PATH, 'z')) < 0)
-    {
-        cfprintf(NULL, CF_ERROR "ftok error\n");
-        return -1;
-    }
-
-    // Create shared memory
-    if((shmid = shmget(ipc_key, 1024, IPC_CREAT|0666)) == -1)
-    {
-        cfprintf(NULL, CF_ERROR "Create Shared Memory Error\n");
-        return -1;
-    }
-
-    // Link shared memory to current process
-    shm = (char*)shmat(shmid, 0, 0);
-    //if(shm == -1)
-    if(shm == NULL)
-    {
-        cfprintf(NULL, CF_ERROR "Attach Shared Memory Error\n");
-        return -1;
-    }
-
-    // Create message queue
-    if((msqid = msgget(ipc_key, IPC_CREAT|0777)) == -1)
-    {
-        cfprintf(NULL, CF_ERROR "msgget error\n");
-        return -1;
-    }
-
-    // Get semaphore
-	if((semid = semget(ipc_key, 0, 0)) == -1)
-    {
-        semid = creat_sem(ipc_key);
-        //cfprintf(NULL, CF_ERROR "semget error");
-        //return -1;
-    }
-
-    return 0;
-}
-
-/**
  * @description: Used to delete previous ipc variable
  * */
 void clean_ipc()
 {
+    int ipc_key = -1;
+    int msqid = -1;
+    struct msqid_ds buf;
+    // Delete workload ipc
     // Get ipc key, same file and flag result in same ipc key
-    if((ipc_key = ftok(IPC_FILE_PATH, 'z')) < 0)
+    if((ipc_key = ftok(WL_FILE_PATH, WL_IPC_NUM)) >= 0)
     {
-        return;
+        // Get lasttime message queue
+        if((msqid = msgget(ipc_key, 0)) != -1)
+        {
+            msgctl(msqid, IPC_RMID, &buf);
+        }
     }
 
-    // Get lasttime message queue
-    if((msqid = msgget(ipc_key, 0)) == -1)
+    // Delete key pair ipc
+    // Get ipc key, same file and flag result in same ipc key
+    if((ipc_key = ftok(KP_FILE_PATH, KP_IPC_NUM)) >= 0)
     {
-        return;
+        // Get lasttime message queue
+        if((msqid = msgget(ipc_key, 0)) != -1)
+        {
+            msgctl(msqid, IPC_RMID, &buf);
+        }
     }
 
-    msgctl(msqid, IPC_RMID, &buf2);
-}
+    // Delete monitor worker ipc
+    // Get ipc key, same file and flag result in same ipc key
+    if((ipc_key = ftok(MW_FILE_PATH, MW_IPC_NUM)) >= 0)
+    {
+        // Get lasttime message queue
+        if((msqid = msgget(ipc_key, 0)) != -1)
+        {
+            msgctl(msqid, IPC_RMID, &buf);
+        }
+    }
 
-/**
- * @description: Recycle message queue, semaphore and shared memory
- * @return: Destroy status
- * */
-int destroy_ipc()
-{
-    if(shmid != -1)
-    {
-	    shmctl(shmid, IPC_RMID, &buf1);
-    }
-    if(msqid != -1)
-    {
-        msgctl(msqid, IPC_RMID, &buf2);
-    }
-    if(semid != -1)
-    {
-        del_sem(semid);
-    }
-    return 1;
 }

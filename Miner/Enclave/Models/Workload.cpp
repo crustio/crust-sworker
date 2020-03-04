@@ -123,6 +123,11 @@ validate_status_t Workload::restore_workload(std::string plot_data)
     size_t hash_size;
     uint8_t *hash_u;
     // Get empty_g_hashs
+    for(auto it : this->empty_g_hashs)
+    {
+        delete it;
+    }
+    this->empty_g_hashs.clear(); // Clear current empty_g_hashs
     spos = 0;
     epos = plot_data.find(";");
     empty_g_hashs_str = plot_data.substr(spos,epos);

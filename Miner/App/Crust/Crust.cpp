@@ -30,7 +30,7 @@ Crust *get_crust(void)
 {
     if (crust == NULL)
     {
-        cfprintf(felog, CF_ERROR "Please use new_crust(url) frist.\n");
+        cprintf_err(felog, "Please use new_crust(url) frist.\n");
     }
 
     return crust;
@@ -82,7 +82,7 @@ BlockHeader *Crust::get_block_header(void)
     }
     catch (const std::exception &e)
     {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+        cprintf_err(felog, "HTTP throw: %s\n", e.what());
     }
 
     return NULL;
@@ -107,7 +107,7 @@ bool Crust::is_online(void)
     }
     catch (const std::exception &e)
     {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+        cprintf_err(felog, "HTTP throw: %s\n", e.what());
     }
 
     return false;
@@ -139,7 +139,7 @@ bool Crust::post_tee_identity(std::string identity)
     }
     catch (const std::exception &e)
     {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+        cprintf_err(felog, "HTTP throw: %s\n", e.what());
     }
 
     return false;
@@ -171,7 +171,7 @@ bool Crust::post_tee_work_report(std::string work_report)
     }
     catch (const std::exception &e)
     {
-        cfprintf(felog, CF_ERROR "HTTP throw: %s\n", e.what());
+        cprintf_err(felog, "HTTP throw: %s\n", e.what());
     }
 
     return false;

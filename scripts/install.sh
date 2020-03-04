@@ -25,7 +25,6 @@ function installAPP()
     cp -r $instdir/scripts $crustteedir
     cp -r $instdir/VERSION $crustteedir
     mkdir -p $crustteedir/log
-    true > $crustteedir/.ipc
 
     # Set environment
     setEnv

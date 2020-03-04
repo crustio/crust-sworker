@@ -1,5 +1,5 @@
-#ifndef _CRUST_PROCESS_H_
-#define _CRUST_PROCESS_H_
+#ifndef _CRUST_SINGLE_PROCESS_H_
+#define _CRUST_SINGLE_PROCESS_H_
 
 #include <sgx_key_exchange.h>
 #include <sgx_report.h>
@@ -49,10 +49,8 @@
 #define SESSION_STARTER  1
 #define SESSION_RECEIVER 2
 
-#define MSG_PID_WORKER  200
-#define MSG_PID_MONITOR 201
 #define BLOCK_HEIGHT    100
 
-int process();
+int single_process_run();
 
-#endif /* !_CRUST_PROCESS_H_ */
+#endif /* !_CRUST_SINGLE_PROCESS_H_ */

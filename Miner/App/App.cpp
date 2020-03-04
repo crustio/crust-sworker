@@ -1,6 +1,7 @@
 #include "App.h"
 
 bool run_as_server = false;
+std::string g_run_mode = APP_RUN_MODE_SINGLE;
 bool offline_chain_mode = false;
 extern std::string config_file_path;
 
@@ -16,7 +17,7 @@ int SGX_CDECL main(int argc, char *argv[])
     std::string run_type;
     for (int i = 1; i < argc; i++)
     {
-        if (strcmp(argv[i], "--config") == 0)
+        if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0)
         {
             if (i + 1 < argc)
             {
@@ -25,11 +26,15 @@ int SGX_CDECL main(int argc, char *argv[])
             }
             else
             {
-                cfprintf(NULL, CF_ERROR "--config option needs configure file path as argument!\n");
+                cprintf_err(NULL, "-c option needs configure file path as argument!\n");
                 return 1;
             }
         }
-        if (strcmp(argv[i], "--offline") == 0)
+        else if (strcmp(argv[i], "-g") == 0 || strcmp(argv[i], "--guard") == 0)
+        {
+            g_run_mode = APP_RUN_MODE_MULTIPLE;
+        }
+        else if (strcmp(argv[i], "--offline") == 0)
         {
             offline_chain_mode = true;
         }
@@ -37,7 +42,7 @@ int SGX_CDECL main(int argc, char *argv[])
         {
             if (run_type.compare("") != 0)
             {
-                cfprintf(NULL, CF_ERROR "Ambiguos run mode!\n");
+                cprintf_err(NULL, "Ambiguos run mode!\n");
                 return 1;
             }
             run_type = argv[i];
@@ -86,7 +91,16 @@ int SGX_CDECL main(int argc, char *argv[])
  */
 int main_daemon()
 {
-    return process();
+    if (g_run_mode.compare(APP_RUN_MODE_SINGLE) == 0)
+    {
+        return single_process_run();
+    }
+    else
+    {
+        return multi_process_run();
+    }
+
+    return -1;
 }
 
 /**
@@ -99,7 +113,7 @@ int main_status()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        cfprintf(NULL, CF_ERROR "Init config failed.\n");
+        cprintf_err(NULL, "Init config failed.\n");
         return -1;
     }
 
@@ -110,10 +124,10 @@ int main_status()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        cfprintf(NULL, CF_INFO "Get status failed!");
+        cprintf_info(NULL, "Get status failed!");
         return -1;
     }
-    cfprintf(NULL, CF_INFO "%s", res->body.c_str());
+    cprintf_info(NULL, "%s", res->body.c_str());
 
     delete p_config;
     delete client;
@@ -130,7 +144,7 @@ int main_report()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        cfprintf(NULL, CF_ERROR "Init config failed.\n");
+        cprintf_err(NULL, "Init config failed.\n");
         return false;
     }
 
@@ -141,10 +155,10 @@ int main_report()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        cfprintf(NULL, CF_INFO "Get report failed!");
+        cprintf_info(NULL, "Get report failed!");
         return -1;
     }
-    cfprintf(NULL, CF_INFO "%s", res->body.c_str());
+    cprintf_info(NULL, "%s", res->body.c_str());
 
     delete p_config;
     delete client;
