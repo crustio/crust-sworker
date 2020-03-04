@@ -19,6 +19,10 @@ int eprintf(const char *fmt, ...)
 	return (int)strnlen(buf, 100000 - 1) + 1;
 }
 
+/**
+ * @description: use ocall_eprint_string to print format string
+ * @return: the length of printed string
+ */
 int cfeprintf(const char *fmt, ...)
 {
 	char buf[100000] = {'\0'};

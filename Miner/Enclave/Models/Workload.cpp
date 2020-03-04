@@ -42,18 +42,13 @@ Workload::~Workload()
  */
 void Workload::show(void)
 {
-    eprintf("Empty root hash: \n");
-    for (size_t i = 0; i < 32; i++)
-    {
-        eprintf("%02x", this->empty_root_hash[i]);
-    }
-    eprintf("\n");
-    eprintf("Empty capacity: %luG\n", this->empty_disk_capacity);
+    cfeprintf("Empty root hash: %s\n", unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH).c_str());
+    cfeprintf("Empty capacity: %luG\n", this->empty_disk_capacity);
 
-    eprintf("Meaningful work is: \n");
+    cfeprintf("Meaningful work is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        eprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(it->first.data(), HASH_LENGTH), it->second);
+        cfeprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH).c_str(), it->second);
     }
 }
 
@@ -212,7 +207,7 @@ validate_status_t Workload::store_plot_data()
         goto cleanup;
     }
 
-    //eprintf("==========[enclave] sealed data:%s\n", hexstring(p_sealed_data, sealed_data_size));
+    //cfeprintf("==========[enclave] sealed data:%s\n", hexstring(p_sealed_data, sealed_data_size));
 
     // Store sealed data to file
     if (SGX_SUCCESS != ocall_store_plot_data(&validate_status, p_sealed_data, sealed_data_size))
@@ -262,11 +257,11 @@ validate_status_t Workload::get_plot_data()
     if (SGX_SUCCESS != sgx_status)
     {
         validate_status = VALIDATION_UNSEAL_DATA_FAILED;
-        eprintf("===========[enclave] get plot data failed:%lx\n", sgx_status);
+        cfeprintf("===========[enclave] get plot data failed:%lx\n", sgx_status);
         goto cleanup;
     }
     plot_data = std::string((const char*)p_decrypted_data, decrypted_data_len);
-    eprintf("===========[enclave] get plot data:%s\n", plot_data.c_str());
+    cfeprintf("===========[enclave] get plot data:%s\n", plot_data.c_str());
 
     restore_workload(plot_data);
 

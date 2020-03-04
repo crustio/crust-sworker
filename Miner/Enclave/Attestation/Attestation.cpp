@@ -46,7 +46,7 @@ ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
         p_data = (uint8_t*)malloc(secret_size);
         memset(p_data, 0, secret_size);
         memcpy(p_data, workload.c_str(), secret_size);
-        eprintf("[enclave]=========== send report data:%s\n",(char*)p_data);
+        cfeprintf("[enclave]=========== send report data:%s\n",(char*)p_data);
     }
     else
     {
@@ -119,7 +119,7 @@ ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
     {
         return INVALID_SESSION;
     }
-    //eprintf("[enclave]===========payload size:%d\n", req_message->payload_size);
+    //cfeprintf("[enclave]===========payload size:%d\n", req_message->payload_size);
 
     // Send key pair to monitor process tee
     status = sgx_rijndael128GCM_encrypt(&dh_aek, p_data, secret_size,
@@ -133,7 +133,7 @@ ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type)
         SAFE_FREE(req_message);
         return IPC_SGX_ERROR;
     }
-    //eprintf("[enclave]===========received data:%s\n", hexstring(&id_key_pair, sizeof(ecc_key_pair)));
+    //cfeprintf("[enclave]===========received data:%s\n", hexstring(&id_key_pair, sizeof(ecc_key_pair)));
 
     status = ocall_send_secret(&ipc_status, req_message, (uint32_t)sizeof(sgx_aes_gcm_data_t)+secret_size, data_type);
     if(SGX_SUCCESS == status)
@@ -306,7 +306,7 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
             return IPC_SGX_ERROR;
         }
 
-        //eprintf("[enclave]===========received data:%s\n",hexstring(decrypted_data, decrypted_data_length));
+        //cfeprintf("[enclave]===========received data:%s\n",hexstring(decrypted_data, decrypted_data_length));
 
         // Recevie data by data type
         if(data_type == ATTEST_DATATYPE_KEYPAIR)
@@ -316,7 +316,7 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
         else if(data_type == ATTEST_DATATYPE_WORKLOAD)
         {
             get_workload()->restore_workload(std::string((char*)decrypted_data, secret_size));
-            eprintf("[enclave]=========== receive report:%s\n",std::string((char*)decrypted_data, secret_size).c_str());
+            cfeprintf("[enclave]=========== receive report:%s\n",std::string((char*)decrypted_data, secret_size).c_str());
         }
 
     } while(0);

@@ -23,7 +23,7 @@ void validate_empty_disk(const char *path)
         ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, PLOT_RAND_DATA_NUM * HASH_LENGTH);
         if (m_hashs_o == NULL)
         {
-            eprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
+            cfeprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
             return;
         }
 
@@ -41,7 +41,7 @@ void validate_empty_disk(const char *path)
         {
             if (workload->empty_g_hashs[i][j] != m_hashs_hash256[j])
             {
-                eprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
+                cfeprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
                 return;
             }
         }
@@ -58,7 +58,7 @@ void validate_empty_disk(const char *path)
 
         if (leaf_data == NULL)
         {
-            eprintf("\n!!!!USER CHEAT: GET LEAF DATA FAILED!!!!\n");
+            cfeprintf("\n!!!!USER CHEAT: GET LEAF DATA FAILED!!!!\n");
             return;
         }
 
@@ -70,7 +70,7 @@ void validate_empty_disk(const char *path)
         {
             if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
             {
-                eprintf("\n!!!!USER CHEAT: WRONG LEAF DATA HASHS!!!!\n");
+                cfeprintf("\n!!!!USER CHEAT: WRONG LEAF DATA HASHS!!!!\n");
                 return;
             }
         }
@@ -101,7 +101,7 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
     {
         if (files[i].exist == 0)
         {
-            eprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
+            cfeprintf("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
             workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH));
         }
     }
@@ -121,7 +121,7 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
 
             if (tree == NULL)
             {
-                eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", root_hash.c_str());
+                cfeprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", root_hash.c_str());
                 return;
             }
 
@@ -129,7 +129,7 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
             size_t merkle_tree_size = 0;
             if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != it->second)
             {
-                eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
+                cfeprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
                 return;
             }
         }
@@ -152,7 +152,7 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
 
                 if (tree == NULL)
                 {
-                    eprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", root_hash.c_str());
+                    cfeprintf("\n!!!!USER CHEAT: CAN'T GET %s FILE!!!!\n", root_hash.c_str());
                     return;
                 }
 
@@ -160,12 +160,12 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
                 size_t merkle_tree_size = 0;
                 if (!validate_merkle_tree(tree, &merkle_tree_size) || merkle_tree_size != files[i].size)
                 {
-                    eprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
+                    cfeprintf("\n!!!!USER CHEAT: %s FILE IS NOT COMPLETED!!!!\n", root_hash.c_str());
                     return;
                 }
             }
 
-            eprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
+            cfeprintf("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
             workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH), files[i].size));
         }
     }

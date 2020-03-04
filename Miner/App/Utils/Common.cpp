@@ -132,7 +132,7 @@ void cprintf_real(FILE *stream, std::string info, const char *info_tag)
 		{
 	        fprintf(stream, "[%s] %s %s %s", timestr, info_tag, g_show_tag, info.c_str());
 		}
-        fflush(stream);
+		fflush(stream);
 	}
 }
 
