@@ -30,6 +30,7 @@ std::string entry_res = "";
 
 extern FILE *felog;
 extern bool run_as_server;
+extern bool offline_chain_mode;
 extern int msqid;
 extern msg_form msg;
 
@@ -510,7 +511,7 @@ ipc_status_t attest_session_keypair()
 /**
  * @description: Check if there is enough height, send signed validation report to chain
  * */
-void *do_check_block(void *)
+void *do_upload_work_report(void *)
 {
     while (true)
     {
@@ -596,41 +597,46 @@ void *do_disk_related(void *args)
         cfprintf(felog, CF_INFO "%s Have received workload from monitor successfully!\n", show_tag);
     }
 
-    if (new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
+    if (!offline_chain_mode)
     {
-        cfprintf(felog, CF_ERROR "%s Init crust chain failed.\n", show_tag);
-        return NULL;
-    }
-
-    /* Send identity to crust chain */
-    if (!wait_chain_run())
-    {
-        return NULL;
-    }
-
-    if (!is_entried_network)
-    {
-        if (!get_crust()->post_tee_identity(entry_res))
+        /* Send identity to crust chain */
+        if (new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
         {
-            cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
+            cfprintf(felog, CF_ERROR "%s Init crust chain failed.\n", show_tag);
             return NULL;
         }
-        cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
 
-        // Notify monitor that worker has entried network successfully
-        if (kill(monitorPID, SIGUSR1) == -1)
+        if (!wait_chain_run())
         {
-            cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
             return NULL;
         }
-        is_entried_network = true;
-        cfprintf(felog, CF_INFO "%s Send entry network status to monitor successfully!\n", show_tag);
+
+        if (!is_entried_network)
+        {
+            if (!get_crust()->post_tee_identity(entry_res))
+            {
+                cfprintf(felog, CF_ERROR "%s Send identity to crust chain failed!\n", show_tag);
+                return NULL;
+            }
+            cfprintf(felog, CF_INFO "%s Send identity to crust chain successfully!\n", show_tag);
+
+            // Notify monitor that worker has entried network successfully
+            if (kill(monitorPID, SIGUSR1) == -1)
+            {
+                cfprintf(felog, CF_ERROR "%s Send entry network status failed!\n", show_tag);
+                return NULL;
+            }
+            is_entried_network = true;
+            cfprintf(felog, CF_INFO "%s Send entry network status to monitor successfully!\n", show_tag);
+        }
+
+        /* Set up upload work report to chain thread */
+        if (pthread_create(&wthread, NULL, do_upload_work_report, NULL) != 0)
+        {
+            cfprintf(NULL, CF_ERROR "Create checking block info thread failed!\n");
+        }
     }
 
-    if (pthread_create(&wthread, NULL, do_check_block, NULL) != 0)
-    {
-        cfprintf(NULL, CF_ERROR "Create checking block info thread failed!\n");
-    }
     /* Main validate loop */
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
 
