@@ -46,6 +46,7 @@ public:
     void set_ipfs_client_url(const char *url);
 };
 
+// TODO: should merge new_ifs and get_ipfs
 Ipfs *new_ipfs(const char *url);
 Ipfs *get_ipfs(void);
 

@@ -7,6 +7,7 @@ enum ValidationStatus validation_status = ValidateStop;
 extern attest_status_t g_att_status;
 extern ecc_key_pair id_key_pair;
 extern uint8_t off_chain_pub_key[];
+std::string g_run_mode = APP_RUN_MODE_SINGLE;
 
 /**
  * @description: ecall main loop
@@ -21,6 +22,7 @@ void ecall_main_loop(const char *empty_path)
         cfeprintf("\n-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
+        validate_status_t validate_status = VALIDATION_SUCCESS;
         ipc_status_t ipc_status = IPC_SUCCESS;
         Node *diff_files = NULL;
         ocall_get_diff_files(&diff_files);
@@ -39,30 +41,40 @@ void ecall_main_loop(const char *empty_path)
         get_workload()->show();
 
         /* Do workload attestation */
-        if (IPC_SUCCESS != (ipc_status = ecall_attest_session_starter(ATTEST_DATATYPE_WORKLOAD)))
+        if (g_run_mode.compare(APP_RUN_MODE_MULTIPLE) == 0)
         {
-            cfeprintf("Send workload to monitor failed!Error code:%lx\n", ipc_status);
+            if (IPC_SUCCESS != (ipc_status = ecall_attest_session_starter(ATTEST_DATATYPE_WORKLOAD)))
+            {
+                cfeprintf("Send workload to monitor failed!Error code:%lx\n", ipc_status);
+            }
+            else
+            {
+                cfeprintf("Send workload to monitor successfully!\n");
+            }
+        }
+        else if (g_run_mode.compare(APP_RUN_MODE_SINGLE) == 0)
+        {
+            if (VALIDATION_SUCCESS != (validate_status = get_workload()->store_plot_data()))
+            {
+                cfeprintf("Store workload failed!Error code:%lx\n", validate_status);
+            }
+            else
+            {
+                cfeprintf("Store workload successfully!\n");
+            }
         }
         else
         {
-            cfeprintf("Send workload to monitor successfully!\n");
-        }
-        if (IPC_ATTEST_BUSY != ipc_status)
-        {
-            g_att_status = ATTEST_IDLE;
+            cfeprintf("Wrong TEE run mode!\n");
         }
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
 }
 
-/**
- * @description: Get attestation status
- * @return: attestation status
- * */
-attest_status_t ecall_get_attest_status(void)
+void ecall_set_run_mode(const char* mode, size_t len)
 {
-    return g_att_status;
+    g_run_mode = std::string(mode, len);
 }
 
 /**
@@ -94,6 +106,15 @@ void ecall_get_validation_report(char *report, size_t len)
 {
     std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
     report[len - 1] = '\0';
+}
+
+/**
+ * @description: Restore plot data from file
+ * @return: Restore status
+ * */
+validate_status_t ecall_restore_data()
+{
+    return get_workload()->get_plot_data();
 }
 
 /**
