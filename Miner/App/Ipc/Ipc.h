@@ -26,6 +26,8 @@ typedef enum _monitor_worker_msg_t {
     MW_MSG_WORKER_PID_RES = IPC_MK_TYPE(407),
     MW_MSG_MONITOR_PID = IPC_MK_TYPE(408),
     MW_MSG_MONITOR_PID_RES = IPC_MK_TYPE(409),
+    MW_MSG_G_EXIT = IPC_MK_TYPE(410),
+    MW_MSG_G_EXIT_RES = IPC_MK_TYPE(411),
 } monitor_worker_msg_t;
 
 struct msg_form_t {
