@@ -818,7 +818,7 @@ void *do_workload_receive(void*)
 
 /**
  * @description: Do disk related
- * */
+ */
 void *do_disk_related(void *args)
 {
     bool need_plot_disk = *((bool *)args);
