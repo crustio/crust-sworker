@@ -652,14 +652,17 @@ bool do_plot_disk(void)
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     validate_status_t validate_status = VALIDATION_SUCCESS;
     size_t display_progress_char_count = 0;
+    size_t success_count = 0;
 
     cfprintf(felog, CF_INFO "Start ploting disk...\n");
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+    display_progress_char_count = display_progress(success_count, display_progress_char_count);
 #pragma omp parallel for
     for (size_t i = 0; i < p_config->empty_capacity; i++)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
-        display_progress_char_count = display_progress((i + 1) * 100 / p_config->empty_capacity, display_progress_char_count);
+        success_count += 1;
+        display_progress_char_count = display_progress((success_count + 1) * 100 / p_config->empty_capacity, display_progress_char_count);
     }
 
     // Generate empty root

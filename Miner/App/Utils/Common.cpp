@@ -93,7 +93,7 @@ int cfprintf(FILE *stream, const char *format, ...)
 		va_start(va, format);
 		rv = vfprintf(stream, format, va);
 		va_end(va);
-        fflush(stream);
+		fflush(stream);
 	}
 
 	return rv;
@@ -154,28 +154,28 @@ void remove_chars_from_string(std::string &str, const char *chars_to_remove)
  * @param last_char_count removed chars
  * @return the number of characters output when the progress bar is displayed this time
  * */
-size_t display_progress(size_t progress, size_t last_char_count)     
+size_t display_progress(size_t progress, size_t last_char_count)
 {
-    size_t i = 0;
+	size_t i = 0;
 
-    for (i = 0; i < last_char_count; i++)
-    {
-        printf("\b"); 
-    }
+	for (i = 0; i < last_char_count; i++)
+	{
+		printf("\b");
+	}
 
-    for (i = 0; i < progress; i++)
-    {
-            printf("=");  
-    }
-    printf(">>");
-    
-    for (i += 2; i < 104; i++) 
-    {
-            printf(" ");
-    }
-    
-    i = i + printf("[%d%%]", progress);
+	for (i = 0; i < progress; i += 2)
+	{
+		printf("=");
+	}
+	printf(">>");
 
-    fflush(stdout);
-    return i; 
+	for (i += 2; i < 70; i++)
+	{
+		printf(" ");
+	}
+
+	i = i + printf("[%d%%]", progress);
+
+	fflush(stdout);
+	return i;
 }
