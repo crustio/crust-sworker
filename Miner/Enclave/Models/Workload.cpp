@@ -42,18 +42,13 @@ Workload::~Workload()
  */
 void Workload::show(void)
 {
-    cfeprintf("Empty root hash: \n");
-    for (size_t i = 0; i < 32; i++)
-    {
-        cfeprintf("%02x", this->empty_root_hash[i]);
-    }
-    cfeprintf("\n");
+    cfeprintf("Empty root hash: %s\n", unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH).c_str());
     cfeprintf("Empty capacity: %luG\n", this->empty_disk_capacity);
 
     cfeprintf("Meaningful work is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        cfeprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_char_array(it->first.data(), HASH_LENGTH), it->second);
+        cfeprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH).c_str(), it->second);
     }
 }
 
