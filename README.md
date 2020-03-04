@@ -42,13 +42,14 @@ Crust TEE apllication is installed in /opt/crust/crust-tee.
 - Please follow [crust client](https://github.com/crustio/crust-client) to launch.
 
 ## Crust tee executable file
-1. Run '**bin/crust-tee -h**' to show how to use **crust-tee**.
+1. Run '**bin/crust-tee --help**' to show how to use **crust-tee**.
 1. Run '**bin/crust-tee \<argument\>**' to run crust-tee in different mode, argument can be daemon/server/status/report.
    1. **daemon** option lets tee run in daemon mode.
    1. **server** option lets tee run in server mode.
    1. **status** option shows tee current status, make sure daemon or server mode has been running.
    1. **report** option shows tee work report, make sure daemon or server mode has been running.
-1. Run '**bin/crust-tee -c \<config_file_path\>**' to use customized configure file, if not provided **etc/Config.json** will be used as the default one.
+1. Run '**bin/crust-tee --config \<config_file_path\>**' to use customized configure file, if not provided **etc/Config.json** will be used as the default one.
+1. Run '**bin/crust-tee --offline**', program will not interact with the chain.
 
 ## API
 - Use 'curl http://<api_base_url_in_Config.json>/api/v0/status' to get validation status

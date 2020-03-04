@@ -69,8 +69,8 @@ int SGX_CDECL main(int argc, char *argv[])
         printf("          option: \n");
         printf("           --help: help information. \n");
         printf("           --config: indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
-        printf("               If no file provided, default path is /opt/crust/crust-tee/etc/Config.json. \n");
-        printf("           --offline: add this flag, progream will not interact with the chain. \n");
+        printf("               If no file provided, default path is etc/Config.json. \n");
+        printf("           --offline: add this flag, program will not interact with the chain. \n");
         printf("           status: show plot disk status. \n");
         printf("           report: show plot work report. \n");
         printf("           daemon: run as daemon process. \n");
