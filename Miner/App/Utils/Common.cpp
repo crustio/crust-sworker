@@ -147,3 +147,35 @@ void remove_chars_from_string(std::string &str, const char *chars_to_remove)
 		str.erase(std::remove(str.begin(), str.end(), chars_to_remove[i]), str.end());
 	}
 }
+
+/**
+ * @description: display some progress
+ * @param progress percentage for 0 to 100
+ * @param last_char_count removed chars
+ * @return the number of characters output when the progress bar is displayed this time
+ * */
+size_t display_progress(size_t progress, size_t last_char_count)     
+{
+    size_t i = 0;
+
+    for (i = 0; i < last_char_count; i++)
+    {
+        printf("\b"); 
+    }
+
+    for (i = 0; i < progress; i++)
+    {
+            printf("=");  
+    }
+    printf(">>");
+    
+    for (i += 2; i < 104; i++) 
+    {
+            printf(" ");
+    }
+    
+    i = i + printf("[%d%%]", progress);
+
+    fflush(stdout);
+    return i; 
+}

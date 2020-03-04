@@ -37,10 +37,12 @@ void ecall_plot_disk(const char *path)
 
         save_file(g_path.c_str(), i, out_hash256, rand_data, sizeof(rand_data));
 
+        /*
         if ((i + 1) == 1 || (i + 1) % 50 == 0 || (i + 1) == PLOT_RAND_DATA_NUM)
         {
-            eprintf("Save file: %luG/%luM\n", now_index + 1, i + 1);
+            cfeprintf("Save file: %luG/%luM\n", now_index + 1, i + 1);
         }
+        */
     }
 
     /* Generate G hashs */

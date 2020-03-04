@@ -55,6 +55,7 @@ extern "C"
 
     UrlEndPoint *get_url_end_point(std::string url);
     void remove_chars_from_string(std::string &str, const char *chars_to_remove);
+    size_t display_progress(size_t progress, size_t last_char_count);
 
 #if defined(__cplusplus)
 }

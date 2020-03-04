@@ -18,7 +18,7 @@ void ecall_main_loop(const char *empty_path)
     
     while (true)
     {
-        eprintf("\n-----Meaningful Validation-----\n");
+        cfeprintf("\n-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
         ipc_status_t ipc_status = IPC_SUCCESS;
@@ -28,12 +28,12 @@ void ecall_main_loop(const char *empty_path)
         ocall_get_diff_files_num(&diff_files_num);
         validate_meaningful_disk(diff_files, diff_files_num);
 
-        eprintf("\n-----Empty Validation-----\n");
+        cfeprintf("\n-----Empty Validation-----\n");
         /* Empty */
         validation_status = ValidateEmpty;
         validate_empty_disk(empty_path);
 
-        eprintf("\n-----Validation Waiting-----\n");
+        cfeprintf("\n-----Validation Waiting-----\n");
         /* Show result */
         validation_status = ValidateWaiting;
         get_workload()->show();
