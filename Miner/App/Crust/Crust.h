@@ -28,6 +28,7 @@ public:
     ~Crust();
 };
 
+// TODO: should merge new_crust with get_crust
 Crust *new_crust(std::string url, std::string password, std::string backup);
 Crust *get_crust(void);
 

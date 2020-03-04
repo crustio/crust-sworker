@@ -7,7 +7,7 @@ enum ValidationStatus validation_status = ValidateStop;
 extern attest_status_t g_att_status;
 extern ecc_key_pair id_key_pair;
 extern uint8_t off_chain_pub_key[];
-std::string g_run_mode = "single";
+std::string g_run_mode = APP_RUN_MODE_SINGLE;
 
 /**
  * @description: ecall main loop
@@ -41,7 +41,7 @@ void ecall_main_loop(const char *empty_path)
         get_workload()->show();
 
         /* Do workload attestation */
-        if (g_run_mode.compare("multiple") == 0)
+        if (g_run_mode.compare(APP_RUN_MODE_MULTIPLE) == 0)
         {
             if (IPC_SUCCESS != (ipc_status = ecall_attest_session_starter(ATTEST_DATATYPE_WORKLOAD)))
             {
@@ -52,7 +52,7 @@ void ecall_main_loop(const char *empty_path)
                 cfeprintf("Send workload to monitor successfully!\n");
             }
         }
-        else if (g_run_mode.compare("single") == 0)
+        else if (g_run_mode.compare(APP_RUN_MODE_SINGLE) == 0)
         {
             if (VALIDATION_SUCCESS != (validate_status = get_workload()->store_plot_data()))
             {
