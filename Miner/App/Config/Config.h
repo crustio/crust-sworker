@@ -13,6 +13,8 @@
 class Config
 {
 public:
+    std::string base_path;              /* Tee base path */
+    std::string recover_file_path;      /* Recover file path */
     std::string empty_path;             /* Empty validation files base path */
     size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
     std::string ipfs_api_base_url;      /* Used to connect to IPFS */

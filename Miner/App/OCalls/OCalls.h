@@ -462,10 +462,10 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
 validate_status_t ocall_store_plot_data(sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size)
 {
     validate_status_t validate_status = VALIDATION_SUCCESS;
-
-    std::ofstream work_report_stream(WORK_REPORT_PATH);
-    work_report_stream << hexstring(p_sealed_data, sealed_data_size);
-    work_report_stream.close();
+    
+    std::ofstream recover_stream(Config::get_instance()->recover_file_path);
+    recover_stream << hexstring(p_sealed_data, sealed_data_size);
+    recover_stream.close();
 
     return validate_status;
 }
@@ -480,8 +480,8 @@ validate_status_t ocall_get_plot_data(sgx_sealed_data_t **p_sealed_data, uint32_
 {
     validate_status_t validate_status = VALIDATION_SUCCESS;
 
-    std::ifstream work_report_stream(WORK_REPORT_PATH);
-    std::string sealed_data_str((std::istreambuf_iterator<char>(work_report_stream)),
+    std::ifstream recover_stream(Config::get_instance()->recover_file_path);
+    std::string sealed_data_str((std::istreambuf_iterator<char>(recover_stream)),
                                 std::istreambuf_iterator<char>());
 
     *p_sealed_data = (sgx_sealed_data_t *)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
