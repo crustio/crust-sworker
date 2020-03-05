@@ -40,7 +40,9 @@ Config::Config(std::string path)
     json::JSON config_value = json::JSON::Load(config_str);
 
     // Plot configurations
-    this->empty_path = config_value["empty_path"].ToString();
+    this->base_path = config_value["base_path"].ToString();
+    this->recover_file_path = this->base_path + "/recover.bin"
+    this->empty_path = this->base_path + "/empty_path";
     this->empty_capacity = (size_t)config_value["empty_capacity"].ToInt();
 
     // ipfs and validator url configurations

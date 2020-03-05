@@ -6,7 +6,6 @@
 #define MW_FILE_PATH        CRUST_INST_DIR "/.mw_ipc"
 #define LOG_FILE_PATH       CRUST_INST_DIR "/log/crust.log"
 #define CONFIG_FILE_PATH    CRUST_INST_DIR "/etc/Config.json"
-#define WORK_REPORT_PATH    CRUST_INST_DIR "/etc/work_report.data"
 
 #define APP_RUN_MODE_SINGLE "single"
 #define APP_RUN_MODE_MULTIPLE "multiple"
