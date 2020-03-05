@@ -41,7 +41,7 @@ Config::Config(std::string path)
 
     // Plot configurations
     this->base_path = config_value["base_path"].ToString();
-    this->recover_file_path = this->base_path + "/recover.bin"
+    this->recover_file_path = this->base_path + "/recover.bin";
     this->empty_path = this->base_path + "/empty_path";
     this->empty_capacity = (size_t)config_value["empty_capacity"].ToInt();
 
