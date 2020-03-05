@@ -770,7 +770,7 @@ void *do_upload_work_report(void *)
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
-                    work_json["signal"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
+                    work_json["sig"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
                     work_json["block_height"] = block_header->number;
                     work_json["block_hash"] = block_header->hash;
                     std::string workStr = work_json.dump();
