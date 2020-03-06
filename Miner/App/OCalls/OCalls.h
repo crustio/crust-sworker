@@ -474,13 +474,15 @@ common_status_t ocall_get_data_from_file(sgx_sealed_data_t **p_sealed_data, uint
 
     std::ifstream recover_stream(Config::get_instance()->recover_file_path);
     std::string sealed_data_str;
-    if (!recover_stream.good())
+    
+    sealed_data_str = std::string((std::istreambuf_iterator<char>(recover_stream)),
+                                std::istreambuf_iterator<char>());
+
+    if (!sealed_data_str.size())
     {
         common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
         goto cleanup;
     }
-    sealed_data_str = std::string((std::istreambuf_iterator<char>(recover_stream)),
-                                std::istreambuf_iterator<char>());
 
     *p_sealed_data = (sgx_sealed_data_t *)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
     if (p_sealed_data == NULL)
