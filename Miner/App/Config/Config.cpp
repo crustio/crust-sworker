@@ -80,6 +80,8 @@ Config::Config(std::string path)
 void Config::show(void)
 {
     printf("Config:\n{\n");
+    printf("    'base path' : '%s',\n", this->base_path.c_str());
+    printf("    'recover file path' : '%s',\n", this->recover_file_path.c_str());
     printf("    'empty path' : '%s',\n", this->empty_path.c_str());
     printf("    'empty capacity' : %lu,\n", this->empty_capacity);
 

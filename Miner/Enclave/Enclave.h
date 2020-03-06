@@ -35,6 +35,8 @@
 #include "Attestation/Attestation.h"
 #include "ValidationStatus.h"
 
+#define CRUST_SEPARATOR "$crust_separator$"
+
 static const sgx_ec256_public_t def_service_public_key = 
 {
     {
@@ -53,6 +55,9 @@ static const sgx_ec256_public_t def_service_public_key =
 };
 
 ecc_key_pair id_key_pair;
+
+std::string g_crust_account_id;
+bool g_is_set_account_id = false;
 
 uint8_t off_chain_pub_key[REPORT_DATA_SIZE] = {'\0'};
 

@@ -788,6 +788,7 @@ void *do_upload_work_report(void *)
                     }
                 }
             }
+            free(report);
         }
         else
         {

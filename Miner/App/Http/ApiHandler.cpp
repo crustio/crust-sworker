@@ -78,6 +78,7 @@ int ApiHandler::start()
     path = urlendpoint->base + "/entry/network";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         sgx_status_t status_ret = SGX_SUCCESS;
+        common_status_t common_status = CRUST_SUCCESS;
         int version = IAS_API_DEF_VERSION;
         cprintf_info(felog, "Processing entry network application...\n");
         uint32_t qsz;
@@ -87,6 +88,15 @@ int ApiHandler::start()
         std::string b64quote = req_json["isvEnclaveQuote"].ToString();
         std::string off_chain_crust_address = req_json["crust_address"].ToString();
         std::string off_chain_crust_account_id = req_json["crust_account_id"].ToString();
+        std::string signature_str = req_json["signature"].ToString();
+        std::string data_sig_str;
+        data_sig_str.append(b64quote)
+            .append(off_chain_crust_address)
+            .append(off_chain_crust_account_id);
+        sgx_ec256_signature_t data_sig;
+        memset(&data_sig, 0, sizeof(sgx_ec256_signature_t));
+        memcpy(&data_sig, hex_string_to_bytes(signature_str.c_str(), signature_str.size()), 
+                sizeof(sgx_ec256_signature_t));
 
         if (!get_quote_size(&status_ret, &qsz))
         {
@@ -107,9 +117,16 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        if (ecall_store_quote(*this->p_global_eid, &status_ret, (const char *)quote, qsz) != SGX_SUCCESS)
+        status_ret = ecall_store_quote(*this->p_global_eid,
+                                       &common_status,
+                                       (const char *)quote,
+                                       qsz,
+                                       (const uint8_t*)data_sig_str.c_str(),
+                                       data_sig_str.size(),
+                                       &data_sig);
+        if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
         {
-            cprintf_err(felog, "Store offChain node quote failed!\n");
+            cprintf_err(felog, "Store and verify offChain node data failed!\n");
             res.set_content("StoreQuoteError", "text/plain");
             res.status = 401;
             return;
@@ -233,7 +250,7 @@ int ApiHandler::start()
                 // Delete line break
                 jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), '\n'), jsonstr.end());
 
-                cprintf_info(felog, "Verifying IAS report in enclave successfully!\n");
+                cprintf_info(felog, "Verify IAS report in enclave successfully!\n");
                 res.set_content(jsonstr.c_str(), "text/plain");
             }
             else

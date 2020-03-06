@@ -96,15 +96,14 @@ bool initialize_enclave_s()
         return false;
     }
 
-    /* Generate ecc key pair */
-    if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &ret))
+    /* Set application run mode */
+    if (SGX_SUCCESS != ecall_set_run_mode(global_eid, APP_RUN_MODE_SINGLE, strlen(APP_RUN_MODE_SINGLE)))
     {
-        cprintf_err(felog, "Generate key pair failed!\n");
+        cprintf_err(felog, "Set TEE run mode failed!\n");
         return false;
     }
-    cprintf_info(felog, "Generate key pair successfully!\n");
 
-    cprintf_info(felog, "Initial enclave successfully!\n");
+    cprintf_info(felog, "Initial enclave successfully!Enclave id:%d\n", global_eid);
 
     return true;
 }
@@ -157,6 +156,8 @@ bool initialize_components_s(void)
         return false;
     }
     cprintf_info(felog, "Start rest service successfully!\n");
+
+    cprintf_info(felog, "Init components successfully!\n");
 
     return true;
 }
@@ -306,10 +307,28 @@ bool entry_network_s()
 
     // Send quote to validation node, try out 3 times for network error.
     std::string req_data;
+    std::string send_data;
+    common_status_t common_status = CRUST_SUCCESS;
+    send_data.append(b64quote);
+    send_data.append(p_config->crust_address);
+    sgx_ec256_signature_t send_data_sig;
+    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, 
+                                                       &common_status, 
+                                                       send_data.c_str(), 
+                                                       send_data.size(),
+                                                       &send_data_sig);
+    if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+    {
+        cprintf_err(felog, "Sign entry network data failed!\n");
+        return false;
+    }
+    std::string signature_str(hexstring(&send_data_sig, sizeof(sgx_ec256_signature_t)));
+
     req_data.append("{ \"isvEnclaveQuote\": \"");
     req_data.append(b64quote).append("\", \"crust_address\": \"");
     req_data.append(p_config->crust_address).append("\", \"crust_account_id\": \"");
-    req_data.append(p_config->crust_account_id.c_str()).append("\" }");
+    req_data.append(p_config->crust_account_id.c_str()).append("\", \"signature\": \"");
+    req_data.append(signature_str).append("\" }");
     int net_tryout = IAS_TRYOUT;
 
     httplib::Params params;
@@ -454,6 +473,7 @@ void *do_upload_work_report_s(void *)
                     }
                 }
             }
+            free(report);
         }
         else
         {
@@ -498,7 +518,8 @@ void start(void)
 {
     pid_t workerPID = getpid();
     pthread_t wthread;
-    validate_status_t validate_status = VALIDATION_SUCCESS;
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
     cprintf_info(felog, "WorkerPID=%d\n", workerPID);
     cprintf_info(felog, "Worker global eid:%d\n", global_eid);
 
@@ -515,18 +536,12 @@ void start(void)
         cprintf_err(felog, "Init component failed!\n");
         goto cleanup;
     }
-    cprintf_info(felog, "Init components successfully!\n");
 
     /* Init enclave */
     if (!initialize_enclave_s())
     {
         cprintf_err(felog, "Init enclave failed!\n");
         goto cleanup;
-    }
-    cprintf_info(felog, "Worker process int enclave successfully!id:%d\n", global_eid);
-    if (SGX_SUCCESS != ecall_set_run_mode(global_eid, APP_RUN_MODE_SINGLE, strlen(APP_RUN_MODE_SINGLE)))
-    {
-        cprintf_err(felog, "Set TEE run mode failed!\n");
     }
 
     // TODO: New crust here which will be changed
@@ -537,50 +552,81 @@ void start(void)
     }
 
     /* Restore data from file */
-    if (SGX_SUCCESS == ecall_restore_data(global_eid, &validate_status) && 
-            VALIDATION_SUCCESS == validate_status)
+    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &common_status)
+            || CRUST_SUCCESS != common_status)
     {
-        goto do_loop;
+        cprintf_warn(felog, "Restore enclave data failed!Failed code:%lx\n", common_status);
+        // If restore failed
+        /* Generate ecc key pair */
+        if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &sgx_status)
+                || SGX_SUCCESS != sgx_status)
+        {
+            cprintf_err(felog, "Generate key pair failed!\n");
+            goto cleanup;
+        }
+        cprintf_info(felog, "Generate key pair successfully!\n");
+    
+        /* Store crust info in enclave */
+        common_status_t common_status = CRUST_SUCCESS;
+        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &common_status, p_config->crust_account_id.c_str(), 
+                    p_config->crust_account_id.size())
+                || CRUST_SUCCESS != common_status)
+        {
+            cprintf_err(felog, "Store backup information to enclave failed!Error code:%lx\n", common_status);
+            goto cleanup;
+        }
+
+        /* Entry network */
+        cprintf_info(felog, "Entrying network...\n");
+        if (!entry_network_s())
+        {
+            goto cleanup;
+        }
+        cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
+
+        /* Plot empty disk */
+        if (!do_plot_disk_s())
+        {
+            cprintf_err(felog, "Plot empty disk failed!\n");
+            goto cleanup;
+        }
+        cprintf_info(felog, "Plot empty disk successfully!\n");
+
+        /* Send identity to chain and send work report */
+        if (!offline_chain_mode)
+        {
+            /* Send identity to crust chain */
+            if (!wait_chain_run_s())
+                goto cleanup;
+            
+            if (!get_crust()->post_tee_identity(g_entry_net_res))
+            {
+                cprintf_err(felog, "Send identity to crust chain failed!\n");
+                goto cleanup;
+            }
+            cprintf_info(felog, "Send identity to crust chain successfully!\n");
+        }
+    }
+    else
+    {
+        // Compare crust account it in configure file and recovered file
+        if(SGX_SUCCESS != ecall_cmp_crust_account_id(global_eid, &common_status, 
+                        p_config->crust_account_id.c_str(), p_config->crust_account_id.size())
+                || CRUST_SUCCESS != common_status)
+        {
+            cprintf_err(felog, "Configure crust account id doesn't equal to recovered one!\n");
+            goto cleanup;
+        }
+        cprintf_info(felog, "Restore enclave data successfully!\n");
     }
 
-    //++++++++++ This session deals with entry network and chain related ++++++++++//
 
-    /* Entry network */
-    cprintf_info(felog, "Entrying network...\n");
-    if (!entry_network_s())
-    {
-        goto cleanup;
-    }
-    cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
-
-    /* Plot empty disk */
-    if (!do_plot_disk_s())
-    {
-        cprintf_err(felog, "Plot empty disk failed!\n");
-        goto cleanup;
-    }
-    cprintf_info(felog, "Plot empty disk successfully!\n");
-
-    /* Send identity to chain and send work report */
     if (!offline_chain_mode)
     {
         /* Send identity to crust chain */
         if (!wait_chain_run_s())
             goto cleanup;
-        
-        if (!get_crust()->post_tee_identity(g_entry_net_res))
-        {
-            cprintf_err(felog, "Send identity to crust chain failed!\n");
-            goto cleanup;
-        }
-        cprintf_info(felog, "Send identity to crust chain successfully!\n");
-    }
-
-
-do_loop:
-
-    if (!offline_chain_mode)
-    {
+            
         // Check block height and post report to chain
         if (pthread_create(&wthread, NULL, do_upload_work_report_s, NULL) != 0)
         {

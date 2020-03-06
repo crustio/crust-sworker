@@ -239,7 +239,7 @@ Ipc *get_current_ipc(attest_data_type_t data_type)
 ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secret_size, attest_data_type_t data_type)
 {
     // Request session to monitor process
-    cprintf_info(felog, "attest session ===> Sending session request:secret size:%d\n", secret_size);
+    //cprintf_info(felog, "attest session ===> Sending session request:secret size:%d\n", secret_size);
     Ipc *cur_ipc = get_current_ipc(data_type);
     sem_p(cur_ipc->semid);
     memcpy(cur_ipc->shm, "SessionRequest", 20);
@@ -255,7 +255,7 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
     }
 
     // Read Message1
-    cprintf_info(felog, "attest session ===> Waiting for msg1\n");
+    //cprintf_info(felog, "attest session ===> Waiting for msg1\n");
     if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 101) == -1)
     {
         return IPC_RECVMSG_ERROR;
@@ -263,8 +263,7 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
     sem_p(cur_ipc->semid);
     memcpy(dh_msg1, cur_ipc->shm, sizeof(sgx_dh_msg1_t));
     sem_v(cur_ipc->semid);
-    cprintf_info(felog, "attest session ===> Get msg1.\n");
-    //cprintf_info(felog, "type:%d,Get msg1:%s\n", msg.type, hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
+    //cprintf_info(felog, "attest session ===> Get msg1.\n");
 
     return IPC_SUCCESS;
 }
@@ -277,7 +276,7 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, at
 {
     // Waiting for session request
     int retry = 3;
-    cprintf_info(felog, "attest session ===> Waiting for session request\n");
+    //cprintf_info(felog, "attest session ===> Waiting for session request\n");
     Ipc *cur_ipc = get_current_ipc(data_type);
     msg_form_t msg;
     int recv_len = sizeof(msg.text) + sizeof(msg.data_type);
@@ -290,13 +289,13 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, at
         if (msg.data_type == data_type)
         {
             memcpy(secret_size, &msg.text, sizeof(msg.text));
-            cprintf_info(felog, "attest session ===> secret size:%d\n", *secret_size);
+            //cprintf_info(felog, "attest session ===> secret size:%d\n", *secret_size);
             sem_p(cur_ipc->semid);
             memcpy(request, cur_ipc->shm, 20);
             sem_v(cur_ipc->semid);
             if (strcmp(request, "SessionRequest") == 0)
             {
-                cprintf_info(felog, "attest session ===> Get session request.\n");
+                //cprintf_info(felog, "attest session ===> Get session request.\n");
                 break;
             }
         }
@@ -313,8 +312,7 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, at
 ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh_msg2, attest_data_type_t data_type)
 {
     // Send Message1 to worker
-    //cprintf_info(felog, "Sending msg1:%s\n", hexstring(dh_msg1, sizeof(sgx_dh_msg1_t)));
-    cprintf_info(felog, "attest session ===> Sending msg1.\n");
+    //cprintf_info(felog, "attest session ===> Sending msg1.\n");
     Ipc *cur_ipc = get_current_ipc(data_type);
     sem_p(cur_ipc->semid);
     memcpy(cur_ipc->shm, dh_msg1, sizeof(sgx_dh_msg1_t));
@@ -327,7 +325,7 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
     }
 
     // Receive Message2 from worker
-    cprintf_info(felog, "attest session ===> Waiting for msg2\n");
+    //cprintf_info(felog, "attest session ===> Waiting for msg2\n");
     if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 102) == -1)
     {
         return IPC_RECVMSG_ERROR;
@@ -335,8 +333,7 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
     sem_p(cur_ipc->semid);
     memcpy(dh_msg2, cur_ipc->shm, sizeof(sgx_dh_msg2_t));
     sem_v(cur_ipc->semid);
-    cprintf_info(felog, "attest session ===> Get msg2.\n");
-    //cprintf_info(felog, "Get msg2:%s\n", hexstring(dh_msg2, sizeof(sgx_dh_msg2_t)));
+    //cprintf_info(felog, "attest session ===> Get msg2.\n");
 
     return IPC_SUCCESS;
 }
@@ -348,8 +345,7 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
 ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_type)
 {
     // Send Message2 to Monitor
-    //cprintf_info(felog, "Sending msg2:%s\n", hexstring(dh_msg2, sizeof(sgx_dh_msg2_t)));
-    cprintf_info(felog, "attest session ===> Sending msg2.\n");
+    //cprintf_info(felog, "attest session ===> Sending msg2.\n");
     Ipc *cur_ipc = get_current_ipc(data_type);
     sem_p(cur_ipc->semid);
     memcpy(cur_ipc->shm, dh_msg2, sizeof(sgx_dh_msg2_t));
@@ -362,7 +358,7 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
     }
 
     // Receive Message3 from worker
-    cprintf_info(felog, "attest session ===> Waiting for msg3\n");
+    //cprintf_info(felog, "attest session ===> Waiting for msg3\n");
     if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 103) == -1)
     {
         return IPC_RECVMSG_ERROR;
@@ -370,8 +366,7 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
     sem_p(cur_ipc->semid);
     memcpy(dh_msg3, cur_ipc->shm, sizeof(sgx_dh_msg3_t));
     sem_v(cur_ipc->semid);
-    cprintf_info(felog, "attest session ===> Get msg3.\n");
-    //cprintf_info(felog, "Get msg3:%s\n", hexstring(dh_msg3, sizeof(sgx_dh_msg3_t)));
+    //cprintf_info(felog, "attest session ===> Get msg3.\n");
 
     return IPC_SUCCESS;
 }
@@ -383,8 +378,7 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
 ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_type)
 {
     // Send Message3 to worker
-    //cprintf_info(felog, "Sending msg3:%s\n", hexstring(dh_msg3, sizeof(sgx_dh_msg3_t)));
-    cprintf_info(felog, "attest session ===> Sending msg3.\n");
+    //cprintf_info(felog, "attest session ===> Sending msg3.\n");
     Ipc *cur_ipc = get_current_ipc(data_type);
     sem_p(cur_ipc->semid);
     memcpy(cur_ipc->shm, dh_msg3, sizeof(sgx_dh_msg3_t));
@@ -405,8 +399,7 @@ ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_typ
  * */
 ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type)
 {
-    //cprintf_info(felog, "len:%d, Sending key pair:%s\n", len, hexstring(req_message, len));
-    cprintf_info(felog, "attest session ===> Sending secret(len:%d)\n", len);
+    //cprintf_info(felog, "attest session ===> Sending secret(len:%d)\n", len);
     Ipc *cur_ipc = get_current_ipc(data_type);
     sem_p(cur_ipc->semid);
     memcpy(cur_ipc->shm, req_message, len);
@@ -432,7 +425,7 @@ ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
  * */
 ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type)
 {
-    cprintf_info(felog, "attest session ===> Waiting for secret\n");
+    //cprintf_info(felog, "attest session ===> Waiting for secret\n");
     Ipc *cur_ipc = get_current_ipc(data_type);
     msg_form_t msg;
     if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 104) == -1)
@@ -448,7 +441,6 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
     {
         return IPC_SENDMSG_ERROR;
     }
-    //cprintf_info(felog, "len:%d, Get key pair:%s\n", len, hexstring(req_message, len));
 
     return IPC_SUCCESS;
 }
@@ -459,15 +451,15 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
  * @param sealed_data_size -> sealed data size
  * @return: Store status
  * */
-validate_status_t ocall_store_plot_data(sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size)
+common_status_t ocall_store_data_to_file(sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size)
 {
-    validate_status_t validate_status = VALIDATION_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
     
     std::ofstream recover_stream(Config::get_instance()->recover_file_path);
     recover_stream << hexstring(p_sealed_data, sealed_data_size);
     recover_stream.close();
 
-    return validate_status;
+    return common_status;
 }
 
 /**
@@ -476,23 +468,33 @@ validate_status_t ocall_store_plot_data(sgx_sealed_data_t *p_sealed_data, uint32
  * @param sealed_data_size -> a pointer to sealed data size
  * @return: Get plot data status
  * */
-validate_status_t ocall_get_plot_data(sgx_sealed_data_t **p_sealed_data, uint32_t *sealed_data_size)
+common_status_t ocall_get_data_from_file(sgx_sealed_data_t **p_sealed_data, uint32_t *sealed_data_size)
 {
-    validate_status_t validate_status = VALIDATION_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
 
     std::ifstream recover_stream(Config::get_instance()->recover_file_path);
-    std::string sealed_data_str((std::istreambuf_iterator<char>(recover_stream)),
+    std::string sealed_data_str;
+    if (!recover_stream.good())
+    {
+        common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
+        goto cleanup;
+    }
+    sealed_data_str = std::string((std::istreambuf_iterator<char>(recover_stream)),
                                 std::istreambuf_iterator<char>());
 
     *p_sealed_data = (sgx_sealed_data_t *)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
     if (p_sealed_data == NULL)
     {
-        return PLOT_GET_DATA_FROM_FILE_FAILED;
+        common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
+        goto cleanup;
     }
 
     *sealed_data_size = sealed_data_str.size() / 2;
 
-    return validate_status;
+cleanup:
+    recover_stream.close();
+
+    return common_status;
 }
 
 #endif /* !_OCALLS_APP_H_ */

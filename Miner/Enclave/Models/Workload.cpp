@@ -52,6 +52,20 @@ void Workload::show(void)
     }
 }
 
+void Workload::clean_data()
+{
+    // Clean empty_g_hashs
+    for(auto it : this->empty_g_hashs)
+    {
+        if (it != NULL)
+            free(it);
+    }
+    this->empty_g_hashs.clear();
+
+    // Clean files
+    this->files.clear();
+}
+
 /**
  * @description: use block hash to serialize work report
  * @return: the work report
@@ -105,13 +119,13 @@ std::string Workload::serialize_workload()
     return plot_data;
 }
 
-validate_status_t Workload::restore_workload(std::string plot_data)
+common_status_t Workload::restore_workload(std::string plot_data)
 {
-    validate_status_t validate_status = VALIDATION_SUCCESS;
-    int spos=0, epos=0;
+    common_status_t common_status = CRUST_SUCCESS;
+    size_t spos=0, epos=0;
     std::string empty_g_hashs_str;
     std::string strbuf;
-    uint8_t *empty_root_hash_u;
+    uint8_t *empty_root_hash_u = NULL;
     std::string files_str;
     std::string file_entry;
     std::string hash_str;
@@ -120,20 +134,25 @@ validate_status_t Workload::restore_workload(std::string plot_data)
     // Get empty_g_hashs
     for(auto it : this->empty_g_hashs)
     {
-        delete it;
+        if (it != NULL)
+            free(it);
     }
     this->empty_g_hashs.clear(); // Clear current empty_g_hashs
     spos = 0;
     epos = plot_data.find(";");
+    if (epos == std::string::npos)
+    {
+        clean_data();
+        return CRUST_BAD_SEAL_DATA;
+    }
     empty_g_hashs_str = plot_data.substr(spos,epos);
     empty_g_hashs_str = empty_g_hashs_str.substr(1, empty_g_hashs_str.length()-2);
     while (true)
     {
         epos = empty_g_hashs_str.find(",", spos);
         if((size_t)epos == std::string::npos)
-        {
             break;
-        }
+
         strbuf = empty_g_hashs_str.substr(spos, epos-spos);
         this->empty_g_hashs.push_back(hex_string_to_bytes(strbuf.c_str(), strbuf.size()));
         spos = epos + 1;
@@ -141,50 +160,73 @@ validate_status_t Workload::restore_workload(std::string plot_data)
     // Get empty_root_hash
     spos = plot_data.find(";") + 1;
     epos = plot_data.find(";", spos);
+    if (epos == std::string::npos)
+    {
+        clean_data();
+        return CRUST_BAD_SEAL_DATA;
+    }
     empty_root_hash_u = hex_string_to_bytes(plot_data.substr(spos, epos-spos).c_str(), epos-spos);
     if (empty_root_hash_u == NULL)
     {
-        return VALIDATION_INVALID_ROOT_HASH;
+        clean_data();
+        return CRUST_BAD_SEAL_DATA;
     }
     memcpy(this->empty_root_hash, empty_root_hash_u, (epos - spos) / 2);
+    free(empty_root_hash_u);
     // Get empty_disk_capacity
     spos = epos + 1;
     epos = plot_data.find(";", spos);
+    if (epos == std::string::npos)
+    {
+        clean_data();
+        return CRUST_BAD_SEAL_DATA;
+    }
     this->empty_disk_capacity = std::stoi(plot_data.substr(spos, epos-spos));
     // Get files
     spos = epos + 1;
     epos = plot_data.find(";", spos);
+    if (epos == std::string::npos)
+    {
+        clean_data();
+        return CRUST_BAD_SEAL_DATA;
+    }
     files_str = plot_data.substr(spos + 1, epos-spos-1);
     spos = 0;
     while (true)
     {
         epos = files_str.find(",", spos);
-        if ((size_t)epos == std::string::npos)
-        {
+        if (epos == std::string::npos)
             break;
-        }
+
         file_entry = files_str.substr(spos, epos-spos);
         spos = epos + 1;
         hash_str = file_entry.substr(0, file_entry.find(":"));
         hash_size = std::stoi(file_entry.substr(file_entry.find(":")+1, file_entry.size()));
         hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
+        if (hash_u == NULL)
+        {
+            clean_data();
+            return CRUST_MALLOC_FAILED;
+        }
         this->files.insert(make_pair(std::vector<unsigned char>(hash_u, hash_u + hash_str.size() / 2), hash_size));
+
+        free(hash_u);
     }
 
-    return validate_status;
+    return common_status;
 }
 
 /**
  * @description: Store plot workload to file
  * @return: Store status
  * */
-validate_status_t Workload::store_plot_data()
+common_status_t Workload::store_plot_data()
 {
     std::string plot_data = serialize_workload();
     
     // Seal workload string
     sgx_status_t sgx_status = SGX_SUCCESS;
-    validate_status_t validate_status = VALIDATION_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
     uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, plot_data.size());
     sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t*)malloc(sealed_data_size);
     memset(p_sealed_data, 0, sealed_data_size);
@@ -203,16 +245,17 @@ validate_status_t Workload::store_plot_data()
                                   p_sealed_data);
     if (SGX_SUCCESS != sgx_status)
     {
-        validate_status =  VALIDATION_SEAL_DATA_FAILED;
+        common_status = CRUST_SEAL_DATA_FAILED;
         goto cleanup;
     }
 
     //cfeprintf("==========[enclave] sealed data:%s\n", hexstring(p_sealed_data, sealed_data_size));
 
     // Store sealed data to file
-    if (SGX_SUCCESS != ocall_store_plot_data(&validate_status, p_sealed_data, sealed_data_size))
+    if (SGX_SUCCESS != ocall_store_data_to_file(&common_status, p_sealed_data, sealed_data_size) 
+            || CRUST_SUCCESS != common_status)
     {
-        validate_status = VALIDATION_STORE_PLOT_DATA_FAILED;
+        common_status = CRUST_STORE_DATA_TO_FILE_FAILED;
         goto cleanup;
     }
 
@@ -220,26 +263,30 @@ validate_status_t Workload::store_plot_data()
 cleanup:
     free(p_sealed_data);
 
-    return validate_status;
+    return common_status;
 }
 
 /**
  * @description: Get workload from file
  * @return: Get status
  * */
-validate_status_t Workload::get_plot_data()
+common_status_t Workload::get_plot_data()
 {
     sgx_sealed_data_t *p_sealed_data;
-    validate_status_t validate_status = VALIDATION_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     uint32_t sealed_data_size;
     std::string plot_data;
     /* Unseal data */
     // Get sealed data from file
-    if (SGX_SUCCESS != ocall_get_plot_data(&validate_status, &p_sealed_data, &sealed_data_size))
+    if (SGX_SUCCESS != ocall_get_data_from_file(&common_status, &p_sealed_data, &sealed_data_size)
+            || CRUST_SUCCESS != common_status)
     {
-        validate_status = VALIDATION_GET_PLOT_DATA_FAILED;
-        return validate_status;
+        if (CRUST_SUCCESS == common_status)
+        {
+            return CRUST_SGX_FAILED;
+        }
+        return CRUST_GET_DATA_FROM_FILE_FAILED;
     }
     // Create buffer in enclave
     sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
@@ -256,8 +303,8 @@ validate_status_t Workload::get_plot_data()
                                  &decrypted_data_len);
     if (SGX_SUCCESS != sgx_status)
     {
-        validate_status = VALIDATION_UNSEAL_DATA_FAILED;
-        cfeprintf("===========[enclave] get plot data failed:%lx\n", sgx_status);
+        common_status = CRUST_UNSEAL_DATA_FAILED;
+        eprintf("===========[enclave] get plot data failed:%lx\n", sgx_status);
         goto cleanup;
     }
     plot_data = std::string((const char*)p_decrypted_data, decrypted_data_len);
@@ -271,5 +318,5 @@ cleanup:
     free(p_sealed_data_r);
     free(p_decrypted_data);
 
-    return validate_status;
+    return common_status;
 }

@@ -7,7 +7,7 @@ enum ValidationStatus validation_status = ValidateStop;
 extern attest_status_t g_att_status;
 extern ecc_key_pair id_key_pair;
 extern uint8_t off_chain_pub_key[];
-std::string g_run_mode = APP_RUN_MODE_SINGLE;
+string g_run_mode = APP_RUN_MODE_SINGLE;
 
 /**
  * @description: ecall main loop
@@ -22,7 +22,7 @@ void ecall_main_loop(const char *empty_path)
         cfeprintf("-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
-        validate_status_t validate_status = VALIDATION_SUCCESS;
+        common_status_t common_status = CRUST_SUCCESS;
         ipc_status_t ipc_status = IPC_SUCCESS;
         Node *diff_files = NULL;
         ocall_get_diff_files(&diff_files);
@@ -54,13 +54,13 @@ void ecall_main_loop(const char *empty_path)
         }
         else if (g_run_mode.compare(APP_RUN_MODE_SINGLE) == 0)
         {
-            if (VALIDATION_SUCCESS != (validate_status = get_workload()->store_plot_data()))
+            if (CRUST_SUCCESS != (common_status = ecall_store_enclave_data()))
             {
-                cfeprintf("Store workload failed!Error code:%lx\n", validate_status);
+                cfeprintf("Store enclave data failed!Error code:%lx\n", common_status);
             }
             else
             {
-                cfeprintf("Store workload successfully!\n");
+                cfeprintf("Store enclave data successfully!\n");
             }
         }
         else
@@ -72,6 +72,177 @@ void ecall_main_loop(const char *empty_path)
     }
 }
 
+/**
+ * @description: Store enclave data to file
+ * @return: Store status
+ * */
+common_status_t ecall_store_enclave_data()
+{
+    std::string seal_data = get_workload()->serialize_workload();
+    seal_data.append(CRUST_SEPARATOR)
+        .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
+    seal_data.append(CRUST_SEPARATOR)
+        .append(g_crust_account_id);
+    // Seal workload string
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, seal_data.size());
+    sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t*)malloc(sealed_data_size);
+    memset(p_sealed_data, 0, sealed_data_size);
+    sgx_attributes_t sgx_attr;
+    sgx_attr.flags = 0xFF0000000000000B;
+    sgx_attr.xfrm = 0;
+    sgx_misc_select_t sgx_misc = 0xF0000000;
+    sgx_status = sgx_seal_data_ex(0x0001,
+                                  sgx_attr,
+                                  sgx_misc,
+                                  0,
+                                  NULL,
+                                  seal_data.size(),
+                                  (const uint8_t*)seal_data.c_str(),
+                                  sealed_data_size,
+                                  p_sealed_data);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        common_status = CRUST_SEAL_DATA_FAILED;
+        goto cleanup;
+    }
+
+    // Store sealed data to file
+    if (SGX_SUCCESS != ocall_store_data_to_file(&common_status, p_sealed_data, sealed_data_size))
+    {
+        common_status =  CRUST_STORE_DATA_TO_FILE_FAILED;
+    }
+
+cleanup:
+    free(p_sealed_data);
+
+    return common_status;
+}
+
+/**
+ * @description: Restore enclave data from file
+ * @return: Restore status
+ * */
+common_status_t ecall_restore_enclave_data()
+{
+    sgx_sealed_data_t *p_sealed_data = NULL;
+    common_status_t common_status = CRUST_SUCCESS;
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    size_t spos=0,epos=0;
+    uint32_t sealed_data_size;
+    string unseal_data;
+    string plot_data;
+    string id_key_pair_str;
+    uint8_t *byte_buf = NULL;
+
+    /* Unseal data */
+    // Get sealed data from file
+    if (SGX_SUCCESS != ocall_get_data_from_file(&common_status, &p_sealed_data, &sealed_data_size))
+    {
+        common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
+        return common_status;
+    }
+    // Create buffer in enclave
+    sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
+    memset(p_sealed_data_r, 0, sealed_data_size);
+    memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
+    // Create buffer for decrypted data
+    uint32_t decrypted_data_len = sgx_get_encrypt_txt_len(p_sealed_data_r);
+    uint8_t *p_decrypted_data = (uint8_t*)malloc(decrypted_data_len);
+    // Unseal sealed data
+    sgx_status = sgx_unseal_data(p_sealed_data_r,
+                                 NULL,
+                                 NULL,
+                                 p_decrypted_data,
+                                 &decrypted_data_len);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        common_status = CRUST_UNSEAL_DATA_FAILED;
+        goto cleanup;
+    }
+
+    /* Restore related data */
+    unseal_data = std::string((const char*)p_decrypted_data, decrypted_data_len);
+    // Get plot data
+    spos = 0;
+    epos = unseal_data.find(CRUST_SEPARATOR, spos);
+    plot_data = unseal_data.substr(spos, epos-spos);
+    if (CRUST_SUCCESS != (common_status = get_workload()->restore_workload(plot_data)))
+    {
+        common_status = CRUST_BAD_SEAL_DATA;
+        goto cleanup;
+    }
+    // Get id_key_pair
+    spos = epos + strlen(CRUST_SEPARATOR);
+    epos = unseal_data.find(CRUST_SEPARATOR, spos);
+    if (epos == std::string::npos)
+    {
+        common_status = CRUST_BAD_SEAL_DATA;
+        goto cleanup;
+    }
+    id_key_pair_str = unseal_data.substr(spos, epos-spos);
+    memset(&id_key_pair, 0, sizeof(id_key_pair));
+    byte_buf = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
+    if (byte_buf == NULL)
+    {
+        common_status = CRUST_BAD_SEAL_DATA;
+        goto cleanup;
+    }
+    memcpy(&id_key_pair, byte_buf, sizeof(id_key_pair));
+    free(byte_buf);
+    // Get g_crust_account_id
+    spos = epos + strlen(CRUST_SEPARATOR);
+    epos = unseal_data.size();
+    g_crust_account_id = unseal_data.substr(spos, epos-spos);
+
+
+cleanup:
+    free(p_sealed_data_r);
+    free(p_decrypted_data);
+
+    return common_status;
+}
+
+common_status_t ecall_cmp_crust_account_id(const char *account_id, size_t len)
+{
+    string account_id_str = string(account_id, len);
+    if (g_crust_account_id.compare(account_id_str) != 0)
+    {
+        return CRUST_NOT_EQUAL;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Set crust account id
+ * @return: Set status
+ * */
+common_status_t ecall_set_crust_account_id(const char *account_id, size_t len)
+{
+    // Check if value has been set
+    if (g_is_set_account_id)
+    {
+        return CRUST_DOUBLE_SET_VALUE;
+    }
+
+    char *buffer = (char*)malloc(len);
+    if (buffer == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(buffer, 0, len);
+    memcpy(buffer, account_id, len);
+    g_crust_account_id = string(buffer, len);
+    g_is_set_account_id = true;
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Set application run mode
+ * */
 void ecall_set_run_mode(const char* mode, size_t len)
 {
     g_run_mode = std::string(mode, len);
@@ -112,7 +283,7 @@ void ecall_get_validation_report(char *report, size_t len)
  * @description: Restore plot data from file
  * @return: Restore status
  * */
-validate_status_t ecall_restore_data()
+common_status_t ecall_restore_data()
 {
     return get_workload()->get_plot_data();
 }
@@ -139,6 +310,7 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     }
     unsigned long long tmpSize = wl->empty_disk_capacity;
     tmpSize = tmpSize * 1024 * 1024 * 1024;
+    uint8_t *byte_buf = NULL;
     // Convert number type to string
     std::string block_height_str = std::to_string(block_height);
     std::string empty_disk_capacity_str = std::to_string(tmpSize);
@@ -168,7 +340,9 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     sigbuf += sizeof(id_key_pair.pub_key);
     memcpy(sigbuf, block_height_u, block_height_str.size());
     sigbuf += block_height_str.size();
-    memcpy(sigbuf, hex_string_to_bytes(block_hash, block_hash_len), block_hash_len / 2);
+    byte_buf = hex_string_to_bytes(block_hash, block_hash_len);
+    memcpy(sigbuf, byte_buf, block_hash_len / 2);
+    free(byte_buf);
     sigbuf += (block_hash_len / 2);
     memcpy(sigbuf, wl->empty_root_hash, HASH_LENGTH);
     sigbuf += HASH_LENGTH;
@@ -216,13 +390,42 @@ cleanup:
     return validate_status;
 }
 
+common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
+        sgx_ec256_signature_t *p_signature)
+{
+    std::string data_str(p_partial_data, data_size);
+    data_str.append(g_crust_account_id);
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_status = sgx_ecc256_open_context(&ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        return CRUST_SGX_FAILED;
+    }
+
+    sgx_status = sgx_ecdsa_sign((const uint8_t*)data_str.c_str(),
+                                data_str.size(),
+                                &id_key_pair.pri_key,
+                                p_signature,
+                                ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        common_status = CRUST_SGX_SIGN_FAILED;
+    }
+
+    sgx_ecc256_close_context(ecc_state);
+
+    return common_status;
+}
+
 /**
  * @description: Read work load from file
  * @return: Read status
  * */
 validate_status_t ecall_read_workload()
 {
-    if (VALIDATION_SUCCESS != get_workload()->get_plot_data())
+    if (CRUST_SUCCESS != get_workload()->get_plot_data())
     {
         return PLOT_GET_DATA_FROM_FILE_FAILED;
     }
@@ -321,23 +524,48 @@ sgx_status_t ecall_gen_sgx_measurement()
 }
 
 /**
- * @description: store off-chain node quote
- * @return: store status
+ * @description: Store off-chain node quote and verify signature
+ * @return: Store status
  * */
-sgx_status_t ecall_store_quote(const char *quote, size_t len)
+common_status_t ecall_store_quote(const char *quote, size_t len,
+        const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature)
 {
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    common_status_t common_status = CRUST_SUCCESS;
+    uint8_t result;
     sgx_quote_t *offChain_quote = (sgx_quote_t*)malloc(len);
     if ( off_chain_pub_key == NULL )
     {
-        return SGX_ERROR_UNEXPECTED;
+        return CRUST_MALLOC_FAILED;
     }
 
     memset(offChain_quote, 0, len);
     memcpy(offChain_quote, quote, len);
     unsigned char *p_report_data = offChain_quote->report_body.report_data.d;
     memcpy(off_chain_pub_key, p_report_data, REPORT_DATA_SIZE);
+    
+    // Verify off chain node's identity
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_status = sgx_ecc256_open_context(&ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        return CRUST_SGX_FAILED;
+    }
 
-    return SGX_SUCCESS;
+    sgx_status = sgx_ecdsa_verify(p_data,
+                                  data_size,
+                                  (sgx_ec256_public_t*)off_chain_pub_key,
+                                  p_signature,
+                                  &result,
+                                  ecc_state);
+    if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
+    {
+        common_status = CRUST_SGX_VERIFY_SIG_FAILED;
+    }
+    
+    sgx_ecc256_close_context(ecc_state);
+
+    return common_status;
 }
 
 /**

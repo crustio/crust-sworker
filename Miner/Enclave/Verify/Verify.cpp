@@ -533,9 +533,10 @@ cleanup:
 	free(off_chain_crust_account_id);
 	free(validator_crust_account_id);
     if (p_sig != NULL)
-    {
 	    free(p_sig);
-    }
+
+    if (p_decode_quote_body != NULL)
+	    free(p_decode_quote_body);
 
 	return status;
 }
