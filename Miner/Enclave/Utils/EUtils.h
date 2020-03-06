@@ -17,7 +17,7 @@
 
 /* Main loop waiting time (us) */
 #define MAIN_LOOP_WAIT_TIME 10000000
-#define BUFSIZE 10000000
+#define BUFSIZE 100000
 /* The length of hash */
 #define HASH_LENGTH 32
 

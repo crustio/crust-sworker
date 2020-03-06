@@ -10,13 +10,13 @@ const char _hextable[] = "0123456789abcdef";
  */
 int eprintf(const char *fmt, ...)
 {
-	char buf[100000] = {'\0'};
+	char buf[BUFSIZE] = {'\0'};
 	va_list ap;
 	va_start(ap, fmt);
-	vsnprintf(buf, 100000, fmt, ap);
+	vsnprintf(buf, BUFSIZE, fmt, ap);
 	va_end(ap);
 	ocall_print_string(buf);
-	return (int)strnlen(buf, 100000 - 1) + 1;
+	return (int)strnlen(buf, BUFSIZE - 1) + 1;
 }
 
 /**
@@ -25,13 +25,13 @@ int eprintf(const char *fmt, ...)
  */
 int cfeprintf(const char *fmt, ...)
 {
-	char buf[100000] = {'\0'};
+	char buf[BUFSIZE] = {'\0'};
 	va_list ap;
 	va_start(ap, fmt);
-	vsnprintf(buf, 100000, fmt, ap);
+	vsnprintf(buf, BUFSIZE, fmt, ap);
 	va_end(ap);
 	ocall_eprint_string(buf);
-	return (int)strnlen(buf, 100000 - 1) + 1;
+	return (int)strnlen(buf, BUFSIZE - 1) + 1;
 }
 
 /**
@@ -87,27 +87,28 @@ char *hexstring(const void *vsrc, size_t len)
 }
 
 /**
- * @description: Convert hexstring to bytes array
+ * @description: Convert hexstring to bytes array, note that
+ * the size of got data is half of len
  * @param src -> Source char*
  * @param len -> Source char* length
  * @return: Bytes array
  * */
 uint8_t *hex_string_to_bytes(const char *src, size_t len)
 {
-	if (len % 2 != 0)
-	{
-		return NULL;
-	}
+    if (len % 2 != 0)
+    {
+        return NULL;
+    }
 
-	uint8_t *p_target;
-	uint8_t *target = (uint8_t *)malloc(len / 2);
+    uint8_t *p_target;
+    uint8_t *target = (uint8_t *)malloc(len / 2);
 	memset(target, 0, len / 2);
-	p_target = target;
-	while (*src && src[1])
-	{
-		*(target++) = (uint8_t)(char_to_int(*src) * 16 + char_to_int(src[1]));
-		src += 2;
-	}
+    p_target = target;
+    while (*src && src[1])
+    {
+        *(target++) = (uint8_t)(char_to_int(*src) * 16 + char_to_int(src[1]));
+        src += 2;
+    }
 
-	return p_target;
+    return p_target;
 }

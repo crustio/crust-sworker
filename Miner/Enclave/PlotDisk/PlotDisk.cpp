@@ -13,7 +13,7 @@ void ecall_plot_disk(const char *path)
     /* New and get now G hash index */
     sgx_thread_mutex_lock(&g_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
-    get_workload()->empty_g_hashs.push_back(new unsigned char[HASH_LENGTH]);
+    get_workload()->empty_g_hashs.push_back((uint8_t*)malloc(HASH_LENGTH));
     sgx_thread_mutex_unlock(&g_mutex);
 
     /* Create directory */
@@ -74,7 +74,7 @@ void ecall_generate_empty_root(void)
         return;
     }
 
-    unsigned char *hashs = new unsigned char[get_workload()->empty_g_hashs.size() * HASH_LENGTH];
+    unsigned char *hashs = (unsigned char*)malloc(get_workload()->empty_g_hashs.size() * HASH_LENGTH);
     for (size_t i = 0; i < get_workload()->empty_g_hashs.size(); i++)
     {
         for (size_t j = 0; j < HASH_LENGTH; j++)
