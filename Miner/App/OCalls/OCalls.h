@@ -478,7 +478,7 @@ common_status_t ocall_get_data_from_file(sgx_sealed_data_t **p_sealed_data, uint
     sealed_data_str = std::string((std::istreambuf_iterator<char>(recover_stream)),
                                 std::istreambuf_iterator<char>());
 
-    if (!sealed_data_str.size())
+    if (sealed_data_str.size() == 0)
     {
         common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
         goto cleanup;
