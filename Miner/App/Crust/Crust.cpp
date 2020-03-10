@@ -1,4 +1,5 @@
 #include "Crust.h"
+#include "Config.h"
 
 Crust *crust = NULL;
 
@@ -30,7 +31,14 @@ Crust *get_crust(void)
 {
     if (crust == NULL)
     {
-        cprintf_err(felog, "Please use new_crust(url) frist.\n");
+        cprintf_info(felog, "Create crust instance!\n");
+        Config *p_config = Config::get_instance();
+        if (p_config == NULL)
+        {
+            cprintf_err(felog, "Get configure failed!\n");
+            return NULL;
+        }
+        crust = new Crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup);
     }
 
     return crust;

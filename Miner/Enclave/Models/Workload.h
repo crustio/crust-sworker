@@ -6,7 +6,6 @@
 #include <map>
 #include "sgx_trts.h"
 #include "EUtils.h"
-#include "FormatHelper.h"
 #include "Enclave_t.h"
 
 class Workload
@@ -24,6 +23,8 @@ public:
     std::string serialize();
     std::string serialize_workload();
     common_status_t restore_workload(std::string plot_data);
+    common_status_t store_plot_data();
+    common_status_t get_plot_data();
     void clean_data();
 };
 

@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
+#include <string>
+#include <vector>
 #include "Enclave_t.h"
 
 /* The size of a empty disk leaf file */
@@ -22,10 +23,21 @@
 #define HASH_LENGTH 32
 
 
+#if defined(__cplusplus)
+extern "C"
+{
+#endif
+
 int eprintf(const char* fmt, ...);
 int cfeprintf(const char* fmt, ...);
 char *hexstring(const void *vsrc, size_t len);
 uint8_t *hex_string_to_bytes(const char *src, size_t len);
-uint8_t *concat_bytes(uint8_t *des, size_t *des_len, uint8_t *src, size_t src_len);
+std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size);
+std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size);
+char* unsigned_char_to_hex(unsigned char in);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !_CRUST_E_UTILS_H_ */

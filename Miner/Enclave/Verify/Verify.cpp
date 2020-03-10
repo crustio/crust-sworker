@@ -496,11 +496,8 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	sigbuf += sizeof(id_key_pair.pub_key);
 	memcpy(sigbuf, validator_crust_account_id, crust_account_id_size);
 
-	sgx_status = sgx_ecdsa_sign(p_sig,
-								(uint32_t)context_size,
-								&id_key_pair.pri_key,
-								&ecc_signature,
-								ecc_state);
+	sgx_status = sgx_ecdsa_sign(p_sig, (uint32_t)context_size,
+            &id_key_pair.pri_key, &ecc_signature, ecc_state);
 	if (SGX_SUCCESS != sgx_status)
 	{
 		status = CRUST_SIGN_PUBKEY_FAILED;

@@ -93,15 +93,9 @@ common_status_t ecall_store_enclave_data(const char *recover_file_path)
     sgx_attr.flags = 0xFF0000000000000B;
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
-    sgx_status = sgx_seal_data_ex(0x0001,
-                                  sgx_attr,
-                                  sgx_misc,
-                                  0,
-                                  NULL,
-                                  seal_data.size(),
-                                  (const uint8_t *)seal_data.c_str(),
-                                  sealed_data_size,
-                                  p_sealed_data);
+    sgx_status = sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
+            0, NULL, seal_data.size(), (const uint8_t*)seal_data.c_str(),
+            sealed_data_size, p_sealed_data);
     if (SGX_SUCCESS != sgx_status)
     {
         common_status = CRUST_SEAL_DATA_FAILED;
@@ -151,11 +145,8 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
     uint32_t decrypted_data_len = sgx_get_encrypt_txt_len(p_sealed_data_r);
     uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_len);
     // Unseal sealed data
-    sgx_status = sgx_unseal_data(p_sealed_data_r,
-                                 NULL,
-                                 NULL,
-                                 p_decrypted_data,
-                                 &decrypted_data_len);
+    sgx_status = sgx_unseal_data(p_sealed_data_r, NULL, NULL,
+            p_decrypted_data, &decrypted_data_len);
     if (SGX_SUCCESS != sgx_status)
     {
         common_status = CRUST_UNSEAL_DATA_FAILED;
@@ -186,7 +177,7 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
     byte_buf = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
     if (byte_buf == NULL)
     {
-        common_status = CRUST_BAD_SEAL_DATA;
+        common_status = CRUST_UNEXPECTED_ERROR;
         goto cleanup;
     }
     memcpy(&id_key_pair, byte_buf, sizeof(id_key_pair));
@@ -278,7 +269,6 @@ void ecall_get_validation_report(char *report, size_t len)
     report[len - 1] = '\0';
 }
 
-
 /**
  * @description: Get signed validation report
  * @param: block_hash(in) -> block hash
@@ -293,6 +283,9 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
                                                      char *report, size_t report_len)
 {
     /* Create signature data */
+    validate_status_t validate_status = VALIDATION_SUCCESS;
+	sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_status_t sgx_status;
     Workload *wl = get_workload();
     size_t meaningful_workload_size = 0;
     for (auto it = wl->files.begin(); it != wl->files.end(); it++)
@@ -327,6 +320,11 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     memcpy(sigbuf, block_height_u, block_height_str.size());
     sigbuf += block_height_str.size();
     byte_buf = hex_string_to_bytes(block_hash, block_hash_len);
+    if (byte_buf == NULL)
+    {
+        validate_status = VALIDATION_UNEXPECTED_ERROR;
+        goto cleanup;
+    }
     memcpy(sigbuf, byte_buf, block_hash_len / 2);
     free(byte_buf);
     sigbuf += (block_hash_len / 2);
@@ -337,23 +335,17 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     memcpy(sigbuf, meaningful_workload_size_u, meaningful_workload_size_str.size());
 
     /* Sign work report */
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    validate_status_t validate_status = VALIDATION_SUCCESS;
-    sgx_status_t sgx_status;
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
+	sgx_status = sgx_ecc256_open_context(&ecc_state);
+	if (SGX_SUCCESS != sgx_status)
+	{
         validate_status = VALIDATION_REPORT_SIGN_FAILED;
         goto cleanup;
-    }
+	}
 
-    sgx_status = sgx_ecdsa_sign(p_sigbuf,
-                                buf_len,
-                                &id_key_pair.pri_key,
-                                p_signature,
-                                ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
+	sgx_status = sgx_ecdsa_sign(p_sigbuf, buf_len,
+            &id_key_pair.pri_key, p_signature, ecc_state);
+	if (SGX_SUCCESS != sgx_status)
+	{
         validate_status = VALIDATION_REPORT_SIGN_FAILED;
         goto cleanup;
     }
@@ -389,11 +381,8 @@ common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t da
         return CRUST_SGX_FAILED;
     }
 
-    sgx_status = sgx_ecdsa_sign((const uint8_t *)data_str.c_str(),
-                                data_str.size(),
-                                &id_key_pair.pri_key,
-                                p_signature,
-                                ecc_state);
+    sgx_status = sgx_ecdsa_sign((const uint8_t*)data_str.c_str(), data_str.size(),
+            &id_key_pair.pri_key, p_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         common_status = CRUST_SGX_SIGN_FAILED;
@@ -524,12 +513,9 @@ common_status_t ecall_store_quote(const char *quote, size_t len,
         return CRUST_SGX_FAILED;
     }
 
-    sgx_status = sgx_ecdsa_verify(p_data,
-                                  data_size,
-                                  (sgx_ec256_public_t *)off_chain_pub_key,
-                                  p_signature,
-                                  &result,
-                                  ecc_state);
+    sgx_status = sgx_ecdsa_verify(p_data, data_size,
+            (sgx_ec256_public_t*)off_chain_pub_key,
+            p_signature, &result, ecc_state);
     if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
     {
         common_status = CRUST_SGX_VERIFY_SIG_FAILED;

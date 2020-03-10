@@ -52,6 +52,9 @@ void Workload::show(void)
     }
 }
 
+/**
+ * @description: Clean up work report data
+ * */
 void Workload::clean_data()
 {
     // Clean empty_g_hashs
@@ -92,6 +95,10 @@ std::string Workload::serialize()
     return this->report;
 }
 
+/**
+ * @description: Serialize workload
+ * @return: Serialized workload
+ * */
 std::string Workload::serialize_workload()
 {
     std::string plot_data;
@@ -119,6 +126,10 @@ std::string Workload::serialize_workload()
     return plot_data;
 }
 
+/**
+ * @description: Restore workload from serialized workload
+ * @return: Restore status
+ * */
 common_status_t Workload::restore_workload(std::string plot_data)
 {
     common_status_t common_status = CRUST_SUCCESS;
@@ -154,7 +165,13 @@ common_status_t Workload::restore_workload(std::string plot_data)
             break;
 
         strbuf = empty_g_hashs_str.substr(spos, epos-spos);
-        this->empty_g_hashs.push_back(hex_string_to_bytes(strbuf.c_str(), strbuf.size()));
+        uint8_t *g_hash = hex_string_to_bytes(strbuf.c_str(), strbuf.size());
+        if (g_hash == NULL)
+        {
+            clean_data();
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        this->empty_g_hashs.push_back(g_hash);
         spos = epos + 1;
     }
     // Get empty_root_hash
@@ -169,7 +186,7 @@ common_status_t Workload::restore_workload(std::string plot_data)
     if (empty_root_hash_u == NULL)
     {
         clean_data();
-        return CRUST_BAD_SEAL_DATA;
+        return CRUST_UNEXPECTED_ERROR;
     }
     memcpy(this->empty_root_hash, empty_root_hash_u, (epos - spos) / 2);
     free(empty_root_hash_u);
@@ -206,7 +223,7 @@ common_status_t Workload::restore_workload(std::string plot_data)
         if (hash_u == NULL)
         {
             clean_data();
-            return CRUST_MALLOC_FAILED;
+            return CRUST_UNEXPECTED_ERROR;
         }
         this->files.insert(make_pair(std::vector<unsigned char>(hash_u, hash_u + hash_str.size() / 2), hash_size));
 
