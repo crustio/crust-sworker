@@ -117,13 +117,9 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*this->p_global_eid,
-                                       &common_status,
-                                       (const char *)quote,
-                                       qsz,
-                                       (const uint8_t*)data_sig_str.c_str(),
-                                       data_sig_str.size(),
-                                       &data_sig);
+        status_ret = ecall_store_quote(*this->p_global_eid, &common_status,
+                (const char *)quote, qsz, (const uint8_t*)data_sig_str.c_str(),
+                data_sig_str.size(), &data_sig);
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
         {
             cprintf_err(felog, "Store and verify offChain node data failed!\n");

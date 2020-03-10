@@ -238,11 +238,8 @@ ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type)
 
         dh_msg3.msg3_body.additional_prop_length = 0;
         // Process message 2 from source enclave and obtain message 3
-        sgx_status_t se_ret = sgx_dh_responder_proc_msg2(&dh_msg2,
-                                                         &dh_msg3,
-                                                         &sgx_dh_session,
-                                                         &dh_aek,
-                                                         &initiator_identity);
+        sgx_status_t se_ret = sgx_dh_responder_proc_msg2(&dh_msg2,&dh_msg3,
+                &sgx_dh_session, &dh_aek, &initiator_identity);
         if(SGX_SUCCESS != se_ret)
         {
             status = se_ret;
