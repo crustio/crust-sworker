@@ -449,3 +449,5 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
 
     return IPC_SUCCESS;
 }
+
+#endif /* !_OCALLS_APP_H_ */
