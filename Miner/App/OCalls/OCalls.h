@@ -132,7 +132,7 @@ void ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len)
     in.open(file_path, std::ios::out | std::ios::binary);
 
     in.seekg(0, std::ios::end);
-    *len = t.tellg();
+    *len = in.tellg();
     in.seekg(0, std::ios::beg);
 
     if (ocall_file_data != NULL)
@@ -449,59 +449,3 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
 
     return IPC_SUCCESS;
 }
-
-/**
- * @description: Store plot data in file
- * @param p_sealed_data -> sealed data
- * @param sealed_data_size -> sealed data size
- * @return: Store status
- * */
-common_status_t ocall_store_data_to_file(sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size)
-{
-    common_status_t common_status = CRUST_SUCCESS;
-
-    std::ofstream recover_stream(Config::get_instance()->recover_file_path);
-    recover_stream << hexstring(p_sealed_data, sealed_data_size);
-    recover_stream.close();
-
-    return common_status;
-}
-
-/**
- * @description: Get stored sealed data from file
- * @param p_sealed_data -> sealed data to be transfered to enclave
- * @param sealed_data_size -> a pointer to sealed data size
- * @return: Get plot data status
- * */
-common_status_t ocall_get_data_from_file(sgx_sealed_data_t **p_sealed_data, uint32_t *sealed_data_size)
-{
-    common_status_t common_status = CRUST_SUCCESS;
-
-    std::ifstream recover_stream(Config::get_instance()->recover_file_path);
-    std::string sealed_data_str;
-
-    sealed_data_str = std::string((std::istreambuf_iterator<char>(recover_stream)),
-                                  std::istreambuf_iterator<char>());
-
-    if (sealed_data_str.size() == 0)
-    {
-        common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
-        goto cleanup;
-    }
-
-    *p_sealed_data = (sgx_sealed_data_t *)hex_string_to_bytes(sealed_data_str.c_str(), sealed_data_str.size());
-    if (p_sealed_data == NULL)
-    {
-        common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
-        goto cleanup;
-    }
-
-    *sealed_data_size = sealed_data_str.size() / 2;
-
-cleanup:
-    recover_stream.close();
-
-    return common_status;
-}
-
-#endif /* !_OCALLS_APP_H_ */

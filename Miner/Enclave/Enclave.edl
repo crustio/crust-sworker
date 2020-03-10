@@ -58,8 +58,5 @@ enclave {
         ipc_status_t ocall_send_msg3([in] sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_type);
         ipc_status_t ocall_send_secret([in, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type);
         ipc_status_t ocall_recv_secret([out, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type);
-
-        common_status_t ocall_store_data_to_file([in, size=sealed_data_size] sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size);
-        common_status_t ocall_get_data_from_file([out] sgx_sealed_data_t **p_sealed_data, [out] uint32_t *sealed_data_size);
     };
 };
