@@ -130,7 +130,7 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
     common_status_t common_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     size_t spos = 0, epos = 0;
-    uint32_t sealed_data_size;
+    size_t sealed_data_size;
     string unseal_data;
     string plot_data;
     string id_key_pair_str;

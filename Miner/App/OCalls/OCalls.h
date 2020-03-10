@@ -27,7 +27,6 @@ extern FILE *felog;
 extern Ipc *g_wl_ipc;
 extern Ipc *g_kp_ipc;
 
-
 // Used to store ocall file data
 unsigned char *ocall_file_data = NULL;
 
@@ -121,23 +120,29 @@ size_t ocall_get_folders_number_under_path(const char *path)
  * @return file data
  */
 
-void ocall_get_file(const char *file_path, unsigned char **p_file, size_t len)
+void ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len)
 {
     if (access(file_path, 0) == -1)
     {
         return;
     }
 
-    if (ocall_file_data != NULL)
-    {
-        delete [] ocall_file_data;
-    }
-
-    ocall_file_data = new unsigned char[len];
     std::ifstream in;
 
     in.open(file_path, std::ios::out | std::ios::binary);
-    in.read(reinterpret_cast<char *>(ocall_file_data), len);
+
+    in.seekg(0, std::ios::end);
+    *len = t.tellg();
+    in.seekg(0, std::ios::beg);
+
+    if (ocall_file_data != NULL)
+    {
+        delete[] ocall_file_data;
+    }
+
+    ocall_file_data = new unsigned char[*len];
+
+    in.read(reinterpret_cast<char *>(ocall_file_data), *len);
     in.close();
 
     *p_file = ocall_file_data;
@@ -256,7 +261,7 @@ ipc_status_t ocall_send_request_recv_msg1(sgx_dh_msg1_t *dh_msg1, uint32_t secre
 
     // Read Message1
     //cprintf_info(felog, "attest session ===> Waiting for msg1\n");
-    if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 101) == -1)
+    if (Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 101) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -282,7 +287,7 @@ ipc_status_t ocall_recv_session_request(char *request, uint32_t *secret_size, at
     int recv_len = sizeof(msg.text) + sizeof(msg.data_type);
     do
     {
-        if(Msgrcv_to(cur_ipc->msqid, &msg, recv_len, 100) == -1)
+        if (Msgrcv_to(cur_ipc->msqid, &msg, recv_len, 100) == -1)
         {
             return IPC_RECVMSG_ERROR;
         }
@@ -319,14 +324,14 @@ ipc_status_t ocall_send_msg1_recv_msg2(sgx_dh_msg1_t *dh_msg1, sgx_dh_msg2_t *dh
     sem_v(cur_ipc->semid);
     msg_form_t msg;
     msg.type = 101;
-    if(msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
 
     // Receive Message2 from worker
     //cprintf_info(felog, "attest session ===> Waiting for msg2\n");
-    if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 102) == -1)
+    if (Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 102) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -352,14 +357,14 @@ ipc_status_t ocall_send_msg2_recv_msg3(sgx_dh_msg2_t *dh_msg2, sgx_dh_msg3_t *dh
     sem_v(cur_ipc->semid);
     msg_form_t msg;
     msg.type = 102;
-    if(msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
 
     // Receive Message3 from worker
     //cprintf_info(felog, "attest session ===> Waiting for msg3\n");
-    if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 103) == -1)
+    if (Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 103) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -385,7 +390,7 @@ ipc_status_t ocall_send_msg3(sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_typ
     sem_v(cur_ipc->semid);
     msg_form_t msg;
     msg.type = 103;
-    if(msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
@@ -406,12 +411,12 @@ ipc_status_t ocall_send_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
     sem_v(cur_ipc->semid);
     msg_form_t msg;
     msg.type = 104;
-    if(msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
 
-    if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 105) == -1)
+    if (Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 105) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -428,7 +433,7 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
     //cprintf_info(felog, "attest session ===> Waiting for secret\n");
     Ipc *cur_ipc = get_current_ipc(data_type);
     msg_form_t msg;
-    if(Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 104) == -1)
+    if (Msgrcv_to(cur_ipc->msqid, &msg, sizeof(msg.text), 104) == -1)
     {
         return IPC_RECVMSG_ERROR;
     }
@@ -437,7 +442,7 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
     sem_v(cur_ipc->semid);
 
     msg.type = 105;
-    if(msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
+    if (msgsnd(cur_ipc->msqid, &msg, sizeof(msg.text), 0) == -1)
     {
         return IPC_SENDMSG_ERROR;
     }
@@ -454,7 +459,7 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
 common_status_t ocall_store_data_to_file(sgx_sealed_data_t *p_sealed_data, uint32_t sealed_data_size)
 {
     common_status_t common_status = CRUST_SUCCESS;
-    
+
     std::ofstream recover_stream(Config::get_instance()->recover_file_path);
     recover_stream << hexstring(p_sealed_data, sealed_data_size);
     recover_stream.close();
@@ -474,9 +479,9 @@ common_status_t ocall_get_data_from_file(sgx_sealed_data_t **p_sealed_data, uint
 
     std::ifstream recover_stream(Config::get_instance()->recover_file_path);
     std::string sealed_data_str;
-    
+
     sealed_data_str = std::string((std::istreambuf_iterator<char>(recover_stream)),
-                                std::istreambuf_iterator<char>());
+                                  std::istreambuf_iterator<char>());
 
     if (sealed_data_str.size() == 0)
     {
