@@ -15,7 +15,7 @@ enclave {
     from "sgx_tsgxssl.edl" import *;
 
     trusted {
-        public void ecall_main_loop([in, string] const char* empty_path);
+        public void ecall_main_loop([in, string] const char* empty_path, [in, string] const char* recover_file_path);
         public common_status_t ecall_cmp_crust_account_id([in, size=len] const char *account_id, size_t len);
         public common_status_t ecall_set_crust_account_id([in, size=len] const char *account_id, size_t len);
         public void ecall_set_run_mode([in, string] const char* mode, size_t len);
@@ -28,7 +28,7 @@ enclave {
         public ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type); 
         public ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type); 
         public validate_status_t ecall_read_workload();
-        public common_status_t ecall_store_enclave_data();
+        public common_status_t ecall_store_enclave_data([in, string] const char* recover_file_path);
         public common_status_t ecall_restore_enclave_data();
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);

@@ -217,56 +217,6 @@ common_status_t Workload::restore_workload(std::string plot_data)
 }
 
 /**
- * @description: Store plot workload to file
- * @return: Store status
- * */
-common_status_t Workload::store_plot_data()
-{
-    std::string plot_data = serialize_workload();
-    
-    // Seal workload string
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    common_status_t common_status = CRUST_SUCCESS;
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, plot_data.size());
-    sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t*)malloc(sealed_data_size);
-    memset(p_sealed_data, 0, sealed_data_size);
-    sgx_attributes_t sgx_attr;
-    sgx_attr.flags = 0xFF0000000000000B;
-    sgx_attr.xfrm = 0;
-    sgx_misc_select_t sgx_misc = 0xF0000000;
-    sgx_status = sgx_seal_data_ex(0x0001,
-                                  sgx_attr,
-                                  sgx_misc,
-                                  0,
-                                  NULL,
-                                  plot_data.size(),
-                                  (const uint8_t*)plot_data.c_str(),
-                                  sealed_data_size,
-                                  p_sealed_data);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        common_status = CRUST_SEAL_DATA_FAILED;
-        goto cleanup;
-    }
-
-    //cfeprintf("==========[enclave] sealed data:%s\n", hexstring(p_sealed_data, sealed_data_size));
-
-    // Store sealed data to file
-    if (SGX_SUCCESS != ocall_store_data_to_file(&common_status, p_sealed_data, sealed_data_size) 
-            || CRUST_SUCCESS != common_status)
-    {
-        common_status = CRUST_STORE_DATA_TO_FILE_FAILED;
-        goto cleanup;
-    }
-
-
-cleanup:
-    free(p_sealed_data);
-
-    return common_status;
-}
-
-/**
  * @description: Get workload from file
  * @return: Get status
  * */
