@@ -552,7 +552,7 @@ void start(void)
     }
 
     /* Restore data from file */
-    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &common_status)
+    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &common_status, p_config->recover_file_path.c_str())
             || CRUST_SUCCESS != common_status)
     {
         cprintf_warn(felog, "Restore enclave data failed!Failed code:%lx\n", common_status);

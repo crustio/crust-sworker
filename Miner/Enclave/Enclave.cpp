@@ -109,7 +109,7 @@ common_status_t ecall_store_enclave_data(const char *recover_file_path)
     }
 
     // Store sealed data to file
-    if (SGX_SUCCESS != ocall_save_file(recover_file_path, p_sealed_data, sealed_data_size))
+    if (SGX_SUCCESS != ocall_save_file(recover_file_path, (unsigned char *)p_sealed_data, sealed_data_size))
     {
         common_status = CRUST_STORE_DATA_TO_FILE_FAILED;
     }
@@ -124,9 +124,9 @@ cleanup:
  * @description: Restore enclave data from file
  * @return: Restore status
  * */
-common_status_t ecall_restore_enclave_data()
+common_status_t ecall_restore_enclave_data(const char * recover_file_path)
 {
-    sgx_sealed_data_t *p_sealed_data = NULL;
+    unsigned char *p_sealed_data = NULL;
     common_status_t common_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     size_t spos = 0, epos = 0;
@@ -138,7 +138,7 @@ common_status_t ecall_restore_enclave_data()
 
     /* Unseal data */
     // Get sealed data from file
-    if (SGX_SUCCESS != ocall_get_data_from_file(&common_status, &p_sealed_data, &sealed_data_size))
+    if (SGX_SUCCESS != ocall_get_file(recover_file_path, &p_sealed_data, &sealed_data_size))
     {
         common_status = CRUST_GET_DATA_FROM_FILE_FAILED;
         return common_status;
@@ -278,14 +278,6 @@ void ecall_get_validation_report(char *report, size_t len)
     report[len - 1] = '\0';
 }
 
-/**
- * @description: Restore plot data from file
- * @return: Restore status
- * */
-common_status_t ecall_restore_data()
-{
-    return get_workload()->get_plot_data();
-}
 
 /**
  * @description: Get signed validation report
@@ -410,19 +402,6 @@ common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t da
     sgx_ecc256_close_context(ecc_state);
 
     return common_status;
-}
-
-/**
- * @description: Read work load from file
- * @return: Read status
- * */
-validate_status_t ecall_read_workload()
-{
-    if (CRUST_SUCCESS != get_workload()->get_plot_data())
-    {
-        return PLOT_GET_DATA_FROM_FILE_FAILED;
-    }
-    return VALIDATION_SUCCESS;
 }
 
 /*
