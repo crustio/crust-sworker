@@ -552,7 +552,7 @@ void start(void)
     }
 
     /* Restore data from file */
-    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &common_status)
+    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &common_status, p_config->recover_file_path.c_str())
             || CRUST_SUCCESS != common_status)
     {
         cprintf_warn(felog, "Restore enclave data failed!Failed code:%lx\n", common_status);
@@ -636,7 +636,7 @@ void start(void)
     }
 
     /* Main validate loop */
-    ecall_main_loop(global_eid, p_config->empty_path.c_str());
+    ecall_main_loop(global_eid, p_config->empty_path.c_str(), p_config->recover_file_path.c_str());
 
 
 cleanup:

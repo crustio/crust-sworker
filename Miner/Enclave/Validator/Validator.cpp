@@ -20,22 +20,23 @@ void validate_empty_disk(const char *path)
         /* Get M hashs */
         unsigned char *m_hashs_o = NULL;
         std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
-        ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, PLOT_RAND_DATA_NUM * HASH_LENGTH);
+        size_t m_hashs_size = 0;
+        ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)
         {
             cfeprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
             return;
         }
 
-        unsigned char *m_hashs = new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
-        for (size_t j = 0; j < PLOT_RAND_DATA_NUM * HASH_LENGTH; j++)
+        unsigned char *m_hashs = new unsigned char[m_hashs_size];
+        for (size_t j = 0; j < m_hashs_size; j++)
         {
             m_hashs[j] = m_hashs_o[j];
         }
 
         /* Compare m hashs */
         sgx_sha256_hash_t m_hashs_hash256;
-        sgx_sha256_msg(m_hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH, &m_hashs_hash256);
+        sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_hash256);
 
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
@@ -54,7 +55,8 @@ void validate_empty_disk(const char *path)
         // eprintf("Select path: %s\n", leaf_path.c_str());
 
         unsigned char *leaf_data = NULL;
-        ocall_get_file(leaf_path.c_str(), &leaf_data, PLOT_RAND_DATA_LENGTH);
+        size_t leaf_data_len = 0;
+        ocall_get_file(leaf_path.c_str(), &leaf_data, &leaf_data_len);
 
         if (leaf_data == NULL)
         {
@@ -64,7 +66,7 @@ void validate_empty_disk(const char *path)
 
         /* Compare leaf data */
         sgx_sha256_hash_t leaf_data_hash256;
-        sgx_sha256_msg(leaf_data, PLOT_RAND_DATA_LENGTH, &leaf_data_hash256);
+        sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_data_hash256);
 
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {

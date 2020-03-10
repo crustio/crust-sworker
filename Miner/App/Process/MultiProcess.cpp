@@ -874,7 +874,7 @@ void *do_disk_related(void *args)
     }
 
     /* Main validate loop */
-    ecall_main_loop(global_eid, p_config->empty_path.c_str());
+    ecall_main_loop(global_eid, p_config->empty_path.c_str(), p_config->recover_file_path.c_str());
 
     return NULL;
 }
