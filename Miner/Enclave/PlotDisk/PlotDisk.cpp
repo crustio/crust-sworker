@@ -1,6 +1,5 @@
 #include "PlotDisk.h"
 
-// TODO: put log to file
 /* Used to update workload->empty_g_hashs multiple threads */
 sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
@@ -10,38 +9,53 @@ sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
  */
 void ecall_plot_disk(const char *path)
 {
-    /* New and get now G hash index */
+    // New and get now G hash index
     sgx_thread_mutex_lock(&g_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
-    get_workload()->empty_g_hashs.push_back((uint8_t*)malloc(HASH_LENGTH));
+    get_workload()->empty_g_hashs.push_back((uint8_t *)malloc(HASH_LENGTH));
     sgx_thread_mutex_unlock(&g_mutex);
 
-    /* Create directory */
+    // Create directory
     std::string g_path = get_g_path(path, now_index);
     ocall_create_dir(g_path.c_str());
 
-    /* Generate all M hashs and store file to disk */
+    // Generate base random data and seal base info
+    unsigned char base_rand_data[PLOT_RAND_DATA_LENGTH];
+    sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
+
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, PLOT_RAND_DATA_LENGTH);
+    sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_size);
+
+    sgx_attributes_t sgx_attr;
+    sgx_attr.flags = 0xFF0000000000000B;
+    sgx_attr.xfrm = 0;
+    sgx_misc_select_t sgx_misc = 0xF0000000;
+
+    // Generate all M hashs and store file to disk
     unsigned char *hashs = new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
     for (size_t i = 0; i < PLOT_RAND_DATA_NUM; i++)
     {
-        unsigned char rand_data[PLOT_RAND_DATA_LENGTH];
-        sgx_read_rand(reinterpret_cast<unsigned char *>(&rand_data), sizeof(rand_data));
+        memset(p_sealed_data, 0, sealed_data_size);
+
+        sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc, 0, NULL, PLOT_RAND_DATA_LENGTH, base_rand_data, sealed_data_size, p_sealed_data);
 
         sgx_sha256_hash_t out_hash256;
-        sgx_sha256_msg(rand_data, sizeof(rand_data), &out_hash256);
+        sgx_sha256_msg((unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH, &out_hash256);
 
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
             hashs[i * HASH_LENGTH + j] = out_hash256[j];
         }
 
-        save_file(g_path.c_str(), i, out_hash256, rand_data, sizeof(rand_data));
+        save_file(g_path.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH);
 
         if ((i + 1) == 1 || (i + 1) % 100 == 0 || (i + 1) == PLOT_RAND_DATA_NUM)
         {
-            cfeprintf("Plot file: %luG/%luM success\n", now_index + 1, i + 1);
+            cfeprintf("Plot file:%s, %luG/%luM success\n", unsigned_char_array_to_hex_string(out_hash256, 32).c_str() now_index + 1, i + 1);
         }
     }
+
+    free(p_sealed_data);
 
     /* Generate G hashs */
     sgx_sha256_hash_t g_out_hash256;
@@ -74,7 +88,7 @@ void ecall_generate_empty_root(void)
         return;
     }
 
-    unsigned char *hashs = (unsigned char*)malloc(get_workload()->empty_g_hashs.size() * HASH_LENGTH);
+    unsigned char *hashs = (unsigned char *)malloc(get_workload()->empty_g_hashs.size() * HASH_LENGTH);
     for (size_t i = 0; i < get_workload()->empty_g_hashs.size(); i++)
     {
         for (size_t j = 0; j < HASH_LENGTH; j++)
