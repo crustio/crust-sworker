@@ -22,10 +22,8 @@ void ecall_plot_disk(const char *path)
     // Generate base random data and seal base info
     unsigned char base_rand_data[PLOT_RAND_DATA_LENGTH];
     sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
-
     uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, PLOT_RAND_DATA_LENGTH);
     sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_size);
-
     sgx_attributes_t sgx_attr;
     sgx_attr.flags = 0xFF0000000000000B;
     sgx_attr.xfrm = 0;
@@ -48,11 +46,6 @@ void ecall_plot_disk(const char *path)
         }
 
         save_file(g_path.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH);
-
-        if ((i + 1) == 1 || (i + 1) % 100 == 0 || (i + 1) == PLOT_RAND_DATA_NUM)
-        {
-            cfeprintf("Plot file:%s, %luG/%luM success\n", unsigned_char_array_to_hex_string(out_hash256, 32).c_str() now_index + 1, i + 1);
-        }
     }
 
     free(p_sealed_data);
@@ -74,6 +67,8 @@ void ecall_plot_disk(const char *path)
     /* Change G path name */
     std::string new_g_path = g_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH);
     ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
+
+    cfeprintf("Plot file: %luG success\n", now_index + 1);
 }
 
 /**
