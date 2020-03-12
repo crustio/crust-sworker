@@ -201,22 +201,23 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     common_status_t common_status = CRUST_SUCCESS;
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
-    p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_sz);
-    memset(p_sealed_data, 0, sealed_data_sz);
+    *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_sz);
+    memset(*p_sealed_data, 0, sealed_data_sz);
     sgx_attributes_t sgx_attr;
     sgx_attr.flags = 0xFF0000000000000B;
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
     sgx_status = sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
-                                  0, NULL, src_len, p_src, sealed_data_sz, p_sealed_data);
+                                  0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
 
     if (SGX_SUCCESS != sgx_status)
     {
         cfeprintf("Seal data failed!Error code:%lx\n", sgx_status);
         common_status = CRUST_SEAL_DATA_FAILED;
-        p_sealed_data = NULL;
+        *p_sealed_data = NULL;
     }
 
     *sealed_data_size = (size_t)sealed_data_sz;
 
     return common_status;
+}
