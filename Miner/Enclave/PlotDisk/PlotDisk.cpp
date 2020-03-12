@@ -9,6 +9,13 @@ sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
  */
 void ecall_plot_disk(const char *path)
 {
+    unsigned char base_rand_data[PLOT_RAND_DATA_LENGTH];
+    sgx_sealed_data_t *p_sealed_data = NULL;
+    size_t sealed_data_size = 0;
+
+    // Generate base random data
+    sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
+
     // New and get now G hash index
     sgx_thread_mutex_lock(&g_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
@@ -19,23 +26,11 @@ void ecall_plot_disk(const char *path)
     std::string g_path = get_g_path(path, now_index);
     ocall_create_dir(g_path.c_str());
 
-    // Generate base random data and seal base info
-    unsigned char base_rand_data[PLOT_RAND_DATA_LENGTH];
-    sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, PLOT_RAND_DATA_LENGTH);
-    sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_size);
-    sgx_attributes_t sgx_attr;
-    sgx_attr.flags = 0xFF0000000000000B;
-    sgx_attr.xfrm = 0;
-    sgx_misc_select_t sgx_misc = 0xF0000000;
-
     // Generate all M hashs and store file to disk
     unsigned char *hashs = new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
     for (size_t i = 0; i < PLOT_RAND_DATA_NUM; i++)
     {
-        memset(p_sealed_data, 0, sealed_data_size);
-
-        sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc, 0, NULL, PLOT_RAND_DATA_LENGTH, base_rand_data, sealed_data_size, p_sealed_data);
+        seal_data_mrenclave(base_rand_data, PLOT_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
 
         sgx_sha256_hash_t out_hash256;
         sgx_sha256_msg((unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH, &out_hash256);
@@ -46,9 +41,10 @@ void ecall_plot_disk(const char *path)
         }
 
         save_file(g_path.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH);
-    }
 
-    free(p_sealed_data);
+        free(p_sealed_data);
+        p_sealed_data = NULL;
+    }
 
     /* Generate G hashs */
     sgx_sha256_hash_t g_out_hash256;
@@ -95,7 +91,7 @@ void ecall_generate_empty_root(void)
     get_workload()->empty_disk_capacity = get_workload()->empty_g_hashs.size();
     sgx_sha256_msg(hashs, (uint32_t)get_workload()->empty_disk_capacity * HASH_LENGTH, &get_workload()->empty_root_hash);
 
-    delete[] hashs;
+    free(hashs);
 }
 
 /**
