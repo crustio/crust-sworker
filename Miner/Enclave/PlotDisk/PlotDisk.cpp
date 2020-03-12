@@ -68,7 +68,7 @@ void ecall_plot_disk(const char *path)
     std::string new_g_path = g_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH);
     ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
 
-    cfeprintf("Plot file: %luG success\n", now_index + 1);
+    cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 }
 
 /**
