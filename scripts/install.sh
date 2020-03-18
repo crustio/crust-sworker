@@ -106,89 +106,6 @@ function installSGXSSL()
     verbose INFO "Install SGX SSL successfully!!!"
 }
 
-function installIPFS()
-{
-    if [ -d "$IPFSDIR" ]; then
-        verbose INFO "IPFS has been initialized." n
-    else
-        local res=0
-        local ipfspid=$(ps -ef | grep ipfs | grep -v grep | awk '{print $2}')
-        if [ x"$ipfspid" != x"" ]; then
-            kill -9 $ipfspid
-            if [ $? -ne 0 ]; then
-                # If failed by using current user, kill it using root
-                kill -9 $ipfspid
-            fi
-        fi
-        verbose INFO "Init ipfs..." h
-        $IPFS init
-        checkRes $? "return"
-    
-        verbose INFO "Set swarm key ..." h
-        mkdir -p $IPFSDIR
-        cp $SWARMKEY "$IPFSDIR"
-        checkRes $? "return"
-    
-        verbose INFO "Remove public bootstrap..." h
-        $IPFS bootstrap rm --all &>/dev/null
-        checkRes $? "return"
-    
-        if [ -z "$MASTER_ADDRESS" ]; then
-            verbose INFO "This node is master node" n
-        else
-            verbose INFO "This node is slave, master node is '[$MASTER_ADDRESS]'' ..." n
-            $IPFS bootstrap add $MASTER_ADDRESS &>/dev/null
-            checkRes $? "return"
-        fi
-    
-        verbose INFO "Set system fire wall..." h
-        ufw allow 22
-        res=$(($?|$res))
-        ufw allow 5001
-        res=$(($?|$res))
-        ufw allow 4001
-        res=$(($?|$res))
-        ufw enable
-        res=$(($?|$res))
-        ufw reload
-        res=$(($?|$res))
-        checkRes $res "return"
-    
-        verbose INFO "Set swarm address ..." h
-        $IPFS config Addresses.Swarm --json "[$IPFS_SWARM_ADDR_IPV4, $IPFS_SWARM_ADDR_IPV6]" &>/dev/null
-        checkRes $? "return"
-    
-        verbose INFO "Set api address ..." h
-        $IPFS config Addresses.API /ip4/0.0.0.0/tcp/5001 &>/dev/null
-        checkRes $? "return"
-    
-        verbose INFO "Remove all data ..." h
-        $IPFS pin rm $($IPFS pin ls -q --type recursive) &>/dev/null
-        $IPFS repo gc &>/dev/null
-        checkRes $? "return"
-    fi
-}
-
-function uninstallOldCrust()
-{
-    verbose INFO "Removing old crust..." h
-    local ret=0
-    if [ ! -e "$crustteedir" ]; then
-        verbose INFO "SUCCESS" t
-        return
-    fi
-    cd $crustteedir
-    if [ -e "scripts/uninstall.sh" ]; then
-        ./scripts/uninstall.sh &>/dev/null
-        ret=$?
-    else
-        rm -rf *
-        ret=$?
-    fi
-    cd - &>/dev/null
-    checkRes $ret "quit"
-}
-
 function uninstallSGXSDK()
 {
     for el in ${delOrder[@]}; do
@@ -425,12 +342,6 @@ declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 appname="crust-tee"
 enclaveso="enclave.signed.so"
 configfile="Config.json"
-# IPFS related
-IPFSDIR=$HOME/.ipfs
-IPFS=$crustteedir/bin/ipfs
-SWARMKEY=$crustteedir/etc/swarm.key
-IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
-IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
 # Crust related
 crust_env_file=$crustteedir/etc/environment
 
@@ -441,18 +352,6 @@ if [ $(id -u) -ne 0 ]; then
     verbose ERROR "Please run with sudo!"
     exit 1
 fi
-
-#read -p "Please input your password: " -s passwd
-#tryout=3
-#while ! echo "$password" | sudo -S ls &>/dev/null; do
-#    echo
-#    if [ $tryout -le 0 ]; then
-#        verbose ERROR "Wrong password!!!"
-#        exit 1
-#    fi
-#    ((tryout--))
-#    read -p "Wrong password, please try it again:" -s passwd
-#done
 
 # check if there is expect installed
 which expect &>/dev/null
@@ -466,7 +365,7 @@ fi
 
 echo
 verbose INFO "---------- Uninstalling previous crust-tee ----------" n
-uninstallOldCrust
+uninstallOldCrustTee
 
 # Create directory
 verbose INFO "Creating and setting diretory related..." h
@@ -496,12 +395,6 @@ installSGXSSL
 echo
 verbose INFO "---------- Installing Application ----------" n
 installAPP
-
-# Install IPFS
-echo
-verbose INFO "---------- Installing IPFS ----------" n
-installIPFS
-echo
 
 verbose INFO "Changing diretory owner..." h
 chown -R $uid:$uid $crustteedir

@@ -1,8 +1,6 @@
 #!/bin/bash
-basedir=$(cd `dirname $0`;pwd)
-instdir=$(cd $basedir/..;pwd)
+crustteedir=/opt/crust/crust-tee
 
-$instdir/scripts/stop.sh
-rm -rf $instdir/*
+rm -rf $crustteedir/*
 
 echo "Uninstall crust-tee successfully!"
