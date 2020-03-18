@@ -1,6 +1,6 @@
 #!/bin/bash
-crustteedir=/opt/crust/crust-tee
+crust_tee_main_install_dir=/opt/crust/crust-tee
 
-rm -rf $crustteedir/*
+rm -rf $crust_tee_main_install_dir/*
 
 echo "Uninstall crust-tee successfully!"

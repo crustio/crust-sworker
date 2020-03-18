@@ -427,4 +427,4 @@ chown -R $uid:$uid $crustteedir
 checkRes $res "quit"
 
 
-verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee! Go to /opt/crust/crust-tee and run scripts/start.sh to start crust.\n"
+verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee! Go to /opt/crust/crust-tee and follow README to start crust.\n"
