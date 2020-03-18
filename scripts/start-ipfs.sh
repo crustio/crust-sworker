@@ -3,8 +3,9 @@
 crust_tee_main_install_dir=/opt/crust/crust-tee
 ipfs_data_path=$HOME/.ipfs
 ipfs_bin=$crust_tee_main_install_dir/bin/ipfs
+swarm_key=$crust_tee_main_install_dir/etc/swarm.key
 
-. $crust_tee_main_install_dir/stcript/utils.sh
+. $crust_tee_main_install_dir/scripts/utils.sh
 
 if [ -d "$ipfs_data_path" ]; then
     verbose INFO "IPFS has been initialized." n

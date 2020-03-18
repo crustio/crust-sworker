@@ -74,7 +74,7 @@ Crust TEE will wait for the chain to run before uploading identity information a
 ### Package resources
 Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.
 
-### Crust client
+### Launch by using crust client
 Please follow [crust client](https://github.com/crustio/crust-client) to launch.
 
 ## Crust tee executable file
