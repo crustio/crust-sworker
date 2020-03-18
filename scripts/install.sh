@@ -106,6 +106,26 @@ function installSGXSSL()
     verbose INFO "Install SGX SSL successfully!!!"
 }
 
+function uninstallOldCrustTee()
+{
+    verbose INFO "Removing old crust tee..." h
+    local ret=0
+    if [ ! -e "$crustteedir" ]; then
+        verbose INFO "SUCCESS" t
+        return
+    fi
+    cd $crustteedir
+    if [ -e "scripts/uninstall.sh" ]; then
+        ./scripts/uninstall.sh &>/dev/null
+        ret=$?
+    else
+        rm -rf *
+        ret=$?
+    fi
+    cd - &>/dev/null
+    checkRes $ret "quit"
+}
+
 function uninstallSGXSDK()
 {
     for el in ${delOrder[@]}; do
@@ -342,6 +362,12 @@ declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 appname="crust-tee"
 enclaveso="enclave.signed.so"
 configfile="Config.json"
+# IPFS related
+IPFSDIR=$HOME/.ipfs
+IPFS=$crustteedir/bin/ipfs
+SWARMKEY=$crustteedir/etc/swarm.key
+IPFS_SWARM_ADDR_IPV4=\"/ip4/0.0.0.0/tcp/4001\"
+IPFS_SWARM_ADDR_IPV6=\"/ip6/::/tcp/4001\"
 # Crust related
 crust_env_file=$crustteedir/etc/environment
 
