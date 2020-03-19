@@ -4,10 +4,17 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 ## Preparation work
 - Hardware requirements: 
 
-  CPU must contain SGX module, and make sure the SGX function is turned on in the bios
+  CPU must contain **SGX module**, and make sure the SGX function is turned on in the bios, please click [this page](https://github.com/crustio/crust/wiki/Check-TEE-supportive) to check if your machine supports SGX
+
 - Operating system requirements:
 
-  Unbantu 16.04
+  Ubuntu 16.04
+  
+- Other configurations
+
+  - **Secure Boot** in BIOS needs to be turned off
+  - Need use ordinary account, **cannot support root account**
+
 
 ## Dependent library and project
 - [Intel SGX](https://software.intel.com/en-us/sgx)
@@ -16,7 +23,7 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 
 ## Development launch
 ### Install dependent libs
-Install gcc, git, openssl, boost, curl,
+Install gcc, git, openssl, boost, curl, elf
 ```shell
 sudo apt install build-essential
 sudo apt install git
@@ -24,6 +31,7 @@ sudo apt install libboost-all-dev
 sudo apt install openssl
 sudo apt install libssl-dev
 sudo apt install curl
+sudo apt install libelf-dev
 ```
 
 ### Package resources
