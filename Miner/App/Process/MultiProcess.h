@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <string>
 #include <unistd.h>
+#include <algorithm>
 #include "sgx_error.h"
 #include "sgx_eid.h"
 #include "sgx_urts.h"
