@@ -13,7 +13,7 @@ Config *Config::get_instance()
 {
     if (Config::config == NULL)
     {
-        if(config_file_path.size() == 0)
+        if (config_file_path.size() == 0)
         {
             Config::config = new Config(CONFIG_FILE_PATH);
         }
@@ -39,21 +39,25 @@ Config::Config(std::string path)
     /* Fill configurations */
     json::JSON config_value = json::JSON::Load(config_str);
 
-    // Plot configurations
+    // Base configurations
     this->base_path = config_value["base_path"].ToString();
     this->recover_file_path = this->base_path + "/recover.bin";
     this->empty_path = this->base_path + "/empty_path";
     this->empty_capacity = (size_t)config_value["empty_capacity"].ToInt();
-
-    // ipfs and validator url configurations
-    this->ipfs_api_base_url = config_value["ipfs_api_base_url"].ToString();
     this->api_base_url = config_value["api_base_url"].ToString();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
+
+    // storage configurations
+    this->ipfs_api_base_url = config_value["ipfs_api_base_url"].ToString();
 
     // crust chain configurations
     this->crust_api_base_url = config_value["crust_api_base_url"].ToString();
     this->crust_address = config_value["crust_address"].ToString();
     this->crust_account_id = config_value["crust_account_id"].ToString();
+    if (this->crust_account_id.find("0x"))
+    {
+        this->crust_account_id.erase(0, 2);
+    }
     this->crust_password = config_value["crust_password"].ToString();
     std::string backup_temp = config_value["crust_backup"].ToString();
     remove_chars_from_string(backup_temp, "\\");

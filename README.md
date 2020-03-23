@@ -43,9 +43,9 @@ Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<
 
 ### Configure your crust TEE
 In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE application.
-```json
+```shell
 {
-    "base_path" : "/opt/crust/crust-tee/tee_base_path",    # All files will be stored in this directory, must be absolute path
+    "base_path" : "/opt/crust/crust-tee/tee_base_path",                  # All files will be stored in this directory, must be absolute path
     "empty_capacity" : 4,                                                # empty disk storage in Gb
     
     "ipfs_api_base_url" : "http://127.0.0.1:5001/api/v0",                # for connect to ipfs
