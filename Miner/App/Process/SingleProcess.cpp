@@ -484,10 +484,8 @@ void *do_upload_work_report_s(void *)
 bool do_plot_disk_s(void)
 {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    int num_procs = omp_get_num_procs();
-    int plot_thread_num = std::min(num_procs, 8);
 
-    cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", plot_thread_num);
+    cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
     #pragma omp parallel for num_threads(plot_thread_num)
     for (size_t i = 0; i < p_config->empty_capacity; i++)

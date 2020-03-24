@@ -311,7 +311,7 @@ int ApiHandler::start()
     });
 
     // Inner APIs
-    path = urlendpoint->base + "change/empty";
+    path = urlendpoint->base + "/change/empty";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         // Guaranteed that only one service is running
         change_empty_mutex.lock();

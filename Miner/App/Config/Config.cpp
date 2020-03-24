@@ -46,6 +46,7 @@ Config::Config(std::string path)
     this->empty_capacity = (size_t)config_value["empty_capacity"].ToInt();
     this->api_base_url = config_value["api_base_url"].ToString();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
+    this->plot_thread_num = std::min(omp_get_num_procs(), 8);
 
     // storage configurations
     this->ipfs_api_base_url = config_value["ipfs_api_base_url"].ToString();
