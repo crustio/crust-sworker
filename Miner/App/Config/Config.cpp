@@ -114,3 +114,20 @@ void Config::show(void)
     printf("    'debug info' : '%s',\n", this->debug ? "true" : "false");
     printf("}\n");
 }
+
+/**
+ * @description: change empty capacity
+ * @param change -> the number of empty capacity changed 
+ */
+void Config::change_empty_capacity(int change)
+{
+    // Get now empty_capacity
+    if(change >= 0 || -change <= this->empty_capacity)
+    {
+        this->empty_capacity += change;
+    }
+    else
+    {
+        this->empty_capacity = 0;
+    }
+}

@@ -51,6 +51,7 @@ public:
     static Config *config;
 
     void show(void);
+    void change_empty_capacity(int change);
     static Config *get_instance();
 
 private:

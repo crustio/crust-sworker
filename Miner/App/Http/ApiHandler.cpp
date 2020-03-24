@@ -352,10 +352,12 @@ int ApiHandler::start()
             cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
             // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
             #pragma omp parallel for num_threads(p_config->plot_thread_num)
-            for (size_t i = 0; i < p_config->empty_capacity; i++)
+            for (size_t i = 0; i < change; i++)
             {
                 ecall_plot_disk(*this->p_global_eid, p_config->empty_path.c_str());
             }
+
+            p_config->change_empty_capacity(change);
 
             cprintf_info(felog, "Increase %dG empty file success, the empty workload will change in next validation loop\n", change);
             res.set_content("Increase empty file success, the empty workload will change in next validation loop", "text/plain");
