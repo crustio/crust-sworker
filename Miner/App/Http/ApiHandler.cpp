@@ -326,9 +326,10 @@ int ApiHandler::start()
         change_empty_mutex.unlock();
 
         // Check input parameters
-        json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
+        json::JSON req_json = json::JSON::Load(req.body);
         int change = req_json["change"].ToInt();
         std::string backup = req_json["backup"].ToString();
+        remove_chars_from_string(backup, "\\");
 
         if (backup != p_config->crust_backup)
         {

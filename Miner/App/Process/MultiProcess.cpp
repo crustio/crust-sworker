@@ -885,8 +885,6 @@ void *do_disk_related(void *args)
  */
 bool do_plot_disk(void)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
     cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
     #pragma omp parallel for num_threads(p_config->plot_thread_num)
@@ -894,6 +892,8 @@ bool do_plot_disk(void)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
     }
+
+    cprintf_info(felog, "Plot disk %luG successed.\n", p_config->empty_capacity);
 
     return true;
 }
