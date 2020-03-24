@@ -6,8 +6,8 @@ using namespace httplib;
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 extern FILE *felog;
-bool in_changing_empty = false;
-std::mutex change_empty_mutex;
+bool in_increasing_empty = false;
+std::mutex increase_empty_mutex;
 
 /**
  * @description: constructor
@@ -311,19 +311,21 @@ int ApiHandler::start()
     });
 
     // Inner APIs
-    path = urlendpoint->base + "/change/empty";
+    path = urlendpoint->base + "/increase/empty";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         // Guaranteed that only one service is running
-        change_empty_mutex.lock();
-        if (in_changing_empty)
+        increase_empty_mutex.lock();
+        if (in_increasing_empty)
         {
             cprintf_err(felog, "Service busy\n");
             res.set_content("Service busy", "text/plain");
             res.status = 500;
+            increase_empty_mutex.unlock();
             return;
         }
-        in_changing_empty = true;
-        change_empty_mutex.unlock();
+        
+        in_increasing_empty = true;
+        increase_empty_mutex.unlock();
 
         // Check input parameters
         json::JSON req_json = json::JSON::Load(req.body);
@@ -336,17 +338,17 @@ int ApiHandler::start()
             cprintf_err(felog, "Invalid backup\n");
             res.set_content("Invalid backup", "text/plain");
             res.status = 400;
-            goto end_change_empty;
+            goto end_increase_empty;
         }
 
-        if (change == 0)
+        if (change <= 0)
         {
             cprintf_err(felog, "Invalid change\n");
             res.set_content("Invalid change", "text/plain");
             res.status = 400;
-            goto end_change_empty;
+            goto end_increase_empty;
         }
-        else if (change > 0)
+        else
         {
             // Increase empty plot
             cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
@@ -362,31 +364,30 @@ int ApiHandler::start()
             cprintf_info(felog, "Increase %dG empty file success, the empty workload will change in next validation loop\n", change);
             res.set_content("Increase empty file success, the empty workload will change in next validation loop", "text/plain");
             res.status = 200;
-            goto end_change_empty;
+            goto end_increase_empty;
         }
-        else
+
+    end_increase_empty:
+        increase_empty_mutex.lock();
+        in_increasing_empty = false;
+        increase_empty_mutex.unlock();
+    });
+
+    path = urlendpoint->base + "/decrease/empty";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        // Decrease empty plot
+        enum ValidationStatus validation_status = ValidateStop;
+
+        if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
         {
-            // Decrease empty plot
-            enum ValidationStatus validation_status = ValidateStop;
-
-            if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
-            {
-                cprintf_err(felog, "Get validation status failed\n");
-                res.set_content("Internal error", "text/plain");
-                res.status = 500;
-                goto end_change_empty;
-            }
-
-            cprintf_info(felog, "Decrease %dG empty file success\n", -change);
-            res.set_content("Decrease empty file success", "text/plain");
-            res.status = 200;
-            goto end_change_empty;
+            cprintf_err(felog, "Get validation status failed\n");
+            res.set_content("Internal error", "text/plain");
+            res.status = 500;
         }
 
-    end_change_empty:
-        change_empty_mutex.lock();
-        in_changing_empty = false;
-        change_empty_mutex.unlock();
+        cprintf_info(felog, "Decrease %dG empty file success\n", -change);
+        res.set_content("Decrease empty file success", "text/plain");
+        res.status = 200;
     });
 
     server->listen(urlendpoint->ip.c_str(), urlendpoint->port);
