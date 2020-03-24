@@ -353,10 +353,10 @@ int ApiHandler::start()
             #pragma omp parallel for num_threads(p_config->plot_thread_num)
             for (size_t i = 0; i < p_config->empty_capacity; i++)
             {
-                ecall_plot_disk(global_eid, p_config->empty_path.c_str());
+                ecall_plot_disk(*this->p_global_eid, p_config->empty_path.c_str());
             }
 
-            cprintf_info(felog, "Increase %dG empty file success\n", change);
+            cprintf_info(felog, "Increase %dG empty file success, the empty workload will change in next validation loop\n", change);
             res.set_content("Increase empty file success, the empty workload will change in next validation loop", "text/plain");
             res.status = 200;
             goto end_change_empty;
