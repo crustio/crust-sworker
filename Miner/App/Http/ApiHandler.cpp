@@ -322,7 +322,7 @@ int ApiHandler::start()
             res.status = 500;
             return;
         }
-        in_changing = true;
+        in_changing_empty = true;
         change_empty_mutex.unlock();
 
         // Check input parameters
@@ -374,7 +374,7 @@ int ApiHandler::start()
 
     end_change_empty:
         change_empty_mutex.lock();
-        in_changing = false;
+        in_changing_empty = false;
         change_empty_mutex.unlock();
     });
 
