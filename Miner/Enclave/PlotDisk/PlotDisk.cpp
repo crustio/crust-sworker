@@ -20,6 +20,10 @@ void ecall_plot_disk(const char *path)
     sgx_thread_mutex_lock(&g_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
     get_workload()->empty_g_hashs.push_back((uint8_t *)malloc(HASH_LENGTH));
+    for (size_t i = 0; i < HASH_LENGTH; i++)
+    {
+        get_workload()->empty_g_hashs[now_index][i] = 0;
+    }
     sgx_thread_mutex_unlock(&g_mutex);
 
     // Create directory
@@ -53,18 +57,18 @@ void ecall_plot_disk(const char *path)
     save_m_hashs_file(g_path.c_str(), hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
     delete[] hashs;
 
+    /* Change G path name */
+    std::string new_g_path = g_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH);
+    ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
+
+    cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
+
     sgx_thread_mutex_lock(&g_mutex);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
         get_workload()->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
     sgx_thread_mutex_unlock(&g_mutex);
-
-    /* Change G path name */
-    std::string new_g_path = g_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH);
-    ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
-
-    cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 }
 
 /**
@@ -72,26 +76,40 @@ void ecall_plot_disk(const char *path)
  */
 void ecall_generate_empty_root(void)
 {
-    if (get_workload()->empty_g_hashs.size() == 0)
-    {
-        get_workload()->empty_disk_capacity = 0;
-        get_workload()->empty_root_hash[0] = 0;
-        return;
-    }
+    sgx_thread_mutex_lock(&g_mutex);
 
+    // Get hashs for hash
     unsigned char *hashs = (unsigned char *)malloc(get_workload()->empty_g_hashs.size() * HASH_LENGTH);
+    size_t hashs_length = 0;
+
     for (size_t i = 0; i < get_workload()->empty_g_hashs.size(); i++)
     {
-        for (size_t j = 0; j < HASH_LENGTH; j++)
+        if (!is_null_hash(get_workload()->empty_g_hashs[i]))
         {
-            hashs[i * 32 + j] = get_workload()->empty_g_hashs[i][j];
+            for (size_t j = 0; j < HASH_LENGTH; j++)
+            {
+                hashs[i * 32 + j] = get_workload()->empty_g_hashs[i][j];
+            }
+            hashs_length += HASH_LENGTH;
         }
     }
 
-    get_workload()->empty_disk_capacity = get_workload()->empty_g_hashs.size();
-    sgx_sha256_msg(hashs, (uint32_t)get_workload()->empty_disk_capacity * HASH_LENGTH, &get_workload()->empty_root_hash);
+    if (hashs_length == 0)
+    {
+        get_workload()->empty_disk_capacity = 0;
+        for (size_t i = 0; i < HASH_LENGTH; i++)
+        {
+            get_workload()->empty_root_hash[i] = 0;
+        }
+    }
+    else
+    {
+        get_workload()->empty_disk_capacity = hashs_length / HASH_LENGTH;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_length, &get_workload()->empty_root_hash);
+    }
 
     free(hashs);
+    sgx_thread_mutex_unlock(&g_mutex);
 }
 
 /**

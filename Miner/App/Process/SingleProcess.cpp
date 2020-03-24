@@ -493,15 +493,6 @@ bool do_plot_disk_s(void)
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
     }
 
-    // Generate empty root
-    ret = ecall_generate_empty_root(global_eid);
-    if (ret != SGX_SUCCESS)
-    {
-        cprintf_err(felog, "Generate empty root failed. Error code:%08x\n",
-                    ret);
-        return false;
-    }
-
     return true;
 }
 

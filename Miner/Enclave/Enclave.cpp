@@ -34,7 +34,6 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         /* Empty */
         validation_status = ValidateEmpty;
         validate_empty_disk(empty_path);
-        ecall_generate_empty_root();
 
         cfeprintf("-----Validation Waiting-----\n");
         /* Show result */

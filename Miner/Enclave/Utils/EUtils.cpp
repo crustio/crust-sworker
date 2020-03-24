@@ -221,3 +221,21 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
 
     return common_status;
 }
+
+/**
+ * @description: determine if a hash is all 0
+ * @param hash -> input hash for check
+ * @return: true or false
+ */
+bool is_null_hash(unsigned char *hash)
+{
+    for (size_t i = 0; i < HASH_LENGTH; i++)
+    {
+        if (hash[i] != 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}

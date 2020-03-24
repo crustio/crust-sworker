@@ -37,6 +37,7 @@ std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const uns
 char* unsigned_char_to_hex(unsigned char in);
 common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
                                     sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
+bool is_null_hash(unsigned char *hash);
 
 #if defined(__cplusplus)
 }

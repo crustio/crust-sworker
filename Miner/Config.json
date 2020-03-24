@@ -1,6 +1,6 @@
 {
     "base_path" : "/opt/crust/crust-tee/tee_base_path",
-    "empty_capacity" : 1,
+    "empty_capacity" : 4,
     
     "ipfs_api_base_url" : "http://127.0.0.1:15001/api/v0",
     "api_base_url": "http://0.0.0.0:12222/api/v0",
