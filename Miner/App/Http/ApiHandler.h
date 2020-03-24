@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <algorithm>
+#include <mutex>
 #include <sgx_report.h>
 #include <sgx_key_exchange.h>
 #include <sgx_error.h>

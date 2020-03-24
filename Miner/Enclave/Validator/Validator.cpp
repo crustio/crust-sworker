@@ -8,11 +8,7 @@ void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
 
-    /* Get current capacity */
-    size_t current_capacity = 0;
-    ocall_get_folders_number_under_path(&current_capacity, path);
-
-    for (size_t i = 0; i < (workload->empty_g_hashs.size() < current_capacity ? workload->empty_g_hashs.size() : current_capacity); i++)
+    for (size_t i = 0; i < workload->empty_g_hashs.size(); i++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
@@ -79,14 +75,6 @@ void validate_empty_disk(const char *path)
 
         delete[] m_hashs;
     }
-
-    for (size_t i = workload->empty_g_hashs.size() - 1; i > current_capacity - 1; i--)
-    {
-        delete[] workload->empty_g_hashs[i];
-        workload->empty_g_hashs.pop_back();
-    }
-
-    ecall_generate_empty_root();
 }
 
 /* Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave? */
