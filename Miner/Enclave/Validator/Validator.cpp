@@ -7,9 +7,18 @@
 void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
+    if (get_workload()->empty_disk_capacity == 0)
+    {
+        return;
+    }
 
     for (size_t i = 0; i < workload->empty_g_hashs.size(); i++)
     {
+        if (is_null_hash(get_workload()->empty_g_hashs[i]))
+        {
+            break;
+        }
+
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
 
