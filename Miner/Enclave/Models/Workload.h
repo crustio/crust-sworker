@@ -7,6 +7,7 @@
 #include "sgx_trts.h"
 #include "EUtils.h"
 #include "Enclave_t.h"
+#include "sgx_thread.h"
 
 class Workload
 {

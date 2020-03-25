@@ -1,6 +1,6 @@
 #include "PlotDisk.h"
 
-extern sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+extern sgx_thread_mutex_t g_workload_mutex;
 
 /**
  * @description: plot one G disk under directory, can be called from multiple threads
@@ -81,11 +81,11 @@ void ecall_decrease_disk(const char *path, size_t change)
     sgx_thread_mutex_lock(&g_workload_mutex);
     size_t decrease_num = 0;
 
-    for (size_t i = workload->empty_g_hashs.size(); (decrease_num == change) || (i > 0); i--)
+    for (size_t i = workload->empty_g_hashs.size(); (decrease_num < change) && (i > 0); i--)
     {
         if (!is_null_hash(workload->empty_g_hashs[i - 1]))
         {
-            ocall_delete_folder(get_g_path_with_hash(path, workload->empty_g_hashs[i - 1]));
+            ocall_delete_folder_or_file(get_g_path_with_hash(path, workload->empty_g_hashs[i - 1]).c_str());
             decrease_num++;
         }
     }

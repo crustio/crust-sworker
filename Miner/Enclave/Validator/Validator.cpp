@@ -16,28 +16,37 @@ void validate_empty_disk(const char *path)
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    for (size_t i = 0; i < workload->empty_g_hashs.size(); i++)
+    for (auto it_g_hash = workload->empty_g_hashs.begin(); it_g_hash != workload->empty_g_hashs.end(); it_g_hash++)
     {
+        unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
+
         sgx_thread_mutex_lock(&g_workload_mutex);
-        if (is_null_hash(get_workload()->empty_g_hashs[i]))
+        for (size_t j = 0; j < HASH_LENGTH; j++)
+        {
+            g_hash[j] = (*it_g_hash)[j];
+        }
+
+        if (is_null_hash(g_hash))
         {
             sgx_thread_mutex_unlock(&g_workload_mutex);
-            break;
+            free(g_hash);
+            continue;
         }
         sgx_thread_mutex_unlock(&g_workload_mutex);
 
-        unsigned char rand_val;
-        sgx_read_rand((unsigned char *)&rand_val, 1);
+        std::string g_path = get_g_path_with_hash(path, g_hash);
 
         /* Get M hashs */
         unsigned char *m_hashs_o = NULL;
-        std::string g_path = get_g_path_with_hash(path, workload->empty_g_hashs[i]);
         size_t m_hashs_size = 0;
         ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)
         {
             cfeprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
-            return;
+            ocall_delete_folder_or_file(g_path.c_str());
+            workload->empty_g_hashs.erase(it_g_hash);
+            it_g_hash--;
+            goto end_validate_one_g_empty;
         }
 
         unsigned char *m_hashs = new unsigned char[m_hashs_size];
@@ -52,10 +61,14 @@ void validate_empty_disk(const char *path)
 
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
-            if (workload->empty_g_hashs[i][j] != m_hashs_hash256[j])
+            if (g_hashs[j] != m_hashs_hash256[j])
             {
                 cfeprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
-                return;
+                ocall_delete_folder_or_file(g_path.c_str());
+                workload->empty_g_hashs.erase(it_g_hash);
+                it_g_hash--;
+                delete[] m_hashs;
+                goto end_validate_one_g_empty;
             }
         }
 
@@ -73,7 +86,11 @@ void validate_empty_disk(const char *path)
         if (leaf_data == NULL)
         {
             cfeprintf("\n!!!!USER CHEAT: GET LEAF DATA FAILED!!!!\n");
-            return;
+            ocall_delete_folder_or_file(g_path.c_str());
+            workload->empty_g_hashs.erase(it_g_hash);
+            it_g_hash--;
+            delete[] m_hashs;
+            goto end_validate_one_g_empty;
         }
 
         /* Compare leaf data */
@@ -85,11 +102,16 @@ void validate_empty_disk(const char *path)
             if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
             {
                 cfeprintf("\n!!!!USER CHEAT: WRONG LEAF DATA HASHS!!!!\n");
-                return;
+                ocall_delete_folder_or_file(g_path.c_str());
+                workload->empty_g_hashs.erase(it_g_hash);
+                it_g_hash--;
+                delete[] m_hashs;
+                goto end_validate_one_g_empty;
             }
         }
 
-        delete[] m_hashs;
+    end_validate_one_g_empty:
+        free(g_path);
     }
 }
 
