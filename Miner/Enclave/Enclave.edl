@@ -50,6 +50,7 @@ enclave {
         void ocall_get_diff_files([out] Node **node);
         size_t ocall_get_diff_files_num(void);
         void ocall_usleep(int u);
+        void ocall_delete_folder_or_file([in, string] const char *path);
 
         ipc_status_t ocall_recv_session_request([out, size=20] char *request, [out, size=4] uint32_t *secret_size, attest_data_type_t data_type);
         ipc_status_t ocall_send_request_recv_msg1([out] sgx_dh_msg1_t *p_dh_msg1, uint32_t secret_size, attest_data_type_t data_type);

@@ -66,3 +66,91 @@ std::vector<std::string> get_folders_under_path(std::string path)
 
     return folders;
 }
+
+/**
+ * @description: recursively delete all the file in the directory
+ * @param dir_full_path -> the directory path
+ * @return: 0 for successed, -1 for falied
+ */
+int rm_dir(std::string dir_full_path)
+{
+    DIR *dirp = opendir(dir_full_path.c_str());
+    if (!dirp)
+    {
+        return -1;
+    }
+    struct dirent *dir;
+    struct stat st;
+    while ((dir = readdir(dirp)) != NULL)
+    {
+        if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+        {
+            continue;
+        }
+        std::string sub_path = dir_full_path + '/' + dir->d_name;
+        if (lstat(sub_path.c_str(), &st) == -1)
+        {
+            Log("rm_dir:lstat ", sub_path, " error");
+            continue;
+        }
+        if (S_ISDIR(st.st_mode))
+        {
+            if (rm_dir(sub_path) == -1)
+            {
+                closedir(dirp);
+                return -1;
+            }
+            rmdir(sub_path.c_str());
+        }
+        else if (S_ISREG(st.st_mode))
+        {
+            unlink(sub_path.c_str());
+        }
+        else
+        {
+            Log("rm_dir:st_mode ", sub_path, " error");
+            continue;
+        }
+    }
+    if (rmdir(dir_full_path.c_str()) == -1) //delete dir itself.
+    {
+        closedir(dirp);
+        return -1;
+    }
+    closedir(dirp);
+    return 0;
+}
+
+/**
+ * @description: recursively delete all the file in the directory or delete file
+ * @param path -> the directory path or filepath
+ * @return: 0 for successed, -1 for falied
+ */
+int rm(std::string path)
+{
+    std::string file_path = path;
+    struct stat st;    
+    if(lstat(file_path.c_str(),&st) == -1)
+    {
+        return -1;
+    }
+    if(S_ISREG(st.st_mode))
+    {
+        if(unlink(file_path.c_str()) == -1)
+        {
+            return -1;
+        }    
+    }
+    else if(S_ISDIR(st.st_mode))
+    {
+        if(path == "." || path == "..")
+        {
+            return -1;
+        }    
+        if(rm_dir(file_path) == -1) //delete all the files in dir.
+        {
+            return -1;
+        }
+    }
+    return 0;
+}

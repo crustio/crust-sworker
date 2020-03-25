@@ -11,5 +11,7 @@
 
 std::vector<std::string> get_files_under_path(std::string path);
 std::vector<std::string> get_folders_under_path(std::string path);
+int rm_dir(std::string dir_full_path);
+int rm(std::string path);
 
 #endif /* !_CRUST_FILE_UTILS_H_ */

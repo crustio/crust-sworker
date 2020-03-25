@@ -113,6 +113,17 @@ size_t ocall_get_folders_number_under_path(const char *path)
     }
 }
 
+void ocall_delete_folder_or_file(const char *path)
+{
+    if (access(path, 0) != -1)
+    {
+        if(rm(path) == -1)
+        {
+            cprintf_err(felog, "Delete '%s' error!", path);
+        }
+    }
+}
+
 /**
  * @description: ocall for getting file (ps: can't used by multithreading)
  * @param path -> the path of file

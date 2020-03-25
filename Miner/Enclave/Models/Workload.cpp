@@ -1,6 +1,7 @@
 #include "Workload.h"
 
 extern ecc_key_pair id_key_pair;
+sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 Workload *workload = new Workload();
 
 /**
@@ -70,11 +71,13 @@ void Workload::clean_data()
 }
 
 /**
- * @description: use block hash to serialize work report
+ * @description: serialize work report for reporting to chain
  * @return: the work report
  */
 std::string Workload::serialize()
 {
+    sgx_thread_mutex_lock(&g_workload_mutex);
+
     this->report = "{";
     this->report += "\"pub_key\":\"" + std::string((const char*)hexstring(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key))) + "\",";
     this->report += "\"empty_root\":\"" + unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH) + "\",";
@@ -91,16 +94,19 @@ std::string Workload::serialize()
     this->report += "\"meaningful_workload\":" + std::to_string(meaningful_workload_size);
     this->report += "}";
     //this->report += "]}";
-
+    
+    sgx_thread_mutex_unlock(&g_workload_mutex);
     return this->report;
 }
 
 /**
- * @description: Serialize workload
- * @return: Serialized workload
+ * @description: serialize workload for sealing
+ * @return: serialized workload
  * */
 std::string Workload::serialize_workload()
 {
+    sgx_thread_mutex_lock(&g_workload_mutex);
+
     std::string plot_data;
     // Store empty_g_hashs
     std::string g_hashs = "{";
@@ -123,6 +129,7 @@ std::string Workload::serialize_workload()
     file_str += "}";
     plot_data += file_str + ";";
 
+    sgx_thread_mutex_unlock(&g_workload_mutex);
     return plot_data;
 }
 

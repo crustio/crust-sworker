@@ -34,7 +34,7 @@ std::string get_leaf_path(const char *g_path, const size_t now_index, const unsi
 std::string get_g_path_with_hash(const char *dir_path, const unsigned char *hash)
 {
     std::string g_path = std::string(dir_path) + "/";
-    return g_path + '-' + unsigned_char_array_to_hex_string(hash, HASH_LENGTH);
+    return g_path + unsigned_char_array_to_hex_string(hash, HASH_LENGTH);
 }
 
 /**
