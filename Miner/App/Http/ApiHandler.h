@@ -28,11 +28,11 @@ public:
     int test = 32;
 
 private:
-    sgx_enclave_id_t *p_global_eid; /* The point for sgx global eid*/
+    static sgx_enclave_id_t *p_global_eid; /* The point for sgx global eid*/
     httplib::Server *server;
     void handle_get(httplib::Request req);
     void handle_post(httplib::Request req);
-    void *change_empty(void *vargp);
+    static void *change_empty(void *vargp);
 };
 
 #endif /* !_CRUST_API_HANDLER_H_ */

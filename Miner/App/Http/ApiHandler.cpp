@@ -17,7 +17,7 @@ std::mutex change_empty_mutex;
 ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
 {
     this->server = new Server();
-    this->p_global_eid = p_global_eid_in;
+    ApiHandler::p_global_eid = p_global_eid_in;
 }
 
 /**
@@ -349,7 +349,7 @@ int ApiHandler::start()
         else
         {
             pthread_t wthread;
-            if (pthread_create(&wthread, NULL, this->change_empty, (void *)&change) != 0)
+            if (pthread_create(&wthread, NULL, ApiHandler::change_empty, (void *)&change) != 0)
             {
                 change_empty_mutex.lock();
                 in_changing_empty = false;
@@ -391,6 +391,7 @@ ApiHandler::~ApiHandler()
 void *ApiHandler::change_empty(void *vargp)
 {
     int change = *((int *)vargp);
+    Config *p_config = Config::get_instance();
 
     if (change > 0)
     {
@@ -400,7 +401,7 @@ void *ApiHandler::change_empty(void *vargp)
         #pragma omp parallel for num_threads(p_config->plot_thread_num)
         for (size_t i = 0; i < (size_t)change; i++)
         {
-            ecall_plot_disk(*this->p_global_eid, p_config->empty_path.c_str());
+            ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
         }
 
         p_config->change_empty_capacity(change);
@@ -415,4 +416,6 @@ void *ApiHandler::change_empty(void *vargp)
     change_empty_mutex.lock();
     in_changing_empty = false;
     change_empty_mutex.unlock();
+
+    return NULL;
 }
