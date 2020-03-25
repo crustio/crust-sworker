@@ -58,7 +58,7 @@ void ecall_plot_disk(const char *path)
     delete[] hashs;
 
     /* Change G path name */
-    std::string new_g_path = g_path + '-' + unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH);
+    std::string new_g_path = get_g_path_with_hash(path, g_out_hash256);
     ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
 
     cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
@@ -68,6 +68,29 @@ void ecall_plot_disk(const char *path)
     {
         get_workload()->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
+    sgx_thread_mutex_unlock(&g_plot_empty_mutex);
+}
+
+/**
+ * @description: decrease empty files under directory
+ * @param path -> the directory path
+ * @param change -> reduction
+ */
+void ecall_decrease_disk(const char *path, size_t change)
+{
+    Workload *workload = get_workload();
+    sgx_thread_mutex_lock(&g_plot_empty_mutex);
+    size_t decrease_num = 0;
+
+    for (size_t i = workload->empty_g_hashs.size(); (decrease_num == change) || (i > 0); i--)
+    {
+        if (!is_null_hash(workload->empty_g_hashs[i - 1]))
+        {
+            // ocall_delete_folder()
+            decrease_num++;
+        }
+    }
+
     sgx_thread_mutex_unlock(&g_plot_empty_mutex);
 }
 

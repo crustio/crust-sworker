@@ -31,7 +31,7 @@ void validate_empty_disk(const char *path)
 
         /* Get M hashs */
         unsigned char *m_hashs_o = NULL;
-        std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
+        std::string g_path = get_g_path_with_hash(path, workload->empty_g_hashs[i]);
         size_t m_hashs_size = 0;
         ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)

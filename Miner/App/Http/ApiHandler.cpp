@@ -382,7 +382,7 @@ int ApiHandler::start()
             {
                 res.set_content("Change empty file success, the empty workload will change in next validation loop", "text/plain");
                 res.status = 200;
-                goto end_change_empty;
+                return;
             }
         }
     end_change_empty:
@@ -414,7 +414,7 @@ ApiHandler::~ApiHandler()
     delete this->server;
 }
 
-void *ApiHandler::change_empty(void)
+void *ApiHandler::change_empty(void *)
 {
     Config *p_config = Config::get_instance();
     int change = change_empty_num;
@@ -423,19 +423,20 @@ void *ApiHandler::change_empty(void)
     {
         // Increase empty plot
         cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", change, p_config->plot_thread_num);
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-#pragma omp parallel for num_threads(p_config->plot_thread_num)
+        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+        #pragma omp parallel for num_threads(p_config->plot_thread_num)
         for (size_t i = 0; i < (size_t)change; i++)
         {
             ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
         }
 
         p_config->change_empty_capacity(change);
-        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change in next validation loop\n", change);
+        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", change);
     }
     else if (change < 0)
     {
         change = -change;
+        ecall_decrease_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str(), (size_t) change);
         cprintf_info(felog, "Decrease %dG empty file success, the empty workload will change in next validation loop\n", change);
     }
 
