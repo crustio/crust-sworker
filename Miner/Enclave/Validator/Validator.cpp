@@ -1,5 +1,7 @@
 #include "Validator.h"
 
+extern sgx_thread_mutex_t g_plot_empty_mutex;
+
 /**
  * @description: validate empty disk
  * @param path -> the empty disk path
@@ -7,17 +9,21 @@
 void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
+    sgx_thread_mutex_lock(&g_plot_empty_mutex);
     if (get_workload()->empty_disk_capacity == 0)
     {
         return;
     }
+    sgx_thread_mutex_unlock(&g_plot_empty_mutex);
 
     for (size_t i = 0; i < workload->empty_g_hashs.size(); i++)
     {
+        sgx_thread_mutex_lock(&g_plot_empty_mutex);
         if (is_null_hash(get_workload()->empty_g_hashs[i]))
         {
             break;
         }
+        sgx_thread_mutex_unlock(&g_plot_empty_mutex);
 
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);

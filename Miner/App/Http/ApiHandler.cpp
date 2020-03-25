@@ -6,8 +6,8 @@ using namespace httplib;
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
 extern FILE *felog;
-bool in_increasing_empty = false;
-std::mutex increase_empty_mutex;
+bool in_changing_empty = false;
+std::mutex change_empty_mutex;
 
 /**
  * @description: constructor
@@ -311,21 +311,21 @@ int ApiHandler::start()
     });
 
     // Inner APIs
-    path = urlendpoint->base + "/increase/empty";
+    path = urlendpoint->base + "/change/empty";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         // Guaranteed that only one service is running
-        increase_empty_mutex.lock();
-        if (in_increasing_empty)
+        change_empty_mutex.lock();
+        if (in_changing_empty)
         {
             cprintf_err(felog, "Service busy\n");
             res.set_content("Service busy", "text/plain");
             res.status = 500;
-            increase_empty_mutex.unlock();
+            change_empty_mutex.unlock();
             return;
         }
-        
-        in_increasing_empty = true;
-        increase_empty_mutex.unlock();
+
+        in_changing_empty = true;
+        change_empty_mutex.unlock();
 
         // Check input parameters
         json::JSON req_json = json::JSON::Load(req.body);
@@ -338,56 +338,31 @@ int ApiHandler::start()
             cprintf_err(felog, "Invalid backup\n");
             res.set_content("Invalid backup", "text/plain");
             res.status = 400;
-            goto end_increase_empty;
         }
 
-        if (change <= 0)
+        if (change == 0)
         {
             cprintf_err(felog, "Invalid change\n");
             res.set_content("Invalid change", "text/plain");
             res.status = 400;
-            goto end_increase_empty;
         }
         else
         {
-            // Increase empty plot
-            cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
-            // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-            #pragma omp parallel for num_threads(p_config->plot_thread_num)
-            for (size_t i = 0; i < change; i++)
+            pthread_t wthread;
+            if (pthread_create(&wthread, NULL, this->change_empty, (void *)&change) != 0)
             {
-                ecall_plot_disk(*this->p_global_eid, p_config->empty_path.c_str());
+                change_empty_mutex.lock();
+                in_changing_empty = false;
+                change_empty_mutex.unlock();
+                res.set_content("Create change empty thread error", "text/plain");
+                res.status = 500;
             }
-
-            p_config->change_empty_capacity(change);
-
-            cprintf_info(felog, "Increase %dG empty file success, the empty workload will change in next validation loop\n", change);
-            res.set_content("Increase empty file success, the empty workload will change in next validation loop", "text/plain");
-            res.status = 200;
-            goto end_increase_empty;
+            else
+            {
+                res.set_content("Change empty file success, the empty workload will change in next validation loop", "text/plain");
+                res.status = 200;
+            }
         }
-
-    end_increase_empty:
-        increase_empty_mutex.lock();
-        in_increasing_empty = false;
-        increase_empty_mutex.unlock();
-    });
-
-    path = urlendpoint->base + "/decrease/empty";
-    server->Post(path.c_str(), [&](const Request &req, Response &res) {
-        // Decrease empty plot
-        enum ValidationStatus validation_status = ValidateStop;
-
-        if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
-        {
-            cprintf_err(felog, "Get validation status failed\n");
-            res.set_content("Internal error", "text/plain");
-            res.status = 500;
-        }
-
-        cprintf_info(felog, "Decrease %dG empty file success\n", -change);
-        res.set_content("Decrease empty file success", "text/plain");
-        res.status = 200;
     });
 
     server->listen(urlendpoint->ip.c_str(), urlendpoint->port);
@@ -411,4 +386,33 @@ int ApiHandler::stop()
 ApiHandler::~ApiHandler()
 {
     delete this->server;
+}
+
+void *ApiHandler::change_empty(void *vargp)
+{
+    int change = *((int *)vargp);
+
+    if (change > 0)
+    {
+        // Increase empty plot
+        cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
+        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+        #pragma omp parallel for num_threads(p_config->plot_thread_num)
+        for (size_t i = 0; i < (size_t)change; i++)
+        {
+            ecall_plot_disk(*this->p_global_eid, p_config->empty_path.c_str());
+        }
+
+        p_config->change_empty_capacity(change);
+        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change in next validation loop\n", change);
+    }
+    else if (change < 0)
+    {
+        change = -change;
+        cprintf_info(felog, "Decrease %dG empty file success, the empty workload will change in next validation loop\n", change);
+    }
+
+    change_empty_mutex.lock();
+    in_changing_empty = false;
+    change_empty_mutex.unlock();
 }

@@ -1,7 +1,7 @@
 #include "PlotDisk.h"
 
 /* Used to update workload->empty_g_hashs multiple threads */
-sgx_thread_mutex_t g_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_plot_empty_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 /**
  * @description: plot one G disk under directory, can be called from multiple threads
@@ -17,14 +17,14 @@ void ecall_plot_disk(const char *path)
     sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
 
     // New and get now G hash index
-    sgx_thread_mutex_lock(&g_mutex);
+    sgx_thread_mutex_lock(&g_plot_empty_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
     get_workload()->empty_g_hashs.push_back((uint8_t *)malloc(HASH_LENGTH));
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
         get_workload()->empty_g_hashs[now_index][i] = 0;
     }
-    sgx_thread_mutex_unlock(&g_mutex);
+    sgx_thread_mutex_unlock(&g_plot_empty_mutex);
 
     // Create directory
     std::string g_path = get_g_path(path, now_index);
@@ -63,12 +63,12 @@ void ecall_plot_disk(const char *path)
 
     cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 
-    sgx_thread_mutex_lock(&g_mutex);
+    sgx_thread_mutex_lock(&g_plot_empty_mutex);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
         get_workload()->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
-    sgx_thread_mutex_unlock(&g_mutex);
+    sgx_thread_mutex_unlock(&g_plot_empty_mutex);
 }
 
 /**
@@ -76,7 +76,7 @@ void ecall_plot_disk(const char *path)
  */
 void ecall_generate_empty_root(void)
 {
-    sgx_thread_mutex_lock(&g_mutex);
+    sgx_thread_mutex_lock(&g_plot_empty_mutex);
 
     // Get hashs for hash
     unsigned char *hashs = (unsigned char *)malloc(get_workload()->empty_g_hashs.size() * HASH_LENGTH);
@@ -109,7 +109,7 @@ void ecall_generate_empty_root(void)
     }
 
     free(hashs);
-    sgx_thread_mutex_unlock(&g_mutex);
+    sgx_thread_mutex_unlock(&g_plot_empty_mutex);
 }
 
 /**
