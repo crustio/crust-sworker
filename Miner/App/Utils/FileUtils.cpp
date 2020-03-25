@@ -90,7 +90,6 @@ int rm_dir(std::string dir_full_path)
         std::string sub_path = dir_full_path + '/' + dir->d_name;
         if (lstat(sub_path.c_str(), &st) == -1)
         {
-            Log("rm_dir:lstat ", sub_path, " error");
             continue;
         }
         if (S_ISDIR(st.st_mode))
@@ -108,7 +107,6 @@ int rm_dir(std::string dir_full_path)
         }
         else
         {
-            Log("rm_dir:st_mode ", sub_path, " error");
             continue;
         }
     }

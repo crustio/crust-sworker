@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <vector>
 #include <string.h>
+#include <sys/stat.h>
 
 std::vector<std::string> get_files_under_path(std::string path);
 std::vector<std::string> get_folders_under_path(std::string path);
