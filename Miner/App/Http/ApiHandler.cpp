@@ -8,6 +8,7 @@ const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "V
 extern FILE *felog;
 bool in_changing_empty = false;
 std::mutex change_empty_mutex;
+int change_empty_num = 0;
 
 sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
 
@@ -42,7 +43,7 @@ int ApiHandler::start()
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         enum ValidationStatus validation_status = ValidateStop;
 
-        if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
+        if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
         {
             cprintf_err(felog, "Get validation status failed.\n");
             res.set_content("InternalError", "text/plain");
@@ -57,14 +58,14 @@ int ApiHandler::start()
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         /* Call ecall function to get work report */
         size_t report_len = 0;
-        if (ecall_generate_validation_report(*this->p_global_eid, &report_len) != SGX_SUCCESS)
+        if (ecall_generate_validation_report(*ApiHandler::p_global_eid, &report_len) != SGX_SUCCESS)
         {
             cprintf_err(felog, "Generate validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
-        if (ecall_get_validation_report(*this->p_global_eid, report, report_len) != SGX_SUCCESS)
+        if (ecall_get_validation_report(*ApiHandler::p_global_eid, report, report_len) != SGX_SUCCESS)
         {
             cprintf_err(felog, "Get validation report failed.\n");
             res.set_content("InternalError", "text/plain");
@@ -121,7 +122,7 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*this->p_global_eid, &common_status,
+        status_ret = ecall_store_quote(*ApiHandler::p_global_eid, &common_status,
                                        (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
                                        data_sig_str.size(), &data_sig);
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
@@ -233,7 +234,7 @@ int ApiHandler::start()
         /* Verify IAS report in enclave */
         ias_status_t ias_status_ret;
         entry_network_signature ensig;
-        status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
+        status_ret = ecall_verify_iasreport(*ApiHandler::p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)
         {
             if (ias_status_ret == IAS_VERIFY_SUCCESS)
@@ -325,13 +326,12 @@ int ApiHandler::start()
             change_empty_mutex.unlock();
             return;
         }
-
         in_changing_empty = true;
         change_empty_mutex.unlock();
 
         // Check input parameters
         json::JSON req_json = json::JSON::Load(req.body);
-        int change = req_json["change"].ToInt();
+        change_empty_num = req_json["change"].ToInt();
         std::string backup = req_json["backup"].ToString();
         remove_chars_from_string(backup, "\\");
 
@@ -340,31 +340,55 @@ int ApiHandler::start()
             cprintf_err(felog, "Invalid backup\n");
             res.set_content("Invalid backup", "text/plain");
             res.status = 400;
+            goto end_change_empty;
         }
 
-        if (change == 0)
+        if (change_empty_num == 0)
         {
             cprintf_err(felog, "Invalid change\n");
             res.set_content("Invalid change", "text/plain");
             res.status = 400;
+            goto end_change_empty;
         }
         else
         {
-            pthread_t wthread;
-            if (pthread_create(&wthread, NULL, ApiHandler::change_empty, (void *)&change) != 0)
+            // Check TEE has already launched
+            enum ValidationStatus validation_status = ValidateStop;
+
+            if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
             {
-                change_empty_mutex.lock();
-                in_changing_empty = false;
-                change_empty_mutex.unlock();
+                cprintf_err(felog, "Get validation status failed.\n");
+                res.set_content("Get validation status failed", "text/plain");
+                res.status = 500;
+                goto end_change_empty;
+            }
+            else if (validation_status == ValidateStop)
+            {
+                cprintf_err(felog, "TEE has not been fully launched.\n");
+                res.set_content("TEE has not been fully launched", "text/plain");
+                res.status = 500;
+                goto end_change_empty;
+            }
+
+            // Start changing empty
+            pthread_t wthread;
+            if (pthread_create(&wthread, NULL, ApiHandler::change_empty, NULL) != 0)
+            {
                 res.set_content("Create change empty thread error", "text/plain");
                 res.status = 500;
+                goto end_change_empty;
             }
             else
             {
                 res.set_content("Change empty file success, the empty workload will change in next validation loop", "text/plain");
                 res.status = 200;
+                goto end_change_empty;
             }
         }
+    end_change_empty:
+        change_empty_mutex.lock();
+        in_changing_empty = false;
+        change_empty_mutex.unlock();
     });
 
     server->listen(urlendpoint->ip.c_str(), urlendpoint->port);
@@ -390,17 +414,17 @@ ApiHandler::~ApiHandler()
     delete this->server;
 }
 
-void *ApiHandler::change_empty(void *vargp)
+void *ApiHandler::change_empty(void)
 {
-    int change = *((int *)vargp);
     Config *p_config = Config::get_instance();
+    int change = change_empty_num;
 
     if (change > 0)
     {
         // Increase empty plot
-        cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
-        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-        #pragma omp parallel for num_threads(p_config->plot_thread_num)
+        cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", change, p_config->plot_thread_num);
+// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+#pragma omp parallel for num_threads(p_config->plot_thread_num)
         for (size_t i = 0; i < (size_t)change; i++)
         {
             ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());

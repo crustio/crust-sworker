@@ -885,7 +885,7 @@ void *do_disk_related(void *args)
  */
 bool do_plot_disk(void)
 {
-    cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", p_config->plot_thread_num);
+    cprintf_info(felog, "Start ploting disk %luG (plot thread number: %d) ...\n", p_config->empty_capacity, p_config->plot_thread_num);
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
     #pragma omp parallel for num_threads(p_config->plot_thread_num)
     for (size_t i = 0; i < p_config->empty_capacity; i++)

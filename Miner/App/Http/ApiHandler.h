@@ -32,7 +32,7 @@ private:
     httplib::Server *server;
     void handle_get(httplib::Request req);
     void handle_post(httplib::Request req);
-    static void *change_empty(void *vargp);
+    static void *change_empty(void);
 };
 
 #endif /* !_CRUST_API_HANDLER_H_ */
