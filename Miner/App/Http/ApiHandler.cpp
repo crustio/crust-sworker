@@ -9,6 +9,8 @@ extern FILE *felog;
 bool in_changing_empty = false;
 std::mutex change_empty_mutex;
 
+sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
+
 /**
  * @description: constructor
  * @param url -> API base url 
@@ -317,8 +319,8 @@ int ApiHandler::start()
         change_empty_mutex.lock();
         if (in_changing_empty)
         {
-            cprintf_err(felog, "Service busy\n");
-            res.set_content("Service busy", "text/plain");
+            cprintf_err(felog, "Change empty service busy\n");
+            res.set_content("Change empty service busy", "text/plain");
             res.status = 500;
             change_empty_mutex.unlock();
             return;

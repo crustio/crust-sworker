@@ -21,6 +21,7 @@ void validate_empty_disk(const char *path)
         sgx_thread_mutex_lock(&g_plot_empty_mutex);
         if (is_null_hash(get_workload()->empty_g_hashs[i]))
         {
+            sgx_thread_mutex_unlock(&g_plot_empty_mutex);
             break;
         }
         sgx_thread_mutex_unlock(&g_plot_empty_mutex);

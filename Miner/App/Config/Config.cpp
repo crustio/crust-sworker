@@ -122,7 +122,7 @@ void Config::show(void)
 void Config::change_empty_capacity(int change)
 {
     // Get now empty_capacity
-    if(change >= 0 || -change <= this->empty_capacity)
+    if (change >= 0 || (size_t)-change <= this->empty_capacity)
     {
         this->empty_capacity += change;
     }
