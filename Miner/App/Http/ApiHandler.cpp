@@ -320,7 +320,7 @@ int ApiHandler::start()
         change_empty_mutex.lock();
         if (in_changing_empty)
         {
-            cprintf_err(felog, "Change empty service busy\n");
+            cprintf_info(felog, "Change empty service busy\n");
             res.set_content("Change empty service busy", "text/plain");
             res.status = 500;
             change_empty_mutex.unlock();
@@ -337,7 +337,7 @@ int ApiHandler::start()
 
         if (backup != p_config->crust_backup)
         {
-            cprintf_err(felog, "Invalid backup\n");
+            cprintf_info(felog, "Invalid backup\n");
             res.set_content("Invalid backup", "text/plain");
             res.status = 400;
             goto end_change_empty;
@@ -345,7 +345,7 @@ int ApiHandler::start()
 
         if (change_empty_num == 0)
         {
-            cprintf_err(felog, "Invalid change\n");
+            cprintf_info(felog, "Invalid change\n");
             res.set_content("Invalid change", "text/plain");
             res.status = 400;
             goto end_change_empty;
@@ -357,14 +357,14 @@ int ApiHandler::start()
 
             if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
             {
-                cprintf_err(felog, "Get validation status failed.\n");
+                cprintf_info(felog, "Get validation status failed.\n");
                 res.set_content("Get validation status failed", "text/plain");
                 res.status = 500;
                 goto end_change_empty;
             }
             else if (validation_status == ValidateStop)
             {
-                cprintf_err(felog, "TEE has not been fully launched.\n");
+                cprintf_info(felog, "TEE has not been fully launched.\n");
                 res.set_content("TEE has not been fully launched", "text/plain");
                 res.status = 500;
                 goto end_change_empty;
@@ -374,6 +374,7 @@ int ApiHandler::start()
             pthread_t wthread;
             if (pthread_create(&wthread, NULL, ApiHandler::change_empty, NULL) != 0)
             {
+                cprintf_err(felog, "Create change empty thread error.\n");
                 res.set_content("Create change empty thread error", "text/plain");
                 res.status = 500;
                 goto end_change_empty;

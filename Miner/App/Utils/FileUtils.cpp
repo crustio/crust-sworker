@@ -162,7 +162,23 @@ size_t get_free_space_under_directory(std::string path)
 {
     struct statfs disk_info;
     statfs(path.c_str(), &disk_info);
-    unsigned long long total_blocks = disk_info.f_bsize;
-    unsigned long long free_disk = disk_info.f_bfree * total_blocks;
+    size_t total_blocks = disk_info.f_bsize;
+    size_t free_disk = (size_t)disk_info.f_bfree * total_blocks;
     return free_disk >> 20;
+}
+
+/**
+ * @description: create directory
+ * @param path -> the directory path
+ */
+bool create_directory(std::string path)
+{
+    if (access(path.c_str(), 0) == -1)
+    {
+        if (system((std::string("mkdir -p ") + path).c_str()) == -1)
+        {
+            return false;
+        }
+    }
+    return true;
 }

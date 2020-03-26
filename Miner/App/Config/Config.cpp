@@ -43,7 +43,7 @@ Config::Config(std::string path)
     this->base_path = config_value["base_path"].ToString();
     this->recover_file_path = this->base_path + "/recover.bin";
     this->empty_path = this->base_path + "/empty_path";
-    this->empty_capacity = (size_t)config_value["empty_capacity"].ToInt();
+    this->empty_capacity = config_value["empty_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["empty_capacity"].ToInt();
     this->api_base_url = config_value["api_base_url"].ToString();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
     this->plot_thread_num = std::min(omp_get_num_procs(), 8);

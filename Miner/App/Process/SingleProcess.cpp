@@ -483,6 +483,7 @@ void *do_upload_work_report_s(void *)
  */
 void *do_plot_disk_s(void *)
 {
+    create_directory(p_config->empty_path);
     size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
     cprintf_info(felog, "Free space is %luG disk\n", free_space);
     size_t true_plot = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
@@ -495,6 +496,7 @@ void *do_plot_disk_s(void *)
     }
 
     cprintf_info(felog, "Plot disk %luG successed.\n", true_plot);
+    return NULL;
 }
 
 /**
