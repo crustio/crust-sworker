@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <algorithm>
+#include <mutex>
 #include <sgx_report.h>
 #include <sgx_key_exchange.h>
 #include <sgx_error.h>
@@ -16,7 +17,7 @@
 #include "SgxSupport.h"
 #include "Resource.h"
 #include "HttpLib.h"
-
+#include "FileUtils.h"
 
 class ApiHandler
 {
@@ -28,10 +29,11 @@ public:
     int test = 32;
 
 private:
-    sgx_enclave_id_t *p_global_eid;                                     /* The point for sgx global eid*/
+    static sgx_enclave_id_t *p_global_eid; /* The point for sgx global eid*/
     httplib::Server *server;
     void handle_get(httplib::Request req);
     void handle_post(httplib::Request req);
+    static void *change_empty(void *);
 };
 
 #endif /* !_CRUST_API_HANDLER_H_ */

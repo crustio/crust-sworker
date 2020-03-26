@@ -885,26 +885,18 @@ void *do_disk_related(void *args)
  */
 bool do_plot_disk(void)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    int num_procs = omp_get_num_procs();
-    int plot_thread_num = std::min(num_procs, 8);
-
-    cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", plot_thread_num);
+    size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
+    cprintf_info(felog, "Free space is %luG disk\n", free_space);
+    size_t true_plot= free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
+    cprintf_info(felog, "Start ploting disk %luG (plot thread number: %d) ...\n", true_plot, p_config->plot_thread_num);
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-    #pragma omp parallel for num_threads(plot_thread_num)
-    for (size_t i = 0; i < p_config->empty_capacity; i++)
+    #pragma omp parallel for num_threads(p_config->plot_thread_num)
+    for (size_t i = 0; i < true_plot; i++)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
     }
 
-    // Generate empty root
-    ret = ecall_generate_empty_root(global_eid);
-    if (ret != SGX_SUCCESS)
-    {
-        cprintf_err(felog, "Generate empty root failed. Error code:%08x\n", 
-                 ret);
-        return false;
-    }
+    cprintf_info(felog, "Plot disk %luG successed.\n", true_plot);
 
     return true;
 }

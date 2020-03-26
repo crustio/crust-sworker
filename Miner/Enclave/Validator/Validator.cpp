@@ -1,5 +1,7 @@
 #include "Validator.h"
 
+extern sgx_thread_mutex_t g_workload_mutex;
+
 /**
  * @description: validate empty disk
  * @param path -> the empty disk path
@@ -7,86 +9,116 @@
 void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
-
-    /* Get current capacity */
-    size_t current_capacity = 0;
-    ocall_get_folders_number_under_path(&current_capacity, path);
-
-    for (size_t i = 0; i < (workload->empty_g_hashs.size() < current_capacity ? workload->empty_g_hashs.size() : current_capacity); i++)
+    sgx_thread_mutex_lock(&g_workload_mutex);
+    if (get_workload()->empty_disk_capacity == 0)
     {
-        unsigned char rand_val;
-        sgx_read_rand((unsigned char *)&rand_val, 1);
+        sgx_thread_mutex_unlock(&g_workload_mutex);
+        return;
+    }
+    sgx_thread_mutex_unlock(&g_workload_mutex);
 
-        /* Get M hashs */
+    for (auto it_g_hash = workload->empty_g_hashs.begin(); it_g_hash != workload->empty_g_hashs.end(); it_g_hash++)
+    {
+        // Base info
+        unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
+        std::string g_path;
+
+        // For checking M hashs
         unsigned char *m_hashs_o = NULL;
-        std::string g_path = get_g_path_with_hash(path, i, workload->empty_g_hashs[i]);
         size_t m_hashs_size = 0;
+        unsigned char *m_hashs = NULL;
+        sgx_sha256_hash_t m_hashs_hash256;
+
+        // For checking leaf
+        unsigned int rand_val_m;
+        size_t select = 0;
+        std::string leaf_path;
+        unsigned char *leaf_data = NULL;
+        size_t leaf_data_len = 0;
+        sgx_sha256_hash_t leaf_data_hash256;
+
+        // Get g hash
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        for (size_t j = 0; j < HASH_LENGTH; j++)
+        {
+            g_hash[j] = (*it_g_hash)[j];
+        }
+
+        if (is_null_hash(g_hash))
+        {
+            sgx_thread_mutex_unlock(&g_workload_mutex);
+            goto end_validate_one_g_empty;
+        }
+        sgx_thread_mutex_unlock(&g_workload_mutex);
+        g_path = get_g_path_with_hash(path, g_hash);
+
+        // Get M hashs
         ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)
         {
-            cfeprintf("\n!!!!USER CHEAT: GET M HASHS FAILED!!!!\n");
-            return;
+            cfeprintf("Get m hashs file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
+            goto end_validate_one_g_empty_failed;
         }
 
-        unsigned char *m_hashs = new unsigned char[m_hashs_size];
+        m_hashs = new unsigned char[m_hashs_size];
         for (size_t j = 0; j < m_hashs_size; j++)
         {
             m_hashs[j] = m_hashs_o[j];
         }
 
-        /* Compare m hashs */
-        sgx_sha256_hash_t m_hashs_hash256;
+        /* Compare M hashs */
         sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_hash256);
-
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
-            if (workload->empty_g_hashs[i][j] != m_hashs_hash256[j])
+            if (g_hash[j] != m_hashs_hash256[j])
             {
-                cfeprintf("\n!!!!USER CHEAT: WRONG M HASHS!!!!\n");
-                return;
+                cfeprintf("Wrong m hashs file in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
+                goto end_validate_one_g_empty_failed;
             }
         }
 
         /* Get leaf data */
-        unsigned int rand_val_m;
         sgx_read_rand((unsigned char *)&rand_val_m, 4);
-        size_t select = rand_val_m % PLOT_RAND_DATA_NUM;
-        std::string leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
-        // eprintf("Select path: %s\n", leaf_path.c_str());
-
-        unsigned char *leaf_data = NULL;
-        size_t leaf_data_len = 0;
+        select = rand_val_m % PLOT_RAND_DATA_NUM;
+        leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
         ocall_get_file(leaf_path.c_str(), &leaf_data, &leaf_data_len);
 
         if (leaf_data == NULL)
         {
-            cfeprintf("\n!!!!USER CHEAT: GET LEAF DATA FAILED!!!!\n");
-            return;
+            cfeprintf("Get leaf file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
+            goto end_validate_one_g_empty_failed;
         }
 
         /* Compare leaf data */
-        sgx_sha256_hash_t leaf_data_hash256;
         sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_data_hash256);
 
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
             if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
             {
-                cfeprintf("\n!!!!USER CHEAT: WRONG LEAF DATA HASHS!!!!\n");
-                return;
+                cfeprintf("Wrong leaf data hash in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
+                goto end_validate_one_g_empty_failed;
             }
         }
 
-        delete[] m_hashs;
-    }
+    goto end_validate_one_g_empty;
+    end_validate_one_g_empty_failed:
+        ocall_delete_folder_or_file(g_path.c_str());
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        workload->empty_g_hashs.erase(it_g_hash);
+        sgx_thread_mutex_unlock(&g_workload_mutex);
+        it_g_hash--;
 
-    for (size_t i = workload->empty_g_hashs.size() - 1; i > current_capacity - 1; i--)
-    {
-        delete[] workload->empty_g_hashs[i];
-        workload->empty_g_hashs.pop_back();
+    end_validate_one_g_empty:
+        if (g_hash != NULL)
+        {
+            free(g_hash);
+        }
+        if (m_hashs != NULL)
+        {
+            delete[] m_hashs;
+        }
     }
-
-    ecall_generate_empty_root();
 }
 
 /* Question: use files[i].cid will cause error. Files copy to envlave or files address copy to enclave? */

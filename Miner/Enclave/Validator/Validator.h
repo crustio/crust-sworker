@@ -2,6 +2,7 @@
 #define _CRUST_VALIDATOR_H_
 
 #include <vector>
+#include "sgx_thread.h"
 #include "sgx_trts.h"
 #include "Node.h"
 #include "MerkleTree.h"

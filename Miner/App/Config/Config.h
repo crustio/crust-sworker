@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string>
 #include <fstream>
+#include <omp.h>
 #include "Resource.h"
 #include "Json.hpp"
 #include "Common.h"
@@ -13,13 +14,17 @@
 class Config
 {
 public:
-    std::string base_path;              /* Tee base path */
+    // base information
+    std::string base_path;              /* TEE base path */
     std::string recover_file_path;      /* Recover file path */
     std::string empty_path;             /* Empty validation files base path */
     size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
-    std::string ipfs_api_base_url;      /* Used to connect to IPFS */
     std::string api_base_url;           /* External API base url */
     std::string validator_api_base_url; /* Validator base API base url */
+    int plot_thread_num;                /* plot empty files thread number */
+
+    // crust storage
+    std::string ipfs_api_base_url; /* Used to connect to IPFS */
 
     // crust chain
     std::string crust_api_base_url; /* Used to connect to Crust API */
@@ -46,6 +51,7 @@ public:
     static Config *config;
 
     void show(void);
+    void change_empty_capacity(int change);
     static Config *get_instance();
 
 private:

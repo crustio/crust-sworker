@@ -22,6 +22,8 @@ std::string g_entry_net_res = "";
 extern FILE *felog;
 extern bool run_as_server;
 extern bool offline_chain_mode;
+extern bool in_changing_empty;
+extern std::mutex change_empty_mutex;
 
 /**
  * @description: Init configuration
@@ -481,30 +483,30 @@ void *do_upload_work_report_s(void *)
  * @description: plot disk
  * @return: successed or failed
  */
-bool do_plot_disk_s(void)
+void *do_plot_disk_s(void *)
 {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    int num_procs = omp_get_num_procs();
-    int plot_thread_num = std::min(num_procs, 8);
+    change_empty_mutex.lock();
+    in_changing_empty = true;
+    change_empty_mutex.unlock();
 
-    cprintf_info(felog, "Start ploting disk (plot thread number: %d) ...\n", plot_thread_num);
+    create_directory(p_config->empty_path);
+    size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
+    cprintf_info(felog, "Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
+    size_t true_plot = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
+    cprintf_info(felog, "Start ploting disk %luG (plot thread number: %d) ...\n", true_plot, p_config->plot_thread_num);
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-    #pragma omp parallel for num_threads(plot_thread_num)
-    for (size_t i = 0; i < p_config->empty_capacity; i++)
+    #pragma omp parallel for num_threads(p_config->plot_thread_num)
+    for (size_t i = 0; i < true_plot; i++)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
     }
 
-    // Generate empty root
-    ret = ecall_generate_empty_root(global_eid);
-    if (ret != SGX_SUCCESS)
-    {
-        cprintf_err(felog, "Generate empty root failed. Error code:%08x\n",
-                    ret);
-        return false;
-    }
+    change_empty_mutex.lock();
+    in_changing_empty = false;
+    change_empty_mutex.unlock();
 
-    return true;
+    cprintf_info(felog, "Plot disk %luG successed.\n", true_plot);
+    return NULL;
 }
 
 /**
@@ -514,6 +516,7 @@ void start(void)
 {
     pid_t workerPID = getpid();
     pthread_t wthread;
+    pthread_t plot_thread;
     sgx_status_t sgx_status = SGX_SUCCESS;
     common_status_t common_status = CRUST_SUCCESS;
     cprintf_info(felog, "WorkerPID=%d\n", workerPID);
@@ -572,12 +575,11 @@ void start(void)
         cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
 
         /* Plot empty disk */
-        if (!do_plot_disk_s())
+        if (pthread_create(&plot_thread, NULL, do_plot_disk_s, NULL) != 0)
         {
-            cprintf_err(felog, "Plot empty disk failed!\n");
+            cprintf_err(felog, "Create plot empty disk thread failed!\n");
             goto cleanup;
         }
-        cprintf_info(felog, "Plot empty disk successfully!\n");
 
         /* Send identity to chain and send work report */
         if (!offline_chain_mode)

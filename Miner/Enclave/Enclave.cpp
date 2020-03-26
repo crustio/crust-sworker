@@ -15,8 +15,6 @@ string g_run_mode = APP_RUN_MODE_SINGLE;
  */
 void ecall_main_loop(const char *empty_path, const char *recover_file_path)
 {
-    ecall_generate_empty_root();
-
     while (true)
     {
         cfeprintf("-----Meaningful Validation-----\n");
@@ -33,7 +31,9 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         cfeprintf("-----Empty Validation-----\n");
         /* Empty */
         validation_status = ValidateEmpty;
+        ecall_generate_empty_root();
         validate_empty_disk(empty_path);
+        ecall_generate_empty_root();
 
         cfeprintf("-----Validation Waiting-----\n");
         /* Show result */

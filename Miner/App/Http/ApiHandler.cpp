@@ -5,8 +5,12 @@ using namespace httplib;
 
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
-
 extern FILE *felog;
+bool in_changing_empty = false;
+std::mutex change_empty_mutex;
+int change_empty_num = 0;
+
+sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
 
 /**
  * @description: constructor
@@ -16,7 +20,7 @@ extern FILE *felog;
 ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
 {
     this->server = new Server();
-    this->p_global_eid = p_global_eid_in;
+    ApiHandler::p_global_eid = p_global_eid_in;
 }
 
 /**
@@ -34,18 +38,19 @@ int ApiHandler::start()
         return -1;
     }
 
+    // Outter APIs
     std::string path = urlendpoint->base + "/status";
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         enum ValidationStatus validation_status = ValidateStop;
 
-        if (ecall_return_validation_status(*this->p_global_eid, &validation_status) != SGX_SUCCESS)
+        if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
         {
-            cprintf_err(felog, "Get validatiom status failed.\n");
+            cprintf_err(felog, "Get validation status failed.\n");
             res.set_content("InternalError", "text/plain");
             return;
         }
 
-        res.set_content(std::string("{'validationStatus':") + validation_status_strings[validation_status] + "}", "text/plain");
+        res.set_content(std::string("{\"validationStatus\":") + "\"" + validation_status_strings[validation_status] + "\"}", "text/plain");
         return;
     });
 
@@ -53,14 +58,14 @@ int ApiHandler::start()
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         /* Call ecall function to get work report */
         size_t report_len = 0;
-        if (ecall_generate_validation_report(*this->p_global_eid, &report_len) != SGX_SUCCESS)
+        if (ecall_generate_validation_report(*ApiHandler::p_global_eid, &report_len) != SGX_SUCCESS)
         {
             cprintf_err(felog, "Generate validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
-        if (ecall_get_validation_report(*this->p_global_eid, report, report_len) != SGX_SUCCESS)
+        if (ecall_get_validation_report(*ApiHandler::p_global_eid, report, report_len) != SGX_SUCCESS)
         {
             cprintf_err(felog, "Get validation report failed.\n");
             res.set_content("InternalError", "text/plain");
@@ -95,8 +100,8 @@ int ApiHandler::start()
             .append(off_chain_crust_account_id);
         sgx_ec256_signature_t data_sig;
         memset(&data_sig, 0, sizeof(sgx_ec256_signature_t));
-        memcpy(&data_sig, hex_string_to_bytes(signature_str.c_str(), signature_str.size()), 
-                sizeof(sgx_ec256_signature_t));
+        memcpy(&data_sig, hex_string_to_bytes(signature_str.c_str(), signature_str.size()),
+               sizeof(sgx_ec256_signature_t));
 
         if (!get_quote_size(&status_ret, &qsz))
         {
@@ -117,9 +122,9 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*this->p_global_eid, &common_status,
-                (const char *)quote, qsz, (const uint8_t*)data_sig_str.c_str(),
-                data_sig_str.size(), &data_sig);
+        status_ret = ecall_store_quote(*ApiHandler::p_global_eid, &common_status,
+                                       (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
+                                       data_sig_str.size(), &data_sig);
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
         {
             cprintf_err(felog, "Store and verify offChain node data failed!\n");
@@ -191,13 +196,13 @@ int ApiHandler::start()
                         res_json["version"].ToInt());
             }
             cprintf_info(felog, "id:                   = %s\n",
-                     res_json["id"].ToString().c_str());
+                         res_json["id"].ToString().c_str());
             cprintf_info(felog, "timestamp             = %s\n",
-                     res_json["timestamp"].ToString().c_str());
+                         res_json["timestamp"].ToString().c_str());
             cprintf_info(felog, "isvEnclaveQuoteStatus = %s\n",
-                     res_json["isvEnclaveQuoteStatus"].ToString().c_str());
+                         res_json["isvEnclaveQuoteStatus"].ToString().c_str());
             cprintf_info(felog, "isvEnclaveQuoteBody   = %s\n",
-                     res_json["isvEnclaveQuoteBody"].ToString().c_str());
+                         res_json["isvEnclaveQuoteBody"].ToString().c_str());
             std::string iasQuoteStr = res_json["isvEnclaveQuoteBody"].ToString();
             size_t qs;
             char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
@@ -213,23 +218,23 @@ int ApiHandler::start()
             cprintf_info(felog, "\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
 
             cprintf_info(felog, "platformInfoBlob  = %s\n",
-                     res_json["platformInfoBlob"].ToString().c_str());
+                         res_json["platformInfoBlob"].ToString().c_str());
             cprintf_info(felog, "revocationReason  = %s\n",
-                     res_json["revocationReason"].ToString().c_str());
+                         res_json["revocationReason"].ToString().c_str());
             cprintf_info(felog, "pseManifestStatus = %s\n",
-                     res_json["pseManifestStatus"].ToString().c_str());
+                         res_json["pseManifestStatus"].ToString().c_str());
             cprintf_info(felog, "pseManifestHash   = %s\n",
-                     res_json["pseManifestHash"].ToString().c_str());
+                         res_json["pseManifestHash"].ToString().c_str());
             cprintf_info(felog, "nonce             = %s\n",
-                     res_json["nonce"].ToString().c_str());
+                         res_json["nonce"].ToString().c_str());
             cprintf_info(felog, "epidPseudonym     = %s\n",
-                     res_json["epidPseudonym"].ToString().c_str());
+                         res_json["epidPseudonym"].ToString().c_str());
         }
 
         /* Verify IAS report in enclave */
         ias_status_t ias_status_ret;
         entry_network_signature ensig;
-        status_ret = ecall_verify_iasreport(*this->p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
+        status_ret = ecall_verify_iasreport(*ApiHandler::p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)
         {
             if (ias_status_ret == IAS_VERIFY_SUCCESS)
@@ -308,6 +313,85 @@ int ApiHandler::start()
         delete client;
     });
 
+    // Inner APIs
+    path = urlendpoint->base + "/change/empty";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        // Guaranteed that only one service is running
+        change_empty_mutex.lock();
+        if (in_changing_empty)
+        {
+            cprintf_info(felog, "Change empty service busy\n");
+            res.set_content("Change empty service busy", "text/plain");
+            res.status = 500;
+            change_empty_mutex.unlock();
+            return;
+        }
+        in_changing_empty = true;
+        change_empty_mutex.unlock();
+
+        // Check input parameters
+        json::JSON req_json = json::JSON::Load(req.body);
+        change_empty_num = req_json["change"].ToInt();
+        std::string backup = req_json["backup"].ToString();
+        remove_chars_from_string(backup, "\\");
+
+        if (backup != p_config->crust_backup)
+        {
+            cprintf_info(felog, "Invalid backup\n");
+            res.set_content("Invalid backup", "text/plain");
+            res.status = 400;
+            goto end_change_empty;
+        }
+
+        if (change_empty_num == 0)
+        {
+            cprintf_info(felog, "Invalid change\n");
+            res.set_content("Invalid change", "text/plain");
+            res.status = 400;
+            goto end_change_empty;
+        }
+        else
+        {
+            // Check TEE has already launched
+            enum ValidationStatus validation_status = ValidateStop;
+
+            if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
+            {
+                cprintf_info(felog, "Get validation status failed.\n");
+                res.set_content("Get validation status failed", "text/plain");
+                res.status = 500;
+                goto end_change_empty;
+            }
+            else if (validation_status == ValidateStop)
+            {
+                cprintf_info(felog, "TEE has not been fully launched.\n");
+                res.set_content("TEE has not been fully launched", "text/plain");
+                res.status = 500;
+                goto end_change_empty;
+            }
+
+            // Start changing empty
+            pthread_t wthread;
+            if (pthread_create(&wthread, NULL, ApiHandler::change_empty, NULL) != 0)
+            {
+                cprintf_err(felog, "Create change empty thread error.\n");
+                res.set_content("Create change empty thread error", "text/plain");
+                res.status = 500;
+                goto end_change_empty;
+            }
+            else
+            {
+                res.set_content("Change empty file success, the empty workload will change in next validation loop", "text/plain");
+                res.status = 200;
+                return;
+            }
+        }
+    end_change_empty:
+        change_empty_mutex.lock();
+        in_changing_empty = false;
+        change_empty_mutex.unlock();
+    });
+
     server->listen(urlendpoint->ip.c_str(), urlendpoint->port);
 
     return 1;
@@ -329,4 +413,42 @@ int ApiHandler::stop()
 ApiHandler::~ApiHandler()
 {
     delete this->server;
+}
+
+void *ApiHandler::change_empty(void *)
+{
+    Config *p_config = Config::get_instance();
+    int change = change_empty_num;
+
+    if (change > 0)
+    {
+        // Increase empty plot
+        size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
+        cprintf_info(felog, "Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
+        size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, (size_t)change);
+        cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
+        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+        #pragma omp parallel for num_threads(p_config->plot_thread_num)
+        for (size_t i = 0; i < (size_t)true_change; i++)
+        {
+            ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
+        }
+
+        p_config->change_empty_capacity(true_change);
+        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", true_change);
+    }
+    else if (change < 0)
+    {
+        change = -change;
+        size_t true_decrease = 0;
+        ecall_decrease_disk(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
+        p_config->change_empty_capacity(-change);
+        cprintf_info(felog, "Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
+    }
+
+    change_empty_mutex.lock();
+    in_changing_empty = false;
+    change_empty_mutex.unlock();
+
+    return NULL;
 }
