@@ -424,7 +424,7 @@ void *ApiHandler::change_empty(void *)
         // Increase empty plot
         size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
         cprintf_info(felog, "Free space is %luG disk\n", free_space);
-        size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, change);
+        size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, (size_t)change);
         cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
         // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
         #pragma omp parallel for num_threads(p_config->plot_thread_num)
