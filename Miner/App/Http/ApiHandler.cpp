@@ -436,8 +436,9 @@ void *ApiHandler::change_empty(void *)
     else if (change < 0)
     {
         change = -change;
-        ecall_decrease_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str(), (size_t) change);
-        cprintf_info(felog, "Decrease %dG empty file success, the empty workload will change in next validation loop\n", change);
+        size_t true_decrease = 0;
+        ecall_decrease_disk(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t) change);
+        cprintf_info(felog, "Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
     }
 
     change_empty_mutex.lock();

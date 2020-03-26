@@ -3,7 +3,7 @@ enclave {
     
     trusted {
         public void ecall_plot_disk([in, string] const char* path);
-        public void ecall_decrease_disk([in, string] const char* path, size_t change);  
+        public size_t ecall_decrease_disk([in, string] const char* path, size_t change);  
         public void ecall_generate_empty_root(void);         
     };
 };

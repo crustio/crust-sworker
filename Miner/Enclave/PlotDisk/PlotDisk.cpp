@@ -75,7 +75,7 @@ void ecall_plot_disk(const char *path)
  * @param path -> the directory path
  * @param change -> reduction
  */
-void ecall_decrease_disk(const char *path, size_t change)
+size_t ecall_decrease_disk(const char *path, size_t change)
 {
     Workload *workload = get_workload();
     sgx_thread_mutex_lock(&g_workload_mutex);
@@ -91,6 +91,8 @@ void ecall_decrease_disk(const char *path, size_t change)
     }
 
     sgx_thread_mutex_unlock(&g_workload_mutex);
+
+    return decrease_num;
 }
 
 /**
