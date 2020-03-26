@@ -96,8 +96,66 @@ Please follow [crust client](https://github.com/crustio/crust-client) to launch.
 1. Run '**bin/crust-tee --offline**', program will not interact with the chain.
 
 ## API
-- Use 'curl http://<api_base_url_in_Config.json>/api/v0/status' to get validation status
-- Use 'curl http://<api_base_url_in_Config.json>/api/v0/report' to get work report
+### Use 'api/v0/status' to get validation status
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/status
+```
+
+Output:
+```json
+{
+  "validationStatus": "ValidateWaiting"
+}
+```
+
+### Use 'api/v0/report' to get work report
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/report
+```
+
+Output:
+```json
+{
+  "pub_key":"4089f15f91bdc18c52f5744ae2ec798c6f2b137bfbbda55ce3a4978b02bdfbdb862cb21295df8d9a896998c90b48838922e655674ecf8dcfe5bb0cdcb157a0db",
+  "empty_root":"a03a10a416fe3f994c11f3e8740862385fde5af78af8f2997b7cbe0094424a6e",
+  "empty_workload":10737418240,
+  "meaningful_workload":0
+}
+```
+
+### Use 'api/v0/change/empty' to change empty capacity, 
+
+Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative. Parameter 'backup' in body is your chian account's backup, this need be same as 'crust_backup' in configuration file.
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/change/empty' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+	"change": 2,
+	"backup": "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
+}'
+```
+
+Output (200, success):
+```shell
+Change empty file success, the empty workload will change in next validation loop
+```
+
+Output (500, service busy, this API does not support concurrency):
+```shell
+Change empty service busy
+```
+
+Output (500, TEE has not been fully launched , this API does not support concurrency):
+```shell
+'TEE has not been fully launched' or 'Get validation status failed'
+```
+
 
 ## Contribution
 

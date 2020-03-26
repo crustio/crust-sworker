@@ -12,6 +12,7 @@ void validate_empty_disk(const char *path)
     sgx_thread_mutex_lock(&g_workload_mutex);
     if (get_workload()->empty_disk_capacity == 0)
     {
+        sgx_thread_mutex_unlock(&g_workload_mutex);
         return;
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);

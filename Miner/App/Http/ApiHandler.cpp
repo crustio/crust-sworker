@@ -50,7 +50,7 @@ int ApiHandler::start()
             return;
         }
 
-        res.set_content(std::string("{'validationStatus':") + validation_status_strings[validation_status] + "}", "text/plain");
+        res.set_content(std::string("{\"validationStatus\":") + "\"" + validation_status_strings[validation_status] + "\"}", "text/plain");
         return;
     });
 
