@@ -485,7 +485,7 @@ void *do_plot_disk_s(void *)
 {
     create_directory(p_config->empty_path);
     size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
-    cprintf_info(felog, "Free space is %luG disk\n", free_space);
+    cprintf_info(felog, "Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
     size_t true_plot = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
     cprintf_info(felog, "Start ploting disk %luG (plot thread number: %d) ...\n", true_plot, p_config->plot_thread_num);
     // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
