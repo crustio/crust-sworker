@@ -22,6 +22,8 @@ std::string g_entry_net_res = "";
 extern FILE *felog;
 extern bool run_as_server;
 extern bool offline_chain_mode;
+extern bool in_changing_empty;
+extern std::mutex change_empty_mutex;
 
 /**
  * @description: Init configuration
@@ -483,6 +485,10 @@ void *do_upload_work_report_s(void *)
  */
 void *do_plot_disk_s(void *)
 {
+    change_empty_mutex.lock();
+    in_changing_empty = true;
+    change_empty_mutex.unlock();
+
     create_directory(p_config->empty_path);
     size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
     cprintf_info(felog, "Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
@@ -494,6 +500,10 @@ void *do_plot_disk_s(void *)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
     }
+
+    change_empty_mutex.lock();
+    in_changing_empty = false;
+    change_empty_mutex.unlock();
 
     cprintf_info(felog, "Plot disk %luG successed.\n", true_plot);
     return NULL;
