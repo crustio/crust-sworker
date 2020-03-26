@@ -127,28 +127,42 @@ int rm_dir(std::string dir_full_path)
 int rm(std::string path)
 {
     std::string file_path = path;
-    struct stat st;    
-    if(lstat(file_path.c_str(),&st) == -1)
+    struct stat st;
+    if (lstat(file_path.c_str(), &st) == -1)
     {
         return -1;
     }
-    if(S_ISREG(st.st_mode))
+    if (S_ISREG(st.st_mode))
     {
-        if(unlink(file_path.c_str()) == -1)
+        if (unlink(file_path.c_str()) == -1)
         {
             return -1;
-        }    
+        }
     }
-    else if(S_ISDIR(st.st_mode))
+    else if (S_ISDIR(st.st_mode))
     {
-        if(path == "." || path == "..")
+        if (path == "." || path == "..")
         {
             return -1;
-        }    
-        if(rm_dir(file_path) == -1) //delete all the files in dir.
+        }
+        if (rm_dir(file_path) == -1) //delete all the files in dir.
         {
             return -1;
         }
     }
     return 0;
+}
+
+/**
+ * @description: get free space under directory
+ * @param path -> the directory path
+ * @return: free space size (M)
+ */
+size_t get_free_space_under_directory(std::string path)
+{
+    struct statfs disk_info;
+    statfs(path.c_str(), &disk_info);
+    unsigned long long total_blocks = disk_info.f_bsize;
+    unsigned long long free_disk = disk_info.f_bfree * total_blocks;
+    return free_disk >> 20;
 }

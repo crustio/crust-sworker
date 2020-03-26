@@ -422,22 +422,26 @@ void *ApiHandler::change_empty(void *)
     if (change > 0)
     {
         // Increase empty plot
-        cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", change, p_config->plot_thread_num);
+        size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
+        cprintf_info(felog, "Free space is %luG disk\n", free_space);
+        size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, change);
+        cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
         // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
         #pragma omp parallel for num_threads(p_config->plot_thread_num)
-        for (size_t i = 0; i < (size_t)change; i++)
+        for (size_t i = 0; i < (size_t)true_change; i++)
         {
             ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
         }
 
-        p_config->change_empty_capacity(change);
-        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", change);
+        p_config->change_empty_capacity(true_change);
+        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", true_change);
     }
     else if (change < 0)
     {
         change = -change;
         size_t true_decrease = 0;
-        ecall_decrease_disk(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t) change);
+        ecall_decrease_disk(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
+        p_config->change_empty_capacity(-change);
         cprintf_info(felog, "Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
     }
 
