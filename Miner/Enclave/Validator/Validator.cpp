@@ -56,7 +56,7 @@ void validate_empty_disk(const char *path)
         ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)
         {
-            cfeprintf("\n!!!!GET M HASHS FAILED!!!!\n");
+            cfeprintf("Get m hashs file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
             goto end_validate_one_g_empty_failed;
         }
 
@@ -72,7 +72,7 @@ void validate_empty_disk(const char *path)
         {
             if (g_hash[j] != m_hashs_hash256[j])
             {
-                cfeprintf("\n!!!!WRONG M HASHS!!!!\n");
+                cfeprintf("Wrong m hashs file in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
                 goto end_validate_one_g_empty_failed;
             }
         }
@@ -85,7 +85,7 @@ void validate_empty_disk(const char *path)
 
         if (leaf_data == NULL)
         {
-            cfeprintf("\n!!!!GET LEAF DATA FAILED!!!!\n");
+            cfeprintf("Get leaf file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
             goto end_validate_one_g_empty_failed;
         }
 
@@ -96,7 +96,7 @@ void validate_empty_disk(const char *path)
         {
             if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
             {
-                cfeprintf("\n!!!!WRONG LEAF DATA HASHS!!!!\n");
+                cfeprintf("Wrong leaf data hash in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
                 goto end_validate_one_g_empty_failed;
             }
         }
