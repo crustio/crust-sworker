@@ -14,7 +14,6 @@
 #include <ostream>
 #include <iostream>
 
-// TODO: uniform json
 namespace json
 {
 

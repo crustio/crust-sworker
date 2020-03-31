@@ -2,12 +2,14 @@
 
 using namespace std;
 
+// TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
 extern attest_status_t g_att_status;
 extern ecc_key_pair id_key_pair;
 extern uint8_t off_chain_pub_key[];
 string g_run_mode = APP_RUN_MODE_SINGLE;
+size_t now_work_report_block_height = 0;
 
 /**
  * @description: ecall main loop
@@ -78,9 +80,13 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
  * */
 common_status_t ecall_store_enclave_data(const char *recover_file_path)
 {
+    // TODO: Group seal related functions into a class
+    // Gen seal data
     std::string seal_data = get_workload()->serialize_workload();
     seal_data.append(CRUST_SEPARATOR)
         .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
+    seal_data.append(CRUST_SEPARATOR)
+        .append(std::to_string(now_work_report_block_height));
     seal_data.append(CRUST_SEPARATOR)
         .append(g_crust_account_id);
     // Seal workload string
@@ -94,8 +100,8 @@ common_status_t ecall_store_enclave_data(const char *recover_file_path)
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
     sgx_status = sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
-            0, NULL, seal_data.size(), (const uint8_t*)seal_data.c_str(),
-            sealed_data_size, p_sealed_data);
+                                  0, NULL, seal_data.size(), (const uint8_t *)seal_data.c_str(),
+                                  sealed_data_size, p_sealed_data);
     if (SGX_SUCCESS != sgx_status)
     {
         common_status = CRUST_SEAL_DATA_FAILED;
@@ -118,7 +124,7 @@ cleanup:
  * @description: Restore enclave data from file
  * @return: Restore status
  * */
-common_status_t ecall_restore_enclave_data(const char * recover_file_path)
+common_status_t ecall_restore_enclave_data(const char *recover_file_path)
 {
     unsigned char *p_sealed_data = NULL;
     common_status_t common_status = CRUST_SUCCESS;
@@ -146,7 +152,7 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
     uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_len);
     // Unseal sealed data
     sgx_status = sgx_unseal_data(p_sealed_data_r, NULL, NULL,
-            p_decrypted_data, &decrypted_data_len);
+                                 p_decrypted_data, &decrypted_data_len);
     if (SGX_SUCCESS != sgx_status)
     {
         common_status = CRUST_UNSEAL_DATA_FAILED;
@@ -155,6 +161,7 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
 
     /* Restore related data */
     unseal_data = std::string((const char *)p_decrypted_data, decrypted_data_len);
+
     // Get plot data
     spos = 0;
     epos = unseal_data.find(CRUST_SEPARATOR, spos);
@@ -164,6 +171,7 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
         common_status = CRUST_BAD_SEAL_DATA;
         goto cleanup;
     }
+
     // Get id_key_pair
     spos = epos + strlen(CRUST_SEPARATOR);
     epos = unseal_data.find(CRUST_SEPARATOR, spos);
@@ -182,6 +190,17 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
     }
     memcpy(&id_key_pair, byte_buf, sizeof(id_key_pair));
     free(byte_buf);
+
+    // Get now_work_report_block_height
+    spos = epos + strlen(CRUST_SEPARATOR);
+    epos = unseal_data.find(CRUST_SEPARATOR, spos);
+    if (epos == std::string::npos)
+    {
+        common_status = CRUST_BAD_SEAL_DATA;
+        goto cleanup;
+    }
+    now_work_report_block_height = std::stoul(unseal_data.substr(spos, epos - spos));
+
     // Get g_crust_account_id
     spos = epos + strlen(CRUST_SEPARATOR);
     epos = unseal_data.size();
@@ -278,13 +297,23 @@ void ecall_get_validation_report(char *report, size_t len)
  * @param: report_len(in) -> work report string length
  * @return: sign status
  * */
-validate_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height,
+common_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height,
                                                      sgx_ec256_signature_t *p_signature,
                                                      char *report, size_t report_len)
 {
-    /* Create signature data */
-    validate_status_t validate_status = VALIDATION_SUCCESS;
-	sgx_ecc_state_handle_t ecc_state = NULL;
+    // Judge whether block height is expired
+    if (block_height <= now_work_report_block_height)
+    {
+        return CRUST_BLOCK_HEIGHT_EXPIRED;
+    }
+    else
+    {
+        now_work_report_block_height = block_height;
+    }
+
+    // Create signature data
+    common_status_t common_status = CRUST_SUCCESS;
+    sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_status_t sgx_status;
     Workload *wl = get_workload();
     size_t meaningful_workload_size = 0;
@@ -295,6 +324,7 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     unsigned long long tmpSize = wl->empty_disk_capacity;
     tmpSize = tmpSize * 1024 * 1024 * 1024;
     uint8_t *byte_buf = NULL;
+
     // Convert number type to string
     std::string block_height_str = std::to_string(block_height);
     std::string empty_disk_capacity_str = std::to_string(tmpSize);
@@ -314,6 +344,7 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     uint8_t *sigbuf = (uint8_t *)malloc(buf_len);
     memset(sigbuf, 0, buf_len);
     uint8_t *p_sigbuf = sigbuf;
+
     // Convert to bytes and concat
     memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     sigbuf += sizeof(id_key_pair.pub_key);
@@ -322,7 +353,7 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     byte_buf = hex_string_to_bytes(block_hash, block_hash_len);
     if (byte_buf == NULL)
     {
-        validate_status = VALIDATION_UNEXPECTED_ERROR;
+        common_status = CRUST_UNEXPECTED_ERROR;
         goto cleanup;
     }
     memcpy(sigbuf, byte_buf, block_hash_len / 2);
@@ -334,21 +365,22 @@ validate_status_t ecall_get_signed_validation_report(const char *block_hash, siz
     sigbuf += empty_disk_capacity_str.size();
     memcpy(sigbuf, meaningful_workload_size_u, meaningful_workload_size_str.size());
 
-    /* Sign work report */
-	sgx_status = sgx_ecc256_open_context(&ecc_state);
-	if (SGX_SUCCESS != sgx_status)
-	{
-        validate_status = VALIDATION_REPORT_SIGN_FAILED;
-        goto cleanup;
-	}
-
-	sgx_status = sgx_ecdsa_sign(p_sigbuf, buf_len,
-            &id_key_pair.pri_key, p_signature, ecc_state);
-	if (SGX_SUCCESS != sgx_status)
-	{
-        validate_status = VALIDATION_REPORT_SIGN_FAILED;
+    // Sign work report
+    sgx_status = sgx_ecc256_open_context(&ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        common_status = CRUST_SGX_SIGN_FAILED;
         goto cleanup;
     }
+
+    sgx_status = sgx_ecdsa_sign(p_sigbuf, buf_len,
+                                &id_key_pair.pri_key, p_signature, ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        common_status = CRUST_SGX_SIGN_FAILED;
+        goto cleanup;
+    }
+
     // Get work report string
     std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
     report[report_len - 1] = '\0';
@@ -364,7 +396,7 @@ cleanup:
     free(meaningful_workload_size_u);
     free(p_sigbuf);
 
-    return validate_status;
+    return common_status;
 }
 
 common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
@@ -381,8 +413,8 @@ common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t da
         return CRUST_SGX_FAILED;
     }
 
-    sgx_status = sgx_ecdsa_sign((const uint8_t*)data_str.c_str(), data_str.size(),
-            &id_key_pair.pri_key, p_signature, ecc_state);
+    sgx_status = sgx_ecdsa_sign((const uint8_t *)data_str.c_str(), data_str.size(),
+                                &id_key_pair.pri_key, p_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         common_status = CRUST_SGX_SIGN_FAILED;
@@ -514,8 +546,8 @@ common_status_t ecall_store_quote(const char *quote, size_t len,
     }
 
     sgx_status = sgx_ecdsa_verify(p_data, data_size,
-            (sgx_ec256_public_t*)off_chain_pub_key,
-            p_signature, &result, ecc_state);
+                                  (sgx_ec256_public_t *)off_chain_pub_key,
+                                  p_signature, &result, ecc_state);
     if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
     {
         common_status = CRUST_SGX_VERIFY_SIG_FAILED;

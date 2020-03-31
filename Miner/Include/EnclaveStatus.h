@@ -5,7 +5,11 @@
 
 typedef enum _common_status_t
 {
+    // Successed
     CRUST_SUCCESS = COMMON_MK_ERROR(0),
+    // Successed with other situation
+    CRUST_BLOCK_HEIGHT_EXPIRED = COMMON_MK_ERROR(0x0200),
+    // Failed
     CRUST_MALLOC_FAILED = COMMON_MK_ERROR(0x0400),
     CRUST_SEAL_DATA_FAILED = COMMON_MK_ERROR(0x0401),
     CRUST_UNSEAL_DATA_FAILED = COMMON_MK_ERROR(0x0402),
