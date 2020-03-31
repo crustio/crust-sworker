@@ -744,7 +744,7 @@ void *do_upload_work_report(void *)
             sleep(20);
             size_t report_len = 0;
             sgx_ec256_signature_t ecc_signature;
-            validate_status_t validate_status = VALIDATION_SUCCESS;
+            common_status_t common_status = CRUST_SUCCESS;
             // Generate validation report and get report size
             if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
             {
@@ -755,18 +755,14 @@ void *do_upload_work_report(void *)
             // Get signed validation report
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
-            if (ecall_get_signed_validation_report(global_eid, &validate_status,
+            if (ecall_get_signed_validation_report(global_eid, &common_status,
                                                    block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len) != SGX_SUCCESS)
             {
                 cprintf_err(felog, "Get signed validation report failed!\n");
             }
             else
             {
-                if (validate_status != VALIDATION_SUCCESS)
-                {
-                    cprintf_info(felog, "Get signed validation report failed! Error code:%x\n", validate_status);
-                }
-                else
+                if (common_status == CRUST_SUCCESS)
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
@@ -786,6 +782,14 @@ void *do_upload_work_report(void *)
                     {
                         cprintf_info(felog, "Send work report to crust chain successfully!\n");
                     }
+                }
+                else if (common_status == CRUST_BLOCK_HEIGHT_EXPIRED)
+                {
+                    cprintf_info(felog, "Block height expired.\n");
+                }
+                else
+                {
+                    cprintf_err(felog, "Get signed validation report failed! Error code:%x\n", common_status);
                 }
             }
             free(report);
