@@ -2,12 +2,14 @@
 
 using namespace std;
 
+// TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
 extern attest_status_t g_att_status;
 extern ecc_key_pair id_key_pair;
 extern uint8_t off_chain_pub_key[];
 string g_run_mode = APP_RUN_MODE_SINGLE;
+size_t now_work_report_block_height = 0;
 
 /**
  * @description: ecall main loop
@@ -78,9 +80,12 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
  * */
 common_status_t ecall_store_enclave_data(const char *recover_file_path)
 {
+    // TODO: Group seal related functions into a class
     std::string seal_data = get_workload()->serialize_workload();
     seal_data.append(CRUST_SEPARATOR)
         .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
+    seal_data.append(CRUST_SEPARATOR)
+        .append(std::to_string(now_work_report_block_height));
     seal_data.append(CRUST_SEPARATOR)
         .append(g_crust_account_id);
     // Seal workload string
@@ -182,6 +187,17 @@ common_status_t ecall_restore_enclave_data(const char * recover_file_path)
     }
     memcpy(&id_key_pair, byte_buf, sizeof(id_key_pair));
     free(byte_buf);
+    // Get now_work_report_block_height
+    spos = epos + strlen(CRUST_SEPARATOR);
+    epos = unseal_data.find(CRUST_SEPARATOR, spos);
+    if (epos == std::string::npos)
+    {
+        common_status = CRUST_BAD_SEAL_DATA;
+        goto cleanup;
+    }
+    std::stringstream now_work_report_block_height_stream(unseal_data.substr(spos, epos - spos));
+    now_work_report_block_height_stream >> now_work_report_block_height;
+
     // Get g_crust_account_id
     spos = epos + strlen(CRUST_SEPARATOR);
     epos = unseal_data.size();
