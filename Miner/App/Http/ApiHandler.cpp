@@ -367,7 +367,7 @@ int ApiHandler::start()
     path = urlendpoint->base + "/storage/unseal";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
-        std::string sealed_data = req_json["sealed_data"].ToString();
+        std::string sealed_data = req_json["data"].ToString();
         const uint8_t *p_sealed_data = (const uint8_t*)sealed_data.c_str();
         size_t sealed_data_size = sealed_data.size();
         sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);

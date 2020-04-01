@@ -157,6 +157,95 @@ Output (500, TEE has not been fully launched , this API does not support concurr
 ```
 
 
+### Use 'storage/validate/merkletree' to start storage related work, 
+
+Curl shell:
+```shell
+curl POST 'http://<url:port>/api/v0/storage/validate/merkletree' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "tree" : <merkletree_json>
+}'
+```
+
+Output (200, success):
+```shell
+Validate merkle tree successfully
+```
+
+Output (400, validate failed):
+```shell
+Validate merkle tree failed, because of invalid tree structure
+```
+
+
+### Use 'storage/seal' to seal file block, 
+
+Curl shell:
+```shell
+curl POST 'http://<url:port>/api/v0/storage/seal' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "root_hash" : "xxxxxxxx",
+    "data" : "xxxxxxxx",
+}'
+```
+
+Output (200, success):
+```shell
+seal file block successfully
+```
+
+Output (400, seal failed):
+```shell
+seal file block failed
+```
+
+
+### Use 'storage/unseal' to unseal file block, 
+
+Curl shell:
+```shell
+curl POST 'http://<url:port>/api/v0/storage/unseal' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "data" : "xxxxxxxx",
+}'
+```
+
+Output (200, success):
+```shell
+unseal file block successfully
+```
+
+Output (400, unseal failed):
+```shell
+unseal file block failed
+```
+
+
+### Use 'storage/generate/merkletree' to generate validated merkletree in enclave, 
+
+Curl shell:
+```shell
+curl POST 'http://<url:port>/api/v0/storage/generate/merkletree' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "root_hash" : "xxxxxxxx",
+}'
+```
+
+Output (200, success):
+```shell
+generate validated merkletree successfully
+```
+
+Output (400, generate failed):
+```shell
+generate validated merkletree failed
+```
+
+
 ## Contribution
 
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
