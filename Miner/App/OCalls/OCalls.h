@@ -18,6 +18,8 @@
 #include "Ipc.h"
 #include "IPCReport.h"
 
+using namespace std;
+
 #define HEXSTRING_BUF 128
 #define BUFSIZE 1024
 #define IPC_TIMEOUT 30
@@ -130,7 +132,6 @@ void ocall_delete_folder_or_file(const char *path)
  * @param len -> the length of data
  * @return file data
  */
-
 void ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len)
 {
     if (access(file_path, 0) == -1)
@@ -459,6 +460,14 @@ ipc_status_t ocall_recv_secret(sgx_aes_gcm_data_t *req_message, uint32_t len, at
     }
 
     return IPC_SUCCESS;
+}
+
+common_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count)
+{
+    vector<uint32_t> path_v(path, path + path_count);
+    // TODO: Send path to storage and get corresponding file block
+
+    return CRUST_SUCCESS;
 }
 
 #endif /* !_OCALLS_APP_H_ */

@@ -1,15 +1,28 @@
 #include "Enclave.h"
+#include "Storage.h"
 
 using namespace std;
 
 // TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
-extern attest_status_t g_att_status;
-extern ecc_key_pair id_key_pair;
-extern uint8_t off_chain_pub_key[];
+// Tee run mode
 string g_run_mode = APP_RUN_MODE_SINGLE;
+// Store crust account id
+string g_crust_account_id;
+// Can only se crust account id once
+bool g_is_set_account_id = false;
+// Current code measurement
+sgx_measurement_t current_mr_enclave;
+// Current node public and private key pair
+ecc_key_pair id_key_pair;
+// Map used to store off-chain request
+map<vector<uint8_t>,vector<uint8_t>> accid_pubkey_map;
+// Used to check current block head out-of-date
 size_t now_work_report_block_height = 0;
+
+extern map<vector<char>, tuple<string,size_t,size_t>> tree_meta_map;
+extern map<vector<char>, MerkleTree *> new_tree_map;
 
 /**
  * @description: ecall main loop
@@ -298,8 +311,7 @@ void ecall_get_validation_report(char *report, size_t len)
  * @return: sign status
  * */
 common_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height,
-                                                     sgx_ec256_signature_t *p_signature,
-                                                     char *report, size_t report_len)
+        sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
 {
     // Judge whether block height is expired
     if (block_height <= now_work_report_block_height)
@@ -400,7 +412,7 @@ cleanup:
 }
 
 common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
-                                         sgx_ec256_signature_t *p_signature)
+        sgx_ec256_signature_t *p_signature)
 {
     std::string data_str(p_partial_data, data_size);
     data_str.append(g_crust_account_id);
@@ -521,21 +533,21 @@ sgx_status_t ecall_gen_sgx_measurement()
  * @return: Store status
  * */
 common_status_t ecall_store_quote(const char *quote, size_t len,
-                                  const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature)
+        const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature, 
+        const uint8_t *p_account_id, uint32_t account_id_sz)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     common_status_t common_status = CRUST_SUCCESS;
     uint8_t result;
     sgx_quote_t *offChain_quote = (sgx_quote_t *)malloc(len);
-    if (off_chain_pub_key == NULL)
+    if (offChain_quote == NULL)
     {
         return CRUST_MALLOC_FAILED;
     }
 
     memset(offChain_quote, 0, len);
     memcpy(offChain_quote, quote, len);
-    unsigned char *p_report_data = offChain_quote->report_body.report_data.d;
-    memcpy(off_chain_pub_key, p_report_data, REPORT_DATA_SIZE);
+    uint8_t *p_offchain_pubkey = offChain_quote->report_body.report_data.d;
 
     // Verify off chain node's identity
     sgx_ecc_state_handle_t ecc_state = NULL;
@@ -545,12 +557,23 @@ common_status_t ecall_store_quote(const char *quote, size_t len,
         return CRUST_SGX_FAILED;
     }
 
-    sgx_status = sgx_ecdsa_verify(p_data, data_size,
-                                  (sgx_ec256_public_t *)off_chain_pub_key,
-                                  p_signature, &result, ecc_state);
+    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t*)p_offchain_pubkey,
+            p_signature, &result, ecc_state);
+
     if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
     {
         common_status = CRUST_SGX_VERIFY_SIG_FAILED;
+    }
+    else
+    {
+        uint8_t *p_account_id_u = hex_string_to_bytes(p_account_id, account_id_sz);
+        if (p_account_id_u == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        vector<uint8_t> account_id_v(p_account_id_u, p_account_id_u + account_id_sz / 2);
+        vector<uint8_t> off_chain_pub_key_v(p_offchain_pubkey, p_offchain_pubkey + REPORT_DATA_SIZE);
+        accid_pubkey_map[account_id_v] = off_chain_pub_key_v;
     }
 
     sgx_ecc256_close_context(ecc_state);
@@ -560,9 +583,110 @@ common_status_t ecall_store_quote(const char *quote, size_t len,
 
 /**
  * @description: verify IAS report
+ * @param IASReport -> Vector first address
+ * @param len -> Count of Vector IASReport
+ * @param p_ensig -> Pointer to entry network report signature
  * @return: verify status
  * */
 ias_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_network_signature *p_ensig)
 {
-    return ecall_verify_iasreport_real(IASReport, len, p_ensig);
+    return verify_iasreport(IASReport, len, p_ensig);
+}
+
+/**
+ * @description: Validate Merkle tree
+ * @param tree -> root of Merkle tree
+ * @return: Validate result
+ * */
+common_status_t ecall_validate_merkle_tree(MerkleTree *tree)
+{
+    if (CRUST_SUCCESS != storage_validate_merkle_tree(tree))
+    {
+        return CRUST_INVALID_MERKLETREE;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Seal file block and generate new tree
+ * @param root_hash -> file root hash
+ * @param root_hash_len -> file root hash lenght
+ * @param path -> path from root node to file block node
+ * @param path_count -> path vector size
+ * @param p_src -> pointer to file block data
+ * @param src_len -> file block data size
+ * @param p_sealed_data -> sealed file block data
+ * @param sealed_data_size -> sealed file block data size
+ * @return: Seal and generate result
+ * */
+common_status_t ecall_seal_file_data(const char *root_hash, uint32_t root_hash_len,
+        const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
+{
+    return storage_seal_file_data(root_hash, root_hash_len, p_src, src_len,
+            p_sealed_data, sealed_data_size);
+}
+
+/**
+ * @description: Unseal and verify file block data
+ * @param p_sealed_data -> sealed file block data
+ * @param sealed_data_size -> sealed file block data size
+ * @param p_unsealed_data -> unsealed file block data
+ * @param unsealed_data_size -> unsealed file block data size
+ * @return: Unseal status
+ * */
+common_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
+        uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
+{
+    return storage_unseal_file_data(p_sealed_data, sealed_data_size,
+            p_unsealed_data, unsealed_data_size);
+}
+
+/**
+ * @description: Generate validate Merkle hash tree after seal file successfully
+ * @param root_hash -> root hash of Merkle tree
+ * @param root_hash_len -> root hash length
+ * @return: Generate status
+ * */
+common_status_t ecall_gen_new_merkle_tree(const char *root_hash, uint32_t root_hash_len)
+{
+    // Get sealed complete tree metadata
+    vector<char> root_hash_v(root_hash, root_hash + root_hash_len);
+    if (tree_meta_map.find(root_hash_v) == tree_meta_map.end())
+    {
+        return CRUST_NOTFOUND_MERKLETREE;
+    }
+
+    // Judge whether seal has been completed
+    auto entry = tree_meta_map[root_hash_v];
+    string ser_tree = std::get<0>(entry);
+    size_t spos = std::get<1>(entry);
+    if (spos != string::npos)
+    {
+        return CRUST_SEAL_NOTCOMPLETE;
+    }
+
+    // Deserialize tree
+    MerkleTree *new_root = NULL;
+    spos = 0;
+    if (CRUST_SUCCESS != storage_deser_merkle_tree(new_root, ser_tree, spos) || new_root == NULL)
+    {
+        return CRUST_DESER_MERKLE_TREE_FAILED;
+    }
+
+    // Get sealed tree
+    storage_gen_validated_merkle_tree(new_root);
+    vector<char> new_root_hash_v(new_root->hash, new_root->hash + HASH_LENGTH);
+    new_tree_map[new_root_hash_v] = new_root;
+
+    // Delete old tree metadata
+    tree_meta_map.erase(root_hash_v);
+
+    
+    // For log
+    string new_ser_tree = storage_ser_merkle_tree(new_root);
+    cfeprintf("new tree string:%s\n", new_ser_tree.c_str());
+    
+
+    return CRUST_SUCCESS;
 }

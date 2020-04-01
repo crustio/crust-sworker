@@ -1,10 +1,45 @@
 #include "Verify.h"
+#include <map>
 
 using namespace std;
 
-extern uint8_t off_chain_pub_key[];
 extern sgx_measurement_t current_mr_enclave;
 extern ecc_key_pair id_key_pair;
+extern map<vector<uint8_t>,vector<uint8_t>> accid_pubkey_map;
+
+// Intel SGX root certificate
+static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
+"MIIFSzCCA7OgAwIBAgIJANEHdl0yo7CUMA0GCSqGSIb3DQEBCwUAMH4xCzAJBgNV" "\n"
+"BAYTAlVTMQswCQYDVQQIDAJDQTEUMBIGA1UEBwwLU2FudGEgQ2xhcmExGjAYBgNV" "\n"
+"BAoMEUludGVsIENvcnBvcmF0aW9uMTAwLgYDVQQDDCdJbnRlbCBTR1ggQXR0ZXN0" "\n"
+"YXRpb24gUmVwb3J0IFNpZ25pbmcgQ0EwIBcNMTYxMTE0MTUzNzMxWhgPMjA0OTEy" "\n"
+"MzEyMzU5NTlaMH4xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDQTEUMBIGA1UEBwwL" "\n"
+"U2FudGEgQ2xhcmExGjAYBgNVBAoMEUludGVsIENvcnBvcmF0aW9uMTAwLgYDVQQD" "\n"
+"DCdJbnRlbCBTR1ggQXR0ZXN0YXRpb24gUmVwb3J0IFNpZ25pbmcgQ0EwggGiMA0G" "\n"
+"CSqGSIb3DQEBAQUAA4IBjwAwggGKAoIBgQCfPGR+tXc8u1EtJzLA10Feu1Wg+p7e" "\n"
+"LmSRmeaCHbkQ1TF3Nwl3RmpqXkeGzNLd69QUnWovYyVSndEMyYc3sHecGgfinEeh" "\n"
+"rgBJSEdsSJ9FpaFdesjsxqzGRa20PYdnnfWcCTvFoulpbFR4VBuXnnVLVzkUvlXT" "\n"
+"L/TAnd8nIZk0zZkFJ7P5LtePvykkar7LcSQO85wtcQe0R1Raf/sQ6wYKaKmFgCGe" "\n"
+"NpEJUmg4ktal4qgIAxk+QHUxQE42sxViN5mqglB0QJdUot/o9a/V/mMeH8KvOAiQ" "\n"
+"byinkNndn+Bgk5sSV5DFgF0DffVqmVMblt5p3jPtImzBIH0QQrXJq39AT8cRwP5H" "\n"
+"afuVeLHcDsRp6hol4P+ZFIhu8mmbI1u0hH3W/0C2BuYXB5PC+5izFFh/nP0lc2Lf" "\n"
+"6rELO9LZdnOhpL1ExFOq9H/B8tPQ84T3Sgb4nAifDabNt/zu6MmCGo5U8lwEFtGM" "\n"
+"RoOaX4AS+909x00lYnmtwsDVWv9vBiJCXRsCAwEAAaOByTCBxjBgBgNVHR8EWTBX" "\n"
+"MFWgU6BRhk9odHRwOi8vdHJ1c3RlZHNlcnZpY2VzLmludGVsLmNvbS9jb250ZW50" "\n"
+"L0NSTC9TR1gvQXR0ZXN0YXRpb25SZXBvcnRTaWduaW5nQ0EuY3JsMB0GA1UdDgQW" "\n"
+"BBR4Q3t2pn680K9+QjfrNXw7hwFRPDAfBgNVHSMEGDAWgBR4Q3t2pn680K9+Qjfr" "\n"
+"NXw7hwFRPDAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0TAQH/BAgwBgEB/wIBADANBgkq" "\n"
+"hkiG9w0BAQsFAAOCAYEAeF8tYMXICvQqeXYQITkV2oLJsp6J4JAqJabHWxYJHGir" "\n"
+"IEqucRiJSSx+HjIJEUVaj8E0QjEud6Y5lNmXlcjqRXaCPOqK0eGRz6hi+ripMtPZ" "\n"
+"sFNaBwLQVV905SDjAzDzNIDnrcnXyB4gcDFCvwDFKKgLRjOB/WAqgscDUoGq5ZVi" "\n"
+"zLUzTqiQPmULAQaB9c6Oti6snEFJiCQ67JLyW/E83/frzCmO5Ru6WjU4tmsmy8Ra" "\n"
+"Ud4APK0wZTGtfPXU7w+IBdG5Ez0kE1qzxGQaL4gINJ1zMyleDnbuS8UicjJijvqA" "\n"
+"152Sq049ESDz+1rRGc2NVEqh1KaGXmtXvqxXcTB+Ljy5Bw2ke0v8iGngFBPqCTVB" "\n"
+"3op5KBG3RjbF6RRSzwzuWfL7QErNC8WEy5yDVARzTA5+xmBc388v9Dm21HGfcC8O" "\n"
+"DD+gT9sSpssq0ascmvH49MOgjt1yoysLtdCtJW/9FZpoOypaHx0R+mJTLwPXVMrv" "\n"
+"DaVzWh5aiEx+idkSGMnX" "\n"
+"-----END CERTIFICATE-----";
+
 
 static enum _error_type {
 	e_none,
@@ -269,8 +304,7 @@ char *base64_decode(const char *msg, size_t *sz)
  * @description: Verify IAS report
  * @return: Verify status
  * */
-ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
-										 entry_network_signature *p_ensig)
+ias_status_t verify_iasreport(const char **IASReport, size_t size, entry_network_signature *p_ensig)
 {
 	string certchain;
 	size_t cstart, cend, count, i;
@@ -296,6 +330,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	sgx_status_t sgx_status;
 	sgx_ecc_state_handle_t ecc_state = NULL;
 	sgx_ec256_signature_t ecc_signature;
+    uint8_t *p_offchain_pubkey = NULL;
 
 	BIO *bio_mem = BIO_new(BIO_s_mem());
 	BIO_puts(bio_mem, INTELSGXATTROOTCA);
@@ -308,10 +343,12 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
     {
         return CRUST_GET_ACCOUNT_ID_BYTE_FAILED;
     }
+    
 
     size_t crust_account_id_size = response[3].length() / 2;
 	uint8_t *sigbuf, *p_sig = NULL;
 	size_t context_size = 0;
+    vector<uint8_t> off_chain_accid_v(off_chain_crust_account_id, off_chain_crust_account_id + crust_account_id_size);
 
 
 	/*
@@ -461,7 +498,13 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 
 	// This report data is our ecc public key
 	// should be equal to the one contained in IAS report
-	if (memcmp(iasReportBody->report_data.d, off_chain_pub_key, REPORT_DATA_SIZE) != 0)
+    if (accid_pubkey_map.find(off_chain_accid_v) == accid_pubkey_map.end())
+    {
+        status = IAS_UNEXPECTED_ERROR;
+        goto cleanup;
+    }
+    p_offchain_pubkey = accid_pubkey_map[off_chain_accid_v].data();
+	if (memcmp(iasReportBody->report_data.d, p_offchain_pubkey, REPORT_DATA_SIZE) != 0)
 	{
 		status = IAS_REPORTDATA_NE;
 		goto cleanup;
@@ -488,7 +531,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 	memset(sigbuf, 0, context_size);
 	p_sig = sigbuf;
 
-	memcpy(sigbuf, off_chain_pub_key, REPORT_DATA_SIZE);
+	memcpy(sigbuf, p_offchain_pubkey, REPORT_DATA_SIZE);
 	sigbuf += REPORT_DATA_SIZE;
 	memcpy(sigbuf, off_chain_crust_account_id, crust_account_id_size);
 	sigbuf += crust_account_id_size;
@@ -504,7 +547,7 @@ ias_status_t ecall_verify_iasreport_real(const char **IASReport, size_t size,
 		goto cleanup;
 	}
 
-	memcpy(&p_ensig->pub_key, off_chain_pub_key, REPORT_DATA_SIZE);
+	memcpy(&p_ensig->pub_key, p_offchain_pubkey, REPORT_DATA_SIZE);
 	memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
 	memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
 
@@ -526,6 +569,8 @@ cleanup:
 	{
 		sgx_ecc256_close_context(ecc_state);
 	}
+
+    accid_pubkey_map.erase(off_chain_accid_v);
 
 	free(off_chain_crust_account_id);
 	free(validator_crust_account_id);
