@@ -620,7 +620,7 @@ common_status_t ecall_validate_merkle_tree(MerkleTree *tree)
  * @param sealed_data_size -> sealed file block data size
  * @return: Seal and generate result
  * */
-common_status_t ecall_seal_file_data(const char *root_hash, uint32_t root_hash_len,
+common_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     return storage_seal_file_data(root_hash, root_hash_len, p_src, src_len,
@@ -648,7 +648,7 @@ common_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t seal
  * @param root_hash_len -> root hash length
  * @return: Generate status
  * */
-common_status_t ecall_gen_new_merkle_tree(const char *root_hash, uint32_t root_hash_len)
+common_status_t ecall_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
 {
     // Get sealed complete tree metadata
     vector<char> root_hash_v(root_hash, root_hash + root_hash_len);

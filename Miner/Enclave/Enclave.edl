@@ -36,9 +36,9 @@ enclave {
         public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, size_t len, [out] entry_network_signature *p_ensig);
 
         public common_status_t ecall_validate_merkle_tree([in] MerkleTree *tree);
-        public common_status_t ecall_seal_file_data([in, count=root_hash_len] const char *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
+        public common_status_t ecall_seal_file_data([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
         public common_status_t ecall_unseal_file_data([in, size=sealed_data_size] const uint8_t *p_sealed_data, size_t sealed_data_size, [out, size=unsealed_data_size] uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
-        public common_status_t ecall_gen_new_merkle_tree([in, count=root_hash_len] const char *root_hash, uint32_t root_hash_len);
+        public common_status_t ecall_gen_new_merkle_tree([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len);
     };
 
     untrusted {

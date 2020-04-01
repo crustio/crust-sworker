@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "Resource.h"
+#include "FormatUtils.h"
 
 #define PRINT_BUF_SIZE  10000
 
@@ -144,9 +145,7 @@ MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
 {
     MerkleTree *root = new MerkleTree();
     string hash = tree_json["hash"].ToString();
-    root->hash = (char*)malloc(HASH_LENGTH);
-    memset(root->hash, 0, HASH_LENGTH);
-    memcpy(root->hash, hash.c_str(), HASH_LENGTH);
+    root->hash = (char*)hex_string_to_bytes(hash.c_str(), hash.size());
     root->links_num = tree_json["links_num"].ToInt();
     json::JSON children = tree_json["links"];
 

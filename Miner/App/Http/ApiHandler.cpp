@@ -322,7 +322,8 @@ int ApiHandler::start()
     // Storage validate merkle tree
     path = urlendpoint->base + "/storage/validate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
-        json::JSON tree_json = json::JSON::Load(req.params.find("tree")->second);
+        json::JSON req_json = json::JSON::Load(req.body);
+        json::JSON tree_json = req_json["tree"];
         MerkleTree *root = deserialize_merkle_tree_from_json(tree_json);
 
         common_status_t common_status = CRUST_SUCCESS;
@@ -338,19 +339,22 @@ int ApiHandler::start()
 
     // Storage seal file block
     // TODO: file data basecode problem
+    // TODO: Add backup
     path = urlendpoint->base + "/storage/seal";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
-        json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
-        const char *root_hash = req_json["root_hash"].ToString().c_str();
-        std::string src_data = req_json["data"].ToString();
-        size_t sealed_data_size = sizeof(uint32_t) * 2 + src_data.size() + SGX_ECP256_KEY_SIZE;
+        uint8_t *p_src = (uint8_t*)req.body.data();
+        size_t src_len = req.body.size();
+        std::string root_hash_str = req.params.find("root_hash")->second;
+        uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
+
+        size_t sealed_data_size = sizeof(uint32_t) * 2 + src_len + SGX_ECP256_KEY_SIZE;
         size_t sealed_data_size_r = sgx_calc_sealed_data_size(0, sealed_data_size);
         uint8_t *p_sealed_data = (uint8_t*)malloc(sealed_data_size_r);
         memset(p_sealed_data, 0, sealed_data_size_r);
 
         common_status_t common_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH, 
-                (uint8_t*)src_data.c_str(), src_data.size(), p_sealed_data, sealed_data_size_r);
+                p_src, src_len, p_sealed_data, sealed_data_size_r);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
@@ -360,16 +364,16 @@ int ApiHandler::start()
 
         std::string content((char*)p_sealed_data, sealed_data_size_r);
         free(p_sealed_data);
+        free(root_hash);
         res.set_content(content, "text/plain");
     });
 
     // Storage unseal file block
     path = urlendpoint->base + "/storage/unseal";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
-        json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
-        std::string sealed_data = req_json["data"].ToString();
-        const uint8_t *p_sealed_data = (const uint8_t*)sealed_data.c_str();
-        size_t sealed_data_size = sealed_data.size();
+        uint8_t *p_sealed_data = (uint8_t*)req.body.data();
+        size_t sealed_data_size = req.body.size();
+        // Caculate unsealed data size
         sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
         memset(p_sealed_data_r, 0, sealed_data_size);
         uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
@@ -387,14 +391,15 @@ int ApiHandler::start()
 
         std::string content((char*)p_unsealed_data, unsealed_data_size);
         free(p_unsealed_data);
+        free(p_sealed_data_r);
         res.set_content(content, "text/plain");
     });
 
     // Storage generate validated merkle tree
     path = urlendpoint->base + "/storage/generate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
-        json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
-        const char *root_hash = req_json["root_hash"].ToString().c_str();
+        std::string root_hash_str = req.params.find("root_hash")->second;
+        uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
 
         common_status_t common_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH);
@@ -405,6 +410,7 @@ int ApiHandler::start()
         }
 
         res.set_content("Generate new merkle tree successfully!", "text/plain");
+        free(root_hash);
     });
 
     // Inner APIs

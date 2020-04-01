@@ -49,7 +49,7 @@ common_status_t storage_validate_merkle_tree(MerkleTree *tree)
  * @param sealed_data_size -> sealed file block data size
  * @return: Seal and generate result
  * */
-common_status_t storage_seal_file_data(const char *root_hash, uint32_t root_hash_len,
+common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     /* Get merkle tree metadata */
@@ -298,9 +298,11 @@ string storage_ser_merkle_tree(MerkleTree *tree)
 
     std::string ans;
 
+    string hex_str(hexstring(tree->hash, HASH_LENGTH), HASH_LENGTH * 2);
+
     if (tree->links_num == 0)
     {
-        ans.append(LEAF_SEPARATOR).append(tree->hash);
+        ans.append(LEAF_SEPARATOR).append(hex_str);
     }
 
     ans.append("{")
@@ -341,8 +343,7 @@ common_status_t storage_deser_merkle_tree(MerkleTree *father, string ser_tree, s
     size_t epos = ser_tree.find("{", spos);
     string hash = ser_tree.substr(spos, epos - spos);
     const char* p_hash = hash.c_str() + strlen(LEAF_SEPARATOR);
-    father->hash = (char*)malloc(HASH_LENGTH);
-    memcpy(father->hash, p_hash, HASH_LENGTH);
+    father->hash = (char*)hex_string_to_bytes(p_hash, HASH_LENGTH * 2);
 
     // Get size
     spos = epos + 1;

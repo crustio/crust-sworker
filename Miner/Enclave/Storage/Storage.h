@@ -21,7 +21,7 @@ extern "C"
 
 common_status_t storage_validate_merkle_tree(MerkleTree *tree);
 
-common_status_t storage_seal_file_data(const char *root_hash, uint32_t root_hash_len,
+common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size);
 
 common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
