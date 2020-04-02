@@ -591,12 +591,12 @@ void start(void)
         }
 
         /* Entry network */
-        cprintf_info(felog, "Entrying network...\n");
-        if (!entry_network_s())
-        {
-            goto cleanup;
-        }
-        cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
+        //cprintf_info(felog, "Entrying network...\n");
+        //if (!entry_network_s())
+        //{
+        //    goto cleanup;
+        //}
+        //cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
 
         /* Plot empty disk */
         if (pthread_create(&plot_thread, NULL, do_plot_disk_s, NULL) != 0)

@@ -9,7 +9,7 @@
 #include "MerkleTree.h"
 #include "Workload.h"
 
-#define LEAF_SEPARATOR  "$leaf$"
+#define LEAF_SEPARATOR  "+leaf+"
 
 using namespace std;
 
@@ -32,7 +32,7 @@ void storage_gen_validated_merkle_tree(MerkleTree *tree);
 common_status_t storage_validate_meaningful_data();
 
 string storage_ser_merkle_tree(MerkleTree *tree);
-common_status_t storage_deser_merkle_tree(MerkleTree *father, string ser_tree, size_t &spos);
+common_status_t storage_deser_merkle_tree(MerkleTree **root, string ser_tree, size_t &spos);
 
 #if defined(__cplusplus)
 }

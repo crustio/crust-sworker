@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include "Ipfs.h"
@@ -28,6 +29,8 @@ extern FILE *felog;
 
 extern Ipc *g_wl_ipc;
 extern Ipc *g_kp_ipc;
+
+extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 
 // Used to store ocall file data
 unsigned char *ocall_file_data = NULL;
@@ -468,6 +471,12 @@ common_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, ui
     // TODO: Send path to storage and get corresponding file block
 
     return CRUST_SUCCESS;
+}
+
+void ocall_get_merkle_tree_n(MerkleTree **p_merkletree, const uint8_t *root_hash, size_t hash_len)
+{
+    std::vector<uint8_t> root_hash_v(root_hash, root_hash + hash_len);
+    *p_merkletree = hash_tree_map[root_hash_v];
 }
 
 #endif /* !_OCALLS_APP_H_ */

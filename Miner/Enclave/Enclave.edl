@@ -35,7 +35,7 @@ enclave {
         public sgx_status_t ecall_gen_key_pair();
         public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, size_t len, [out] entry_network_signature *p_ensig);
 
-        public common_status_t ecall_validate_merkle_tree([in] MerkleTree *tree);
+        public common_status_t ecall_validate_merkle_tree([in, size=hash_len] const uint8_t *root_hash, size_t hash_len);
         public common_status_t ecall_seal_file_data([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
         public common_status_t ecall_unseal_file_data([in, size=sealed_data_size] const uint8_t *p_sealed_data, size_t sealed_data_size, [out, size=unsealed_data_size] uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
         public common_status_t ecall_gen_new_merkle_tree([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len);
@@ -63,6 +63,8 @@ enclave {
         ipc_status_t ocall_send_msg3([in] sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_type);
         ipc_status_t ocall_send_secret([in, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type);
         ipc_status_t ocall_recv_secret([out, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type);
+
+        void ocall_get_merkle_tree_n([out] MerkleTree **p_merkletree, [in, size=hash_len] const uint8_t *root_hash, size_t hash_len);
 
         common_status_t ocall_get_file_block_by_path([in, size=hash_len] char *root_hash, [in, size=hash_len] char *cur_hash, uint32_t hash_len, [in, count=path_count] uint32_t *path, uint32_t path_count);
     };

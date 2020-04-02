@@ -173,7 +173,12 @@ Output (200, success):
 Validate merkle tree successfully
 ```
 
-Output (400, validate failed):
+Output (400, deserialize merkletree failed):
+```shell
+Invalidated merkletree results in failure
+```
+
+Output (401, validate merkletree failed):
 ```shell
 Validate merkle tree failed, because of invalid tree structure
 ```

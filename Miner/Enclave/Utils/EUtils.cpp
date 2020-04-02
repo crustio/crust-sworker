@@ -102,7 +102,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
         return NULL;
     }
 
-    const uint8_t *rsrc = (const uint8_t *)src;
+    const char *rsrc = (const char*)src;
     uint8_t *p_target;
     uint8_t *target = (uint8_t *)malloc(len / 2);
     if (target == NULL)
@@ -111,9 +111,9 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
     }
     memset(target, 0, len / 2);
     p_target = target;
-    while (*rsrc && rsrc[1])
+    for (int i = 0; i < len; i+=2)
     {
-        *(target++) = (uint8_t)(char_to_int(*rsrc) * 16 + char_to_int(rsrc[1]));
+        *(target++) = (uint8_t)(char_to_int(rsrc[0]) * 16 + char_to_int(rsrc[1]));
         rsrc += 2;
     }
 
@@ -232,35 +232,41 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
  * */
 common_status_t validate_merkle_tree_c(MerkleTree *tree)
 {
-    if (tree == NULL || tree->links_num == 0)
+    if (tree->links_num == 0)
     {
         return CRUST_SUCCESS;
     }
 
+    common_status_t common_status = CRUST_SUCCESS;
+    sgx_sha256_hash_t g_hashs_hash256;
+
     uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
-    memset(g_hashs, 0, tree->links_num*HASH_LENGTH);
-    for (uint32_t i=0; i < tree->links_num; i++)
+    memset(g_hashs, 0, tree->links_num * HASH_LENGTH);
+    for (uint32_t i = 0; i < tree->links_num; i++)
     {
         if(validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
         {
-            return CRUST_INVALID_MERKLETREE;
+            common_status = CRUST_INVALID_MERKLETREE;
+            goto cleanup;
         }
         memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
     }
 
     // Compute and compare hash value
-    sgx_sha256_hash_t g_hashs_hash256;
     sgx_sha256_msg(g_hashs, tree->links_num * HASH_LENGTH, &g_hashs_hash256);
 
-    for (int i=0; i < HASH_LENGTH; i++)
+    if (memcmp(tree->hash, g_hashs_hash256, HASH_LENGTH) != 0)
     {
-        if (tree->hash[i] != g_hashs_hash256[i])
-        {
-            return CRUST_INVALID_MERKLETREE;
-        }
+        common_status = CRUST_INVALID_MERKLETREE;
+        goto cleanup;
     }
 
-    return CRUST_SUCCESS;
+
+cleanup:
+
+    free(g_hashs);
+
+    return common_status;
 }
 
 /**

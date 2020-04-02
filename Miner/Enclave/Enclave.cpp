@@ -21,8 +21,8 @@ map<vector<uint8_t>,vector<uint8_t>> accid_pubkey_map;
 // Used to check current block head out-of-date
 size_t now_work_report_block_height = 0;
 
-extern map<vector<char>, tuple<string,size_t,size_t>> tree_meta_map;
-extern map<vector<char>, MerkleTree *> new_tree_map;
+extern map<vector<uint8_t>, tuple<string,size_t,size_t>> tree_meta_map;
+extern map<vector<uint8_t>, MerkleTree *> new_tree_map;
 
 /**
  * @description: ecall main loop
@@ -598,9 +598,23 @@ ias_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_ne
  * @param tree -> root of Merkle tree
  * @return: Validate result
  * */
-common_status_t ecall_validate_merkle_tree(MerkleTree *tree)
+common_status_t ecall_validate_merkle_tree(const uint8_t *root_hash, size_t hash_len)
 {
-    if (CRUST_SUCCESS != storage_validate_merkle_tree(tree))
+    // Check duplicated
+    vector<uint8_t> root_hash_v(root_hash, root_hash + hash_len);
+    if (tree_meta_map.find(root_hash_v) != tree_meta_map.end())
+    {
+        return CRUST_MERKLETREE_DUPLICATED;
+    }
+
+    // Get MerkleTree root node
+    MerkleTree *root = NULL;
+    ocall_get_merkle_tree_n(&root, root_hash, hash_len);
+    if (root == NULL)
+    {
+        return CRUST_GET_MERKLETREE_FAILED;
+    }
+    if (CRUST_SUCCESS != storage_validate_merkle_tree(root))
     {
         return CRUST_INVALID_MERKLETREE;
     }
@@ -650,8 +664,9 @@ common_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t seal
  * */
 common_status_t ecall_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
 {
+    common_status_t common_status = CRUST_SUCCESS;
     // Get sealed complete tree metadata
-    vector<char> root_hash_v(root_hash, root_hash + root_hash_len);
+    vector<uint8_t> root_hash_v(root_hash, root_hash + root_hash_len);
     if (tree_meta_map.find(root_hash_v) == tree_meta_map.end())
     {
         return CRUST_NOTFOUND_MERKLETREE;
@@ -665,28 +680,23 @@ common_status_t ecall_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t roo
     {
         return CRUST_SEAL_NOTCOMPLETE;
     }
-
     // Deserialize tree
     MerkleTree *new_root = NULL;
     spos = 0;
-    if (CRUST_SUCCESS != storage_deser_merkle_tree(new_root, ser_tree, spos) || new_root == NULL)
+    if (CRUST_SUCCESS != (common_status = storage_deser_merkle_tree(&new_root, ser_tree, spos)) || new_root == NULL)
     {
+        cfeprintf("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", common_status);
         return CRUST_DESER_MERKLE_TREE_FAILED;
     }
 
     // Get sealed tree
     storage_gen_validated_merkle_tree(new_root);
-    vector<char> new_root_hash_v(new_root->hash, new_root->hash + HASH_LENGTH);
+    vector<uint8_t> new_root_hash_v(new_root->hash, new_root->hash + HASH_LENGTH);
     new_tree_map[new_root_hash_v] = new_root;
 
-    // Delete old tree metadata
-    tree_meta_map.erase(root_hash_v);
-
-    
     // For log
     string new_ser_tree = storage_ser_merkle_tree(new_root);
     cfeprintf("new tree string:%s\n", new_ser_tree.c_str());
-    
 
     return CRUST_SUCCESS;
 }

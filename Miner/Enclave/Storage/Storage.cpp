@@ -3,9 +3,9 @@
 using namespace std;
 
 // Old tree root hash to pair which consists of serialized old tree and leaf position and total size
-map<vector<char>, tuple<string,size_t,size_t>> tree_meta_map;
+map<vector<uint8_t>, tuple<string,size_t,size_t>> tree_meta_map;
 // Map used to store sealed tree root to sealed tree root node
-map<vector<char>, MerkleTree *> new_tree_map;
+map<vector<uint8_t>, MerkleTree *> new_tree_map;
 
 // Current node public and private key pair
 extern ecc_key_pair id_key_pair;
@@ -31,7 +31,7 @@ common_status_t storage_validate_merkle_tree(MerkleTree *tree)
     size_t spos = ser_tree.find(LEAF_SEPARATOR);
 
     // Get vector of root hash
-    vector<char> hash_v(tree->hash, tree->hash + HASH_LENGTH);
+    vector<uint8_t> hash_v(tree->hash, tree->hash + HASH_LENGTH);
 
     // Record merkle tree metadata
     tree_meta_map[hash_v] = make_tuple(ser_tree, spos, 0);
@@ -53,7 +53,7 @@ common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_h
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     /* Get merkle tree metadata */
-    vector<char> root_hash_v(root_hash, root_hash + root_hash_len);
+    vector<uint8_t> root_hash_v(root_hash, root_hash + root_hash_len);
 
     if (tree_meta_map.find(root_hash_v) == tree_meta_map.end())
     {
@@ -68,14 +68,16 @@ common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_h
     string ser_tree = std::get<0>(entry);
     size_t spos = std::get<1>(entry) + strlen(LEAF_SEPARATOR);
     size_t file_size = std::get<2>(entry);
+    uint8_t *org_hash = hex_string_to_bytes(ser_tree.substr(spos, HASH_LENGTH * 2).c_str(), HASH_LENGTH * 2);
     // Compare hash value
     for (size_t i = 0; i < root_hash_len; i++)
     {
-        if (ser_tree[spos + i] != cur_hash[i])
+        if (org_hash[i] != cur_hash[i])
         {
             return CRUST_WRONG_FILE_BLOCK;
         }
     }
+    free(org_hash);
     
     /* Seal original file block */
     uint32_t pri_key_len = sizeof(id_key_pair.pri_key);
@@ -104,10 +106,11 @@ common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_h
     /* Set new metadata */
     sgx_sha256_hash_t cur_new_hash;
     sgx_sha256_msg(p_sealed_data_r, sealed_data_size, &cur_new_hash);
+    const char *p_new_hash_hex = hexstring(&cur_new_hash, HASH_LENGTH);
     // Set new node hash
-    for (int i = 0; i < HASH_LENGTH; i++)
+    for (int i = 0; i < HASH_LENGTH * 2; i++)
     {
-        ser_tree[i + spos] = cur_new_hash[i];
+        ser_tree[i + spos] = p_new_hash_hex[i];
     }
     // Set new start position
     spos = ser_tree.find(LEAF_SEPARATOR, spos);
@@ -182,6 +185,34 @@ common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t se
 cleanup:
 
     return common_status;
+}
+
+/**
+ * @description: Transfer a Merkle tree to valid hash tree
+ * @param tree -> Pointer to Merkle tree root node
+ * */
+void storage_gen_validated_merkle_tree(MerkleTree *tree)
+{
+    if (tree == NULL || tree->links_num == 0)
+    {
+        return;
+    }
+
+    uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
+    for (uint32_t i = 0; i < tree->links_num; i++)
+    {
+        storage_gen_validated_merkle_tree(tree->links[i]);
+        memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
+    }
+
+    sgx_sha256_hash_t g_hashs_hash256;
+    sgx_sha256_msg(g_hashs, tree->links_num * HASH_LENGTH, &g_hashs_hash256);
+
+    free(g_hashs);
+
+    tree->hash = (char*)malloc(HASH_LENGTH);
+    memset(tree->hash, 0, HASH_LENGTH);
+    memcpy(tree->hash, g_hashs_hash256, HASH_LENGTH);
 }
 
 /**
@@ -261,30 +292,6 @@ common_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node
 }
 
 /**
- * @description: Transfer a Merkle tree to valid hash tree
- * @param tree -> Pointer to Merkle tree root node
- * */
-void storage_gen_validated_merkle_tree(MerkleTree *tree)
-{
-    if (tree == NULL || tree->links_num == 0)
-    {
-        return;
-    }
-
-    uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
-    for (uint32_t i = 0; i < tree->links_num; i++)
-    {
-        storage_gen_validated_merkle_tree(tree->links[i]);
-        memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
-    }
-
-    sgx_sha256_hash_t g_hashs_hash256;
-    sgx_sha256_msg(g_hashs, tree->links_num * HASH_LENGTH, &g_hashs_hash256);
-
-    tree->hash = (char*)&g_hashs_hash256;
-}
-
-/**
  * @description: Serialize Merkle tree
  * @param tree -> root of Merkle tree
  * @return: Serialized string
@@ -303,6 +310,10 @@ string storage_ser_merkle_tree(MerkleTree *tree)
     if (tree->links_num == 0)
     {
         ans.append(LEAF_SEPARATOR).append(hex_str);
+    }
+    else
+    {
+        ans.append(hex_str);
     }
 
     ans.append("{")
@@ -327,41 +338,56 @@ string storage_ser_merkle_tree(MerkleTree *tree)
 
 /**
  * @description: Deserialize Merkle tree
- * @param father -> root of Merkle tree
+ * @param root -> root of Merkle tree
  * @param ser_tree -> serialized Merkle tree
  * @param spos -> start position of deserialized string
  * @return: Root value of Merkle tree
  * */
-common_status_t storage_deser_merkle_tree(MerkleTree *father, string ser_tree, size_t &spos)
+common_status_t storage_deser_merkle_tree(MerkleTree **root, string ser_tree, size_t &spos)
 {
     if (spos >= ser_tree.size())
     {
         return CRUST_SUCCESS;
     }
 
+    *root = new MerkleTree();
+    MerkleTree *p_root = *root;
+
     // Get hash
     size_t epos = ser_tree.find("{", spos);
     string hash = ser_tree.substr(spos, epos - spos);
-    const char* p_hash = hash.c_str() + strlen(LEAF_SEPARATOR);
-    father->hash = (char*)hex_string_to_bytes(p_hash, HASH_LENGTH * 2);
+    if (hash.find(LEAF_SEPARATOR) != string::npos)
+    {
+        hash = hash.substr(hash.find(LEAF_SEPARATOR) + strlen(LEAF_SEPARATOR), HASH_LENGTH * 2);
+    }
+
+    p_root->hash = (char*)hex_string_to_bytes(hash.c_str(), hash.size());
 
     // Get size
     spos = epos + 1;
     epos = ser_tree.find(",", spos);
+    if (epos < spos)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
     size_t size = atoi(ser_tree.substr(spos, epos - spos).c_str());
-    father->size = size;
+    p_root->size = size;
 
     // Get links_num
     spos = epos + 1;
     epos = ser_tree.find(",", spos);
+    if (epos < spos)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
     size_t links_num = atoi(ser_tree.substr(spos, epos - spos).c_str());
-    father->links_num = links_num;
+    p_root->links_num = links_num;
 
     /* Get children nodes */
     spos = epos + 1;
-    if (father->links_num != 0)
+    if (p_root->links_num != 0)
     {
-        father->links = (MerkleTree**)malloc(father->links_num * sizeof(MerkleTree*));
+        p_root->links = (MerkleTree**)malloc(p_root->links_num * sizeof(MerkleTree*));
     }
     else
     {
@@ -369,11 +395,11 @@ common_status_t storage_deser_merkle_tree(MerkleTree *father, string ser_tree, s
         return CRUST_SUCCESS;
     }
     // Deserialize merkle tree recursively
-    for (size_t i = 0; i < father->links_num; i++)
+    for (size_t i = 0; i < p_root->links_num; i++)
     {
-        MerkleTree *child = new MerkleTree();
-        storage_deser_merkle_tree(child, ser_tree, spos);
-        father->links[i] = child;
+        MerkleTree *child = NULL;
+        storage_deser_merkle_tree(&child, ser_tree, spos);
+        p_root->links[i] = child;
     }
 
     return CRUST_SUCCESS;

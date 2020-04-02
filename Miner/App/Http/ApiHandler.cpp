@@ -13,6 +13,8 @@ int change_empty_num = 0;
 
 sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
 
+std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
+
 /**
  * @description: constructor
  * @param url -> API base url 
@@ -322,19 +324,33 @@ int ApiHandler::start()
     // Storage validate merkle tree
     path = urlendpoint->base + "/storage/validate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        cprintf_info(felog, "validate MerkleTree body:%s", req.body.c_str());
         json::JSON req_json = json::JSON::Load(req.body);
-        json::JSON tree_json = req_json["tree"];
-        MerkleTree *root = deserialize_merkle_tree_from_json(tree_json);
-
-        common_status_t common_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &common_status, root) ||
-                CRUST_SUCCESS != common_status)
+        MerkleTree *root = deserialize_merkle_tree_from_json(req_json);
+        if (root == NULL)
         {
-            res.set_content("Validate merkle tree failed!", "text/plain");
+            cprintf_err(felog, "Deserialize MerkleTree failed!\n");
+            res.set_content("Deserialize MerkleTree failed!", "text/plain");
             res.status = 400;
+            return;
         }
 
-        res.set_content("Validate merkle tree successfully!", "text/plain");
+        std::vector<uint8_t> root_hash_v(root->hash, root->hash + HASH_LENGTH);
+        hash_tree_map[root_hash_v] = root;
+
+        common_status_t common_status = CRUST_SUCCESS;
+        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &common_status, (const uint8_t*)root->hash, HASH_LENGTH) ||
+                CRUST_SUCCESS != common_status)
+        {
+            cprintf_err(felog, "Validate merkle tree failed!Error code:%lx\n", common_status);
+            res.set_content("Validate merkle tree failed!", "text/plain");
+            res.status = 401;
+        }
+        else
+        {
+            cprintf_info(felog, "Validate merkle tree successfully!");
+            res.set_content("Validate merkle tree successfully!", "text/plain");
+        }
     });
 
     // Storage seal file block
@@ -346,6 +362,7 @@ int ApiHandler::start()
         size_t src_len = req.body.size();
         std::string root_hash_str = req.params.find("root_hash")->second;
         uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
+        std::string content;
 
         size_t sealed_data_size = sizeof(uint32_t) * 2 + src_len + SGX_ECP256_KEY_SIZE;
         size_t sealed_data_size_r = sgx_calc_sealed_data_size(0, sealed_data_size);
@@ -358,14 +375,19 @@ int ApiHandler::start()
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
+            cprintf_info(felog, "Seal data failed!Error code:%lx\n", common_status);
             res.set_content("Seal file block failed!", "text/plain");
             res.status = 400;
+            goto cleanup;
         }
 
-        std::string content((char*)p_sealed_data, sealed_data_size_r);
+        content = std::string(hexstring(p_sealed_data, sealed_data_size_r), sealed_data_size_r * 2);
+        res.set_content(content, "text/plain");
+        cprintf_info(felog, "Seal content:%s\n", content.c_str());
+
+    cleanup:
         free(p_sealed_data);
         free(root_hash);
-        res.set_content(content, "text/plain");
     });
 
     // Storage unseal file block
@@ -378,6 +400,7 @@ int ApiHandler::start()
         memset(p_sealed_data_r, 0, sealed_data_size);
         uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
         uint8_t *p_unsealed_data = (uint8_t*)malloc(unsealed_data_size);
+        std::string content;
 
         common_status_t common_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &common_status,
@@ -385,14 +408,19 @@ int ApiHandler::start()
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
+            cprintf_err(felog, "Unseal data failed!Error code:%lx\n", common_status);
             res.set_content("Unseal file block failed!", "text/plain");
             res.status = 400;
+            goto cleanup;
         }
 
-        std::string content((char*)p_unsealed_data, unsealed_data_size);
+        cprintf_err(felog, "Unseal data successfully!\n");
+        content = std::string(hexstring(p_unsealed_data, unsealed_data_size), unsealed_data_size * 2);
+        res.set_content(content, "text/plain");
+
+    cleanup:
         free(p_unsealed_data);
         free(p_sealed_data_r);
-        res.set_content(content, "text/plain");
     });
 
     // Storage generate validated merkle tree
@@ -400,16 +428,21 @@ int ApiHandler::start()
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         std::string root_hash_str = req.params.find("root_hash")->second;
         uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
+        cprintf_info(felog, "root hash:%s\n", root_hash_str.c_str());
 
         common_status_t common_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH);
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
+            cprintf_err(felog, "Generate new merkle tree failed!Error code:%lx\n", common_status);
             res.set_content("Generate new merkle tree failed!", "text/plain");
             res.status = 400;
+            goto cleanup;
         }
 
         res.set_content("Generate new merkle tree successfully!", "text/plain");
+
+    cleanup:
         free(root_hash);
     });
 
