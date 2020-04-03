@@ -148,9 +148,10 @@ common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t se
     uint32_t decrypted_data_len = sgx_get_encrypt_txt_len(p_sealed_data_r);
     uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_len);
     sgx_status = sgx_unseal_data(p_sealed_data_r, NULL, NULL,
-            p_decrypted_data, &unsealed_data_size);
+            p_decrypted_data, &decrypted_data_len);
     if (SGX_SUCCESS != sgx_status)
     {
+        cfeprintf("Unseal data failed!Error code:%lx\n", sgx_status);
         common_status = CRUST_UNSEAL_DATA_FAILED;
         goto cleanup;
     }
@@ -159,26 +160,22 @@ common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t se
     memcpy(&src_len, p_decrypted_data, sizeof(uint32_t));
     if (src_len != unsealed_data_size)
     {
-        common_status = CRUST_INVALID_SEALED_DATA;
+        common_status = CRUST_MALWARE_DATA_BLOCK;
         goto cleanup;
     }
     p_decrypted_data += sizeof(uint32_t);
-    memcpy(&pri_key_len, p_decrypted_data + sizeof(uint32_t), sizeof(uint32_t));
-    if (pri_key_len != sizeof(id_key_pair.pri_key))
-    {
-        common_status = CRUST_INVALID_SEALED_DATA;
-        goto cleanup;
-    }
+    memcpy(&pri_key_len, p_decrypted_data, sizeof(uint32_t));
     p_decrypted_data += sizeof(uint32_t);
     // Verify unsealed data
     memcpy(p_unsealed_data, p_decrypted_data, src_len);
     p_decrypted_data += src_len;
+    // Compare if the private key belongs to current tee
     p_unsealed_pri_key = (uint8_t *)malloc(pri_key_len);
     memset(p_unsealed_pri_key, 0, pri_key_len);
     memcpy(p_unsealed_pri_key, p_decrypted_data, pri_key_len);
     if (memcmp(p_unsealed_pri_key, &id_key_pair.pri_key, pri_key_len) != 0)
     {
-        common_status = CRUST_INVALID_SEALED_DATA;
+        common_status = CRUST_MALWARE_DATA_BLOCK;
         goto cleanup;
     }
 

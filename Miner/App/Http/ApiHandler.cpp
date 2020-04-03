@@ -348,7 +348,7 @@ int ApiHandler::start()
         }
         else
         {
-            cprintf_info(felog, "Validate merkle tree successfully!");
+            cprintf_info(felog, "Validate merkle tree successfully!\n");
             res.set_content("Validate merkle tree successfully!", "text/plain");
         }
     });
@@ -398,7 +398,9 @@ int ApiHandler::start()
         // Caculate unsealed data size
         sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
         memset(p_sealed_data_r, 0, sealed_data_size);
+        memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
         uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
+        unsealed_data_size = unsealed_data_size - sizeof(uint32_t) * 2 - SGX_ECP256_KEY_SIZE;
         uint8_t *p_unsealed_data = (uint8_t*)malloc(unsealed_data_size);
         std::string content;
 
@@ -414,8 +416,8 @@ int ApiHandler::start()
             goto cleanup;
         }
 
-        cprintf_err(felog, "Unseal data successfully!\n");
         content = std::string(hexstring(p_unsealed_data, unsealed_data_size), unsealed_data_size * 2);
+        cprintf_info(felog, "Unseal data successfully!\n");
         res.set_content(content, "text/plain");
 
     cleanup:
