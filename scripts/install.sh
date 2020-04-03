@@ -2,15 +2,12 @@
 function installAPP()
 {
     # Install tee-app dependencies
-    verbose INFO "Installing app dependencies..." h
-    checkRes $? "quit"
-
     local res=0
     cd $appdir
     make clean &>/dev/null
-    setTimeWait "$(verbose INFO "Buiding application..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Buiding application(about 50s)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make &>/dev/null
+    make &>$ERRFILE
     checkRes $? "quit" "$SYNCFILE"
     cp $appname ../bin
     if [ ! -e "../etc/$enclaveso" ]; then
@@ -32,6 +29,26 @@ function installAPP()
     verbose INFO "Install application successfully!"
 }
 
+function installPrerequisites()
+{
+    # For SGX PSW
+    verbose INFO "Installing SGX PSW prerequisites..." h
+    apt-get install -y libssl-dev libcurl4-openssl-dev libprotobuf-dev &>/dev/null
+    checkRes $? "quit"
+
+    # For SGX SDK
+    verbose INFO "Installing SGX SDK prerequisites..." h
+    apt-get install -y build-essential python &>/dev/null
+    checkRes $? "quit"
+
+    # For others
+    verbose INFO "Installing other prerequisites..." h
+    apt-get install -y libboost-all-dev openssl &>/dev/null
+    checkRes $? "quit"
+
+    verbose INFO "Install prerequisites successfully!"
+}
+
 function installSGXSDK()
 {
     local cmd=""
@@ -47,13 +64,13 @@ function installSGXSDK()
     for dep in ${sdkInstOrd[@]}; do 
         verbose INFO "Installing $dep..." h
         if echo $dep | grep lib &>/dev/null; then
-            dpkg -i $rsrcdir/$dep &>/dev/null
+            dpkg -i $rsrcdir/$dep &>$ERRFILE
             ret=$?
         elif [[ $dep =~ sdk ]]; then
             execWithExpect_sdk "" "$rsrcdir/$dep"
             ret=$?
         else
-            $rsrcdir/$dep &>/dev/null
+            $rsrcdir/$dep &>$ERRFILE
         fi
         checkRes $ret "quit"
     done
@@ -86,16 +103,15 @@ function installSGXSSL()
 
     # build SGX SSL
     cd $sgxssldir/Linux
-    #verbose INFO "Making SGX SSL..." h
     cp $opensslpkg $sgxssl_openssl_source_dir
     touch $SYNCFILE
-    setTimeWait "$(verbose INFO "Making SGX SSL..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Making SGX SSL(about 60s)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make all test &>/dev/null
+    make all test &>$ERRFILE
     checkRes $? "quit" "$SYNCFILE"
     echo
     verbose INFO "Installing SGX SSL..." h
-    make install
+    make install &>$ERRFILE
     checkRes $? "quit"
     cd - &>/dev/null
 
@@ -116,7 +132,7 @@ function uninstallOldCrustTee()
     fi
     cd $crustteedir
     if [ -e "scripts/uninstall.sh" ]; then
-        ./scripts/uninstall.sh &>/dev/null
+        ./scripts/uninstall.sh &>$ERRFILE
         ret=$?
     else
         rm -rf *
@@ -190,33 +206,6 @@ function checkSGXSDK()
     return 1
 }
 
-function checkRes()
-{
-    local res=$1
-    local err_op=$2
-    local descriptor=$3
-
-    if [ x"$descriptor" = x"" ] ; then 
-        descriptor="&1"
-    fi
-
-    if [ $res -ne 0 ]; then
-        eval "verbose ERROR "FAILED" t >$descriptor"
-        case $err_op in 
-            quit)       exit 1;;
-            return)     return 1;;
-            *)          ;;
-        esac
-        return 1
-    fi
-
-    eval "verbose INFO "SUCCESS" t >$descriptor"
-
-    while [ -s $descriptor ]; do
-        sleep 1
-    done
-}
-
 function setEnv()
 {
 
@@ -229,6 +218,40 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SGX_SDK/pkgconfig
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SGX_SDK/sdk_libs:$SGX_SSL/lib64
 EOF
 
+}
+
+function checkRes()
+{
+    local res=$1
+    local err_op=$2
+    local descriptor=$3
+
+    if [ x"$descriptor" = x"" ] ; then 
+        descriptor="&1"
+    fi
+
+    if [ $res -ne 0 ]; then
+        eval "verbose ERROR "FAILED" t >$descriptor"
+    else
+        eval "verbose INFO "SUCCESS" t >$descriptor"
+    fi
+
+    while [ -s "$descriptor" ]; do
+        sleep 1
+    done
+
+    if [ $res -ne 0 ]; then
+        case $err_op in
+            quit)       
+                verbose ERROR "Unexpected error occurs!Please check $ERRFILE for details!"
+                exit 1
+                ;;
+            return)     
+                return 1
+                ;;
+            *)  ;;
+        esac
+    fi
 }
 
 function setTimeWait()
@@ -317,6 +340,7 @@ basedir=$(cd `dirname $0`;pwd)
 appdir=$basedir/Miner
 instdir=$basedir
 TMPFILE=$appdir/tmp.$$
+ERRFILE=$basedir/err.log
 rsrcdir=$instdir/resource
 crustteedir=/opt/crust/crust-tee
 inteldir=/opt/intel
@@ -355,8 +379,7 @@ opensslpkg=$rsrcdir/$(basename $OPENSSLURL)
 openssldir=$rsrcdir/$(basename $OPENSSLURL | grep -Po ".*(?=\.tar)")
 sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
 # SGX associate array
-#delOrder=(libsgx-enclave-common sgxdriver sgxsdk sgxssl)
-delOrder=(libsgx-enclave-common sgxdriver sgxsdk)
+delOrder=(libsgx-enclave-common-dev libsgx-enclave-common sgxdriver sgxsdk)
 declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 # App related
 appname="crust-tee"
@@ -402,6 +425,9 @@ mkdir -p $inteldir
 res=$(($?|$res))
 checkRes $res "quit"
 
+echo
+verbose INFO "---------- Installing Prerequisites ----------" n
+installPrerequisites
 
 echo
 verbose INFO "---------- Installing SGX SDK ----------" n
@@ -411,7 +437,7 @@ if checkSGXSDK; then
 else
     verbose INFO "SGX SDK Dependencies have been installed!!!"
 fi
-    
+
 # Install SGX SSL
 echo
 verbose INFO "---------- Installing SGX SSL ----------" n

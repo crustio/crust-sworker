@@ -1,5 +1,6 @@
 #include "ApiHandler.h"
 #include "Json.hpp"
+#include "sgx_tseal.h"
 
 using namespace httplib;
 
@@ -11,6 +12,8 @@ std::mutex change_empty_mutex;
 int change_empty_num = 0;
 
 sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
+
+std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 
 /**
  * @description: constructor
@@ -80,6 +83,7 @@ int ApiHandler::start()
         delete report;
     });
 
+    // Entry network process
     path = urlendpoint->base + "/entry/network";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         sgx_status_t status_ret = SGX_SUCCESS;
@@ -122,9 +126,10 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*ApiHandler::p_global_eid, &common_status,
-                                       (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
-                                       data_sig_str.size(), &data_sig);
+        status_ret = ecall_store_quote(*this->p_global_eid, &common_status,
+                (const char *)quote, qsz, (const uint8_t*)data_sig_str.c_str(), 
+                data_sig_str.size(), &data_sig, (const uint8_t*)off_chain_crust_account_id.c_str(), 
+                off_chain_crust_account_id.size());
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
         {
             cprintf_err(felog, "Store and verify offChain node data failed!\n");
@@ -291,6 +296,9 @@ int ApiHandler::start()
                 case IAS_BADMEASUREMENT:
                     cprintf_err(felog, "Verify IAS report failed! Bad enclave code measurement!!\n");
                     break;
+                case IAS_UNEXPECTED_ERROR:
+                    cprintf_err(felog, "Verify IAS report failed! unexpected error!!\n");
+                    break;
                 case IAS_GETPUBKEY_FAILED:
                     cprintf_err(felog, "Verify IAS report failed! Get public key from certificate failed!!\n");
                     break;
@@ -298,7 +306,7 @@ int ApiHandler::start()
                     cprintf_err(felog, "Sign public key failed!!\n");
                     break;
                 default:
-                    cprintf_err(felog, "Unknow return status!\n");
+                    cprintf_err(felog, "Unknown return status!\n");
                 }
                 res.set_content("Verify IAS report failed!", "text/plain");
                 res.status = 403;
@@ -311,6 +319,174 @@ int ApiHandler::start()
             res.status = 404;
         }
         delete client;
+    });
+
+    // Storage validate merkle tree
+    path = urlendpoint->base + "/storage/validate/merkletree";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        cprintf_info(felog, "validate MerkleTree body:%s", req.body.c_str());
+        // Check if body is validated
+        if (req.body.size() == 0)
+        {
+            res.set_content("Validate MerkleTree faild!Error: Empty body!", "text/plain");
+            res.status = 400;
+            return;
+        }
+
+        // Get MerkleTree
+        json::JSON req_json = json::JSON::Load(req.body);
+        MerkleTree *root = deserialize_merkle_tree_from_json(req_json);
+        if (root == NULL)
+        {
+            cprintf_err(felog, "Deserialize MerkleTree failed!\n");
+            res.set_content("Deserialize MerkleTree failed!", "text/plain");
+            res.status = 401;
+            return;
+        }
+
+        // Validate MerkleTree
+        common_status_t common_status = CRUST_SUCCESS;
+        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &common_status, &root) ||
+                CRUST_SUCCESS != common_status)
+        {
+            cprintf_err(felog, "Validate merkle tree failed!Error code:%lx\n", common_status);
+            res.set_content("Validate merkle tree failed!", "text/plain");
+            res.status = 402;
+        }
+        else
+        {
+            cprintf_info(felog, "Validate merkle tree successfully!\n");
+            res.set_content("Validate merkle tree successfully!", "text/plain");
+        }
+    });
+
+    // Storage seal file block
+    // TODO: file data basecode problem
+    // TODO: Add backup
+    // TODO: error code
+    path = urlendpoint->base + "/storage/seal";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        // Get source data
+        size_t src_len = req.body.size();
+        if (src_len == 0)
+        {
+            res.set_content("Seal data failed!Error empty request body!", "text/plain");
+            res.status = 400;
+            return;
+        }
+        uint8_t *p_src = (uint8_t*)req.body.data();
+
+        // Get root hash
+        std::string root_hash_str = req.params.find("root_hash")->second;
+        if (root_hash_str.size() == 0)
+        {
+            res.set_content("Seal data failed!Error Empty root hash!", "text/plain");
+            res.status = 401;
+            return;
+        }
+        uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
+
+        // Get sealed data buffer
+        size_t sealed_data_size = sizeof(uint32_t) * 2 + src_len + SGX_ECP256_KEY_SIZE;
+        size_t sealed_data_size_r = sgx_calc_sealed_data_size(0, sealed_data_size);
+        uint8_t *p_sealed_data = (uint8_t*)malloc(sealed_data_size_r);
+        memset(p_sealed_data, 0, sealed_data_size_r);
+
+        // Seal data
+        std::string content;
+        common_status_t common_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH, 
+                p_src, src_len, p_sealed_data, sealed_data_size_r);
+
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        {
+            cprintf_info(felog, "Seal data failed!Error code:%lx\n", common_status);
+            res.set_content("Seal file block failed!", "text/plain");
+            res.status = 402;
+            goto cleanup;
+        }
+
+        content = std::string(hexstring(p_sealed_data, sealed_data_size_r), sealed_data_size_r * 2);
+        res.set_content(content, "text/plain");
+        cprintf_info(felog, "Seal content:%s\n", content.c_str());
+
+    cleanup:
+        free(p_sealed_data);
+        free(root_hash);
+    });
+
+    // Storage unseal file block
+    path = urlendpoint->base + "/storage/unseal";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        if (req.body.size() == 0)
+        {
+            res.set_content("Unseal data failed!Error empty data!", "text/plain");
+            res.status = 400;
+            return;
+        }
+        uint8_t *p_sealed_data = (uint8_t*)req.body.data();
+        size_t sealed_data_size = req.body.size();
+
+        // Caculate unsealed data size
+        sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
+        memset(p_sealed_data_r, 0, sealed_data_size);
+        memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
+        uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
+        unsealed_data_size = unsealed_data_size - sizeof(uint32_t) * 2 - SGX_ECP256_KEY_SIZE;
+        uint8_t *p_unsealed_data = (uint8_t*)malloc(unsealed_data_size);
+
+        // Unseal data
+        std::string content;
+        common_status_t common_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &common_status,
+                p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
+
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        {
+            cprintf_err(felog, "Unseal data failed!Error code:%lx\n", common_status);
+            res.set_content("Unseal file block failed!", "text/plain");
+            res.status = 401;
+            goto cleanup;
+        }
+
+        content = std::string(hexstring(p_unsealed_data, unsealed_data_size), unsealed_data_size * 2);
+        cprintf_info(felog, "Unseal data successfully!\n");
+        res.set_content(content, "text/plain");
+
+    cleanup:
+        free(p_unsealed_data);
+        free(p_sealed_data_r);
+    });
+
+    // Storage generate validated merkle tree
+    path = urlendpoint->base + "/storage/generate/merkletree";
+    server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        // Get root hash
+        std::string root_hash_str = req.params.find("root_hash")->second;
+        if (root_hash_str.size() == 0)
+        {
+            res.set_content("Generate MerkleTree failed!Error empty hash!", "text/plain");
+            res.status = 400;
+            return;
+        }
+        uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
+        cprintf_info(felog, "root hash:%s\n", root_hash_str.c_str());
+
+        // Generate MerkleTree
+        common_status_t common_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH);
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        {
+            cprintf_err(felog, "Generate new merkle tree failed!Error code:%lx\n", common_status);
+            res.set_content("Generate new merkle tree failed!", "text/plain");
+            res.status = 401;
+            goto cleanup;
+        }
+
+        res.set_content("Generate new merkle tree successfully!", "text/plain");
+
+    cleanup:
+        free(root_hash);
     });
 
     // Inner APIs

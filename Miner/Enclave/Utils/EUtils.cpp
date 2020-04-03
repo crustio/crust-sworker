@@ -1,5 +1,7 @@
 #include "EUtils.h"
 
+using namespace std;
+
 static char *_hex_buffer = NULL;
 static size_t _hex_buffer_size = 0;
 const char _hextable[] = "0123456789abcdef";
@@ -93,13 +95,14 @@ char *hexstring(const void *vsrc, size_t len)
  * @param len -> Source char* length
  * @return: Bytes array
  * */
-uint8_t *hex_string_to_bytes(const char *src, size_t len)
+uint8_t *hex_string_to_bytes(const void *src, size_t len)
 {
     if (len % 2 != 0)
     {
         return NULL;
     }
 
+    const char *rsrc = (const char*)src;
     uint8_t *p_target;
     uint8_t *target = (uint8_t *)malloc(len / 2);
     if (target == NULL)
@@ -108,10 +111,10 @@ uint8_t *hex_string_to_bytes(const char *src, size_t len)
     }
     memset(target, 0, len / 2);
     p_target = target;
-    while (*src && src[1])
+    for (uint32_t i = 0; i < len; i+=2)
     {
-        *(target++) = (uint8_t)(char_to_int(*src) * 16 + char_to_int(src[1]));
-        src += 2;
+        *(target++) = (uint8_t)(char_to_int(rsrc[0]) * 16 + char_to_int(rsrc[1]));
+        rsrc += 2;
     }
 
     return p_target;
@@ -195,7 +198,7 @@ char *unsigned_char_to_hex(const unsigned char in)
  * @return: status
  */
 common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
-                                    sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
+        sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     common_status_t common_status = CRUST_SUCCESS;
@@ -208,7 +211,7 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
     sgx_status = sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
-                                  0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
+            0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
 
     if (SGX_SUCCESS != sgx_status)
     {
@@ -218,6 +221,50 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     }
 
     *sealed_data_size = (size_t)sealed_data_sz;
+
+    return common_status;
+}
+
+/**
+ * @description: Validate Merkle file tree
+ * @param tree -> root of Merkle tree
+ * @return: Validate status
+ * */
+common_status_t validate_merkle_tree_c(MerkleTree *tree)
+{
+    if (tree->links_num == 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
+    common_status_t common_status = CRUST_SUCCESS;
+    sgx_sha256_hash_t g_hashs_hash256;
+
+    uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
+    memset(g_hashs, 0, tree->links_num * HASH_LENGTH);
+    for (uint32_t i = 0; i < tree->links_num; i++)
+    {
+        if(validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
+        {
+            common_status = CRUST_INVALID_MERKLETREE;
+            goto cleanup;
+        }
+        memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
+    }
+
+    // Compute and compare hash value
+    sgx_sha256_msg(g_hashs, tree->links_num * HASH_LENGTH, &g_hashs_hash256);
+
+    if (memcmp(tree->hash, g_hashs_hash256, HASH_LENGTH) != 0)
+    {
+        common_status = CRUST_INVALID_MERKLETREE;
+        goto cleanup;
+    }
+
+
+cleanup:
+
+    free(g_hashs);
 
     return common_status;
 }

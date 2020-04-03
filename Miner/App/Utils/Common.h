@@ -13,6 +13,8 @@
 #include <vector>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
+#include "MerkleTree.h"
+#include "Json.hpp"
 
 #define LINE_TYPE '-'
 #define LINE_SHORT_LEN 4
@@ -37,17 +39,9 @@
 extern "C"
 {
 #endif
-    void edivider_with_text(const char *text);
-    void edivider();
-
-    void divider_with_text(FILE *fd, const char *text);
-    void divider(FILE *fd);
-
     void cprintf_info(FILE *stream, const char *format, ...);
     void cprintf_warn(FILE *stream, const char *format, ...);
     void cprintf_err(FILE *stream, const char *format, ...);
-    void cprintf_real(FILE *stream, std::string info, const char *info_tag);
-    int cfputs(const char *s);
 
     struct UrlEndPoint
     {
@@ -58,6 +52,7 @@ extern "C"
 
     UrlEndPoint *get_url_end_point(std::string url);
     void remove_chars_from_string(std::string &str, const char *chars_to_remove);
+    MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json);
 
 #if defined(__cplusplus)
 }

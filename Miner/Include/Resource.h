@@ -9,3 +9,4 @@
 
 #define APP_RUN_MODE_SINGLE "single"
 #define APP_RUN_MODE_MULTIPLE "multiple"
+#define HASH_LENGTH 32

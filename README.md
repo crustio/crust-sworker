@@ -157,6 +157,155 @@ Output (500, TEE has not been fully launched , this API does not support concurr
 ```
 
 
+### Use 'storage/validate/merkletree' to start storage related work, 
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/storage/validate/merkletree' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
+  "links_num":2,
+  "links":
+  [
+    {
+      "hash":"ca8fcf43b852d7d73801c1c13f38e3d8f80e6c53d4556aa4e18aaa6632c0914b",
+      "links_num":2,
+      "links":
+      [
+        {
+          "hash":"df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+          "links_num":0,
+          "links":[]
+        },
+        {
+          "hash":"82ef6f9e48bcbdf232db1d5c5c6e8f390156f5305b35d4b32f75fc92c8126a32",
+          "links_num":0,
+          "links":[]
+        }
+      ]
+    },
+    {
+      "hash":"e2f3daf19abfb40766b4c507a9b191fe274f343dfff18287c8e1d8552b8aac77",
+      "links_num":2,
+      "links":
+      [
+        {
+          "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
+          "links_num":0,
+          "links":[]
+        },
+        {
+          "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
+          "links_num":0,
+          "links":[]
+        }
+      ]
+    }
+  ]
+}'
+
+```
+
+Output (200, success):
+```shell
+Validate merkle tree successfully
+```
+
+Output (400, error: empty body):
+```shell
+empty request body
+```
+
+Output (401, deserialize merkletree failed):
+```shell
+Invalidated merkletree results in failure
+```
+
+Output (402, validate merkletree failed):
+```shell
+Validate merkle tree failed, because of invalid tree structure
+```
+
+
+### Use 'storage/seal' to seal file block, 
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/storage/seal?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17' \
+--header 'Content-Type: application/octet-stream' \
+--data-binary '<path_to_file_block>'
+```
+
+Output (200, success):
+```shell
+seal file block successfully
+```
+
+Output (400, error: empty request body):
+```shell
+empty source data
+```
+
+Output (401, empty root hash):
+```shell
+empty root hash
+```
+
+Output (402, seal failed):
+```shell
+seal file block failed
+```
+
+
+### Use 'storage/unseal' to unseal file block, 
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/storage/unseal' \
+--header 'Content-Type: application/octet-stream' \
+--data-binary '<path_to_file_block>'
+```
+
+Output (200, success):
+```shell
+unseal file block successfully
+```
+
+Output (400, error: emtpy request body):
+```shell
+emtpy request body
+```
+
+Output (401, unseal failed):
+```shell
+unseal file block failed
+```
+
+
+### Use 'storage/generate/merkletree' to generate validated merkletree in enclave, 
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/storage/generate/merkletree?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17'
+```
+
+Output (200, success):
+```shell
+generate validated merkletree successfully
+```
+
+Output (400, error: empty root hash):
+```shell
+empty root hash
+```
+
+Output (401, generate failed):
+```shell
+generate validated merkletree failed
+```
+
+
 ## Contribution
 
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
