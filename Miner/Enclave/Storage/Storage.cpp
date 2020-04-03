@@ -11,27 +11,37 @@ map<vector<uint8_t>, MerkleTree *> new_tree_map;
 extern ecc_key_pair id_key_pair;
 
 common_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node, vector<uint32_t> path);
+void _gen_validated_merkle_tree(MerkleTree *tree);
 
 /**
  * @description: Validate merkle tree and storage tree related meta data
- * @param tree -> Pointer to Merkle tree root node
+ * @param root_hash -> Merkle tree root hash
+ * @param hash_len -> Merkle tree root hash length
  * @return: Validate status
  * */
-common_status_t storage_validate_merkle_tree(MerkleTree *tree)
+common_status_t storage_validate_merkle_tree(MerkleTree *root)
 {
-    if (CRUST_SUCCESS != validate_merkle_tree_c(tree))
+    // Check duplicated
+    vector<uint8_t> root_hash_v(root->hash, root->hash + HASH_LENGTH);
+    if (tree_meta_map.find(root_hash_v) != tree_meta_map.end())
+    {
+        return CRUST_MERKLETREE_DUPLICATED;
+    }
+
+    // Do validation
+    if (CRUST_SUCCESS != validate_merkle_tree_c(root))
     {
         return CRUST_INVALID_MERKLETREE;
     }
 
     // Serialize Merkle tree
-    string ser_tree = storage_ser_merkle_tree(tree);
+    string ser_tree = storage_ser_merkle_tree(root);
 
     // Record position of first leaf node
     size_t spos = ser_tree.find(LEAF_SEPARATOR);
 
     // Get vector of root hash
-    vector<uint8_t> hash_v(tree->hash, tree->hash + HASH_LENGTH);
+    vector<uint8_t> hash_v(root->hash, root->hash + HASH_LENGTH);
 
     // Record merkle tree metadata
     tree_meta_map[hash_v] = make_tuple(ser_tree, spos, 0);
@@ -185,10 +195,55 @@ cleanup:
 }
 
 /**
+ * @description: Generate validate Merkle hash tree after seal file successfully
+ * @param root_hash -> root hash of Merkle tree
+ * @param root_hash_len -> root hash length
+ * @return: Generate status
+ * */
+common_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
+{
+    common_status_t common_status = CRUST_SUCCESS;
+    // Get sealed complete tree metadata
+    vector<uint8_t> root_hash_v(root_hash, root_hash + root_hash_len);
+    if (tree_meta_map.find(root_hash_v) == tree_meta_map.end())
+    {
+        return CRUST_NOTFOUND_MERKLETREE;
+    }
+
+    // Judge whether seal has been completed
+    auto entry = tree_meta_map[root_hash_v];
+    string ser_tree = std::get<0>(entry);
+    size_t spos = std::get<1>(entry);
+    if (spos != string::npos)
+    {
+        return CRUST_SEAL_NOTCOMPLETE;
+    }
+    // Deserialize tree
+    MerkleTree *new_root = NULL;
+    spos = 0;
+    if (CRUST_SUCCESS != (common_status = storage_deser_merkle_tree(&new_root, ser_tree, spos)) || new_root == NULL)
+    {
+        cfeprintf("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", common_status);
+        return CRUST_DESER_MERKLE_TREE_FAILED;
+    }
+
+    // Get sealed tree
+    _gen_validated_merkle_tree(new_root);
+    vector<uint8_t> new_root_hash_v(new_root->hash, new_root->hash + HASH_LENGTH);
+    new_tree_map[new_root_hash_v] = new_root;
+
+    // For log
+    string new_ser_tree = storage_ser_merkle_tree(new_root);
+    cfeprintf("new tree string:%s\n", new_ser_tree.c_str());
+
+    return CRUST_SUCCESS;
+}
+
+/**
  * @description: Transfer a Merkle tree to valid hash tree
  * @param tree -> Pointer to Merkle tree root node
  * */
-void storage_gen_validated_merkle_tree(MerkleTree *tree)
+void _gen_validated_merkle_tree(MerkleTree *tree)
 {
     if (tree == NULL || tree->links_num == 0)
     {
@@ -198,7 +253,7 @@ void storage_gen_validated_merkle_tree(MerkleTree *tree)
     uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
     for (uint32_t i = 0; i < tree->links_num; i++)
     {
-        storage_gen_validated_merkle_tree(tree->links[i]);
+        _gen_validated_merkle_tree(tree->links[i]);
         memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
     }
 

@@ -173,12 +173,17 @@ Output (200, success):
 Validate merkle tree successfully
 ```
 
-Output (400, deserialize merkletree failed):
+Output (400, error: empty body):
+```shell
+empty request body
+```
+
+Output (401, deserialize merkletree failed):
 ```shell
 Invalidated merkletree results in failure
 ```
 
-Output (401, validate merkletree failed):
+Output (402, validate merkletree failed):
 ```shell
 Validate merkle tree failed, because of invalid tree structure
 ```
@@ -201,7 +206,17 @@ Output (200, success):
 seal file block successfully
 ```
 
-Output (400, seal failed):
+Output (400, error: empty request body):
+```shell
+empty source data
+```
+
+Output (401, empty root hash):
+```shell
+empty root hash
+```
+
+Output (402, seal failed):
 ```shell
 seal file block failed
 ```
@@ -223,7 +238,12 @@ Output (200, success):
 unseal file block successfully
 ```
 
-Output (400, unseal failed):
+Output (400, error: emtpy request body):
+```shell
+emtpy request body
+```
+
+Output (401, unseal failed):
 ```shell
 unseal file block failed
 ```
@@ -245,7 +265,12 @@ Output (200, success):
 generate validated merkletree successfully
 ```
 
-Output (400, generate failed):
+Output (400, error: empty root hash):
+```shell
+empty root hash
+```
+
+Output (401, generate failed):
 ```shell
 generate validated merkletree failed
 ```

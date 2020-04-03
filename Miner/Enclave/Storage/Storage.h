@@ -19,7 +19,7 @@ extern "C"
 {
 #endif
 
-common_status_t storage_validate_merkle_tree(MerkleTree *tree);
+common_status_t storage_validate_merkle_tree(MerkleTree *root);
 
 common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size);
@@ -27,7 +27,7 @@ common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_h
 common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
         uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
 
-void storage_gen_validated_merkle_tree(MerkleTree *tree);
+common_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len);
 
 common_status_t storage_validate_meaningful_data();
 

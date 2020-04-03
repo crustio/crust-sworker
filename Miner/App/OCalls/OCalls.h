@@ -473,10 +473,4 @@ common_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, ui
     return CRUST_SUCCESS;
 }
 
-void ocall_get_merkle_tree_n(MerkleTree **p_merkletree, const uint8_t *root_hash, size_t hash_len)
-{
-    std::vector<uint8_t> root_hash_v(root_hash, root_hash + hash_len);
-    *p_merkletree = hash_tree_map[root_hash_v];
-}
-
 #endif /* !_OCALLS_APP_H_ */

@@ -594,32 +594,14 @@ ias_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_ne
 }
 
 /**
- * @description: Validate Merkle tree
- * @param tree -> root of Merkle tree
- * @return: Validate result
+ * @description: Validate merkle tree and storage tree related meta data
+ * @param root_hash -> Merkle tree root hash
+ * @param hash_len -> Merkle tree root hash length
+ * @return: Validate status
  * */
-common_status_t ecall_validate_merkle_tree(const uint8_t *root_hash, size_t hash_len)
+common_status_t ecall_validate_merkle_tree(MerkleTree **root)
 {
-    // Check duplicated
-    vector<uint8_t> root_hash_v(root_hash, root_hash + hash_len);
-    if (tree_meta_map.find(root_hash_v) != tree_meta_map.end())
-    {
-        return CRUST_MERKLETREE_DUPLICATED;
-    }
-
-    // Get MerkleTree root node
-    MerkleTree *root = NULL;
-    ocall_get_merkle_tree_n(&root, root_hash, hash_len);
-    if (root == NULL)
-    {
-        return CRUST_GET_MERKLETREE_FAILED;
-    }
-    if (CRUST_SUCCESS != storage_validate_merkle_tree(root))
-    {
-        return CRUST_INVALID_MERKLETREE;
-    }
-
-    return CRUST_SUCCESS;
+    return storage_validate_merkle_tree(*root);
 }
 
 /**
@@ -664,39 +646,5 @@ common_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t seal
  * */
 common_status_t ecall_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
 {
-    common_status_t common_status = CRUST_SUCCESS;
-    // Get sealed complete tree metadata
-    vector<uint8_t> root_hash_v(root_hash, root_hash + root_hash_len);
-    if (tree_meta_map.find(root_hash_v) == tree_meta_map.end())
-    {
-        return CRUST_NOTFOUND_MERKLETREE;
-    }
-
-    // Judge whether seal has been completed
-    auto entry = tree_meta_map[root_hash_v];
-    string ser_tree = std::get<0>(entry);
-    size_t spos = std::get<1>(entry);
-    if (spos != string::npos)
-    {
-        return CRUST_SEAL_NOTCOMPLETE;
-    }
-    // Deserialize tree
-    MerkleTree *new_root = NULL;
-    spos = 0;
-    if (CRUST_SUCCESS != (common_status = storage_deser_merkle_tree(&new_root, ser_tree, spos)) || new_root == NULL)
-    {
-        cfeprintf("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", common_status);
-        return CRUST_DESER_MERKLE_TREE_FAILED;
-    }
-
-    // Get sealed tree
-    storage_gen_validated_merkle_tree(new_root);
-    vector<uint8_t> new_root_hash_v(new_root->hash, new_root->hash + HASH_LENGTH);
-    new_tree_map[new_root_hash_v] = new_root;
-
-    // For log
-    string new_ser_tree = storage_ser_merkle_tree(new_root);
-    cfeprintf("new tree string:%s\n", new_ser_tree.c_str());
-
-    return CRUST_SUCCESS;
+    return storage_gen_new_merkle_tree(root_hash, root_hash_len);
 }

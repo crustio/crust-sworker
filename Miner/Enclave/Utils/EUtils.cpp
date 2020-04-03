@@ -111,7 +111,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
     }
     memset(target, 0, len / 2);
     p_target = target;
-    for (int i = 0; i < len; i+=2)
+    for (uint32_t i = 0; i < len; i+=2)
     {
         *(target++) = (uint8_t)(char_to_int(rsrc[0]) * 16 + char_to_int(rsrc[1]));
         rsrc += 2;
