@@ -54,6 +54,6 @@
 
 #define BLOCK_HEIGHT    300
 
-int single_process_run();
+int process_run();
 
 #endif /* !_CRUST_SINGLE_PROCESS_H_ */

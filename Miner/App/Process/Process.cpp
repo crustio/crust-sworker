@@ -1,4 +1,4 @@
-#include "SingleProcess.h"
+#include "Process.h"
 #include "OCalls.h"
 #include <map>
 #include <fstream>
@@ -28,7 +28,7 @@ extern std::mutex change_empty_mutex;
  * @description: Init configuration
  * @return: Init status
  * */
-bool initialize_config_s(void)
+bool initialize_config(void)
 {
     // New configure
     p_config = Config::get_instance();
@@ -45,7 +45,7 @@ bool initialize_config_s(void)
  * @description: call sgx_create_enclave to initialize an enclave instance
  * @return: success or failure
  */
-bool initialize_enclave_s()
+bool initialize_enclave()
 {
     int sgx_support;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -101,7 +101,7 @@ bool initialize_enclave_s()
 /**
  * @description: Start http service
  * */
-void *start_http_s(void *)
+void *start_http(void *)
 {
     /* API handler component */
     cprintf_info(felog, "Initing api url:%s...\n", p_config->api_base_url.c_str());
@@ -124,7 +124,7 @@ void *start_http_s(void *)
  *   api handler -> external API interface 
  * @return: success or failure
  */
-bool initialize_components_s(void)
+bool initialize_components(void)
 {
     /* IPFS component */
     if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
@@ -148,7 +148,7 @@ bool initialize_components_s(void)
 
     /* Start http service */
     pthread_t wthread;
-    if (pthread_create(&wthread, NULL, start_http_s, NULL) != 0)
+    if (pthread_create(&wthread, NULL, start_http, NULL) != 0)
     {
         cprintf_err(felog, "Create rest service thread failed!\n");
         return false;
@@ -165,7 +165,7 @@ bool initialize_components_s(void)
  *   to verify identity
  * @return: success or failure
  * */
-bool entry_network_s()
+bool entry_network()
 {
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
@@ -385,7 +385,7 @@ cleanup:
  * @description: waitting for the crust chain to run
  * @return: success or not
  * */
-bool wait_chain_run_s(void)
+bool wait_chain_run(void)
 {
     if (get_crust() == NULL)
     {
@@ -426,7 +426,7 @@ bool wait_chain_run_s(void)
 /**
  * @description: Check if there is enough height, send signed validation report to chain
  * */
-void *do_upload_work_report_s(void *)
+void *do_upload_work_report(void *)
 {
     size_t report_len = 0;
     sgx_ec256_signature_t ecc_signature;
@@ -498,7 +498,7 @@ void *do_upload_work_report_s(void *)
  * @description: plot disk
  * @return: successed or failed
  */
-void *do_plot_disk_s(void *)
+void *do_plot_disk(void *)
 {
     change_empty_mutex.lock();
     in_changing_empty = true;
@@ -538,21 +538,21 @@ void start(void)
     cprintf_info(felog, "Worker global eid:%d\n", global_eid);
 
     /* Init conifigure */
-    if (!initialize_config_s())
+    if (!initialize_config())
     {
         cprintf_err(felog, "Init configuration failed!\n");
         goto cleanup;
     }
 
     /* Init related components */
-    if (!initialize_components_s())
+    if (!initialize_components())
     {
         cprintf_err(felog, "Init component failed!\n");
         goto cleanup;
     }
 
     /* Init enclave */
-    if (!initialize_enclave_s())
+    if (!initialize_enclave())
     {
         cprintf_err(felog, "Init enclave failed!\n");
         goto cleanup;
@@ -582,7 +582,7 @@ void start(void)
         }
 
         /* Plot empty disk */
-        if (pthread_create(&plot_thread, NULL, do_plot_disk_s, NULL) != 0)
+        if (pthread_create(&plot_thread, NULL, do_plot_disk, NULL) != 0)
         {
             cprintf_err(felog, "Create plot empty disk thread failed!\n");
             goto cleanup;
@@ -593,14 +593,14 @@ void start(void)
         {
             /* Entry network */
             cprintf_info(felog, "Entrying network...\n");
-            if (!entry_network_s())
+            if (!entry_network())
             {
                 goto cleanup;
             }
             cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
             
             /* Send identity to crust chain */
-            if (!wait_chain_run_s())
+            if (!wait_chain_run())
                 goto cleanup;
 
             if (!get_crust()->post_tee_identity(g_entry_net_res))
@@ -629,11 +629,11 @@ void start(void)
     if (!offline_chain_mode)
     {
         /* Send identity to crust chain */
-        if (!wait_chain_run_s())
+        if (!wait_chain_run())
             goto cleanup;
 
         // Check block height and post report to chain
-        if (pthread_create(&wthread, NULL, do_upload_work_report_s, NULL) != 0)
+        if (pthread_create(&wthread, NULL, do_upload_work_report, NULL) != 0)
         {
             cprintf_err(felog, "Create checking block info thread failed!\n");
             goto cleanup;
@@ -665,7 +665,7 @@ cleanup:
  * @desination: Main function to start application
  * @return: Start status
  * */
-int single_process_run()
+int process_run()
 {
     // Create log file
     if (felog == NULL)

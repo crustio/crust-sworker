@@ -86,7 +86,7 @@ int SGX_CDECL main(int argc, char *argv[])
  */
 int main_daemon()
 {
-    return single_process_run();
+    return process_run();
 }
 
 /**
