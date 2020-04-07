@@ -4,7 +4,6 @@
 #include <fstream>
 
 #define RECEIVE_PID_RETRY 30
-#define IPC_RETRY 10
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid;
@@ -91,13 +90,6 @@ bool initialize_enclave_s()
     if (SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
     {
         cprintf_err(felog, "Generate code measurement failed!error code:%08x\n", ret);
-        return false;
-    }
-
-    /* Set application run mode */
-    if (SGX_SUCCESS != ecall_set_run_mode(global_eid, APP_RUN_MODE_SINGLE, strlen(APP_RUN_MODE_SINGLE)))
-    {
-        cprintf_err(felog, "Set TEE run mode failed!\n");
         return false;
     }
 

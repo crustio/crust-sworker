@@ -1,7 +1,6 @@
 #include "App.h"
 
 bool run_as_server = false;
-std::string g_run_mode = APP_RUN_MODE_SINGLE;
 bool offline_chain_mode = false;
 extern std::string config_file_path;
 
@@ -29,10 +28,6 @@ int SGX_CDECL main(int argc, char *argv[])
                 cprintf_err(NULL, "-c option needs configure file path as argument!\n");
                 return 1;
             }
-        }
-        else if (strcmp(argv[i], "-g") == 0 || strcmp(argv[i], "--guard") == 0)
-        {
-            g_run_mode = APP_RUN_MODE_MULTIPLE;
         }
         else if (strcmp(argv[i], "--offline") == 0)
         {
@@ -91,16 +86,7 @@ int SGX_CDECL main(int argc, char *argv[])
  */
 int main_daemon()
 {
-    if (g_run_mode.compare(APP_RUN_MODE_SINGLE) == 0)
-    {
-        return single_process_run();
-    }
-    else
-    {
-        return multi_process_run();
-    }
-
-    return -1;
+    return single_process_run();
 }
 
 /**
