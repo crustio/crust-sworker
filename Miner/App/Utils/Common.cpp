@@ -7,7 +7,6 @@
 using namespace std;
 
 extern FILE *felog;
-extern const char *g_show_tag;
 char print_buf[PRINT_BUF_SIZE];
 
 /**
@@ -40,14 +39,14 @@ void _cprintf_real(FILE *stream, std::string info, const char *info_tag)
         /* oops */
         timestr[0] = 0;
     }
-    fprintf(stderr, "[%s] %s %s %s", timestr, info_tag, g_show_tag, info.c_str());
+    fprintf(stderr, "[%s] %s %s", timestr, info_tag, info.c_str());
 
     // Print log to indicated stream
     if (stream != NULL)
     {
         if (!(info.size() == 1 && info[0] == '\n'))
         {
-            fprintf(stream, "[%s] %s %s %s", timestr, info_tag, g_show_tag, info.c_str());
+            fprintf(stream, "[%s] %s %s", timestr, info_tag, info.c_str());
         }
         fflush(stream);
     }

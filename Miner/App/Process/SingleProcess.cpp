@@ -541,7 +541,7 @@ void start(void)
     if (!initialize_config_s())
     {
         cprintf_err(felog, "Init configuration failed!\n");
-        exit(INIT_CONFIG_ERROR);
+        goto cleanup;
     }
 
     /* Init related components */

@@ -17,7 +17,6 @@ enclave {
         public void ecall_main_loop([in, string] const char* empty_path, [in, string] const char* recover_file_path);
         public common_status_t ecall_cmp_crust_account_id([in, size=len] const char *account_id, size_t len);
         public common_status_t ecall_set_crust_account_id([in, size=len] const char *account_id, size_t len);
-        public void ecall_set_run_mode([in, string] const char* mode, size_t len);
         public enum ValidationStatus ecall_return_validation_status(void);
         public void ecall_get_validation_report([out, size=len] char *report, size_t len);
         public void ecall_generate_validation_report([out] size_t *size); 
