@@ -43,13 +43,12 @@ void validate_empty_disk(const char *path)
         {
             g_hash[j] = (*it_g_hash)[j];
         }
+        sgx_thread_mutex_unlock(&g_workload_mutex);
 
         if (is_null_hash(g_hash))
         {
-            sgx_thread_mutex_unlock(&g_workload_mutex);
             goto end_validate_one_g_empty;
         }
-        sgx_thread_mutex_unlock(&g_workload_mutex);
         g_path = get_g_path_with_hash(path, g_hash);
 
         // Get M hashs
@@ -103,12 +102,13 @@ void validate_empty_disk(const char *path)
 
     goto end_validate_one_g_empty;
     end_validate_one_g_empty_failed:
-        ocall_delete_folder_or_file(g_path.c_str());
         sgx_thread_mutex_lock(&g_workload_mutex);
-        workload->empty_g_hashs.erase(it_g_hash);
-        sgx_thread_mutex_unlock(&g_workload_mutex);
+        ocall_delete_folder_or_file(g_path.c_str());
+        free(*it_g_hash);
+        it_g_hash = workload->empty_g_hashs.erase(it_g_hash);
         it_g_hash--;
-
+        sgx_thread_mutex_unlock(&g_workload_mutex);
+        
     end_validate_one_g_empty:
         if (g_hash != NULL)
         {

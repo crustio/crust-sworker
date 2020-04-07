@@ -18,7 +18,13 @@ void ecall_plot_disk(const char *path)
     // New and get now G hash index
     sgx_thread_mutex_lock(&g_workload_mutex);
     size_t now_index = get_workload()->empty_g_hashs.size();
-    get_workload()->empty_g_hashs.push_back((uint8_t *)malloc(HASH_LENGTH));
+    uint8_t *p_hash = (uint8_t *)malloc(HASH_LENGTH);
+    if (p_hash == NULL)
+    {
+        sgx_thread_mutex_unlock(&g_workload_mutex);
+        return;
+    }
+    get_workload()->empty_g_hashs.push_back(p_hash);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
         get_workload()->empty_g_hashs[now_index][i] = 0;
@@ -60,14 +66,14 @@ void ecall_plot_disk(const char *path)
     std::string new_g_path = get_g_path_with_hash(path, g_out_hash256);
     ocall_rename_dir(g_path.c_str(), new_g_path.c_str());
 
-    cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
-
     sgx_thread_mutex_lock(&g_workload_mutex);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
         get_workload()->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);
+
+    cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 }
 
 /**
