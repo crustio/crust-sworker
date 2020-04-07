@@ -32,7 +32,6 @@
 #include "Utils/EUtils.h"
 #include "Validator/Validator.h"
 #include "Verify/Verify.h"
-#include "Attestation/Attestation.h"
 #include "ValidationStatus.h"
 
 #define CRUST_SEPARATOR "$crust_separator$"

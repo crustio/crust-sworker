@@ -8,5 +8,4 @@
 #define CONFIG_FILE_PATH    CRUST_INST_DIR "/etc/Config.json"
 
 #define APP_RUN_MODE_SINGLE "single"
-#define APP_RUN_MODE_MULTIPLE "multiple"
 #define HASH_LENGTH 32

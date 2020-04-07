@@ -8,7 +8,6 @@ enclave {
     include "EnclaveStatus.h"
 
 	include "IASReport.h"
-	include "IPCReport.h"
 
     from "PlotDisk/PlotDisk.edl" import *;
 
@@ -24,8 +23,6 @@ enclave {
         public void ecall_generate_validation_report([out] size_t *size); 
         public common_status_t ecall_get_signed_validation_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
         public common_status_t ecall_sign_network_entry([in, size=data_size] const char *p_partial_data, uint32_t data_size, [out] sgx_ec256_signature_t *p_signature);
-        public ipc_status_t ecall_attest_session_starter(attest_data_type_t data_type); 
-        public ipc_status_t ecall_attest_session_receiver(attest_data_type_t data_type); 
         public common_status_t ecall_store_enclave_data([in, string] const char* recover_file_path);
         public common_status_t ecall_restore_enclave_data([in, string] const char* recover_file_path);
 
@@ -55,15 +52,6 @@ enclave {
         size_t ocall_get_diff_files_num(void);
         void ocall_usleep(int u);
         void ocall_delete_folder_or_file([in, string] const char *path);
-
-        ipc_status_t ocall_recv_session_request([out, size=20] char *request, [out, size=4] uint32_t *secret_size, attest_data_type_t data_type);
-        ipc_status_t ocall_send_request_recv_msg1([out] sgx_dh_msg1_t *p_dh_msg1, uint32_t secret_size, attest_data_type_t data_type);
-        ipc_status_t ocall_send_msg1_recv_msg2([in] sgx_dh_msg1_t *dh_msg1, [out] sgx_dh_msg2_t *dh_msg2, attest_data_type_t data_type);
-        ipc_status_t ocall_send_msg2_recv_msg3([in] sgx_dh_msg2_t *dh_msg2, [out] sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_type);
-        ipc_status_t ocall_send_msg3([in] sgx_dh_msg3_t *dh_msg3, attest_data_type_t data_type);
-        ipc_status_t ocall_send_secret([in, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type);
-        ipc_status_t ocall_recv_secret([out, size=len] sgx_aes_gcm_data_t *req_message, uint32_t len, attest_data_type_t data_type);
-
         common_status_t ocall_get_file_block_by_path([in, size=hash_len] char *root_hash, [in, size=hash_len] char *cur_hash, uint32_t hash_len, [in, count=path_count] uint32_t *path, uint32_t path_count);
     };
 };
