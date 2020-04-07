@@ -6,8 +6,6 @@ using namespace std;
 // TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
-// Tee run mode
-string g_run_mode = APP_RUN_MODE_SINGLE;
 // Store crust account id
 string g_crust_account_id;
 // Can only se crust account id once
@@ -17,11 +15,11 @@ sgx_measurement_t current_mr_enclave;
 // Current node public and private key pair
 ecc_key_pair id_key_pair;
 // Map used to store off-chain request
-map<vector<uint8_t>,vector<uint8_t>> accid_pubkey_map;
+map<vector<uint8_t>, vector<uint8_t>> accid_pubkey_map;
 // Used to check current block head out-of-date
 size_t now_work_report_block_height = 0;
 
-extern map<vector<uint8_t>, tuple<string,size_t,size_t>> tree_meta_map;
+extern map<vector<uint8_t>, tuple<string, size_t, size_t>> tree_meta_map;
 extern map<vector<uint8_t>, MerkleTree *> new_tree_map;
 
 /**
@@ -36,7 +34,6 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         /* Meaningful */
         validation_status = ValidateMeaningful;
         common_status_t common_status = CRUST_SUCCESS;
-        ipc_status_t ipc_status = IPC_SUCCESS;
         Node *diff_files = NULL;
         ocall_get_diff_files(&diff_files);
         size_t diff_files_num = 0;
@@ -55,32 +52,13 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         validation_status = ValidateWaiting;
         get_workload()->show();
 
-        /* Do workload attestation */
-        if (g_run_mode.compare(APP_RUN_MODE_MULTIPLE) == 0)
+        if (CRUST_SUCCESS != (common_status = ecall_store_enclave_data(recover_file_path)))
         {
-            if (IPC_SUCCESS != (ipc_status = ecall_attest_session_starter(ATTEST_DATATYPE_WORKLOAD)))
-            {
-                cfeprintf("Send workload to monitor failed!Error code:%lx\n", ipc_status);
-            }
-            else
-            {
-                cfeprintf("Send workload to monitor successfully!\n");
-            }
-        }
-        else if (g_run_mode.compare(APP_RUN_MODE_SINGLE) == 0)
-        {
-            if (CRUST_SUCCESS != (common_status = ecall_store_enclave_data(recover_file_path)))
-            {
-                cfeprintf("Store enclave data failed!Error code:%lx\n", common_status);
-            }
-            else
-            {
-                cfeprintf("Store enclave data successfully!\n");
-            }
+            cfeprintf("Store enclave data failed!Error code:%lx\n", common_status);
         }
         else
         {
-            cfeprintf("Wrong TEE run mode!\n");
+            cfeprintf("Store enclave data successfully!\n");
         }
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
@@ -263,14 +241,6 @@ common_status_t ecall_set_crust_account_id(const char *account_id, size_t len)
 }
 
 /**
- * @description: Set application run mode
- * */
-void ecall_set_run_mode(const char *mode, size_t len)
-{
-    g_run_mode = std::string(mode, len);
-}
-
-/**
  * @description: return validation status
  * @return: the validation status
  */
@@ -311,7 +281,7 @@ void ecall_get_validation_report(char *report, size_t len)
  * @return: sign status
  * */
 common_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height,
-        sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
+                                                   sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
 {
     // Judge whether block height is expired
     if (block_height <= now_work_report_block_height)
@@ -412,7 +382,7 @@ cleanup:
 }
 
 common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature)
+                                         sgx_ec256_signature_t *p_signature)
 {
     std::string data_str(p_partial_data, data_size);
     data_str.append(g_crust_account_id);
@@ -533,8 +503,8 @@ sgx_status_t ecall_gen_sgx_measurement()
  * @return: Store status
  * */
 common_status_t ecall_store_quote(const char *quote, size_t len,
-        const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature, 
-        const uint8_t *p_account_id, uint32_t account_id_sz)
+                                  const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature,
+                                  const uint8_t *p_account_id, uint32_t account_id_sz)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     common_status_t common_status = CRUST_SUCCESS;
@@ -557,8 +527,8 @@ common_status_t ecall_store_quote(const char *quote, size_t len,
         return CRUST_SGX_FAILED;
     }
 
-    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t*)p_offchain_pubkey,
-            p_signature, &result, ecc_state);
+    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t *)p_offchain_pubkey,
+                                  p_signature, &result, ecc_state);
 
     if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
     {
@@ -617,10 +587,10 @@ common_status_t ecall_validate_merkle_tree(MerkleTree **root)
  * @return: Seal and generate result
  * */
 common_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
-        const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
+                                     const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     return storage_seal_file_data(root_hash, root_hash_len, p_src, src_len,
-            p_sealed_data, sealed_data_size);
+                                  p_sealed_data, sealed_data_size);
 }
 
 /**
@@ -632,10 +602,10 @@ common_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_has
  * @return: Unseal status
  * */
 common_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
-        uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
+                                       uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
 {
     return storage_unseal_file_data(p_sealed_data, sealed_data_size,
-            p_unsealed_data, unsealed_data_size);
+                                    p_unsealed_data, unsealed_data_size);
 }
 
 /**

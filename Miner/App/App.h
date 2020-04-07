@@ -14,8 +14,7 @@
 #include <string>
 #include <unistd.h>
 #include "Config.h"
-#include "SingleProcess.h"
-#include "MultiProcess.h"
+#include "Process.h"
 
 /* variable definition */
 typedef struct ra_session_struct
