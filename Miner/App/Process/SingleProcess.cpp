@@ -240,7 +240,7 @@ bool entry_network_s()
             cprintf_err(felog, "SGX init quote failed!Error code: %08x\n", status);
             return false;
         }
-    } while(true);
+    } while (true);
 
     status = ecall_get_report(global_eid, &sgxrv, &report, &target_info);
     if (status != SGX_SUCCESS)
@@ -279,7 +279,7 @@ bool entry_network_s()
     fprintf(felog, "========== spid    : %s\n", hexstring(spid, sizeof(sgx_spid_t)));
     fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce, sizeof(sgx_quote_nonce_t)));
     status = sgx_get_quote(&report, linkable,
-            spid, &nonce, NULL, 0, &qe_report, quote, sz);
+                           spid, &nonce, NULL, 0, &qe_report, quote, sz);
     if (status != SGX_SUCCESS)
     {
         cprintf_err(felog, "sgx_get_quote: %08x\n", status);
@@ -287,8 +287,7 @@ bool entry_network_s()
     }
 
     /* Print SGX quote */
-    fprintf(felog, "quote report_data: %s\n", hexstring((const void *)(quote->report_body.report_data.d), 
-                sizeof(quote->report_body.report_data.d)));
+    fprintf(felog, "quote report_data: %s\n", hexstring((const void *)(quote->report_body.report_data.d), sizeof(quote->report_body.report_data.d)));
     fprintf(felog, "ias quote report version :%d\n", quote->version);
     fprintf(felog, "ias quote report signtype:%d\n", quote->sign_type);
     fprintf(felog, "ias quote report epid    :%d\n", *quote->epid_group_id);
@@ -331,8 +330,8 @@ bool entry_network_s()
     send_data.append(b64quote);
     send_data.append(p_config->crust_address);
     sgx_ec256_signature_t send_data_sig;
-    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &common_status, 
-            send_data.c_str(), send_data.size(), &send_data_sig);
+    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &common_status,
+                                                       send_data.c_str(), send_data.size(), &send_data_sig);
     if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
     {
         cprintf_err(felog, "Sign entry network data failed!\n");
@@ -457,7 +456,7 @@ void *do_upload_work_report_s(void *)
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
             if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &common_status,
-                        block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
+                                                                  block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
             {
                 cprintf_err(felog, "Get signed validation report failed!\n");
             }
@@ -518,8 +517,8 @@ void *do_plot_disk_s(void *)
     cprintf_info(felog, "Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
     size_t true_plot = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
     cprintf_info(felog, "Start ploting disk %luG (plot thread number: %d) ...\n", true_plot, p_config->plot_thread_num);
-    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-    #pragma omp parallel for num_threads(p_config->plot_thread_num)
+// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+#pragma omp parallel for num_threads(p_config->plot_thread_num)
     for (size_t i = 0; i < true_plot; i++)
     {
         ecall_plot_disk(global_eid, p_config->empty_path.c_str());
@@ -582,21 +581,13 @@ void start(void)
 
         /* Store crust info in enclave */
         common_status_t common_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &common_status, 
-                    p_config->crust_account_id.c_str(), p_config->crust_account_id.size())
-                || CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &common_status,
+                                                      p_config->crust_account_id.c_str(), p_config->crust_account_id.size()) ||
+            CRUST_SUCCESS != common_status)
         {
             cprintf_err(felog, "Store backup information to enclave failed!Error code:%lx\n", common_status);
             goto cleanup;
         }
-
-        /* Entry network */
-        cprintf_info(felog, "Entrying network...\n");
-        if (!entry_network_s())
-        {
-            goto cleanup;
-        }
-        cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
 
         /* Plot empty disk */
         if (pthread_create(&plot_thread, NULL, do_plot_disk_s, NULL) != 0)
@@ -608,6 +599,14 @@ void start(void)
         /* Send identity to chain and send work report */
         if (!offline_chain_mode)
         {
+            /* Entry network */
+            cprintf_info(felog, "Entrying network...\n");
+            if (!entry_network_s())
+            {
+                goto cleanup;
+            }
+            cprintf_info(felog, "Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
+            
             /* Send identity to crust chain */
             if (!wait_chain_run_s())
                 goto cleanup;

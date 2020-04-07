@@ -51,7 +51,7 @@
 #define SESSION_STARTER  1
 #define SESSION_RECEIVER 2
 
-#define BLOCK_HEIGHT    100
+#define BLOCK_HEIGHT    300
 
 int multi_process_run();
 
