@@ -5,7 +5,7 @@ enclave {
     include "MerkleTree.h"
     include "Node.h"
     include "ValidationStatus.h"
-    include "EnclaveStatus.h"
+    include "CrustStatus.h"
 
 	include "IASReport.h"
 

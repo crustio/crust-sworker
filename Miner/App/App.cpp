@@ -3,6 +3,7 @@
 bool run_as_server = false;
 bool offline_chain_mode = false;
 extern std::string config_file_path;
+crust::Log *log = crust::Log::get_instance();
 
 /**
  * @description: application main entry
@@ -25,7 +26,7 @@ int SGX_CDECL main(int argc, char *argv[])
             }
             else
             {
-                cprintf_err(NULL, "-c option needs configure file path as argument!\n");
+                log->err("-c option needs configure file path as argument!\n");
                 return 1;
             }
         }
@@ -33,11 +34,16 @@ int SGX_CDECL main(int argc, char *argv[])
         {
             offline_chain_mode = true;
         }
+        else if (strcmp(argv[i], "--debug") == 0)
+        {
+            log->open_debug();
+            log->debug("Debug log is opened.\n")
+        }
         else
         {
             if (run_type.compare("") != 0)
             {
-                cprintf_err(NULL, "Ambiguos run mode!\n");
+                log->err("Ambiguos run mode!\n");
                 return 1;
             }
             run_type = argv[i];
@@ -71,6 +77,7 @@ int SGX_CDECL main(int argc, char *argv[])
         printf("           --config: indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
         printf("               If no file provided, default path is etc/Config.json. \n");
         printf("           --offline: add this flag, program will not interact with the chain. \n");
+        printf("           --debug: add this flag, program will output debug logs. \n");
         printf("           status: show plot disk status. \n");
         printf("           report: show plot work report. \n");
         printf("           daemon: run as daemon process. \n");
@@ -99,7 +106,7 @@ int main_status()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        cprintf_err(NULL, "Init config failed.\n");
+        log->err("Init config failed.\n");
         return -1;
     }
 
@@ -110,10 +117,10 @@ int main_status()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        cprintf_info(NULL, "Get status failed!");
+        log->info("Get status failed!");
         return -1;
     }
-    cprintf_info(NULL, "%s", res->body.c_str());
+    log->err("%s", res->body.c_str());
 
     delete p_config;
     delete client;
@@ -130,7 +137,7 @@ int main_report()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        cprintf_err(NULL, "Init config failed.\n");
+        log->err("Init config failed.\n");
         return false;
     }
 
@@ -141,10 +148,10 @@ int main_report()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        cprintf_info(NULL, "Get report failed!");
+        log->info(NULL, "Get report failed!");
         return -1;
     }
-    cprintf_info(NULL, "%s", res->body.c_str());
+    log->info(NULL, "%s", res->body.c_str());
 
     delete p_config;
     delete client;

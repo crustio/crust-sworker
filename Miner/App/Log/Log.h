@@ -30,7 +30,7 @@ public:
     void debug(const char *format, ...);
 
 private:
-    void base_log(std::string log_data, const char* tag);
+    void base_log(std::string log_data, std::string tag);
     bool debug_flag;
     char log_buf[CRUST_LOG_BUF_SIZE];
     std::mutex log_mutex;

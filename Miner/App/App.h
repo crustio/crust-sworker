@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include "Config.h"
 #include "Process.h"
+#include "Log.h"
 
 /* variable definition */
 typedef struct ra_session_struct

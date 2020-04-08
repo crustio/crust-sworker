@@ -94,6 +94,7 @@ Please follow [crust client](https://github.com/crustio/crust-client) to launch.
    1. **report** option shows tee work report, make sure daemon or server mode has been running.
 1. Run '**bin/crust-tee --config \<config_file_path\>**' to use customized configure file, if not provided **etc/Config.json** will be used as the default one.
 1. Run '**bin/crust-tee --offline**', program will not interact with the chain.
+1. Run '**bin/crust-tee --debug**', program will output debug logs. 
 
 ## API
 ### Use 'api/v0/status' to get validation status
