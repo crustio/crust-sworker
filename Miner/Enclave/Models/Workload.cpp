@@ -137,9 +137,9 @@ std::string Workload::serialize_workload()
  * @description: Restore workload from serialized workload
  * @return: Restore status
  * */
-common_status_t Workload::restore_workload(std::string plot_data)
+crust_status_t Workload::restore_workload(std::string plot_data)
 {
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     size_t spos=0, epos=0;
     std::string empty_g_hashs_str;
     std::string strbuf;
@@ -237,5 +237,5 @@ common_status_t Workload::restore_workload(std::string plot_data)
         free(hash_u);
     }
 
-    return common_status;
+    return crust_status;
 }

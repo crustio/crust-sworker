@@ -36,9 +36,9 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len);
 std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size);
 std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size);
 char* unsigned_char_to_hex(unsigned char in);
-common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
+crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 
-common_status_t validate_merkle_tree_c(MerkleTree *root);
+crust_status_t validate_merkle_tree_c(MerkleTree *root);
 bool is_null_hash(unsigned char *hash);
 
 #if defined(__cplusplus)

@@ -91,7 +91,7 @@ int ApiHandler::start()
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         res.status = 200;
         sgx_status_t status_ret = SGX_SUCCESS;
-        common_status_t common_status = CRUST_SUCCESS;
+        crust_status_t crust_status = CRUST_SUCCESS;
         int version = IAS_API_DEF_VERSION;
         cprintf_info(felog, "Processing entry network application...\n");
         uint32_t qsz;
@@ -130,11 +130,11 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*this->p_global_eid, &common_status,
+        status_ret = ecall_store_quote(*this->p_global_eid, &crust_status,
                 (const char *)quote, qsz, (const uint8_t*)data_sig_str.c_str(), 
                 data_sig_str.size(), &data_sig, (const uint8_t*)off_chain_crust_account_id.c_str(), 
                 off_chain_crust_account_id.size());
-        if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
             cprintf_err(felog, "Store and verify offChain node data failed!\n");
             res.set_content("StoreQuoteError", "text/plain");
@@ -381,13 +381,13 @@ int ApiHandler::start()
         }
 
         // Validate MerkleTree
-        common_status_t common_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &common_status, &root) ||
-                CRUST_SUCCESS != common_status)
+        crust_status_t crust_status = CRUST_SUCCESS;
+        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &crust_status, &root) ||
+                CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
                     case CRUST_MERKLETREE_DUPLICATED:
                         error_info = "Duplicated MerkleTree validation!";
@@ -404,7 +404,7 @@ int ApiHandler::start()
                 error_info = "Invoke SGX api failed!";
             }
             cprintf_err(felog, "Validate merkle tree failed!Error code:%lx(%s)\n", 
-                    common_status, error_info.c_str());
+                    crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 405;
         }
@@ -466,15 +466,15 @@ int ApiHandler::start()
 
         // Seal data
         std::string content;
-        common_status_t common_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH, 
+        crust_status_t crust_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH, 
                 p_src, src_len, p_sealed_data, sealed_data_size_r);
 
-        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
                     case CRUST_NOTFOUND_MERKLETREE:
                         error_info = "Given MerkleTree tree root hash is not found!";
@@ -493,7 +493,7 @@ int ApiHandler::start()
             {
                 error_info = "Invoke SGX api failed!";
             }
-            cprintf_info(felog, "Seal data failed!Error code:%lx(%s)\n", common_status, error_info.c_str());
+            cprintf_info(felog, "Seal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 404;
             goto cleanup;
@@ -551,15 +551,15 @@ int ApiHandler::start()
 
         // Unseal data
         std::string content;
-        common_status_t common_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &common_status,
+        crust_status_t crust_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &crust_status,
                 p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 
-        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
                     case CRUST_UNSEAL_DATA_FAILED:
                         error_info = "Internal error: unseal data failed!";
@@ -575,7 +575,7 @@ int ApiHandler::start()
             {
                 error_info = "Invoke SGX api failed!";
             }
-            cprintf_err(felog, "Unseal data failed!Error code:%lx(%s)\n", common_status, error_info.c_str());
+            cprintf_err(felog, "Unseal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 403;
             goto cleanup;
@@ -624,13 +624,13 @@ int ApiHandler::start()
         cprintf_info(felog, "root hash:%s\n", root_hash_str.c_str());
 
         // Generate MerkleTree
-        common_status_t common_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH);
-        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        crust_status_t crust_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH);
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
                     case CRUST_NOTFOUND_MERKLETREE:
                         error_info = "Given MerkleTree is not found!";
@@ -650,7 +650,7 @@ int ApiHandler::start()
                 error_info = "Invoke SGX api failed!";
             }
             cprintf_err(felog, "Generate new merkle tree failed!Error code:%lx(%s)\n", 
-                    common_status, error_info.c_str());
+                    crust_status, error_info.c_str());
             res.set_content("Generate new merkle tree failed!", "text/plain");
             res.status = 403;
             goto cleanup;

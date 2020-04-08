@@ -318,13 +318,13 @@ bool entry_network()
     // Send quote to validation node, try out 3 times for network error.
     std::string req_data;
     std::string send_data;
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     send_data.append(b64quote);
     send_data.append(p_config->crust_address);
     sgx_ec256_signature_t send_data_sig;
-    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &common_status, 
+    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &crust_status, 
             send_data.c_str(), send_data.size(), &send_data_sig);
-    if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+    if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
     {
         cprintf_err(felog, "Sign entry network data failed!\n");
         return false;
@@ -430,7 +430,7 @@ void *do_upload_work_report(void *)
 {
     size_t report_len = 0;
     sgx_ec256_signature_t ecc_signature;
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     while (true)
     {
         BlockHeader *block_header = get_crust()->get_block_header();
@@ -447,14 +447,14 @@ void *do_upload_work_report(void *)
             // Get signed validation report
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
-            if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &common_status,
+            if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &crust_status,
                         block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
             {
                 cprintf_err(felog, "Get signed validation report failed!\n");
             }
             else
             {
-                if (common_status == CRUST_SUCCESS)
+                if (crust_status == CRUST_SUCCESS)
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
@@ -475,13 +475,13 @@ void *do_upload_work_report(void *)
                         cprintf_info(felog, "Send work report to crust chain successfully!\n");
                     }
                 }
-                if (common_status == CRUST_BLOCK_HEIGHT_EXPIRED)
+                if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
                 {
                     cprintf_info(felog, "Block height expired.\n");
                 }
                 else
                 {
-                    cprintf_err(felog, "Get signed validation report failed! Error code:%x\n", common_status);
+                    cprintf_err(felog, "Get signed validation report failed! Error code:%x\n", crust_status);
                 }
             }
             free(report);
@@ -533,7 +533,7 @@ void start(void)
     pthread_t wthread;
     pthread_t plot_thread;
     sgx_status_t sgx_status = SGX_SUCCESS;
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     cprintf_info(felog, "WorkerPID=%d\n", workerPID);
     cprintf_info(felog, "Worker global eid:%d\n", global_eid);
 
@@ -559,10 +559,10 @@ void start(void)
     }
 
     /* Restore data from file */
-    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &common_status, p_config->recover_file_path.c_str()) || CRUST_SUCCESS != common_status)
+    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &crust_status, p_config->recover_file_path.c_str()) || CRUST_SUCCESS != crust_status)
     {
         // Restore data failed
-        cprintf_warn(felog, "Restore enclave data failed!Failed code:%lx\n", common_status);
+        cprintf_warn(felog, "Restore enclave data failed!Failed code:%lx\n", crust_status);
         /* Generate ecc key pair */
         if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
         {
@@ -572,12 +572,12 @@ void start(void)
         cprintf_info(felog, "Generate key pair successfully!\n");
 
         /* Store crust info in enclave */
-        common_status_t common_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &common_status, 
+        crust_status_t crust_status = CRUST_SUCCESS;
+        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &crust_status, 
                     p_config->crust_account_id.c_str(), p_config->crust_account_id.size())
-                || CRUST_SUCCESS != common_status)
+                || CRUST_SUCCESS != crust_status)
         {
-            cprintf_err(felog, "Store backup information to enclave failed!Error code:%lx\n", common_status);
+            cprintf_err(felog, "Store backup information to enclave failed!Error code:%lx\n", crust_status);
             goto cleanup;
         }
 
@@ -616,9 +616,9 @@ void start(void)
         /* Restore data successfully */
         cprintf_info(felog, "Restore enclave data successfully!\n");
         // Compare crust account it in configure file and recovered file
-        if (SGX_SUCCESS != ecall_cmp_crust_account_id(global_eid, &common_status,
+        if (SGX_SUCCESS != ecall_cmp_crust_account_id(global_eid, &crust_status,
                                                       p_config->crust_account_id.c_str(), p_config->crust_account_id.size()) ||
-            CRUST_SUCCESS != common_status)
+            CRUST_SUCCESS != crust_status)
         {
             cprintf_err(felog, "Configure crust account id doesn't equal to recovered one!\n");
             goto cleanup;

@@ -197,11 +197,11 @@ char *unsigned_char_to_hex(const unsigned char in)
  * @param sealed_data_size -> the length of output bytes
  * @return: status
  */
-common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
+crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
         sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
     *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_sz);
@@ -216,13 +216,13 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     if (SGX_SUCCESS != sgx_status)
     {
         cfeprintf("Seal data failed!Error code:%lx\n", sgx_status);
-        common_status = CRUST_SEAL_DATA_FAILED;
+        crust_status = CRUST_SEAL_DATA_FAILED;
         *p_sealed_data = NULL;
     }
 
     *sealed_data_size = (size_t)sealed_data_sz;
 
-    return common_status;
+    return crust_status;
 }
 
 /**
@@ -230,14 +230,14 @@ common_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
  * @param tree -> root of Merkle tree
  * @return: Validate status
  * */
-common_status_t validate_merkle_tree_c(MerkleTree *tree)
+crust_status_t validate_merkle_tree_c(MerkleTree *tree)
 {
     if (tree->links_num == 0)
     {
         return CRUST_SUCCESS;
     }
 
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     sgx_sha256_hash_t g_hashs_hash256;
 
     uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
@@ -246,7 +246,7 @@ common_status_t validate_merkle_tree_c(MerkleTree *tree)
     {
         if(validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
         {
-            common_status = CRUST_INVALID_MERKLETREE;
+            crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
         }
         memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
@@ -257,7 +257,7 @@ common_status_t validate_merkle_tree_c(MerkleTree *tree)
 
     if (memcmp(tree->hash, g_hashs_hash256, HASH_LENGTH) != 0)
     {
-        common_status = CRUST_INVALID_MERKLETREE;
+        crust_status = CRUST_INVALID_MERKLETREE;
         goto cleanup;
     }
 
@@ -266,7 +266,7 @@ cleanup:
 
     free(g_hashs);
 
-    return common_status;
+    return crust_status;
 }
 
 /**

@@ -221,7 +221,7 @@ void ocall_usleep(int u)
  * @param path_count -> Vector size
  * @return: Get status
  * */
-common_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count)
+crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count)
 {
     vector<uint32_t> path_v(path, path + path_count);
     // TODO: Send path to storage and get corresponding file block
