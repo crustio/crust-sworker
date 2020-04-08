@@ -19,10 +19,14 @@
 
 using namespace std;
 
+using namespace std;
+
 #define HEXSTRING_BUF 128
 #define BUFSIZE 1024
 
 extern FILE *felog;
+
+extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 
 extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 
@@ -208,6 +212,15 @@ void ocall_usleep(int u)
     usleep(u);
 }
 
+/**
+ * @description: TEE gets file block data by path
+ * @param root_hash -> MerkleTree root hash
+ * @param cur_hash -> Recieved indicated file block hash
+ * @param hash_len -> Hash length
+ * @param path -> Vector of path from root to leaf node
+ * @param path_count -> Vector size
+ * @return: Get status
+ * */
 common_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count)
 {
     vector<uint32_t> path_v(path, path + path_count);

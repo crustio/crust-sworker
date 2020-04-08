@@ -271,7 +271,7 @@ bool entry_network()
     fprintf(felog, "========== spid    : %s\n", hexstring(spid, sizeof(sgx_spid_t)));
     fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce, sizeof(sgx_quote_nonce_t)));
     status = sgx_get_quote(&report, linkable,
-                           spid, &nonce, NULL, 0, &qe_report, quote, sz);
+            spid, &nonce, NULL, 0, &qe_report, quote, sz);
     if (status != SGX_SUCCESS)
     {
         cprintf_err(felog, "sgx_get_quote: %08x\n", status);
@@ -322,8 +322,8 @@ bool entry_network()
     send_data.append(b64quote);
     send_data.append(p_config->crust_address);
     sgx_ec256_signature_t send_data_sig;
-    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &common_status,
-                                                       send_data.c_str(), send_data.size(), &send_data_sig);
+    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &common_status, 
+            send_data.c_str(), send_data.size(), &send_data_sig);
     if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
     {
         cprintf_err(felog, "Sign entry network data failed!\n");
@@ -448,7 +448,7 @@ void *do_upload_work_report(void *)
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
             if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &common_status,
-                                                                  block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
+                        block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
             {
                 cprintf_err(felog, "Get signed validation report failed!\n");
             }
@@ -573,9 +573,9 @@ void start(void)
 
         /* Store crust info in enclave */
         common_status_t common_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &common_status,
-                                                      p_config->crust_account_id.c_str(), p_config->crust_account_id.size()) ||
-            CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &common_status, 
+                    p_config->crust_account_id.c_str(), p_config->crust_account_id.size())
+                || CRUST_SUCCESS != common_status)
         {
             cprintf_err(felog, "Store backup information to enclave failed!Error code:%lx\n", common_status);
             goto cleanup;
