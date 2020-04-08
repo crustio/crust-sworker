@@ -28,6 +28,7 @@ ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
     ApiHandler::p_global_eid = p_global_eid_in;
 }
 
+// TODO: Should limit thread number in enclave
 /**
  * @desination: Start rest service
  * @return: Start status
