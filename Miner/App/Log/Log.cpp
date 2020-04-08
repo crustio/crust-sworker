@@ -107,7 +107,7 @@ void Log::debug(const char *format, ...)
  * @param log_str -> data for logging
  * @param tag -> log tag
  * */
-void Log::base_log(std::string log_str, const char* tag)
+void Log::base_log(std::string log_str, std::string tag)
 {
     // Get timestamp
     time_t ts;
@@ -129,7 +129,18 @@ void Log::base_log(std::string log_str, const char* tag)
         time_str[0] = 0;
     }
 
-    printf("[%s] [%s] %s", time_str, tag, log_str.c_str());
+    if (tag == CRUST_LOG_ERR_TAG)
+    {
+        printf("\033[31m[%s] [%s] %s\033[0m", time_str, tag.c_str(), log_str.c_str());
+    }
+    else if (tag == CRUST_LOG_WARN_TAG)
+    {
+        printf("\033[33m[%s] [%s] %s\033[0m", time_str, tag.c_str(), log_str.c_str());
+    }
+    else
+    {
+        printf("[%s] [%s] %s", time_str, tag.c_str(), log_str.c_str());
+    }
 }
 
 } // namespace crust
