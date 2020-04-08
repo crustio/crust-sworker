@@ -137,7 +137,7 @@ bool initialize_components(void)
     }
 
     /* Init crust */
-    if (new_crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
+    if (new_chain(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
     {
         p_log->err("Init crust failed!\n");
         return false;
@@ -392,7 +392,7 @@ bool wait_chain_run(void)
 
     while (true)
     {
-        if (get_crust()->is_online())
+        if (get_chain()->is_online())
         {
             break;
         }
@@ -405,7 +405,7 @@ bool wait_chain_run(void)
 
     while (true)
     {
-        BlockHeader *block_header = get_crust()->get_block_header();
+        BlockHeader *block_header = get_chain()->get_block_header();
         if (block_header->number > 0)
         {
             break;
@@ -430,7 +430,7 @@ void *do_upload_work_report(void *)
     crust_status_t crust_status = CRUST_SUCCESS;
     while (true)
     {
-        BlockHeader *block_header = get_crust()->get_block_header();
+        BlockHeader *block_header = get_chain()->get_block_header();
         if (block_header->number % BLOCK_HEIGHT == 0)
         {
             sleep(20);
@@ -463,7 +463,7 @@ void *do_upload_work_report(void *)
                     // Delete space and line break
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
-                    if (!get_crust()->post_tee_work_report(workStr))
+                    if (!get_chain()->post_tee_work_report(workStr))
                     {
                         p_log->err("Send work report to crust chain failed!\n");
                     }
@@ -600,7 +600,7 @@ void start(void)
             if (!wait_chain_run())
                 goto cleanup;
 
-            if (!get_crust()->post_tee_identity(g_entry_net_res))
+            if (!get_chain()->post_tee_identity(g_entry_net_res))
             {
                 p_log->err("Send identity to crust chain failed!\n");
                 goto cleanup;
@@ -652,9 +652,6 @@ cleanup:
     if (global_eid != 0)
         sgx_destroy_enclave(global_eid);
 
-    if (felog != NULL)
-        close_logfile(felog);
-
     exit(-1);
 }
 
@@ -664,11 +661,6 @@ cleanup:
  * */
 int process_run()
 {
-    // Create log file
-    if (felog == NULL)
-        felog = create_logfile(LOG_FILE_PATH);
-
     start();
-
     return 1;
 }

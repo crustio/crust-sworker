@@ -1,58 +1,58 @@
-#include "Crust.h"
+#include "Chain.h"
 #include "Config.h"
 
-Crust *crust = NULL;
+Chain *chain = NULL;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
- * @description: new a global crust handler to access crust node
- * @param url -> crust API base url
+ * @description: new a global chain handler to access chain node
+ * @param url -> chain API base url
  * @param password -> the password of chain account id
  * @param backup ->  the backup of chain account id
- * @return: the point of crust handler
+ * @return: the point of chain handler
  */
-Crust *new_crust(std::string url, std::string password, std::string backup)
+Chain *new_chain(std::string url, std::string password, std::string backup)
 {
-    if (crust != NULL)
+    if (chain != NULL)
     {
-        delete crust;
+        delete chain;
     }
 
-    crust = new Crust(url, password, backup);
-    return crust;
+    chain = new Chain(url, password, backup);
+    return chain;
 }
 
 /**
- * @description: get the global crust handler to access crust node 
- * @return: the point of crust handle
+ * @description: get the global chain handler to access chain node 
+ * @return: the point of chain handle
  */
-Crust *get_crust(void)
+Chain *get_chain(void)
 {
-    if (crust == NULL)
+    if (chain == NULL)
     {
-        p_log->info("Create crust instance!\n");
+        p_log->info("Create chain instance!\n");
         Config *p_config = Config::get_instance();
         if (p_config == NULL)
         {
             p_log->err("Get configure failed!\n");
             return NULL;
         }
-        crust = new Crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup);
+        chain = new Chain(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup);
     }
 
-    return crust;
+    return chain;
 }
 
 /**
- * @description: new a crust handler to access crust node
- * @param url -> crust API base url, like: http://127.0.0.1:56666/api/v1
+ * @description: new a chain handler to access chain node
+ * @param url -> chain API base url, like: http://127.0.0.1:56666/api/v1
  * @param password_tmp -> the password of chain account id
  * @param backup_tmp ->  the backup of chain account id
  */
-Crust::Crust(std::string url, std::string password_tmp, std::string backup_tmp)
+Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp)
 {
     this->url_end_point = get_url_end_point(url);
-    this->crust_client = new httplib::Client(this->url_end_point->ip, this->url_end_point->port);
+    this->chain_client = new httplib::Client(this->url_end_point->ip, this->url_end_point->port);
     this->password = password_tmp;
     this->backup = backup_tmp;
 }
@@ -60,21 +60,21 @@ Crust::Crust(std::string url, std::string password_tmp, std::string backup_tmp)
 /**
  * @description: destructor
  */
-Crust::~Crust()
+Chain::~Chain()
 {
-    delete this->crust_client;
+    delete this->chain_client;
 }
 
 /**
- * @description: get laster block header from Crust
+ * @description: get laster block header from chain
  * @return: the point of block header
  */
-BlockHeader *Crust::get_block_header(void)
+BlockHeader *Chain::get_block_header(void)
 {
     try
     {
         std::string path = this->url_end_point->base + "/block/header";
-        auto res = this->crust_client->Get(path.c_str());
+        auto res = this->chain_client->Get(path.c_str());
         if (res && res->status == 200)
         {
             json::JSON block_header_json = json::JSON::Load(res->body);
@@ -96,15 +96,15 @@ BlockHeader *Crust::get_block_header(void)
 }
 
 /**
- * @description: test if there is usable crust api
+ * @description: test if chian is online
  * @return: test result
  * */
-bool Crust::is_online(void)
+bool Chain::is_online(void)
 {
     try
     {
         std::string path = this->url_end_point->base + "/block/header";
-        auto res = this->crust_client->Get(path.c_str());
+        auto res = this->chain_client->Get(path.c_str());
         if (res && res->status == 200)
         {
             return true;
@@ -121,11 +121,11 @@ bool Crust::is_online(void)
 }
 
 /**
- * @description: post tee identity to crust chain
+ * @description: post tee identity to chain chain
  * @param identity -> tee identity
  * @return: success or fail
  * */
-bool Crust::post_tee_identity(std::string identity)
+bool Chain::post_tee_identity(std::string identity)
 {
     try
     {
@@ -135,7 +135,7 @@ bool Crust::post_tee_identity(std::string identity)
         json::JSON obj;
         obj["identity"] = identity;
         obj["backup"] = this->backup;
-        auto res = this->crust_client->Post(path.c_str(), headers, obj.dump(), "application/json");
+        auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
 
         if (res && res->status == 200)
         {
@@ -153,11 +153,11 @@ bool Crust::post_tee_identity(std::string identity)
 }
 
 /**
- * @description: post tee work report to crust chain
+ * @description: post tee work report to chain
  * @param work_report -> tee work report
  * @return: success or fail
  * */
-bool Crust::post_tee_work_report(std::string work_report)
+bool Chain::post_tee_work_report(std::string work_report)
 {
     try
     {
@@ -167,7 +167,7 @@ bool Crust::post_tee_work_report(std::string work_report)
         json::JSON obj;
         obj["workreport"] = work_report;
         obj["backup"] = this->backup;
-        auto res = this->crust_client->Post(path.c_str(), headers, obj.dump(), "application/json");
+        auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
 
         if (res && res->status == 200)
         {

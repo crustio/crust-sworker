@@ -26,14 +26,13 @@
 #include "Config.h"
 #include "ApiHandler.h"
 #include "Ipfs.h"
-#include "Crust.h"
+#include "Chain.h"
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
 #include "Resource.h"
 #include "FileUtils.h"
 #include "Log.h"
-#include "OCalls.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x, y) x &y
