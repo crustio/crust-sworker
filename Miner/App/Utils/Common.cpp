@@ -48,7 +48,7 @@ void remove_chars_from_string(std::string &str, const char *chars_to_remove)
 MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
 {
     MerkleTree *root = new MerkleTree();
-    string hash = tree_json["hash"].ToString();
+    std::string hash = tree_json["hash"].ToString();
     root->hash = (char*)hex_string_to_bytes(hash.c_str(), hash.size());
     root->links_num = tree_json["links_num"].ToInt();
     json::JSON children = tree_json["links"];

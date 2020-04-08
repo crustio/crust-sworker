@@ -1,7 +1,4 @@
 #include "ApiHandler.h"
-#include "Json.hpp"
-#include "sgx_tseal.h"
-#include <exception>
 
 using namespace httplib;
 
@@ -131,9 +128,9 @@ int ApiHandler::start()
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
         status_ret = ecall_store_quote(*this->p_global_eid, &crust_status,
-                (const char *)quote, qsz, (const uint8_t*)data_sig_str.c_str(), 
-                data_sig_str.size(), &data_sig, (const uint8_t*)off_chain_crust_account_id.c_str(), 
-                off_chain_crust_account_id.size());
+                                       (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
+                                       data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_crust_account_id.c_str(),
+                                       off_chain_crust_account_id.size());
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store and verify offChain node data failed!\n");
@@ -201,17 +198,17 @@ int ApiHandler::start()
             p_log->info("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
             if (version >= 3)
             {
-                fprintf(felog, "version               = %ld\n",
+                p_log->info("version               = %ld\n",
                         res_json["version"].ToInt());
             }
             p_log->info("id:                   = %s\n",
-                         res_json["id"].ToString().c_str());
+                        res_json["id"].ToString().c_str());
             p_log->info("timestamp             = %s\n",
-                         res_json["timestamp"].ToString().c_str());
+                        res_json["timestamp"].ToString().c_str());
             p_log->info("isvEnclaveQuoteStatus = %s\n",
-                         res_json["isvEnclaveQuoteStatus"].ToString().c_str());
+                        res_json["isvEnclaveQuoteStatus"].ToString().c_str());
             p_log->info("isvEnclaveQuoteBody   = %s\n",
-                         res_json["isvEnclaveQuoteBody"].ToString().c_str());
+                        res_json["isvEnclaveQuoteBody"].ToString().c_str());
             std::string iasQuoteStr = res_json["isvEnclaveQuoteBody"].ToString();
             size_t qs;
             char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
@@ -227,17 +224,17 @@ int ApiHandler::start()
             p_log->info("\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
 
             p_log->info("platformInfoBlob  = %s\n",
-                         res_json["platformInfoBlob"].ToString().c_str());
+                        res_json["platformInfoBlob"].ToString().c_str());
             p_log->info("revocationReason  = %s\n",
-                         res_json["revocationReason"].ToString().c_str());
+                        res_json["revocationReason"].ToString().c_str());
             p_log->info("pseManifestStatus = %s\n",
-                         res_json["pseManifestStatus"].ToString().c_str());
+                        res_json["pseManifestStatus"].ToString().c_str());
             p_log->info("pseManifestHash   = %s\n",
-                         res_json["pseManifestHash"].ToString().c_str());
+                        res_json["pseManifestHash"].ToString().c_str());
             p_log->info("nonce             = %s\n",
-                         res_json["nonce"].ToString().c_str());
+                        res_json["nonce"].ToString().c_str());
             p_log->info("epidPseudonym     = %s\n",
-                         res_json["epidPseudonym"].ToString().c_str());
+                        res_json["epidPseudonym"].ToString().c_str());
         }
 
         /* Verify IAS report in enclave */
@@ -360,7 +357,7 @@ int ApiHandler::start()
 
         // Get MerkleTree
         json::JSON req_json;
-        try 
+        try
         {
             req_json = json::JSON::Load(req.body);
         }
@@ -383,28 +380,28 @@ int ApiHandler::start()
         // Validate MerkleTree
         crust_status_t crust_status = CRUST_SUCCESS;
         if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &crust_status, &root) ||
-                CRUST_SUCCESS != crust_status)
+            CRUST_SUCCESS != crust_status)
         {
             if (CRUST_SUCCESS != crust_status)
             {
                 switch (crust_status)
                 {
-                    case CRUST_MERKLETREE_DUPLICATED:
-                        error_info = "Duplicated MerkleTree validation!";
-                        break;
-                    case CRUST_INVALID_MERKLETREE:
-                        error_info = "Invalid MerkleTree structure!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_MERKLETREE_DUPLICATED:
+                    error_info = "Duplicated MerkleTree validation!";
+                    break;
+                case CRUST_INVALID_MERKLETREE:
+                    error_info = "Invalid MerkleTree structure!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
             {
                 error_info = "Invoke SGX api failed!";
             }
-            p_log->err("Validate merkle tree failed!Error code:%lx(%s)\n", 
-                    crust_status, error_info.c_str());
+            p_log->err("Validate merkle tree failed!Error code:%lx(%s)\n",
+                       crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 405;
         }
@@ -461,14 +458,14 @@ int ApiHandler::start()
         // Get sealed data buffer
         size_t sealed_data_size = sizeof(uint32_t) * 2 + src_len + SGX_ECP256_KEY_SIZE;
         size_t sealed_data_size_r = sgx_calc_sealed_data_size(0, sealed_data_size);
-        uint8_t *p_sealed_data = (uint8_t*)malloc(sealed_data_size_r);
+        uint8_t *p_sealed_data = (uint8_t *)malloc(sealed_data_size_r);
         memset(p_sealed_data, 0, sealed_data_size_r);
 
         // Seal data
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH, 
-                p_src, src_len, p_sealed_data, sealed_data_size_r);
+        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH,
+                                                       p_src, src_len, p_sealed_data, sealed_data_size_r);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
@@ -476,17 +473,17 @@ int ApiHandler::start()
             {
                 switch (crust_status)
                 {
-                    case CRUST_NOTFOUND_MERKLETREE:
-                        error_info = "Given MerkleTree tree root hash is not found!";
-                        break;
-                    case CRUST_WRONG_FILE_BLOCK:
-                        error_info = "Given file block doesn't meet sequential request!";
-                        break;
-                    case CRUST_SEAL_DATA_FAILED:
-                        error_info = "Internal error: seal data failed!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_NOTFOUND_MERKLETREE:
+                    error_info = "Given MerkleTree tree root hash is not found!";
+                    break;
+                case CRUST_WRONG_FILE_BLOCK:
+                    error_info = "Given file block doesn't meet sequential request!";
+                    break;
+                case CRUST_SEAL_DATA_FAILED:
+                    error_info = "Internal error: seal data failed!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
@@ -542,18 +539,18 @@ int ApiHandler::start()
         size_t sealed_data_size = req.body.size();
 
         // Caculate unsealed data size
-        sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
+        sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t *)malloc(sealed_data_size);
         memset(p_sealed_data_r, 0, sealed_data_size);
         memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
         uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
         unsealed_data_size = unsealed_data_size - sizeof(uint32_t) * 2 - SGX_ECP256_KEY_SIZE;
-        uint8_t *p_unsealed_data = (uint8_t*)malloc(unsealed_data_size);
+        uint8_t *p_unsealed_data = (uint8_t *)malloc(unsealed_data_size);
 
         // Unseal data
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &crust_status,
-                p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
+                                                         p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
@@ -561,14 +558,14 @@ int ApiHandler::start()
             {
                 switch (crust_status)
                 {
-                    case CRUST_UNSEAL_DATA_FAILED:
-                        error_info = "Internal error: unseal data failed!";
-                        break;
-                    case CRUST_MALWARE_DATA_BLOCK:
-                        error_info = "Unsealed data is invalid!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_UNSEAL_DATA_FAILED:
+                    error_info = "Internal error: unseal data failed!";
+                    break;
+                case CRUST_MALWARE_DATA_BLOCK:
+                    error_info = "Unsealed data is invalid!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
@@ -632,25 +629,25 @@ int ApiHandler::start()
             {
                 switch (crust_status)
                 {
-                    case CRUST_NOTFOUND_MERKLETREE:
-                        error_info = "Given MerkleTree is not found!";
-                        break;
-                    case CRUST_SEAL_NOTCOMPLETE:
-                        error_info = "Not all Given MerkleTree's data blocks have been sealed!";
-                        break;
-                    case CRUST_DESER_MERKLE_TREE_FAILED:
-                        error_info = "Internal error: deserialize MerkleTree failed!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_NOTFOUND_MERKLETREE:
+                    error_info = "Given MerkleTree is not found!";
+                    break;
+                case CRUST_SEAL_NOTCOMPLETE:
+                    error_info = "Not all Given MerkleTree's data blocks have been sealed!";
+                    break;
+                case CRUST_DESER_MERKLE_TREE_FAILED:
+                    error_info = "Internal error: deserialize MerkleTree failed!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
             {
                 error_info = "Invoke SGX api failed!";
             }
-            p_log->err("Generate new merkle tree failed!Error code:%lx(%s)\n", 
-                    crust_status, error_info.c_str());
+            p_log->err("Generate new merkle tree failed!Error code:%lx(%s)\n",
+                       crust_status, error_info.c_str());
             res.set_content("Generate new merkle tree failed!", "text/plain");
             res.status = 403;
             goto cleanup;
@@ -784,8 +781,8 @@ void *ApiHandler::change_empty(void *)
         p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
         size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, (size_t)change);
         p_log->info("Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
-        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-        #pragma omp parallel for num_threads(p_config->plot_thread_num)
+// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+#pragma omp parallel for num_threads(p_config->plot_thread_num)
         for (size_t i = 0; i < (size_t)true_change; i++)
         {
             ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());

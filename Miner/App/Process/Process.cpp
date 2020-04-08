@@ -1,7 +1,4 @@
 #include "Process.h"
-#include "OCalls.h"
-#include <map>
-#include <fstream>
 
 #define RECEIVE_PID_RETRY 30
 
@@ -196,7 +193,7 @@ bool entry_network()
             ok = _rdrand64_step(&np[i]);
         if (ok == 0)
         {
-            fprintf(stderr, "nonce: RDRAND underflow\n");
+            p_log->err("Nonce: RDRAND underflow\n");
             return false;
         }
     }
@@ -267,9 +264,9 @@ bool entry_network()
     }
 
     memset(quote, 0, sz);
-    fprintf(felog, "========== linkable: %d\n", linkable);
-    fprintf(felog, "========== spid    : %s\n", hexstring(spid, sizeof(sgx_spid_t)));
-    fprintf(felog, "========== nonce   : %s\n", hexstring(&nonce, sizeof(sgx_quote_nonce_t)));
+    p_log->debug("========== linkable: %d\n", linkable);
+    p_log->debug("========== spid    : %s\n", hexstring(spid, sizeof(sgx_spid_t)));
+    p_log->debug("========== nonce   : %s\n", hexstring(&nonce, sizeof(sgx_quote_nonce_t)));
     status = sgx_get_quote(&report, linkable,
             spid, &nonce, NULL, 0, &qe_report, quote, sz);
     if (status != SGX_SUCCESS)
@@ -279,15 +276,15 @@ bool entry_network()
     }
 
     /* Print SGX quote */
-    fprintf(felog, "quote report_data: %s\n", hexstring((const void *)(quote->report_body.report_data.d), sizeof(quote->report_body.report_data.d)));
-    fprintf(felog, "ias quote report version :%d\n", quote->version);
-    fprintf(felog, "ias quote report signtype:%d\n", quote->sign_type);
-    fprintf(felog, "ias quote report epid    :%d\n", *quote->epid_group_id);
-    fprintf(felog, "ias quote report qe svn  :%d\n", quote->qe_svn);
-    fprintf(felog, "ias quote report pce svn :%d\n", quote->pce_svn);
-    fprintf(felog, "ias quote report xeid    :%d\n", quote->xeid);
-    fprintf(felog, "ias quote report basename:%s\n", hexstring(quote->basename.name, 32));
-    fprintf(felog, "ias quote mr enclave     :%s\n", hexstring(&quote->report_body.mr_enclave, 32));
+    p_log->debug("quote report_data: %s\n", hexstring((const void *)(quote->report_body.report_data.d), sizeof(quote->report_body.report_data.d)));
+    p_log->debug("ias quote report version :%d\n", quote->version);
+    p_log->debug("ias quote report signtype:%d\n", quote->sign_type);
+    p_log->debug("ias quote report epid    :%d\n", *quote->epid_group_id);
+    p_log->debug("ias quote report qe svn  :%d\n", quote->qe_svn);
+    p_log->debug("ias quote report pce svn :%d\n", quote->pce_svn);
+    p_log->debug("ias quote report xeid    :%d\n", quote->xeid);
+    p_log->debug("ias quote report basename:%s\n", hexstring(quote->basename.name, 32));
+    p_log->debug("ias quote mr enclave     :%s\n", hexstring(&quote->report_body.mr_enclave, 32));
 
     // Get base64 quote
     b64quote = base64_encode((char *)quote, sz);
@@ -297,20 +294,20 @@ bool entry_network()
         return false;
     }
 
-    fprintf(felog, "{\n");
-    fprintf(felog, "\"isvEnclaveQuote\":\"%s\"", b64quote);
+    p_log->debug("{\n");
+    p_log->debug("\"isvEnclaveQuote\":\"%s\"", b64quote);
     if (OPT_ISSET(flags, OPT_NONCE))
     {
-        fprintf(felog, ",\n\"nonce\":\"");
-        print_hexstring(stdout, &nonce, 16);
-        fprintf(felog, "\"");
+        p_log->debug(",\n\"nonce\":\"");
+        print_hexstring(&nonce, 16);
+        p_log->debug("\"");
     }
 
     if (OPT_ISSET(flags, OPT_PSE))
     {
-        fprintf(felog, ",\n\"pseManifest\":\"%s\"", b64manifest);
+        p_log->debug(",\n\"pseManifest\":\"%s\"", b64manifest);
     }
-    fprintf(felog, "\n}\n");
+    p_log->debug("\n}\n");
 
     /* Send quote to validation node */
     p_log->info("Sending quote to on-chain node...\n");

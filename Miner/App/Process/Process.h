@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <algorithm>
 #include <mutex>
+#include <map>
+#include <fstream>
 #include "sgx_error.h"
 #include "sgx_eid.h"
 #include "sgx_urts.h"
@@ -30,6 +32,8 @@
 #include "Common.h"
 #include "Resource.h"
 #include "FileUtils.h"
+#include "Log.h"
+#include "OCalls.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x, y) x &y
