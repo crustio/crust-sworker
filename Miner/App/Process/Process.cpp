@@ -384,7 +384,7 @@ cleanup:
  * */
 bool wait_chain_run(void)
 {
-    if (get_crust() == NULL)
+    if (get_chain() == NULL)
     {
         p_log->err("Init crust chain failed.\n");
         return false;
