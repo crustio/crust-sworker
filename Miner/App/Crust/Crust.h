@@ -5,6 +5,7 @@
 #include "Common.h"
 #include "HttpLib.h"
 #include "Json.hpp"
+#include "Log.h"
 
 struct BlockHeader
 {

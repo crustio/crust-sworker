@@ -2,8 +2,7 @@
 #include "Config.h"
 
 Crust *crust = NULL;
-
-extern FILE *felog;
+crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: new a global crust handler to access crust node
@@ -31,11 +30,11 @@ Crust *get_crust(void)
 {
     if (crust == NULL)
     {
-        cprintf_info(felog, "Create crust instance!\n");
+        p_log->info("Create crust instance!\n");
         Config *p_config = Config::get_instance();
         if (p_config == NULL)
         {
-            cprintf_err(felog, "Get configure failed!\n");
+            p_log->err("Get configure failed!\n");
             return NULL;
         }
         crust = new Crust(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup);
@@ -90,7 +89,7 @@ BlockHeader *Crust::get_block_header(void)
     }
     catch (const std::exception &e)
     {
-        cprintf_err(felog, "HTTP throw: %s\n", e.what());
+        p_log->err("HTTP throw: %s\n", e.what());
     }
 
     return NULL;
@@ -115,7 +114,7 @@ bool Crust::is_online(void)
     }
     catch (const std::exception &e)
     {
-        cprintf_err(felog, "HTTP throw: %s\n", e.what());
+        p_log->err("HTTP throw: %s\n", e.what());
     }
 
     return false;
@@ -147,7 +146,7 @@ bool Crust::post_tee_identity(std::string identity)
     }
     catch (const std::exception &e)
     {
-        cprintf_err(felog, "HTTP throw: %s\n", e.what());
+        p_log->err("HTTP throw: %s\n", e.what());
     }
 
     return false;
@@ -179,7 +178,7 @@ bool Crust::post_tee_work_report(std::string work_report)
     }
     catch (const std::exception &e)
     {
-        cprintf_err(felog, "HTTP throw: %s\n", e.what());
+        p_log->err("HTTP throw: %s\n", e.what());
     }
 
     return false;

@@ -11,7 +11,6 @@
 #include "sgx_eid.h"
 #include "Common.h"
 #include "Config.h"
-#include "Logfile.h"
 #include "FormatUtils.h"
 #include "IASReport.h"
 #include "SgxSupport.h"

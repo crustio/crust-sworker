@@ -28,7 +28,6 @@
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
-#include "Logfile.h"
 #include "Resource.h"
 #include "FileUtils.h"
 

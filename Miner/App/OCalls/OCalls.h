@@ -17,21 +17,15 @@
 #include "FormatUtils.h"
 #include "Common.h"
 
-using namespace std;
-
-using namespace std;
-
 #define HEXSTRING_BUF 128
 #define BUFSIZE 1024
 
-extern FILE *felog;
-
-extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
-
+crust::Log *p_log = crust::Log::get_instance();
 extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 
 // Used to store ocall file data
 unsigned char *ocall_file_data = NULL;
+
 
 /**
  * @description: ocall for printing string
@@ -43,12 +37,12 @@ void ocall_print_string(const char *str)
 }
 
 /**
- * @description: ocall for cprintf string
+ * @description: ocall for log information
  * @param str -> string for printing
  */
 void ocall_eprint_string(const char *str)
 {
-    cprintf_info(felog, "%s", str);
+    p_log->info("%s", str);
 }
 
 /**
@@ -122,7 +116,7 @@ void ocall_delete_folder_or_file(const char *path)
     {
         if(rm(path) == -1)
         {
-            cprintf_err(felog, "Delete '%s' error!", path);
+            log->err("Delete '%s' error!\n", path);
         }
     }
 }

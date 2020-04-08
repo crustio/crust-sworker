@@ -3,7 +3,7 @@
 bool run_as_server = false;
 bool offline_chain_mode = false;
 extern std::string config_file_path;
-crust::Log *log = crust::Log::get_instance();
+crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: application main entry
@@ -26,7 +26,7 @@ int SGX_CDECL main(int argc, char *argv[])
             }
             else
             {
-                log->err("-c option needs configure file path as argument!\n");
+                p_log->err("-c option needs configure file path as argument!\n");
                 return 1;
             }
         }
@@ -36,14 +36,14 @@ int SGX_CDECL main(int argc, char *argv[])
         }
         else if (strcmp(argv[i], "--debug") == 0)
         {
-            log->open_debug();
-            log->debug("Debug log is opened.\n")
+            p_log->open_debug();
+            p_log->debug("Debug log is opened.\n");
         }
         else
         {
             if (run_type.compare("") != 0)
             {
-                log->err("Ambiguos run mode!\n");
+                p_log->err("Ambiguos run mode!\n");
                 return 1;
             }
             run_type = argv[i];
@@ -106,7 +106,7 @@ int main_status()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        log->err("Init config failed.\n");
+        p_log->err("Init config failed.\n");
         return -1;
     }
 
@@ -117,10 +117,10 @@ int main_status()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        log->info("Get status failed!");
+        p_log->info("Get status failed!");
         return -1;
     }
-    log->err("%s", res->body.c_str());
+    p_log->err("%s", res->body.c_str());
 
     delete p_config;
     delete client;
@@ -137,7 +137,7 @@ int main_report()
     Config *p_config = Config::get_instance();
     if (p_config == NULL)
     {
-        log->err("Init config failed.\n");
+        p_log->err("Init config failed.\n");
         return false;
     }
 
@@ -148,10 +148,10 @@ int main_report()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        log->info(NULL, "Get report failed!");
+        p_log->info(NULL, "Get report failed!");
         return -1;
     }
-    log->info(NULL, "%s", res->body.c_str());
+    p_log->info(NULL, "%s", res->body.c_str());
 
     delete p_config;
     delete client;
