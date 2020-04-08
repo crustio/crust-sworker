@@ -281,7 +281,7 @@ void ecall_get_validation_report(char *report, size_t len)
  * @return: sign status
  * */
 common_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height,
-                                                   sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
+        sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
 {
     // Judge whether block height is expired
     if (block_height <= now_work_report_block_height)
@@ -382,7 +382,7 @@ cleanup:
 }
 
 common_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
-                                         sgx_ec256_signature_t *p_signature)
+        sgx_ec256_signature_t *p_signature)
 {
     std::string data_str(p_partial_data, data_size);
     data_str.append(g_crust_account_id);
@@ -503,8 +503,8 @@ sgx_status_t ecall_gen_sgx_measurement()
  * @return: Store status
  * */
 common_status_t ecall_store_quote(const char *quote, size_t len,
-                                  const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature,
-                                  const uint8_t *p_account_id, uint32_t account_id_sz)
+        const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature, 
+        const uint8_t *p_account_id, uint32_t account_id_sz)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     common_status_t common_status = CRUST_SUCCESS;
@@ -527,8 +527,8 @@ common_status_t ecall_store_quote(const char *quote, size_t len,
         return CRUST_SGX_FAILED;
     }
 
-    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t *)p_offchain_pubkey,
-                                  p_signature, &result, ecc_state);
+    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t*)p_offchain_pubkey,
+            p_signature, &result, ecc_state);
 
     if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
     {
@@ -587,10 +587,10 @@ common_status_t ecall_validate_merkle_tree(MerkleTree **root)
  * @return: Seal and generate result
  * */
 common_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
-                                     const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
+        const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     return storage_seal_file_data(root_hash, root_hash_len, p_src, src_len,
-                                  p_sealed_data, sealed_data_size);
+            p_sealed_data, sealed_data_size);
 }
 
 /**
@@ -602,10 +602,10 @@ common_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_has
  * @return: Unseal status
  * */
 common_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
-                                       uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
+        uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
 {
     return storage_unseal_file_data(p_sealed_data, sealed_data_size,
-                                    p_unsealed_data, unsealed_data_size);
+            p_unsealed_data, unsealed_data_size);
 }
 
 /**

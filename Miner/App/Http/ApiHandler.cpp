@@ -1,6 +1,7 @@
 #include "ApiHandler.h"
 #include "Json.hpp"
 #include "sgx_tseal.h"
+#include <exception>
 
 using namespace httplib;
 
@@ -22,10 +23,12 @@ std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
  */
 ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
 {
+    // TODO: Should use https server
     this->server = new Server();
     ApiHandler::p_global_eid = p_global_eid_in;
 }
 
+// TODO: Should limit thread number in enclave
 /**
  * @desination: Start rest service
  * @return: Start status
@@ -86,6 +89,7 @@ int ApiHandler::start()
     // Entry network process
     path = urlendpoint->base + "/entry/network";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        res.status = 200;
         sgx_status_t status_ret = SGX_SUCCESS;
         common_status_t common_status = CRUST_SUCCESS;
         int version = IAS_API_DEF_VERSION;
@@ -324,23 +328,55 @@ int ApiHandler::start()
     // Storage validate merkle tree
     path = urlendpoint->base + "/storage/validate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
-        cprintf_info(felog, "validate MerkleTree body:%s", req.body.c_str());
+        res.status = 200;
+        //cprintf_info(felog, "status:%d,validate MerkleTree body:%s\n", res.status, req.body.c_str());
+        std::string error_info;
+        // Get backup info
+        if (req.headers.find("backup") == req.headers.end())
+        {
+            error_info = "Validate MerkleTree failed!Error: Empty backup!";
+            res.status = 400;
+        }
+        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        {
+            error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+            res.status = 401;
+        }
+        if (res.status != 200)
+        {
+            cprintf_err(felog, "%s\n", error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            return;
+        }
         // Check if body is validated
         if (req.body.size() == 0)
         {
-            res.set_content("Validate MerkleTree faild!Error: Empty body!", "text/plain");
-            res.status = 400;
+            error_info = "Validate MerkleTree failed!Error: Empty body!";
+            cprintf_err(felog, "%s\n", error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            res.status = 402;
             return;
         }
 
         // Get MerkleTree
-        json::JSON req_json = json::JSON::Load(req.body);
+        json::JSON req_json;
+        try 
+        {
+            req_json = json::JSON::Load(req.body);
+        }
+        catch (std::exception e)
+        {
+            cprintf_err(felog, "Parse json failed!Error: %s\n", e.what());
+            res.set_content("Validate MerkleTree failed!Error invalide MerkleTree json!", "text/plain");
+            res.status = 403;
+            return;
+        }
         MerkleTree *root = deserialize_merkle_tree_from_json(req_json);
         if (root == NULL)
         {
             cprintf_err(felog, "Deserialize MerkleTree failed!\n");
             res.set_content("Deserialize MerkleTree failed!", "text/plain");
-            res.status = 401;
+            res.status = 404;
             return;
         }
 
@@ -349,9 +385,28 @@ int ApiHandler::start()
         if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &common_status, &root) ||
                 CRUST_SUCCESS != common_status)
         {
-            cprintf_err(felog, "Validate merkle tree failed!Error code:%lx\n", common_status);
-            res.set_content("Validate merkle tree failed!", "text/plain");
-            res.status = 402;
+            if (CRUST_SUCCESS != common_status)
+            {
+                switch (common_status)
+                {
+                    case CRUST_MERKLETREE_DUPLICATED:
+                        error_info = "Duplicated MerkleTree validation!";
+                        break;
+                    case CRUST_INVALID_MERKLETREE:
+                        error_info = "Invalid MerkleTree structure!";
+                        break;
+                    default:
+                        error_info = "Undefined error!";
+                }
+            }
+            else
+            {
+                error_info = "Invoke SGX api failed!";
+            }
+            cprintf_err(felog, "Validate merkle tree failed!Error code:%lx(%s)\n", 
+                    common_status, error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            res.status = 405;
         }
         else
         {
@@ -361,27 +416,44 @@ int ApiHandler::start()
     });
 
     // Storage seal file block
-    // TODO: file data basecode problem
-    // TODO: Add backup
-    // TODO: error code
     path = urlendpoint->base + "/storage/seal";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        res.status = 200;
+        std::string error_info;
+        // Get backup info
+        if (req.headers.find("backup") == req.headers.end())
+        {
+            error_info = "Validate MerkleTree failed!Error: Empty backup!";
+            res.status = 400;
+        }
+        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        {
+            error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+            res.status = 401;
+        }
+        if (res.status != 200)
+        {
+            cprintf_err(felog, "%s\n", error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            return;
+        }
         // Get source data
         size_t src_len = req.body.size();
         if (src_len == 0)
         {
             res.set_content("Seal data failed!Error empty request body!", "text/plain");
-            res.status = 400;
+            res.status = 402;
             return;
         }
-        uint8_t *p_src = (uint8_t*)req.body.data();
+        std::vector<uint8_t> data_u(req.body.data(), req.body.data() + req.body.size());
+        uint8_t *p_src = data_u.data();
 
         // Get root hash
         std::string root_hash_str = req.params.find("root_hash")->second;
         if (root_hash_str.size() == 0)
         {
             res.set_content("Seal data failed!Error Empty root hash!", "text/plain");
-            res.status = 401;
+            res.status = 403;
             return;
         }
         uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
@@ -400,9 +472,30 @@ int ApiHandler::start()
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
-            cprintf_info(felog, "Seal data failed!Error code:%lx\n", common_status);
-            res.set_content("Seal file block failed!", "text/plain");
-            res.status = 402;
+            if (CRUST_SUCCESS != common_status)
+            {
+                switch (common_status)
+                {
+                    case CRUST_NOTFOUND_MERKLETREE:
+                        error_info = "Given MerkleTree tree root hash is not found!";
+                        break;
+                    case CRUST_WRONG_FILE_BLOCK:
+                        error_info = "Given file block doesn't meet sequential request!";
+                        break;
+                    case CRUST_SEAL_DATA_FAILED:
+                        error_info = "Internal error: seal data failed!";
+                        break;
+                    default:
+                        error_info = "Undefined error!";
+                }
+            }
+            else
+            {
+                error_info = "Invoke SGX api failed!";
+            }
+            cprintf_info(felog, "Seal data failed!Error code:%lx(%s)\n", common_status, error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            res.status = 404;
             goto cleanup;
         }
 
@@ -418,13 +511,34 @@ int ApiHandler::start()
     // Storage unseal file block
     path = urlendpoint->base + "/storage/unseal";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        res.status = 200;
+        std::string error_info;
+        // Get backup info
+        if (req.headers.find("backup") == req.headers.end())
+        {
+            error_info = "Validate MerkleTree failed!Error: Empty backup!";
+            res.status = 400;
+        }
+        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        {
+            error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+            res.status = 401;
+        }
+        if (res.status != 200)
+        {
+            cprintf_err(felog, "%s\n", error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            return;
+        }
+        // Get sealed data
         if (req.body.size() == 0)
         {
             res.set_content("Unseal data failed!Error empty data!", "text/plain");
-            res.status = 400;
+            res.status = 402;
             return;
         }
-        uint8_t *p_sealed_data = (uint8_t*)req.body.data();
+        std::vector<uint8_t> data_u(req.body.data(), req.body.data() + req.body.size());
+        uint8_t *p_sealed_data = data_u.data();
         size_t sealed_data_size = req.body.size();
 
         // Caculate unsealed data size
@@ -443,9 +557,27 @@ int ApiHandler::start()
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
-            cprintf_err(felog, "Unseal data failed!Error code:%lx\n", common_status);
-            res.set_content("Unseal file block failed!", "text/plain");
-            res.status = 401;
+            if (CRUST_SUCCESS != common_status)
+            {
+                switch (common_status)
+                {
+                    case CRUST_UNSEAL_DATA_FAILED:
+                        error_info = "Internal error: unseal data failed!";
+                        break;
+                    case CRUST_MALWARE_DATA_BLOCK:
+                        error_info = "Unsealed data is invalid!";
+                        break;
+                    default:
+                        error_info = "Undefined error!";
+                }
+            }
+            else
+            {
+                error_info = "Invoke SGX api failed!";
+            }
+            cprintf_err(felog, "Unseal data failed!Error code:%lx(%s)\n", common_status, error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            res.status = 403;
             goto cleanup;
         }
 
@@ -461,12 +593,31 @@ int ApiHandler::start()
     // Storage generate validated merkle tree
     path = urlendpoint->base + "/storage/generate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        res.status = 200;
+        std::string error_info;
+        // Get backup info
+        if (req.headers.find("backup") == req.headers.end())
+        {
+            error_info = "Validate MerkleTree failed!Error: Empty backup!";
+            res.status = 400;
+        }
+        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        {
+            error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+            res.status = 401;
+        }
+        if (res.status != 200)
+        {
+            cprintf_err(felog, "%s\n", error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            return;
+        }
         // Get root hash
         std::string root_hash_str = req.params.find("root_hash")->second;
         if (root_hash_str.size() == 0)
         {
             res.set_content("Generate MerkleTree failed!Error empty hash!", "text/plain");
-            res.status = 400;
+            res.status = 402;
             return;
         }
         uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
@@ -477,9 +628,31 @@ int ApiHandler::start()
         sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH);
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
         {
-            cprintf_err(felog, "Generate new merkle tree failed!Error code:%lx\n", common_status);
+            if (CRUST_SUCCESS != common_status)
+            {
+                switch (common_status)
+                {
+                    case CRUST_NOTFOUND_MERKLETREE:
+                        error_info = "Given MerkleTree is not found!";
+                        break;
+                    case CRUST_SEAL_NOTCOMPLETE:
+                        error_info = "Not all Given MerkleTree's data blocks have been sealed!";
+                        break;
+                    case CRUST_DESER_MERKLE_TREE_FAILED:
+                        error_info = "Internal error: deserialize MerkleTree failed!";
+                        break;
+                    default:
+                        error_info = "Undefined error!";
+                }
+            }
+            else
+            {
+                error_info = "Invoke SGX api failed!";
+            }
+            cprintf_err(felog, "Generate new merkle tree failed!Error code:%lx(%s)\n", 
+                    common_status, error_info.c_str());
             res.set_content("Generate new merkle tree failed!", "text/plain");
-            res.status = 401;
+            res.status = 403;
             goto cleanup;
         }
 
@@ -492,6 +665,25 @@ int ApiHandler::start()
     // Inner APIs
     path = urlendpoint->base + "/change/empty";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
+        res.status = 200;
+        std::string error_info;
+        // Get backup info
+        if (req.headers.find("backup") == req.headers.end())
+        {
+            error_info = "Validate MerkleTree failed!Error: Empty backup!";
+            res.status = 400;
+        }
+        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        {
+            error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+            res.status = 401;
+        }
+        if (res.status != 200)
+        {
+            cprintf_err(felog, "%s\n", error_info.c_str());
+            res.set_content(error_info, "text/plain");
+            return;
+        }
         // Guaranteed that only one service is running
         change_empty_mutex.lock();
         if (in_changing_empty)
@@ -508,22 +700,12 @@ int ApiHandler::start()
         // Check input parameters
         json::JSON req_json = json::JSON::Load(req.body);
         change_empty_num = req_json["change"].ToInt();
-        std::string backup = req_json["backup"].ToString();
-        remove_chars_from_string(backup, "\\");
-
-        if (backup != p_config->crust_backup)
-        {
-            cprintf_info(felog, "Invalid backup\n");
-            res.set_content("Invalid backup", "text/plain");
-            res.status = 400;
-            goto end_change_empty;
-        }
 
         if (change_empty_num == 0)
         {
             cprintf_info(felog, "Invalid change\n");
             res.set_content("Invalid change", "text/plain");
-            res.status = 400;
+            res.status = 402;
             goto end_change_empty;
         }
         else
@@ -558,7 +740,6 @@ int ApiHandler::start()
             else
             {
                 res.set_content("Change empty file success, the empty workload will change in next validation loop", "text/plain");
-                res.status = 200;
                 return;
             }
         }

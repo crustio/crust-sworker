@@ -135,6 +135,7 @@ Curl shell:
 ```shell
 curl --location --request POST 'http://<url:port>/api/v0/change/empty' \
 --header 'Content-Type: application/json' \
+--header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
 --data-raw '{
 	"change": 2,
 	"backup": "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
@@ -144,6 +145,21 @@ curl --location --request POST 'http://<url:port>/api/v0/change/empty' \
 Output (200, success):
 ```shell
 Change empty file success, the empty workload will change in next validation loop
+```
+
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, invalid change):
+```shell
+invalid change
 ```
 
 Output (500, service busy, this API does not support concurrency):
@@ -163,6 +179,7 @@ Curl shell:
 ```shell
 curl --location --request POST 'http://<url:port>/api/v0/storage/validate/merkletree' \
 --header 'Content-Type: application/json' \
+--header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
 --data-raw '{
   "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
   "links_num":2,
@@ -212,17 +229,32 @@ Output (200, success):
 Validate merkle tree successfully
 ```
 
-Output (400, error: empty body):
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, error: empty body):
 ```shell
 empty request body
 ```
 
-Output (401, deserialize merkletree failed):
+Output (403, error merkletree json):
+```shell
+error merkletree json
+```
+
+Output (404, deserialize merkletree failed):
 ```shell
 Invalidated merkletree results in failure
 ```
 
-Output (402, validate merkletree failed):
+Output (405, validate merkletree failed):
 ```shell
 Validate merkle tree failed, because of invalid tree structure
 ```
@@ -234,6 +266,7 @@ Curl shell:
 ```shell
 curl --location --request POST 'http://<url:port>/api/v0/storage/seal?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17' \
 --header 'Content-Type: application/octet-stream' \
+--header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
 --data-binary '<path_to_file_block>'
 ```
 
@@ -242,17 +275,27 @@ Output (200, success):
 seal file block successfully
 ```
 
-Output (400, error: empty request body):
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, error: empty request body):
 ```shell
 empty source data
 ```
 
-Output (401, empty root hash):
+Output (403, empty root hash):
 ```shell
 empty root hash
 ```
 
-Output (402, seal failed):
+Output (404, seal failed):
 ```shell
 seal file block failed
 ```
@@ -264,6 +307,7 @@ Curl shell:
 ```shell
 curl --location --request POST 'http://<url:port>/api/v0/storage/unseal' \
 --header 'Content-Type: application/octet-stream' \
+--header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
 --data-binary '<path_to_file_block>'
 ```
 
@@ -272,12 +316,22 @@ Output (200, success):
 unseal file block successfully
 ```
 
-Output (400, error: emtpy request body):
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, error: emtpy request body):
 ```shell
 emtpy request body
 ```
 
-Output (401, unseal failed):
+Output (403, unseal failed):
 ```shell
 unseal file block failed
 ```
@@ -287,7 +341,8 @@ unseal file block failed
 
 Curl shell:
 ```shell
-curl --location --request POST 'http://<url:port>/api/v0/storage/generate/merkletree?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17'
+curl --location --request POST 'http://<url:port>/api/v0/storage/generate/merkletree?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17' \
+--header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}'
 ```
 
 Output (200, success):
@@ -295,12 +350,22 @@ Output (200, success):
 generate validated merkletree successfully
 ```
 
-Output (400, error: empty root hash):
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, error: empty root hash):
 ```shell
 empty root hash
 ```
 
-Output (401, generate failed):
+Output (403, generate failed):
 ```shell
 generate validated merkletree failed
 ```
