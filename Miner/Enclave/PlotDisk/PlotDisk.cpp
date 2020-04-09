@@ -73,7 +73,7 @@ void ecall_plot_disk(const char *path)
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    cfeprintf("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
+    log_info("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 }
 
 /**

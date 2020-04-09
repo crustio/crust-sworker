@@ -1,7 +1,7 @@
 #include "Ipfs.h"
 
-extern FILE *felog;
 Ipfs *ipfs = NULL;
+crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: new a global IPFS handler to access IPFS node
@@ -27,7 +27,7 @@ Ipfs *get_ipfs(void)
 {
     if (ipfs == NULL)
     {
-        cprintf_err(felog, "Please use new_ipfs(url) frist.\n");
+        p_log->err("Please use new_ipfs(url) frist.\n");
     }
 
     return ipfs;

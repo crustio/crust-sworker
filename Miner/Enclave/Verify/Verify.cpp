@@ -337,18 +337,18 @@ ias_status_t verify_iasreport(const char **IASReport, size_t size, entry_network
 	X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
 	vector<string> response(IASReport, IASReport + size);
 
-	uint8_t *off_chain_crust_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
-	uint8_t *validator_crust_account_id = hex_string_to_bytes(response[4].c_str(), response[4].length());
-    if(off_chain_crust_account_id == NULL || validator_crust_account_id == NULL)
+	uint8_t *off_chain_chain_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
+	uint8_t *validator_chain_account_id = hex_string_to_bytes(response[4].c_str(), response[4].length());
+    if(off_chain_chain_account_id == NULL || validator_chain_account_id == NULL)
     {
         return CRUST_GET_ACCOUNT_ID_BYTE_FAILED;
     }
     
 
-    size_t crust_account_id_size = response[3].length() / 2;
+    size_t chain_account_id_size = response[3].length() / 2;
 	uint8_t *sigbuf, *p_sig = NULL;
 	size_t context_size = 0;
-    vector<uint8_t> off_chain_accid_v(off_chain_crust_account_id, off_chain_crust_account_id + crust_account_id_size);
+    vector<uint8_t> off_chain_accid_v(off_chain_chain_account_id, off_chain_chain_account_id + chain_account_id_size);
 
 
 	/*
@@ -526,18 +526,18 @@ ias_status_t verify_iasreport(const char **IASReport, size_t size, entry_network
 	}
 
 	// Generate identity data for sig
-	context_size = crust_account_id_size * 2 + REPORT_DATA_SIZE * 2;
+	context_size = chain_account_id_size * 2 + REPORT_DATA_SIZE * 2;
 	sigbuf = (uint8_t *)malloc(context_size);
 	memset(sigbuf, 0, context_size);
 	p_sig = sigbuf;
 
 	memcpy(sigbuf, p_offchain_pubkey, REPORT_DATA_SIZE);
 	sigbuf += REPORT_DATA_SIZE;
-	memcpy(sigbuf, off_chain_crust_account_id, crust_account_id_size);
-	sigbuf += crust_account_id_size;
+	memcpy(sigbuf, off_chain_chain_account_id, chain_account_id_size);
+	sigbuf += chain_account_id_size;
 	memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
 	sigbuf += sizeof(id_key_pair.pub_key);
-	memcpy(sigbuf, validator_crust_account_id, crust_account_id_size);
+	memcpy(sigbuf, validator_chain_account_id, chain_account_id_size);
 
 	sgx_status = sgx_ecdsa_sign(p_sig, (uint32_t)context_size,
             &id_key_pair.pri_key, &ecc_signature, ecc_state);
@@ -572,8 +572,8 @@ cleanup:
 
     accid_pubkey_map.erase(off_chain_accid_v);
 
-	free(off_chain_crust_account_id);
-	free(validator_crust_account_id);
+	free(off_chain_chain_account_id);
+	free(validator_chain_account_id);
     if (p_sig != NULL)
 	    free(p_sig);
 

@@ -1,5 +1,5 @@
-#ifndef _CRUST_SINGLE_PROCESS_H_
-#define _CRUST_SINGLE_PROCESS_H_
+#ifndef _CRUST_PROCESS_H_
+#define _CRUST_PROCESS_H_
 
 #include <sgx_key_exchange.h>
 #include <sgx_report.h>
@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <algorithm>
 #include <mutex>
+#include <map>
+#include <fstream>
 #include "sgx_error.h"
 #include "sgx_eid.h"
 #include "sgx_urts.h"
@@ -24,13 +26,13 @@
 #include "Config.h"
 #include "ApiHandler.h"
 #include "Ipfs.h"
-#include "Crust.h"
+#include "Chain.h"
 #include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
-#include "Logfile.h"
 #include "Resource.h"
 #include "FileUtils.h"
+#include "Log.h"
 
 //#define ENCLAVE_NAME "Enclave.signed.so"
 #define OPT_ISSET(x, y) x &y
@@ -56,4 +58,4 @@
 
 int process_run();
 
-#endif /* !_CRUST_SINGLE_PROCESS_H_ */
+#endif /* !_CRUST_PROCESS_H_ */

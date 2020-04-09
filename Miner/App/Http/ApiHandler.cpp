@@ -1,13 +1,9 @@
 #include "ApiHandler.h"
-#include "Json.hpp"
-#include "sgx_tseal.h"
-#include <exception>
 
 using namespace httplib;
 
 /* Used to show validation status*/
 const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
-extern FILE *felog;
 bool in_changing_empty = false;
 std::mutex change_empty_mutex;
 int change_empty_num = 0;
@@ -15,6 +11,7 @@ int change_empty_num = 0;
 sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
 
 std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
+crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: constructor
@@ -40,7 +37,7 @@ int ApiHandler::start()
 
     if (!server->is_valid())
     {
-        cprintf_err(felog, "Server encount an error!\n");
+        p_log->err("Server encount an error!\n");
         return -1;
     }
 
@@ -51,7 +48,7 @@ int ApiHandler::start()
 
         if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
         {
-            cprintf_err(felog, "Get validation status failed.\n");
+            p_log->err("Get validation status failed.\n");
             res.set_content("InternalError", "text/plain");
             return;
         }
@@ -66,14 +63,14 @@ int ApiHandler::start()
         size_t report_len = 0;
         if (ecall_generate_validation_report(*ApiHandler::p_global_eid, &report_len) != SGX_SUCCESS)
         {
-            cprintf_err(felog, "Generate validation report failed.\n");
+            p_log->err("Generate validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
         if (ecall_get_validation_report(*ApiHandler::p_global_eid, report, report_len) != SGX_SUCCESS)
         {
-            cprintf_err(felog, "Get validation report failed.\n");
+            p_log->err("Get validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 
@@ -91,21 +88,21 @@ int ApiHandler::start()
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         res.status = 200;
         sgx_status_t status_ret = SGX_SUCCESS;
-        common_status_t common_status = CRUST_SUCCESS;
+        crust_status_t crust_status = CRUST_SUCCESS;
         int version = IAS_API_DEF_VERSION;
-        cprintf_info(felog, "Processing entry network application...\n");
+        p_log->info("Processing entry network application...\n");
         uint32_t qsz;
         size_t dqsz = 0;
         sgx_quote_t *quote;
         json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
         std::string b64quote = req_json["isvEnclaveQuote"].ToString();
-        std::string off_chain_crust_address = req_json["crust_address"].ToString();
-        std::string off_chain_crust_account_id = req_json["crust_account_id"].ToString();
+        std::string off_chain_chain_address = req_json["chain_address"].ToString();
+        std::string off_chain_chain_account_id = req_json["chain_account_id"].ToString();
         std::string signature_str = req_json["signature"].ToString();
         std::string data_sig_str;
         data_sig_str.append(b64quote)
-            .append(off_chain_crust_address)
-            .append(off_chain_crust_account_id);
+            .append(off_chain_chain_address)
+            .append(off_chain_chain_account_id);
         sgx_ec256_signature_t data_sig;
         memset(&data_sig, 0, sizeof(sgx_ec256_signature_t));
         memcpy(&data_sig, hex_string_to_bytes(signature_str.c_str(), signature_str.size()),
@@ -113,7 +110,7 @@ int ApiHandler::start()
 
         if (!get_quote_size(&status_ret, &qsz))
         {
-            cprintf_err(felog, "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+            p_log->err("PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
             res.set_content("InternalError", "text/plain");
             res.status = 400;
             return;
@@ -130,18 +127,18 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*this->p_global_eid, &common_status,
-                (const char *)quote, qsz, (const uint8_t*)data_sig_str.c_str(), 
-                data_sig_str.size(), &data_sig, (const uint8_t*)off_chain_crust_account_id.c_str(), 
-                off_chain_crust_account_id.size());
-        if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != common_status)
+        status_ret = ecall_store_quote(*this->p_global_eid, &crust_status,
+                                       (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
+                                       data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
+                                       off_chain_chain_account_id.size());
+        if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
-            cprintf_err(felog, "Store and verify offChain node data failed!\n");
+            p_log->err("Store and verify offChain node data failed!\n");
             res.set_content("StoreQuoteError", "text/plain");
             res.status = 401;
             return;
         }
-        cprintf_info(felog, "Storing quote in enclave successfully!\n");
+        p_log->info("Storing quote in enclave successfully!\n");
 
         /* Request IAS verification */
         SSLClient *client = new SSLClient(p_config->ias_base_url);
@@ -166,7 +163,7 @@ int ApiHandler::start()
             ias_res = client->Post(p_config->ias_base_path.c_str(), headers, body, "application/json");
             if (!(ias_res && ias_res->status == 200))
             {
-                cprintf_err(felog, "Send to IAS failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
+                p_log->err("Send to IAS failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
                 sleep(3);
                 net_tryout--;
                 continue;
@@ -176,14 +173,14 @@ int ApiHandler::start()
 
         if (!(ias_res && ias_res->status == 200))
         {
-            cprintf_err(felog, "Request IAS failed!\n");
+            p_log->err("Request IAS failed!\n");
             res.set_content("Request IAS failed!", "text/plain");
             res.status = 402;
             delete client;
             return;
         }
         res_json = json::JSON::Load(ias_res->body);
-        cprintf_info(felog, "Sending quote to IAS service successfully!\n");
+        p_log->info("Sending quote to IAS service successfully!\n");
 
         Headers res_headers = ias_res->headers;
         std::vector<const char *> ias_report;
@@ -192,52 +189,52 @@ int ApiHandler::start()
         ias_report.push_back(ias_res->body.c_str());
 
         // Identity info
-        ias_report.push_back(off_chain_crust_account_id.c_str()); //[3]
-        ias_report.push_back(p_config->crust_account_id.c_str()); //[4]
+        ias_report.push_back(off_chain_chain_account_id.c_str()); //[3]
+        ias_report.push_back(p_config->chain_account_id.c_str()); //[4]
 
         // Print IAS report
         if (p_config->verbose)
         {
-            cprintf_info(felog, "\n\n----------IAS Report - JSON - Required Fields----------\n\n");
+            p_log->info("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
             if (version >= 3)
             {
-                fprintf(felog, "version               = %ld\n",
+                p_log->info("version               = %ld\n",
                         res_json["version"].ToInt());
             }
-            cprintf_info(felog, "id:                   = %s\n",
-                         res_json["id"].ToString().c_str());
-            cprintf_info(felog, "timestamp             = %s\n",
-                         res_json["timestamp"].ToString().c_str());
-            cprintf_info(felog, "isvEnclaveQuoteStatus = %s\n",
-                         res_json["isvEnclaveQuoteStatus"].ToString().c_str());
-            cprintf_info(felog, "isvEnclaveQuoteBody   = %s\n",
-                         res_json["isvEnclaveQuoteBody"].ToString().c_str());
+            p_log->info("id:                   = %s\n",
+                        res_json["id"].ToString().c_str());
+            p_log->info("timestamp             = %s\n",
+                        res_json["timestamp"].ToString().c_str());
+            p_log->info("isvEnclaveQuoteStatus = %s\n",
+                        res_json["isvEnclaveQuoteStatus"].ToString().c_str());
+            p_log->info("isvEnclaveQuoteBody   = %s\n",
+                        res_json["isvEnclaveQuoteBody"].ToString().c_str());
             std::string iasQuoteStr = res_json["isvEnclaveQuoteBody"].ToString();
             size_t qs;
             char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
             sgx_quote_t *ias_quote = (sgx_quote_t *)malloc(qs);
             memset(ias_quote, 0, qs);
             memcpy(ias_quote, ppp, qs);
-            cprintf_info(felog, "========== ias quote report data:%s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
-            cprintf_info(felog, "ias quote report version:%d\n", ias_quote->version);
-            cprintf_info(felog, "ias quote report signtype:%d\n", ias_quote->sign_type);
-            cprintf_info(felog, "ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
-            cprintf_info(felog, "ias quote report mr_enclave:%s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
+            p_log->info("========== ias quote report data:%s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
+            p_log->info("ias quote report version:%d\n", ias_quote->version);
+            p_log->info("ias quote report signtype:%d\n", ias_quote->sign_type);
+            p_log->info("ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
+            p_log->info("ias quote report mr_enclave:%s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
 
-            cprintf_info(felog, "\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
+            p_log->info("\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
 
-            cprintf_info(felog, "platformInfoBlob  = %s\n",
-                         res_json["platformInfoBlob"].ToString().c_str());
-            cprintf_info(felog, "revocationReason  = %s\n",
-                         res_json["revocationReason"].ToString().c_str());
-            cprintf_info(felog, "pseManifestStatus = %s\n",
-                         res_json["pseManifestStatus"].ToString().c_str());
-            cprintf_info(felog, "pseManifestHash   = %s\n",
-                         res_json["pseManifestHash"].ToString().c_str());
-            cprintf_info(felog, "nonce             = %s\n",
-                         res_json["nonce"].ToString().c_str());
-            cprintf_info(felog, "epidPseudonym     = %s\n",
-                         res_json["epidPseudonym"].ToString().c_str());
+            p_log->info("platformInfoBlob  = %s\n",
+                        res_json["platformInfoBlob"].ToString().c_str());
+            p_log->info("revocationReason  = %s\n",
+                        res_json["revocationReason"].ToString().c_str());
+            p_log->info("pseManifestStatus = %s\n",
+                        res_json["pseManifestStatus"].ToString().c_str());
+            p_log->info("pseManifestHash   = %s\n",
+                        res_json["pseManifestHash"].ToString().c_str());
+            p_log->info("nonce             = %s\n",
+                        res_json["nonce"].ToString().c_str());
+            p_log->info("epidPseudonym     = %s\n",
+                        res_json["epidPseudonym"].ToString().c_str());
         }
 
         /* Verify IAS report in enclave */
@@ -250,9 +247,9 @@ int ApiHandler::start()
             {
                 json::JSON identity_json;
                 identity_json["pub_key"] = hexstring((const char *)&ensig.pub_key, sizeof(ensig.pub_key));
-                identity_json["account_id"] = off_chain_crust_address;
+                identity_json["account_id"] = off_chain_chain_address;
                 identity_json["validator_pub_key"] = hexstring((const char *)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
-                identity_json["validator_account_id"] = p_config->crust_address;
+                identity_json["validator_account_id"] = p_config->chain_address;
                 identity_json["sig"] = hexstring((const char *)&ensig.signature, sizeof(ensig.signature));
                 std::string jsonstr = identity_json.dump();
                 // Delete space
@@ -260,7 +257,7 @@ int ApiHandler::start()
                 // Delete line break
                 jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), '\n'), jsonstr.end());
 
-                cprintf_info(felog, "Verify IAS report in enclave successfully!\n");
+                p_log->info("Verify IAS report in enclave successfully!\n");
                 res.set_content(jsonstr.c_str(), "text/plain");
             }
             else
@@ -268,49 +265,49 @@ int ApiHandler::start()
                 switch (ias_status_ret)
                 {
                 case IAS_BADREQUEST:
-                    cprintf_err(felog, "Verify IAS report failed! Bad request!!\n");
+                    p_log->err("Verify IAS report failed! Bad request!!\n");
                     break;
                 case IAS_UNAUTHORIZED:
-                    cprintf_err(felog, "Verify IAS report failed! Unauthorized!!\n");
+                    p_log->err("Verify IAS report failed! Unauthorized!!\n");
                     break;
                 case IAS_NOT_FOUND:
-                    cprintf_err(felog, "Verify IAS report failed! Not found!!\n");
+                    p_log->err("Verify IAS report failed! Not found!!\n");
                     break;
                 case IAS_SERVER_ERR:
-                    cprintf_err(felog, "Verify IAS report failed! Server error!!\n");
+                    p_log->err("Verify IAS report failed! Server error!!\n");
                     break;
                 case IAS_UNAVAILABLE:
-                    cprintf_err(felog, "Verify IAS report failed! Unavailable!!\n");
+                    p_log->err("Verify IAS report failed! Unavailable!!\n");
                     break;
                 case IAS_INTERNAL_ERROR:
-                    cprintf_err(felog, "Verify IAS report failed! Internal error!!\n");
+                    p_log->err("Verify IAS report failed! Internal error!!\n");
                     break;
                 case IAS_BAD_CERTIFICATE:
-                    cprintf_err(felog, "Verify IAS report failed! Bad certificate!!\n");
+                    p_log->err("Verify IAS report failed! Bad certificate!!\n");
                     break;
                 case IAS_BAD_SIGNATURE:
-                    cprintf_err(felog, "Verify IAS report failed! Bad signature!!\n");
+                    p_log->err("Verify IAS report failed! Bad signature!!\n");
                     break;
                 case IAS_REPORTDATA_NE:
-                    cprintf_err(felog, "Verify IAS report failed! Report data not equal!!\n");
+                    p_log->err("Verify IAS report failed! Report data not equal!!\n");
                     break;
                 case IAS_GET_REPORT_FAILED:
-                    cprintf_err(felog, "Verify IAS report failed! Get report in current enclave failed!!\n");
+                    p_log->err("Verify IAS report failed! Get report in current enclave failed!!\n");
                     break;
                 case IAS_BADMEASUREMENT:
-                    cprintf_err(felog, "Verify IAS report failed! Bad enclave code measurement!!\n");
+                    p_log->err("Verify IAS report failed! Bad enclave code measurement!!\n");
                     break;
                 case IAS_UNEXPECTED_ERROR:
-                    cprintf_err(felog, "Verify IAS report failed! unexpected error!!\n");
+                    p_log->err("Verify IAS report failed! unexpected error!!\n");
                     break;
                 case IAS_GETPUBKEY_FAILED:
-                    cprintf_err(felog, "Verify IAS report failed! Get public key from certificate failed!!\n");
+                    p_log->err("Verify IAS report failed! Get public key from certificate failed!!\n");
                     break;
                 case CRUST_SIGN_PUBKEY_FAILED:
-                    cprintf_err(felog, "Sign public key failed!!\n");
+                    p_log->err("Sign public key failed!!\n");
                     break;
                 default:
-                    cprintf_err(felog, "Unknown return status!\n");
+                    p_log->err("Unknown return status!\n");
                 }
                 res.set_content("Verify IAS report failed!", "text/plain");
                 res.status = 403;
@@ -318,7 +315,7 @@ int ApiHandler::start()
         }
         else
         {
-            cprintf_err(felog, "Invoke SGX api failed!\n");
+            p_log->err("Invoke SGX api failed!\n");
             res.set_content("Invoke SGX api failed!", "text/plain");
             res.status = 404;
         }
@@ -329,7 +326,7 @@ int ApiHandler::start()
     path = urlendpoint->base + "/storage/validate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         res.status = 200;
-        //cprintf_info(felog, "status:%d,validate MerkleTree body:%s\n", res.status, req.body.c_str());
+        //p_log->info("status:%d,validate MerkleTree body:%s\n", res.status, req.body.c_str());
         std::string error_info;
         // Get backup info
         if (req.headers.find("backup") == req.headers.end())
@@ -337,14 +334,14 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
         }
         if (res.status != 200)
         {
-            cprintf_err(felog, "%s\n", error_info.c_str());
+            p_log->err("%s\n", error_info.c_str());
             res.set_content(error_info, "text/plain");
             return;
         }
@@ -352,7 +349,7 @@ int ApiHandler::start()
         if (req.body.size() == 0)
         {
             error_info = "Validate MerkleTree failed!Error: Empty body!";
-            cprintf_err(felog, "%s\n", error_info.c_str());
+            p_log->err("%s\n", error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 402;
             return;
@@ -360,13 +357,13 @@ int ApiHandler::start()
 
         // Get MerkleTree
         json::JSON req_json;
-        try 
+        try
         {
             req_json = json::JSON::Load(req.body);
         }
         catch (std::exception e)
         {
-            cprintf_err(felog, "Parse json failed!Error: %s\n", e.what());
+            p_log->err("Parse json failed!Error: %s\n", e.what());
             res.set_content("Validate MerkleTree failed!Error invalide MerkleTree json!", "text/plain");
             res.status = 403;
             return;
@@ -374,43 +371,43 @@ int ApiHandler::start()
         MerkleTree *root = deserialize_merkle_tree_from_json(req_json);
         if (root == NULL)
         {
-            cprintf_err(felog, "Deserialize MerkleTree failed!\n");
+            p_log->err("Deserialize MerkleTree failed!\n");
             res.set_content("Deserialize MerkleTree failed!", "text/plain");
             res.status = 404;
             return;
         }
 
         // Validate MerkleTree
-        common_status_t common_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &common_status, &root) ||
-                CRUST_SUCCESS != common_status)
+        crust_status_t crust_status = CRUST_SUCCESS;
+        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &crust_status, &root) ||
+            CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
-                    case CRUST_MERKLETREE_DUPLICATED:
-                        error_info = "Duplicated MerkleTree validation!";
-                        break;
-                    case CRUST_INVALID_MERKLETREE:
-                        error_info = "Invalid MerkleTree structure!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_MERKLETREE_DUPLICATED:
+                    error_info = "Duplicated MerkleTree validation!";
+                    break;
+                case CRUST_INVALID_MERKLETREE:
+                    error_info = "Invalid MerkleTree structure!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
             {
                 error_info = "Invoke SGX api failed!";
             }
-            cprintf_err(felog, "Validate merkle tree failed!Error code:%lx(%s)\n", 
-                    common_status, error_info.c_str());
+            p_log->err("Validate merkle tree failed!Error code:%lx(%s)\n",
+                       crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 405;
         }
         else
         {
-            cprintf_info(felog, "Validate merkle tree successfully!\n");
+            p_log->info("Validate merkle tree successfully!\n");
             res.set_content("Validate merkle tree successfully!", "text/plain");
         }
     });
@@ -426,14 +423,14 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
         }
         if (res.status != 200)
         {
-            cprintf_err(felog, "%s\n", error_info.c_str());
+            p_log->err("%s\n", error_info.c_str());
             res.set_content(error_info, "text/plain");
             return;
         }
@@ -461,39 +458,39 @@ int ApiHandler::start()
         // Get sealed data buffer
         size_t sealed_data_size = sizeof(uint32_t) * 2 + src_len + SGX_ECP256_KEY_SIZE;
         size_t sealed_data_size_r = sgx_calc_sealed_data_size(0, sealed_data_size);
-        uint8_t *p_sealed_data = (uint8_t*)malloc(sealed_data_size_r);
+        uint8_t *p_sealed_data = (uint8_t *)malloc(sealed_data_size_r);
         memset(p_sealed_data, 0, sealed_data_size_r);
 
         // Seal data
         std::string content;
-        common_status_t common_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH, 
-                p_src, src_len, p_sealed_data, sealed_data_size_r);
+        crust_status_t crust_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH,
+                                                       p_src, src_len, p_sealed_data, sealed_data_size_r);
 
-        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
-                    case CRUST_NOTFOUND_MERKLETREE:
-                        error_info = "Given MerkleTree tree root hash is not found!";
-                        break;
-                    case CRUST_WRONG_FILE_BLOCK:
-                        error_info = "Given file block doesn't meet sequential request!";
-                        break;
-                    case CRUST_SEAL_DATA_FAILED:
-                        error_info = "Internal error: seal data failed!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_NOTFOUND_MERKLETREE:
+                    error_info = "Given MerkleTree tree root hash is not found!";
+                    break;
+                case CRUST_WRONG_FILE_BLOCK:
+                    error_info = "Given file block doesn't meet sequential request!";
+                    break;
+                case CRUST_SEAL_DATA_FAILED:
+                    error_info = "Internal error: seal data failed!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
             {
                 error_info = "Invoke SGX api failed!";
             }
-            cprintf_info(felog, "Seal data failed!Error code:%lx(%s)\n", common_status, error_info.c_str());
+            p_log->info("Seal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 404;
             goto cleanup;
@@ -501,7 +498,7 @@ int ApiHandler::start()
 
         content = std::string(hexstring(p_sealed_data, sealed_data_size_r), sealed_data_size_r * 2);
         res.set_content(content, "text/plain");
-        cprintf_info(felog, "Seal content:%s\n", content.c_str());
+        p_log->info("Seal content:%s\n", content.c_str());
 
     cleanup:
         free(p_sealed_data);
@@ -519,14 +516,14 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
         }
         if (res.status != 200)
         {
-            cprintf_err(felog, "%s\n", error_info.c_str());
+            p_log->err("%s\n", error_info.c_str());
             res.set_content(error_info, "text/plain");
             return;
         }
@@ -542,47 +539,47 @@ int ApiHandler::start()
         size_t sealed_data_size = req.body.size();
 
         // Caculate unsealed data size
-        sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
+        sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t *)malloc(sealed_data_size);
         memset(p_sealed_data_r, 0, sealed_data_size);
         memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
         uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
         unsealed_data_size = unsealed_data_size - sizeof(uint32_t) * 2 - SGX_ECP256_KEY_SIZE;
-        uint8_t *p_unsealed_data = (uint8_t*)malloc(unsealed_data_size);
+        uint8_t *p_unsealed_data = (uint8_t *)malloc(unsealed_data_size);
 
         // Unseal data
         std::string content;
-        common_status_t common_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &common_status,
-                p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
+        crust_status_t crust_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &crust_status,
+                                                         p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 
-        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
-                    case CRUST_UNSEAL_DATA_FAILED:
-                        error_info = "Internal error: unseal data failed!";
-                        break;
-                    case CRUST_MALWARE_DATA_BLOCK:
-                        error_info = "Unsealed data is invalid!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_UNSEAL_DATA_FAILED:
+                    error_info = "Internal error: unseal data failed!";
+                    break;
+                case CRUST_MALWARE_DATA_BLOCK:
+                    error_info = "Unsealed data is invalid!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
             {
                 error_info = "Invoke SGX api failed!";
             }
-            cprintf_err(felog, "Unseal data failed!Error code:%lx(%s)\n", common_status, error_info.c_str());
+            p_log->err("Unseal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
             res.set_content(error_info, "text/plain");
             res.status = 403;
             goto cleanup;
         }
 
         content = std::string(hexstring(p_unsealed_data, unsealed_data_size), unsealed_data_size * 2);
-        cprintf_info(felog, "Unseal data successfully!\n");
+        p_log->info("Unseal data successfully!\n");
         res.set_content(content, "text/plain");
 
     cleanup:
@@ -601,14 +598,14 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
         }
         if (res.status != 200)
         {
-            cprintf_err(felog, "%s\n", error_info.c_str());
+            p_log->err("%s\n", error_info.c_str());
             res.set_content(error_info, "text/plain");
             return;
         }
@@ -621,36 +618,36 @@ int ApiHandler::start()
             return;
         }
         uint8_t *root_hash = hex_string_to_bytes(root_hash_str.c_str(), root_hash_str.size());
-        cprintf_info(felog, "root hash:%s\n", root_hash_str.c_str());
+        p_log->info("root hash:%s\n", root_hash_str.c_str());
 
         // Generate MerkleTree
-        common_status_t common_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &common_status, root_hash, HASH_LENGTH);
-        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != common_status)
+        crust_status_t crust_status = CRUST_SUCCESS;
+        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH);
+        if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
-            if (CRUST_SUCCESS != common_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                switch (common_status)
+                switch (crust_status)
                 {
-                    case CRUST_NOTFOUND_MERKLETREE:
-                        error_info = "Given MerkleTree is not found!";
-                        break;
-                    case CRUST_SEAL_NOTCOMPLETE:
-                        error_info = "Not all Given MerkleTree's data blocks have been sealed!";
-                        break;
-                    case CRUST_DESER_MERKLE_TREE_FAILED:
-                        error_info = "Internal error: deserialize MerkleTree failed!";
-                        break;
-                    default:
-                        error_info = "Undefined error!";
+                case CRUST_NOTFOUND_MERKLETREE:
+                    error_info = "Given MerkleTree is not found!";
+                    break;
+                case CRUST_SEAL_NOTCOMPLETE:
+                    error_info = "Not all Given MerkleTree's data blocks have been sealed!";
+                    break;
+                case CRUST_DESER_MERKLE_TREE_FAILED:
+                    error_info = "Internal error: deserialize MerkleTree failed!";
+                    break;
+                default:
+                    error_info = "Undefined error!";
                 }
             }
             else
             {
                 error_info = "Invoke SGX api failed!";
             }
-            cprintf_err(felog, "Generate new merkle tree failed!Error code:%lx(%s)\n", 
-                    common_status, error_info.c_str());
+            p_log->err("Generate new merkle tree failed!Error code:%lx(%s)\n",
+                       crust_status, error_info.c_str());
             res.set_content("Generate new merkle tree failed!", "text/plain");
             res.status = 403;
             goto cleanup;
@@ -673,14 +670,14 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
         }
         if (res.status != 200)
         {
-            cprintf_err(felog, "%s\n", error_info.c_str());
+            p_log->err("%s\n", error_info.c_str());
             res.set_content(error_info, "text/plain");
             return;
         }
@@ -688,7 +685,7 @@ int ApiHandler::start()
         change_empty_mutex.lock();
         if (in_changing_empty)
         {
-            cprintf_info(felog, "Change empty service busy\n");
+            p_log->info("Change empty service busy\n");
             res.set_content("Change empty service busy", "text/plain");
             res.status = 500;
             change_empty_mutex.unlock();
@@ -703,7 +700,7 @@ int ApiHandler::start()
 
         if (change_empty_num == 0)
         {
-            cprintf_info(felog, "Invalid change\n");
+            p_log->info("Invalid change\n");
             res.set_content("Invalid change", "text/plain");
             res.status = 402;
             goto end_change_empty;
@@ -715,14 +712,14 @@ int ApiHandler::start()
 
             if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
             {
-                cprintf_info(felog, "Get validation status failed.\n");
+                p_log->info("Get validation status failed.\n");
                 res.set_content("Get validation status failed", "text/plain");
                 res.status = 500;
                 goto end_change_empty;
             }
             else if (validation_status == ValidateStop)
             {
-                cprintf_info(felog, "TEE has not been fully launched.\n");
+                p_log->info("TEE has not been fully launched.\n");
                 res.set_content("TEE has not been fully launched", "text/plain");
                 res.status = 500;
                 goto end_change_empty;
@@ -732,7 +729,7 @@ int ApiHandler::start()
             pthread_t wthread;
             if (pthread_create(&wthread, NULL, ApiHandler::change_empty, NULL) != 0)
             {
-                cprintf_err(felog, "Create change empty thread error.\n");
+                p_log->err("Create change empty thread error.\n");
                 res.set_content("Create change empty thread error", "text/plain");
                 res.status = 500;
                 goto end_change_empty;
@@ -781,18 +778,18 @@ void *ApiHandler::change_empty(void *)
     {
         // Increase empty plot
         size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
-        cprintf_info(felog, "Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
+        p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
         size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, (size_t)change);
-        cprintf_info(felog, "Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
-        // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-        #pragma omp parallel for num_threads(p_config->plot_thread_num)
+        p_log->info("Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
+// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+#pragma omp parallel for num_threads(p_config->plot_thread_num)
         for (size_t i = 0; i < (size_t)true_change; i++)
         {
             ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
         }
 
         p_config->change_empty_capacity(true_change);
-        cprintf_info(felog, "Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", true_change);
+        p_log->info("Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", true_change);
     }
     else if (change < 0)
     {
@@ -800,7 +797,7 @@ void *ApiHandler::change_empty(void *)
         size_t true_decrease = 0;
         ecall_decrease_disk(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
         p_config->change_empty_capacity(-change);
-        cprintf_info(felog, "Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
+        p_log->info("Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
     }
 
     change_empty_mutex.lock();

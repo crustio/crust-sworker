@@ -5,7 +5,7 @@ enclave {
     include "MerkleTree.h"
     include "Node.h"
     include "ValidationStatus.h"
-    include "EnclaveStatus.h"
+    include "CrustStatus.h"
 
 	include "IASReport.h"
 
@@ -15,31 +15,34 @@ enclave {
 
     trusted {
         public void ecall_main_loop([in, string] const char* empty_path, [in, string] const char* recover_file_path);
-        public common_status_t ecall_cmp_crust_account_id([in, size=len] const char *account_id, size_t len);
-        public common_status_t ecall_set_crust_account_id([in, size=len] const char *account_id, size_t len);
+        public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
+        public crust_status_t ecall_set_chain_account_id([in, size=len] const char *account_id, size_t len);
         public enum ValidationStatus ecall_return_validation_status(void);
         public void ecall_get_validation_report([out, size=len] char *report, size_t len);
         public void ecall_generate_validation_report([out] size_t *size); 
-        public common_status_t ecall_get_signed_validation_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
-        public common_status_t ecall_sign_network_entry([in, size=data_size] const char *p_partial_data, uint32_t data_size, [out] sgx_ec256_signature_t *p_signature);
-        public common_status_t ecall_store_enclave_data([in, string] const char* recover_file_path);
-        public common_status_t ecall_restore_enclave_data([in, string] const char* recover_file_path);
+        public crust_status_t ecall_get_signed_validation_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
+        public crust_status_t ecall_sign_network_entry([in, size=data_size] const char *p_partial_data, uint32_t data_size, [out] sgx_ec256_signature_t *p_signature);
+        public crust_status_t ecall_store_enclave_data([in, string] const char* recover_file_path);
+        public crust_status_t ecall_restore_enclave_data([in, string] const char* recover_file_path);
 
 		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
-        public common_status_t ecall_store_quote([in, size=len] const char *quote, size_t len, [in, size=data_size] const uint8_t *p_data, uint32_t data_size, [in] sgx_ec256_signature_t *p_signature, [in, size=account_id_sz] const uint8_t *p_account_id, uint32_t account_id_sz);
+        public crust_status_t ecall_store_quote([in, size=len] const char *quote, size_t len, [in, size=data_size] const uint8_t *p_data, uint32_t data_size, [in] sgx_ec256_signature_t *p_signature, [in, size=account_id_sz] const uint8_t *p_account_id, uint32_t account_id_sz);
 		public sgx_status_t ecall_gen_sgx_measurement();
         public sgx_status_t ecall_gen_key_pair();
         public ias_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, size_t len, [out] entry_network_signature *p_ensig);
 
-        public common_status_t ecall_validate_merkle_tree([in] MerkleTree **root);
-        public common_status_t ecall_seal_file_data([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
-        public common_status_t ecall_unseal_file_data([in, size=sealed_data_size] const uint8_t *p_sealed_data, size_t sealed_data_size, [out, size=unsealed_data_size] uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
-        public common_status_t ecall_gen_new_merkle_tree([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len);
+        public crust_status_t ecall_validate_merkle_tree([in] MerkleTree **root);
+        public crust_status_t ecall_seal_file_data([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
+        public crust_status_t ecall_unseal_file_data([in, size=sealed_data_size] const uint8_t *p_sealed_data, size_t sealed_data_size, [out, size=unsealed_data_size] uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
+        public crust_status_t ecall_gen_new_merkle_tree([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len);
     };
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
-        void ocall_eprint_string([in, string] const char *str);
+        void ocall_log_info([in, string] const char *str);
+        void ocall_log_warn([in, string] const char *str);
+        void ocall_log_err([in, string] const char *str);
+        void ocall_log_debug([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
         void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
         void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
@@ -51,6 +54,6 @@ enclave {
         size_t ocall_get_diff_files_num(void);
         void ocall_usleep(int u);
         void ocall_delete_folder_or_file([in, string] const char *path);
-        common_status_t ocall_get_file_block_by_path([in, size=hash_len] char *root_hash, [in, size=hash_len] char *cur_hash, uint32_t hash_len, [in, count=path_count] uint32_t *path, uint32_t path_count);
+        crust_status_t ocall_get_file_block_by_path([in, size=hash_len] char *root_hash, [in, size=hash_len] char *cur_hash, uint32_t hash_len, [in, count=path_count] uint32_t *path, uint32_t path_count);
     };
 };

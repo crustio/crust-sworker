@@ -52,11 +52,11 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
     "api_base_url": "http://127.0.0.1:12222/api/v0",                     # your tee node api address
     "validator_api_base_url": "http://127.0.0.1:12222/api/v0",           # the tee validator address (**if you are genesis node, this url must equal to 'api_base_url'**)
 
-    "crust_api_base_url" : "http://127.0.0.1:56666/api/v1",              # the address of crust api
-    "crust_address" : "",                                                # your crust chain identity
-    "crust_account_id" : "",
-    "crust_password" : "",
-    "crust_backup" : "",
+    "chain_api_base_url" : "http://127.0.0.1:56666/api/v1",              # the address of crust api
+    "chain_address" : "",                                                # your crust chain identity
+    "chain_account_id" : "",
+    "chain_password" : "",
+    "chain_backup" : "",
     ......
 }
 ```
@@ -94,6 +94,7 @@ Please follow [crust client](https://github.com/crustio/crust-client) to launch.
    1. **report** option shows tee work report, make sure daemon or server mode has been running.
 1. Run '**bin/crust-tee --config \<config_file_path\>**' to use customized configure file, if not provided **etc/Config.json** will be used as the default one.
 1. Run '**bin/crust-tee --offline**', program will not interact with the chain.
+1. Run '**bin/crust-tee --debug**', program will output debug logs. 
 
 ## API
 ### Use 'api/v0/status' to get validation status
@@ -129,7 +130,7 @@ Output:
 
 ### Use 'api/v0/change/empty' to change empty capacity, 
 
-Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative. Parameter 'backup' in body is your chian account's backup, this need be same as 'crust_backup' in configuration file.
+Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
 
 Curl shell:
 ```shell

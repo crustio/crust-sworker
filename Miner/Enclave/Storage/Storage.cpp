@@ -10,7 +10,7 @@ map<vector<uint8_t>, MerkleTree *> new_tree_map;
 // Current node public and private key pair
 extern ecc_key_pair id_key_pair;
 
-common_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node, vector<uint32_t> path);
+crust_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node, vector<uint32_t> path);
 void _gen_validated_merkle_tree(MerkleTree *tree);
 
 /**
@@ -19,7 +19,7 @@ void _gen_validated_merkle_tree(MerkleTree *tree);
  * @param hash_len -> Merkle tree root hash length
  * @return: Validate status
  * */
-common_status_t storage_validate_merkle_tree(MerkleTree *root)
+crust_status_t storage_validate_merkle_tree(MerkleTree *root)
 {
     // Check duplicated
     vector<uint8_t> root_hash_v(root->hash, root->hash + HASH_LENGTH);
@@ -59,7 +59,7 @@ common_status_t storage_validate_merkle_tree(MerkleTree *root)
  * @param sealed_data_size -> sealed file block data size
  * @return: Seal and generate result
  * */
-common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
+crust_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     /* Get merkle tree metadata */
@@ -105,9 +105,9 @@ common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_h
     memcpy(pp, &id_key_pair.pri_key, sizeof(id_key_pair.pri_key));
     // Get sealed data
     uint8_t *p_sealed_data_r = NULL;
-    common_status_t common_status = seal_data_mrenclave(p_src_r, src_r_len, 
+    crust_status_t crust_status = seal_data_mrenclave(p_src_r, src_r_len, 
                 (sgx_sealed_data_t**)&p_sealed_data_r, &sealed_data_size);
-    if (CRUST_SUCCESS != common_status || p_sealed_data_r == NULL)
+    if (CRUST_SUCCESS != crust_status || p_sealed_data_r == NULL)
     {
         return CRUST_SEAL_DATA_FAILED;
     }
@@ -140,10 +140,10 @@ common_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_h
  * @param unsealed_data_size -> unsealed file block data size
  * @return: Unseal status
  * */
-common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
+crust_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
         uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
 {
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     uint8_t *p_unsealed_pri_key = NULL;
     uint32_t src_len = 0;
@@ -161,8 +161,8 @@ common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t se
             p_decrypted_data, &decrypted_data_len);
     if (SGX_SUCCESS != sgx_status)
     {
-        cfeprintf("Unseal data failed!Error code:%lx\n", sgx_status);
-        common_status = CRUST_UNSEAL_DATA_FAILED;
+        log_err("Unseal data failed!Error code:%lx\n", sgx_status);
+        crust_status = CRUST_UNSEAL_DATA_FAILED;
         goto cleanup;
     }
 
@@ -170,7 +170,7 @@ common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t se
     memcpy(&src_len, p_decrypted_data, sizeof(uint32_t));
     if (src_len != unsealed_data_size)
     {
-        common_status = CRUST_MALWARE_DATA_BLOCK;
+        crust_status = CRUST_MALWARE_DATA_BLOCK;
         goto cleanup;
     }
     p_decrypted_data += sizeof(uint32_t);
@@ -185,13 +185,13 @@ common_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t se
     memcpy(p_unsealed_pri_key, p_decrypted_data, pri_key_len);
     if (memcmp(p_unsealed_pri_key, &id_key_pair.pri_key, pri_key_len) != 0)
     {
-        common_status = CRUST_MALWARE_DATA_BLOCK;
+        crust_status = CRUST_MALWARE_DATA_BLOCK;
         goto cleanup;
     }
 
 cleanup:
 
-    return common_status;
+    return crust_status;
 }
 
 /**
@@ -200,9 +200,9 @@ cleanup:
  * @param root_hash_len -> root hash length
  * @return: Generate status
  * */
-common_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
+crust_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
 {
-    common_status_t common_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     // Get sealed complete tree metadata
     vector<uint8_t> root_hash_v(root_hash, root_hash + root_hash_len);
     if (tree_meta_map.find(root_hash_v) == tree_meta_map.end())
@@ -221,9 +221,9 @@ common_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t r
     // Deserialize tree
     MerkleTree *new_root = NULL;
     spos = 0;
-    if (CRUST_SUCCESS != (common_status = storage_deser_merkle_tree(&new_root, ser_tree, spos)) || new_root == NULL)
+    if (CRUST_SUCCESS != (crust_status = storage_deser_merkle_tree(&new_root, ser_tree, spos)) || new_root == NULL)
     {
-        cfeprintf("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", common_status);
+        log_err("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", crust_status);
         return CRUST_DESER_MERKLE_TREE_FAILED;
     }
 
@@ -234,7 +234,7 @@ common_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t r
 
     // For log
     string new_ser_tree = storage_ser_merkle_tree(new_root);
-    cfeprintf("new tree string:%s\n", new_ser_tree.c_str());
+    log_info("new tree string:%s\n", new_ser_tree.c_str());
 
     return CRUST_SUCCESS;
 }
@@ -271,7 +271,7 @@ void _gen_validated_merkle_tree(MerkleTree *tree)
  * @description: Validate meaningful data
  * @return: Validate result
  * */
-common_status_t storage_validate_meaningful_data()
+crust_status_t storage_validate_meaningful_data()
 {
     unsigned char rand_val;
     for (auto it : new_tree_map)
@@ -298,7 +298,7 @@ common_status_t storage_validate_meaningful_data()
  * @param path -> Path from root node to leaf node
  * @return: Validate result
  * */
-common_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node, vector<uint32_t> path)
+crust_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node, vector<uint32_t> path)
 {
     if (cur_node == NULL)
     {
@@ -309,9 +309,9 @@ common_status_t _validate_meaningful_data(MerkleTree *root, MerkleTree *cur_node
     if (cur_node->links_num == 0)
     {
         char *cur_hash = (char*)malloc(HASH_LENGTH);
-        common_status_t common_status = CRUST_SUCCESS;
-        ocall_get_file_block_by_path(&common_status, root->hash, cur_hash, HASH_LENGTH, path.data(), path.size());
-        if (CRUST_SUCCESS != common_status)
+        crust_status_t crust_status = CRUST_SUCCESS;
+        ocall_get_file_block_by_path(&crust_status, root->hash, cur_hash, HASH_LENGTH, path.data(), path.size());
+        if (CRUST_SUCCESS != crust_status)
         {
             return CRUST_GET_FILE_BLOCK_FAILED;
         }
@@ -395,7 +395,7 @@ string storage_ser_merkle_tree(MerkleTree *tree)
  * @param spos -> start position of deserialized string
  * @return: Root value of Merkle tree
  * */
-common_status_t storage_deser_merkle_tree(MerkleTree **root, string ser_tree, size_t &spos)
+crust_status_t storage_deser_merkle_tree(MerkleTree **root, string ser_tree, size_t &spos)
 {
     if (spos >= ser_tree.size())
     {

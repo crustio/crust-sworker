@@ -23,9 +23,9 @@ public:
     void show(void);
     std::string serialize();
     std::string serialize_workload();
-    common_status_t restore_workload(std::string plot_data);
-    common_status_t store_plot_data();
-    common_status_t get_plot_data();
+    crust_status_t restore_workload(std::string plot_data);
+    crust_status_t store_plot_data();
+    crust_status_t get_plot_data();
     void clean_data();
 };
 

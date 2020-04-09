@@ -27,11 +27,11 @@ public:
     std::string ipfs_api_base_url; /* Used to connect to IPFS */
 
     // crust chain
-    std::string crust_api_base_url; /* Used to connect to Crust API */
-    std::string crust_address;      /* The address of crust chain account */
-    std::string crust_account_id;   /* The account id(hex string) of crust chain account */
-    std::string crust_password;     /* The password of crust chain account */
-    std::string crust_backup;       /* The backup of crust chain account */
+    std::string chain_api_base_url; /* Used to connect to Crust API */
+    std::string chain_address;      /* The address of crust chain account */
+    std::string chain_account_id;   /* The account id(hex string) of crust chain account */
+    std::string chain_password;     /* The password of crust chain account */
+    std::string chain_backup;       /* The backup of crust chain account */
 
     // entry network related
     std::string spid;
