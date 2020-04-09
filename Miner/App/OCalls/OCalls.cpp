@@ -96,7 +96,7 @@ void ocall_delete_folder_or_file(const char *path)
     {
         if(rm(path) == -1)
         {
-            log->err("Delete '%s' error!\n", path);
+            p_log->err("Delete '%s' error!\n", path);
         }
     }
 }
@@ -197,7 +197,7 @@ void ocall_usleep(int u)
  * */
 crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count)
 {
-    vector<uint32_t> path_v(path, path + path_count);
+    std::vector<uint32_t> path_v(path, path + path_count);
     // TODO: Send path to storage and get corresponding file block
 
     return CRUST_SUCCESS;

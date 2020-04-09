@@ -7,7 +7,7 @@ using namespace std;
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
 // Store crust account id
-string g_crust_account_id;
+string g_chain_account_id;
 // Can only se crust account id once
 bool g_is_set_account_id = false;
 // Current code measurement
@@ -79,7 +79,7 @@ crust_status_t ecall_store_enclave_data(const char *recover_file_path)
     seal_data.append(CRUST_SEPARATOR)
         .append(std::to_string(now_work_report_block_height));
     seal_data.append(CRUST_SEPARATOR)
-        .append(g_crust_account_id);
+        .append(g_chain_account_id);
     // Seal workload string
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -192,10 +192,10 @@ crust_status_t ecall_restore_enclave_data(const char *recover_file_path)
     }
     now_work_report_block_height = std::stoul(unseal_data.substr(spos, epos - spos));
 
-    // Get g_crust_account_id
+    // Get g_chain_account_id
     spos = epos + strlen(CRUST_SEPARATOR);
     epos = unseal_data.size();
-    g_crust_account_id = unseal_data.substr(spos, epos - spos);
+    g_chain_account_id = unseal_data.substr(spos, epos - spos);
 
 cleanup:
     free(p_sealed_data_r);
@@ -204,10 +204,10 @@ cleanup:
     return crust_status;
 }
 
-crust_status_t ecall_cmp_crust_account_id(const char *account_id, size_t len)
+crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
 {
     string account_id_str = string(account_id, len);
-    if (g_crust_account_id.compare(account_id_str) != 0)
+    if (g_chain_account_id.compare(account_id_str) != 0)
     {
         return CRUST_NOT_EQUAL;
     }
@@ -219,7 +219,7 @@ crust_status_t ecall_cmp_crust_account_id(const char *account_id, size_t len)
  * @description: Set crust account id
  * @return: Set status
  * */
-crust_status_t ecall_set_crust_account_id(const char *account_id, size_t len)
+crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
 {
     // Check if value has been set
     if (g_is_set_account_id)
@@ -234,7 +234,7 @@ crust_status_t ecall_set_crust_account_id(const char *account_id, size_t len)
     }
     memset(buffer, 0, len);
     memcpy(buffer, account_id, len);
-    g_crust_account_id = string(buffer, len);
+    g_chain_account_id = string(buffer, len);
     g_is_set_account_id = true;
 
     return CRUST_SUCCESS;
@@ -385,7 +385,7 @@ crust_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t dat
         sgx_ec256_signature_t *p_signature)
 {
     std::string data_str(p_partial_data, data_size);
-    data_str.append(g_crust_account_id);
+    data_str.append(g_chain_account_id);
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_ecc_state_handle_t ecc_state = NULL;

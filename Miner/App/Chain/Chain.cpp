@@ -34,10 +34,10 @@ Chain *get_chain(void)
         Config *p_config = Config::get_instance();
         if (p_config == NULL)
         {
-            p_log->err("Get configure failed!\n");
+            p_log->err("Get configuration failed!\n");
             return NULL;
         }
-        chain = new Chain(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup);
+        chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup);
     }
 
     return chain;

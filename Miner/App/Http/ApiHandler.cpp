@@ -96,13 +96,13 @@ int ApiHandler::start()
         sgx_quote_t *quote;
         json::JSON req_json = json::JSON::Load(req.params.find("arg")->second);
         std::string b64quote = req_json["isvEnclaveQuote"].ToString();
-        std::string off_chain_crust_address = req_json["crust_address"].ToString();
-        std::string off_chain_crust_account_id = req_json["crust_account_id"].ToString();
+        std::string off_chain_chain_address = req_json["chain_address"].ToString();
+        std::string off_chain_chain_account_id = req_json["chain_account_id"].ToString();
         std::string signature_str = req_json["signature"].ToString();
         std::string data_sig_str;
         data_sig_str.append(b64quote)
-            .append(off_chain_crust_address)
-            .append(off_chain_crust_account_id);
+            .append(off_chain_chain_address)
+            .append(off_chain_chain_account_id);
         sgx_ec256_signature_t data_sig;
         memset(&data_sig, 0, sizeof(sgx_ec256_signature_t));
         memcpy(&data_sig, hex_string_to_bytes(signature_str.c_str(), signature_str.size()),
@@ -129,8 +129,8 @@ int ApiHandler::start()
 
         status_ret = ecall_store_quote(*this->p_global_eid, &crust_status,
                                        (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
-                                       data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_crust_account_id.c_str(),
-                                       off_chain_crust_account_id.size());
+                                       data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
+                                       off_chain_chain_account_id.size());
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store and verify offChain node data failed!\n");
@@ -189,8 +189,8 @@ int ApiHandler::start()
         ias_report.push_back(ias_res->body.c_str());
 
         // Identity info
-        ias_report.push_back(off_chain_crust_account_id.c_str()); //[3]
-        ias_report.push_back(p_config->crust_account_id.c_str()); //[4]
+        ias_report.push_back(off_chain_chain_account_id.c_str()); //[3]
+        ias_report.push_back(p_config->chain_account_id.c_str()); //[4]
 
         // Print IAS report
         if (p_config->verbose)
@@ -247,9 +247,9 @@ int ApiHandler::start()
             {
                 json::JSON identity_json;
                 identity_json["pub_key"] = hexstring((const char *)&ensig.pub_key, sizeof(ensig.pub_key));
-                identity_json["account_id"] = off_chain_crust_address;
+                identity_json["account_id"] = off_chain_chain_address;
                 identity_json["validator_pub_key"] = hexstring((const char *)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
-                identity_json["validator_account_id"] = p_config->crust_address;
+                identity_json["validator_account_id"] = p_config->chain_address;
                 identity_json["sig"] = hexstring((const char *)&ensig.signature, sizeof(ensig.signature));
                 std::string jsonstr = identity_json.dump();
                 // Delete space
@@ -334,7 +334,7 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
@@ -423,7 +423,7 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
@@ -516,7 +516,7 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
@@ -598,7 +598,7 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;
@@ -670,7 +670,7 @@ int ApiHandler::start()
             error_info = "Validate MerkleTree failed!Error: Empty backup!";
             res.status = 400;
         }
-        else if (p_config->crust_backup.compare(req.headers.find("backup")->second) != 0)
+        else if (p_config->chain_backup.compare(req.headers.find("backup")->second) != 0)
         {
             error_info = "Validate MerkleTree failed!Error: Invalid backup!";
             res.status = 401;

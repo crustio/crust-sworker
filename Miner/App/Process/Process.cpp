@@ -137,9 +137,9 @@ bool initialize_components(void)
     }
 
     /* Init crust */
-    if (new_chain(p_config->crust_api_base_url, p_config->crust_password, p_config->crust_backup) == NULL)
+    if (new_chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup) == NULL)
     {
-        p_log->err("Init crust failed!\n");
+        p_log->err("Init crust chain failed!\n");
         return false;
     }
 
@@ -317,7 +317,7 @@ bool entry_network()
     std::string send_data;
     crust_status_t crust_status = CRUST_SUCCESS;
     send_data.append(b64quote);
-    send_data.append(p_config->crust_address);
+    send_data.append(p_config->chain_address);
     sgx_ec256_signature_t send_data_sig;
     sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &crust_status, 
             send_data.c_str(), send_data.size(), &send_data_sig);
@@ -329,9 +329,9 @@ bool entry_network()
     std::string signature_str(hexstring(&send_data_sig, sizeof(sgx_ec256_signature_t)));
 
     req_data.append("{ \"isvEnclaveQuote\": \"");
-    req_data.append(b64quote).append("\", \"crust_address\": \"");
-    req_data.append(p_config->crust_address).append("\", \"crust_account_id\": \"");
-    req_data.append(p_config->crust_account_id.c_str()).append("\", \"signature\": \"");
+    req_data.append(b64quote).append("\", \"chain_address\": \"");
+    req_data.append(p_config->chain_address).append("\", \"chain_account_id\": \"");
+    req_data.append(p_config->chain_account_id.c_str()).append("\", \"signature\": \"");
     req_data.append(signature_str).append("\" }");
     int net_tryout = IAS_TRYOUT;
 
@@ -570,8 +570,8 @@ void start(void)
 
         /* Store crust info in enclave */
         crust_status_t crust_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_set_crust_account_id(global_eid, &crust_status, 
-                    p_config->crust_account_id.c_str(), p_config->crust_account_id.size())
+        if (SGX_SUCCESS != ecall_set_chain_account_id(global_eid, &crust_status, 
+                    p_config->chain_account_id.c_str(), p_config->chain_account_id.size())
                 || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store backup information to enclave failed!Error code:%lx\n", crust_status);
@@ -613,8 +613,8 @@ void start(void)
         /* Restore data successfully */
         p_log->info("Restore enclave data successfully!\n");
         // Compare crust account it in configure file and recovered file
-        if (SGX_SUCCESS != ecall_cmp_crust_account_id(global_eid, &crust_status,
-                                                      p_config->crust_account_id.c_str(), p_config->crust_account_id.size()) ||
+        if (SGX_SUCCESS != ecall_cmp_chain_account_id(global_eid, &crust_status,
+                                                      p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
             CRUST_SUCCESS != crust_status)
         {
             p_log->err("Configure crust account id doesn't equal to recovered one!\n");

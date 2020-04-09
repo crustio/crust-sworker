@@ -52,17 +52,17 @@ Config::Config(std::string path)
     this->ipfs_api_base_url = config_value["ipfs_api_base_url"].ToString();
 
     // crust chain configurations
-    this->crust_api_base_url = config_value["crust_api_base_url"].ToString();
-    this->crust_address = config_value["crust_address"].ToString();
-    this->crust_account_id = config_value["crust_account_id"].ToString();
-    if (this->crust_account_id.find("0x"))
+    this->chain_api_base_url = config_value["chain_api_base_url"].ToString();
+    this->chain_address = config_value["chain_address"].ToString();
+    this->chain_account_id = config_value["chain_account_id"].ToString();
+    if (this->chain_account_id.find("0x"))
     {
-        this->crust_account_id.erase(0, 2);
+        this->chain_account_id.erase(0, 2);
     }
-    this->crust_password = config_value["crust_password"].ToString();
-    std::string backup_temp = config_value["crust_backup"].ToString();
+    this->chain_password = config_value["chain_password"].ToString();
+    std::string backup_temp = config_value["chain_backup"].ToString();
     remove_chars_from_string(backup_temp, "\\");
-    this->crust_backup = backup_temp;
+    this->chain_backup = backup_temp;
 
     // tee identity validation configurations
     this->spid = config_value["spid"].ToString();
@@ -94,11 +94,11 @@ void Config::show(void)
     printf("    'api base url' : '%s',\n", this->api_base_url.c_str());
     printf("    'validator api base url' : '%s',\n", this->validator_api_base_url.c_str());
 
-    printf("    'crust api base url' : %s,\n", this->crust_api_base_url.c_str());
-    printf("    'crust address' : '%s',\n", this->crust_address.c_str());
-    printf("    'crust account id' : '%s',\n", this->crust_account_id.c_str());
-    printf("    'crust password' : '%s',\n", this->crust_password.c_str());
-    printf("    'crust backup' : '%s',\n", this->crust_backup.c_str());
+    printf("    'chain api base url' : %s,\n", this->chain_api_base_url.c_str());
+    printf("    'chain address' : '%s',\n", this->chain_address.c_str());
+    printf("    'chain account id' : '%s',\n", this->chain_account_id.c_str());
+    printf("    'chain password' : '%s',\n", this->chain_password.c_str());
+    printf("    'chain backup' : '%s',\n", this->chain_backup.c_str());
 
     printf("    'spid' : '%s',\n", this->spid.c_str());
     printf("    'linkable' : '%s',\n", this->linkable ? "true" : "false");

@@ -1,5 +1,5 @@
-#ifndef _CRUST_SINGLE_PROCESS_H_
-#define _CRUST_SINGLE_PROCESS_H_
+#ifndef _CRUST_PROCESS_H_
+#define _CRUST_PROCESS_H_
 
 #include <sgx_key_exchange.h>
 #include <sgx_report.h>
@@ -58,4 +58,4 @@
 
 int process_run();
 
-#endif /* !_CRUST_SINGLE_PROCESS_H_ */
+#endif /* !_CRUST_PROCESS_H_ */
