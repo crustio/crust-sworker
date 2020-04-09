@@ -148,10 +148,10 @@ int main_report()
     auto res = client->Get(path.c_str());
     if (!(res && res->status == 200))
     {
-        p_log->info(NULL, "Get report failed!");
+        p_log->info("Get report failed!");
         return -1;
     }
-    p_log->info(NULL, "%s", res->body.c_str());
+    p_log->info("%s", res->body.c_str());
 
     delete p_config;
     delete client;

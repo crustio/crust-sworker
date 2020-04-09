@@ -347,7 +347,7 @@ bool entry_network()
         res = client->Post(path.c_str(), params);
         if (!(res && res->status == 200))
         {
-            p_log->info(NULL, "Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
+            p_log->info("Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
             sleep(3);
             net_tryout--;
             continue;
@@ -398,7 +398,7 @@ bool wait_chain_run(void)
         }
         else
         {
-            p_log->info(NULL, "Waitting for chain to run...\n");
+            p_log->info("Waitting for chain to run...\n");
             sleep(3);
         }
     }
@@ -412,7 +412,7 @@ bool wait_chain_run(void)
         }
         else
         {
-            p_log->info(NULL, "Waitting for chain to run...\n");
+            p_log->info("Waitting for chain to run...\n");
             sleep(3);
         }
     }
@@ -485,7 +485,7 @@ void *do_upload_work_report(void *)
         }
         else
         {
-            p_log->info(NULL, "Block height:%d is not enough!\n", block_header->number);
+            p_log->info("Block height:%d is not enough!\n", block_header->number);
             sleep(3);
         }
     }
@@ -598,7 +598,9 @@ void start(void)
             
             /* Send identity to crust chain */
             if (!wait_chain_run())
+            {
                 goto cleanup;
+            }
 
             if (!get_chain()->post_tee_identity(g_entry_net_res))
             {
@@ -625,8 +627,10 @@ void start(void)
     {
         /* Send identity to crust chain */
         if (!wait_chain_run())
+        {
             goto cleanup;
-
+        }
+        
         // Check block height and post report to chain
         if (pthread_create(&wthread, NULL, do_upload_work_report, NULL) != 0)
         {

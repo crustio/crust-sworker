@@ -37,21 +37,6 @@ int log_info(const char *fmt, ...)
 }
 
 /**
- * @description: use ocall_log_info to print format string
- * @return: the length of printed string
- */
-int log_info(const char *fmt, ...)
-{
-    char buf[BUFSIZE] = {'\0'};
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
-    va_end(ap);
-    ocall_log_info(buf);
-    return (int)strnlen(buf, BUFSIZE - 1) + 1;
-}
-
-/**
  * @description: use ocall_log_warn to print format string
  * @return: the length of printed string
  */
