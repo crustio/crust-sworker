@@ -128,19 +128,8 @@ void Log::base_log(std::string log_str, std::string tag)
     {
         time_str[0] = 0;
     }
-
-    if (tag == CRUST_LOG_ERR_TAG)
-    {
-        printf("\033[31m[%s] [%s] %s\033[0m", time_str, tag.c_str(), log_str.c_str());
-    }
-    else if (tag == CRUST_LOG_WARN_TAG)
-    {
-        printf("\033[33m[%s] [%s] %s\033[0m", time_str, tag.c_str(), log_str.c_str());
-    }
-    else
-    {
-        printf("[%s] [%s] %s", time_str, tag.c_str(), log_str.c_str());
-    }
+    
+    printf("[%s] [%s] %s", time_str, tag.c_str(), log_str.c_str());
 }
 
 } // namespace crust
