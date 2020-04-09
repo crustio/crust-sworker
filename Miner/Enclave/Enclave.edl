@@ -39,7 +39,10 @@ enclave {
 
     untrusted {
         void ocall_print_string([in, string] const char *str);
-        void ocall_eprint_string([in, string] const char *str);
+        void ocall_log_info([in, string] const char *str);
+        void ocall_log_warn([in, string] const char *str);
+        void ocall_log_err([in, string] const char *str);
+        void ocall_log_debug([in, string] const char *str);
         void ocall_create_dir([in, string] const char *path);
         void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
         void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);

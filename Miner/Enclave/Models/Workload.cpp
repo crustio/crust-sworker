@@ -43,14 +43,19 @@ Workload::~Workload()
  */
 void Workload::show(void)
 {
-    cfeprintf("Empty root hash: %s\n", unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH).c_str());
-    cfeprintf("Empty capacity: %luG\n", this->empty_disk_capacity);
+    log_info("Empty root hash: %s\n", unsigned_char_array_to_hex_string(this->empty_root_hash, HASH_LENGTH).c_str());
+    log_info("Empty capacity: %luG\n", this->empty_disk_capacity);
 
-    cfeprintf("Meaningful work is: \n");
+    log_debug("Meaningful work details is: \n");
+    size_t total_size = 0;
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
-        cfeprintf("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH).c_str(), it->second);
+        log_debug("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH).c_str(), it->second);
+        total_size += it->second;
     }
+
+    log_info("Meaningful work file number is: %lu, total size %luB\n", this->files.size(), total_size);
+
 }
 
 /**

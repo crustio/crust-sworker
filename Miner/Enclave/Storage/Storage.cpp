@@ -161,7 +161,7 @@ crust_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t sea
             p_decrypted_data, &decrypted_data_len);
     if (SGX_SUCCESS != sgx_status)
     {
-        cfeprintf("Unseal data failed!Error code:%lx\n", sgx_status);
+        log_err("Unseal data failed!Error code:%lx\n", sgx_status);
         crust_status = CRUST_UNSEAL_DATA_FAILED;
         goto cleanup;
     }
@@ -223,7 +223,7 @@ crust_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t ro
     spos = 0;
     if (CRUST_SUCCESS != (crust_status = storage_deser_merkle_tree(&new_root, ser_tree, spos)) || new_root == NULL)
     {
-        cfeprintf("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", crust_status);
+        log_err("[enclave] Deserialize MerkleTree failed!Error code:%lx\n", crust_status);
         return CRUST_DESER_MERKLE_TREE_FAILED;
     }
 
@@ -234,7 +234,7 @@ crust_status_t storage_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t ro
 
     // For log
     string new_ser_tree = storage_ser_merkle_tree(new_root);
-    cfeprintf("new tree string:%s\n", new_ser_tree.c_str());
+    log_info("new tree string:%s\n", new_ser_tree.c_str());
 
     return CRUST_SUCCESS;
 }

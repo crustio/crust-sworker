@@ -20,9 +20,36 @@ void ocall_print_string(const char *str)
  * @description: ocall for log information
  * @param str -> string for printing
  */
-void ocall_eprint_string(const char *str)
+void ocall_log_info(const char *str)
 {
     p_log->info("%s", str);
+}
+
+/**
+ * @description: ocall for log warnings
+ * @param str -> string for printing
+ */
+void ocall_log_warn(const char *str)
+{
+    p_log->warn("%s", str);
+}
+
+/**
+ * @description: ocall for log errors
+ * @param str -> string for printing
+ */
+void ocall_log_err(const char *str)
+{
+    p_log->err("%s", str);
+}
+
+/**
+ * @description: ocall for log debugs
+ * @param str -> string for printing
+ */
+void ocall_log_debug(const char *str)
+{
+    p_log->debug("%s", str);
 }
 
 /**

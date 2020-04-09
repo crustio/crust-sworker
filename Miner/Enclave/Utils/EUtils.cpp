@@ -22,17 +22,77 @@ int eprintf(const char *fmt, ...)
 }
 
 /**
- * @description: use ocall_eprint_string to print format string
+ * @description: use ocall_log_info to print format string
  * @return: the length of printed string
  */
-int cfeprintf(const char *fmt, ...)
+int log_info(const char *fmt, ...)
 {
     char buf[BUFSIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZE, fmt, ap);
     va_end(ap);
-    ocall_eprint_string(buf);
+    ocall_log_info(buf);
+    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+}
+
+/**
+ * @description: use ocall_log_info to print format string
+ * @return: the length of printed string
+ */
+int log_info(const char *fmt, ...)
+{
+    char buf[BUFSIZE] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+    ocall_log_info(buf);
+    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+}
+
+/**
+ * @description: use ocall_log_warn to print format string
+ * @return: the length of printed string
+ */
+int log_warn(const char *fmt, ...)
+{
+    char buf[BUFSIZE] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+    ocall_log_warn(buf);
+    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+}
+
+/**
+ * @description: use ocall_log_err to print format string
+ * @return: the length of printed string
+ */
+int log_err(const char *fmt, ...)
+{
+    char buf[BUFSIZE] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+    ocall_log_err(buf);
+    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+}
+
+/**
+ * @description: use ocall_log_debug to print format string
+ * @return: the length of printed string
+ */
+int log_debug(const char *fmt, ...)
+{
+    char buf[BUFSIZE] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+    ocall_log_debug(buf);
     return (int)strnlen(buf, BUFSIZE - 1) + 1;
 }
 
@@ -215,7 +275,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
 
     if (SGX_SUCCESS != sgx_status)
     {
-        cfeprintf("Seal data failed!Error code:%lx\n", sgx_status);
+        log_err("Seal data failed!Error code:%lx\n", sgx_status);
         crust_status = CRUST_SEAL_DATA_FAILED;
         *p_sealed_data = NULL;
     }

@@ -610,14 +610,12 @@ void start(void)
     }
     else
     {
-        /* Restore data successfully */
-        p_log->info("Restore enclave data successfully!\n");
         // Compare crust account it in configure file and recovered file
         if (SGX_SUCCESS != ecall_cmp_chain_account_id(global_eid, &crust_status,
                                                       p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
             CRUST_SUCCESS != crust_status)
         {
-            p_log->err("Configure crust account id doesn't equal to recovered one!\n");
+            p_log->err("Configure chain account id doesn't equal to recovered one!\n");
             goto cleanup;
         }
         p_log->info("Restore enclave data successfully!\n");

@@ -30,7 +30,7 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
 {
     while (true)
     {
-        cfeprintf("-----Meaningful Validation-----\n");
+        log_info("-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = ValidateMeaningful;
         crust_status_t crust_status = CRUST_SUCCESS;
@@ -40,25 +40,25 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         ocall_get_diff_files_num(&diff_files_num);
         validate_meaningful_disk(diff_files, diff_files_num);
 
-        cfeprintf("-----Empty Validation-----\n");
+        log_info("-----Empty Validation-----\n");
         /* Empty */
         validation_status = ValidateEmpty;
         ecall_generate_empty_root();
         validate_empty_disk(empty_path);
         ecall_generate_empty_root();
 
-        cfeprintf("-----Validation Waiting-----\n");
+        log_info("-----Validation Waiting-----\n");
         /* Show result */
         validation_status = ValidateWaiting;
         get_workload()->show();
 
         if (CRUST_SUCCESS != (crust_status = ecall_store_enclave_data(recover_file_path)))
         {
-            cfeprintf("Store enclave data failed!Error code:%lx\n", crust_status);
+            log_err("Store enclave data failed!Error code:%lx\n", crust_status);
         }
         else
         {
-            cfeprintf("Store enclave data successfully!\n");
+            log_info("Store enclave data successfully!\n");
         }
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);

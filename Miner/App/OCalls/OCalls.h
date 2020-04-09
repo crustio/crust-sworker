@@ -25,7 +25,11 @@ extern "C"
 #endif
 
     void ocall_print_string(const char *str);
-    void ocall_eprint_string(const char *str);
+    void ocall_log_info(const char *str);
+    void ocall_log_warn(const char *str);
+    void ocall_log_err(const char *str);
+    void ocall_log_debug(const char *str);
+
     void ocall_create_dir(const char *path);
     void ocall_rename_dir(const char *old_path, const char *new_path);
     void ocall_save_file(const char *file_path, const unsigned char *data, size_t len);
