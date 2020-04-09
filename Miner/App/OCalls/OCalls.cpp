@@ -22,7 +22,7 @@ void ocall_print_string(const char *str)
  */
 void ocall_log_info(const char *str)
 {
-    p_log->info("%s", str);
+    p_log->info("[Enclave] %s", str);
 }
 
 /**
@@ -31,7 +31,7 @@ void ocall_log_info(const char *str)
  */
 void ocall_log_warn(const char *str)
 {
-    p_log->warn("%s", str);
+    p_log->warn("[Enclave] %s", str);
 }
 
 /**
@@ -40,7 +40,7 @@ void ocall_log_warn(const char *str)
  */
 void ocall_log_err(const char *str)
 {
-    p_log->err("%s", str);
+    p_log->err("[Enclave] %s", str);
 }
 
 /**
@@ -49,7 +49,7 @@ void ocall_log_err(const char *str)
  */
 void ocall_log_debug(const char *str)
 {
-    p_log->debug("%s", str);
+    p_log->debug("[Enclave] %s", str);
 }
 
 /**
