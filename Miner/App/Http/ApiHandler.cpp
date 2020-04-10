@@ -1,4 +1,7 @@
 #include "ApiHandler.h"
+#include "Json.hpp"
+#include "sgx_tseal.h"
+#include <exception>
 
 using namespace httplib;
 
@@ -234,12 +237,11 @@ int ApiHandler::start()
                     res_json["epidPseudonym"].ToString().c_str());
 
         /* Verify IAS report in enclave */
-        ias_status_t ias_status_ret;
         entry_network_signature ensig;
-        status_ret = ecall_verify_iasreport(*ApiHandler::p_global_eid, &ias_status_ret, (const char **)ias_report.data(), ias_report.size(), &ensig);
+        status_ret = ecall_verify_iasreport(*ApiHandler::p_global_eid, &crust_status, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)
         {
-            if (ias_status_ret == IAS_VERIFY_SUCCESS)
+            if (CRUST_SUCCESS == crust_status)
             {
                 json::JSON identity_json;
                 identity_json["pub_key"] = hexstring((const char *)&ensig.pub_key, sizeof(ensig.pub_key));
@@ -258,45 +260,45 @@ int ApiHandler::start()
             }
             else
             {
-                switch (ias_status_ret)
+                switch (crust_status)
                 {
-                case IAS_BADREQUEST:
+                case CRUST_IAS_BADREQUEST:
                     p_log->err("Verify IAS report failed! Bad request!!\n");
                     break;
-                case IAS_UNAUTHORIZED:
+                case CRUST_IAS_UNAUTHORIZED:
                     p_log->err("Verify IAS report failed! Unauthorized!!\n");
                     break;
-                case IAS_NOT_FOUND:
+                case CRUST_IAS_NOT_FOUND:
                     p_log->err("Verify IAS report failed! Not found!!\n");
                     break;
-                case IAS_SERVER_ERR:
+                case CRUST_IAS_SERVER_ERR:
                     p_log->err("Verify IAS report failed! Server error!!\n");
                     break;
-                case IAS_UNAVAILABLE:
+                case CRUST_IAS_UNAVAILABLE:
                     p_log->err("Verify IAS report failed! Unavailable!!\n");
                     break;
-                case IAS_INTERNAL_ERROR:
+                case CRUST_IAS_INTERNAL_ERROR:
                     p_log->err("Verify IAS report failed! Internal error!!\n");
                     break;
-                case IAS_BAD_CERTIFICATE:
+                case CRUST_IAS_BAD_CERTIFICATE:
                     p_log->err("Verify IAS report failed! Bad certificate!!\n");
                     break;
-                case IAS_BAD_SIGNATURE:
+                case CRUST_IAS_BAD_SIGNATURE:
                     p_log->err("Verify IAS report failed! Bad signature!!\n");
                     break;
-                case IAS_REPORTDATA_NE:
+                case CRUST_IAS_REPORTDATA_NE:
                     p_log->err("Verify IAS report failed! Report data not equal!!\n");
                     break;
-                case IAS_GET_REPORT_FAILED:
+                case CRUST_IAS_GET_REPORT_FAILED:
                     p_log->err("Verify IAS report failed! Get report in current enclave failed!!\n");
                     break;
-                case IAS_BADMEASUREMENT:
+                case CRUST_IAS_BADMEASUREMENT:
                     p_log->err("Verify IAS report failed! Bad enclave code measurement!!\n");
                     break;
-                case IAS_UNEXPECTED_ERROR:
+                case CRUST_IAS_UNEXPECTED_ERROR:
                     p_log->err("Verify IAS report failed! unexpected error!!\n");
                     break;
-                case IAS_GETPUBKEY_FAILED:
+                case CRUST_IAS_GETPUBKEY_FAILED:
                     p_log->err("Verify IAS report failed! Get public key from certificate failed!!\n");
                     break;
                 case CRUST_SIGN_PUBKEY_FAILED:
@@ -460,7 +462,7 @@ int ApiHandler::start()
         // Seal data
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_seal_file_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH,
+        sgx_status_t sgx_status = ecall_seal_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH,
                                                        p_src, src_len, p_sealed_data, sealed_data_size_r);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
@@ -545,7 +547,7 @@ int ApiHandler::start()
         // Unseal data
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_unseal_file_data(*this->p_global_eid, &crust_status,
+        sgx_status_t sgx_status = ecall_unseal_data(*this->p_global_eid, &crust_status,
                                                          p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)

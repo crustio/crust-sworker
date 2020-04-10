@@ -43,7 +43,7 @@ function installPrerequisites()
 
     # For others
     verbose INFO "Installing other prerequisites..." h
-    apt-get install -y libboost-all-dev openssl &>/dev/null
+    apt-get install -y libboost-all-dev libleveldb-dev openssl &>/dev/null
     checkRes $? "quit"
 
     verbose INFO "Install prerequisites successfully!"
