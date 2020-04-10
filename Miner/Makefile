@@ -107,11 +107,11 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/PlotDisk/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
+Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/Srd/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
 	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Verify/*.cpp) \
 	$(wildcard Enclave/Storage/*.cpp)
 Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Verify -IEnclave/Models \
-	-IEnclave/PlotDisk -IEnclave/Validator -IEnclave/Storage -I$(SGX_SDK)/include \
+	-IEnclave/Srd -IEnclave/Validator -IEnclave/Storage -I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -Wno-type-limits

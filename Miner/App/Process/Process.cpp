@@ -506,11 +506,11 @@ void *do_plot_disk(void *)
     p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
     size_t true_plot = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
     p_log->info("Start ploting disk %luG (plot thread number: %d) ...\n", true_plot, p_config->plot_thread_num);
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-#pragma omp parallel for num_threads(p_config->plot_thread_num)
+    // Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
+    #pragma omp parallel for num_threads(p_config->plot_thread_num)
     for (size_t i = 0; i < true_plot; i++)
     {
-        ecall_plot_disk(global_eid, p_config->empty_path.c_str());
+        ecall_srd_decrease_empty(global_eid, p_config->empty_path.c_str());
     }
 
     change_empty_mutex.lock();

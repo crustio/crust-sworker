@@ -1,12 +1,38 @@
-#include "PlotDisk.h"
+#include "Srd.h"
 
 extern sgx_thread_mutex_t g_workload_mutex;
 
 /**
- * @description: plot one G disk under directory, can be called from multiple threads
+ * @description: call ocall_save_file to save file
+ * @param g_path -> g folder path
+ * @param index -> m file's index
+ * @param hash -> m file's hash
+ * @param data -> m file's data
+ * @param data_size -> the length of m file's data
+ */
+void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
+{
+    std::string file_path = get_leaf_path(g_path, index, hash);
+    ocall_save_file(file_path.c_str(), data, data_size);
+}
+
+/**
+ * @description: call ocall_save_file to save m_hashs.bin file
+ * @param g_path -> g folder path
+ * @param data -> data
+ * @param data_size -> the length of data
+ */
+void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size)
+{
+    std::string file_path = get_m_hashs_file_path(g_path);
+    ocall_save_file(file_path.c_str(), data, data_size);
+}
+
+/**
+ * @description: seal one G empty files under directory, can be called from multiple threads
  * @param path -> the directory path
  */
-void ecall_plot_disk(const char *path)
+void increase_empty(const char *path)
 {
     unsigned char base_rand_data[PLOT_RAND_DATA_LENGTH];
     sgx_sealed_data_t *p_sealed_data = NULL;
@@ -81,7 +107,7 @@ void ecall_plot_disk(const char *path)
  * @param path -> the directory path
  * @param change -> reduction
  */
-size_t ecall_decrease_disk(const char *path, size_t change)
+size_t decrease_empty(const char *path, size_t change)
 {
     Workload *workload = get_workload();
     sgx_thread_mutex_lock(&g_workload_mutex);
@@ -104,7 +130,7 @@ size_t ecall_decrease_disk(const char *path, size_t change)
 /**
  * @description: generate empty root hash by using workload->empty_g_hashs 
  */
-void ecall_generate_empty_root(void)
+void generate_empty_root(void)
 {
     sgx_thread_mutex_lock(&g_workload_mutex);
 
@@ -140,29 +166,4 @@ void ecall_generate_empty_root(void)
 
     free(hashs);
     sgx_thread_mutex_unlock(&g_workload_mutex);
-}
-
-/**
- * @description: call ocall_save_file to save file
- * @param g_path -> g folder path
- * @param index -> m file's index
- * @param hash -> m file's hash
- * @param data -> m file's data
- * @param data_size -> the length of m file's data
- */
-void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
-{
-    std::string file_path = get_leaf_path(g_path, index, hash);
-    ocall_save_file(file_path.c_str(), data, data_size);
-}
-
-/**
- * @description: call ocall_save_file to save m_hashs.bin file
- * @param data -> data
- * @param data_size -> the length of data
- */
-void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size)
-{
-    std::string file_path = get_m_hashs_file_path(g_path);
-    ocall_save_file(file_path.c_str(), data, data_size);
 }

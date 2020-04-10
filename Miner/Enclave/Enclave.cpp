@@ -22,6 +22,27 @@ size_t now_work_report_block_height = 0;
 extern map<vector<uint8_t>, tuple<string, size_t, size_t>> tree_meta_map;
 extern map<vector<uint8_t>, MerkleTree *> new_tree_map;
 
+//------------------Srd ecalls-----------------//
+
+/**
+ * @description: seal one G empty files under directory, can be called from multiple threads
+ * @param path -> the directory path
+ */
+void ecall_srd_increase_empty(const char* path)
+{
+    srd_increase_empty(path);
+}
+
+/**
+ * @description: decrease empty files under directory
+ * @param path -> the directory path
+ * @param change -> reduction
+ */
+size_t ecall_srd_decrease_empty(const char* path, size_t change)
+{
+    return ecall_srd_decrease_empty(path, change);
+}
+
 /**
  * @description: ecall main loop
  * @param empty_path -> the empty directory path
@@ -43,9 +64,9 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         log_info("-----Empty Validation-----\n");
         /* Empty */
         validation_status = ValidateEmpty;
-        ecall_generate_empty_root();
+        srd_generate_empty_root();
         validate_empty_disk(empty_path);
-        ecall_generate_empty_root();
+        srd_generate_empty_root();
 
         log_info("-----Validation Waiting-----\n");
         /* Show result */
@@ -251,7 +272,6 @@ enum ValidationStatus ecall_return_validation_status(void)
 
 /**
  * @description: generate validation report
- * @param block_hash -> used to generate validation report
  * @return: the length of validation report
  */
 void ecall_generate_validation_report(size_t *size)

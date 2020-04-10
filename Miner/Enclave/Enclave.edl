@@ -6,14 +6,16 @@ enclave {
     include "Node.h"
     include "ValidationStatus.h"
     include "CrustStatus.h"
-
 	include "IASReport.h"
 
-    from "PlotDisk/PlotDisk.edl" import *;
-
+    from "sgx_tstdc.edl" import sgx_thread_wait_untrusted_event_ocall, sgx_thread_set_untrusted_event_ocall, sgx_thread_setwait_untrusted_events_ocall, sgx_thread_set_multiple_untrusted_events_ocall;
     from "sgx_tsgxssl.edl" import *;
 
     trusted {
+        // Srd ecalls for empty files
+        public void ecall_srd_increase_empty([in, string] const char* path);
+        public size_t ecall_srd_decrease_empty([in, string] const char* path, size_t change);  
+
         public void ecall_main_loop([in, string] const char* empty_path, [in, string] const char* recover_file_path);
         public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
         public crust_status_t ecall_set_chain_account_id([in, size=len] const char *account_id, size_t len);

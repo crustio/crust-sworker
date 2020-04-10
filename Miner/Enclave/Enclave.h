@@ -33,6 +33,7 @@
 #include "Validator/Validator.h"
 #include "Verify/Verify.h"
 #include "ValidationStatus.h"
+#include "Srd/Srd.h"
 
 #define CRUST_SEPARATOR "$crust_separator$"
 

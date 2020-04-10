@@ -9,7 +9,8 @@
 #include "EUtils.h"
 #include "PathHelper.h"
 
-void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size);
-void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size);
+void srd_increase_empty(const char *path);
+size_t srd_decrease_empty(const char *path, size_t change);
+void srd_generate_empty_root(void);
 
 #endif /* !_CRUST_PLOT_DISK_H_ */
