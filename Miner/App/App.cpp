@@ -78,8 +78,8 @@ int SGX_CDECL main(int argc, char *argv[])
         printf("               If no file provided, default path is etc/Config.json. \n");
         printf("           --offline: add this flag, program will not interact with the chain. \n");
         printf("           --debug: add this flag, program will output debug logs. \n");
-        printf("           status: show plot disk status. \n");
-        printf("           report: show plot work report. \n");
+        printf("           status: show validate status. \n");
+        printf("           report: show work report. \n");
         printf("           daemon: run as daemon process. \n");
         printf("           server: run as server node. \n");
     }

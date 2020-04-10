@@ -1,5 +1,5 @@
-#ifndef _CRUST_PLOT_DISK_H_
-#define _CRUST_PLOT_DISK_H_
+#ifndef _CRUST_SRD_H_
+#define _CRUST_SRD_H_
 
 #include <vector>
 #include <string>
@@ -13,4 +13,4 @@ void srd_increase_empty(const char *path);
 size_t srd_decrease_empty(const char *path, size_t change);
 void srd_generate_empty_root(void);
 
-#endif /* !_CRUST_PLOT_DISK_H_ */
+#endif /* !_CRUST_SRD_H_ */

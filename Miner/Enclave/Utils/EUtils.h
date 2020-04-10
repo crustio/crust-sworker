@@ -10,16 +10,16 @@
 #include "Enclave_t.h"
 
 /* The size of a empty disk leaf file */
-#define PLOT_RAND_DATA_LENGTH 1048576
-//#define PLOT_RAND_DATA_LENGTH 2097152
+#define SRD_RAND_DATA_LENGTH 1048576
+//#define SRD_RAND_DATA_LENGTH 2097152
 /* The number of empty disk leaf files under a G path */
-#define PLOT_RAND_DATA_NUM 1024
+#define SRD_RAND_DATA_NUM 1024
 /* Used to store all M hashs under G path */
-#define PLOT_M_HASHS "m-hashs.bin"
+#define SRD_M_HASHS "m-hashs.bin"
 
 /* Main loop waiting time (us) */
 #define MAIN_LOOP_WAIT_TIME 10000000
-#define BUFSIZE 100000
+#define LOG_BUF_SIZE 100000
 /* The length of hash */
 #define HASH_LENGTH 32
 
