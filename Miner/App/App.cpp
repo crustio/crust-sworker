@@ -1,6 +1,5 @@
 #include "App.h"
 
-bool run_as_server = false;
 bool offline_chain_mode = false;
 extern std::string config_file_path;
 crust::Log *p_log = crust::Log::get_instance();
@@ -63,11 +62,6 @@ int SGX_CDECL main(int argc, char *argv[])
     {
         return main_daemon();
     }
-    else if (run_type.compare("server") == 0)
-    {
-        run_as_server = true;
-        return main_daemon();
-    }
     else
     {
         printf("    Usage: \n");
@@ -81,7 +75,6 @@ int SGX_CDECL main(int argc, char *argv[])
         printf("           status: show validate status. \n");
         printf("           report: show work report. \n");
         printf("           daemon: run as daemon process. \n");
-        printf("           server: run as server node. \n");
     }
 
     return 0;

@@ -16,7 +16,6 @@ ApiHandler *p_api_handler = NULL;
 std::string g_entry_net_res = "";
 
 crust::Log *p_log = crust::Log::get_instance();
-extern bool run_as_server;
 extern bool offline_chain_mode;
 extern bool in_changing_empty;
 extern std::mutex change_empty_mutex;
