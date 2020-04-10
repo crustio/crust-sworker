@@ -21,7 +21,7 @@ public:
     size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
     std::string api_base_url;           /* External API base url */
     std::string validator_api_base_url; /* Validator base API base url */
-    int plot_thread_num;                /* plot empty files thread number */
+    int srd_thread_num;                 /* srd empty files thread number */
 
     // crust storage
     std::string ipfs_api_base_url; /* Used to connect to IPFS */
@@ -41,12 +41,8 @@ public:
     std::string ias_primary_subscription_key;
     std::string ias_secondary_subscription_key;
     std::string ias_base_url;
-
     std::string ias_base_path;
     uint32_t flags;
-    // debug related
-    bool debug;
-    bool verbose;
 
     static Config *config;
 

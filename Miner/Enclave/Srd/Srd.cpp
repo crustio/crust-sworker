@@ -1,14 +1,40 @@
-#include "PlotDisk.h"
+#include "Srd.h"
 
 extern sgx_thread_mutex_t g_workload_mutex;
 
 /**
- * @description: plot one G disk under directory, can be called from multiple threads
+ * @description: call ocall_save_file to save file
+ * @param g_path -> g folder path
+ * @param index -> m file's index
+ * @param hash -> m file's hash
+ * @param data -> m file's data
+ * @param data_size -> the length of m file's data
+ */
+void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
+{
+    std::string file_path = get_leaf_path(g_path, index, hash);
+    ocall_save_file(file_path.c_str(), data, data_size);
+}
+
+/**
+ * @description: call ocall_save_file to save m_hashs.bin file
+ * @param g_path -> g folder path
+ * @param data -> data
+ * @param data_size -> the length of data
+ */
+void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size)
+{
+    std::string file_path = get_m_hashs_file_path(g_path);
+    ocall_save_file(file_path.c_str(), data, data_size);
+}
+
+/**
+ * @description: seal one G empty files under directory, can be called from multiple threads
  * @param path -> the directory path
  */
-void ecall_plot_disk(const char *path)
+void srd_increase_empty(const char *path)
 {
-    unsigned char base_rand_data[PLOT_RAND_DATA_LENGTH];
+    unsigned char base_rand_data[SRD_RAND_DATA_LENGTH];
     sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
 
@@ -36,20 +62,20 @@ void ecall_plot_disk(const char *path)
     ocall_create_dir(g_path.c_str());
 
     // Generate all M hashs and store file to disk
-    unsigned char *hashs = new unsigned char[PLOT_RAND_DATA_NUM * HASH_LENGTH];
-    for (size_t i = 0; i < PLOT_RAND_DATA_NUM; i++)
+    unsigned char *hashs = new unsigned char[SRD_RAND_DATA_NUM * HASH_LENGTH];
+    for (size_t i = 0; i < SRD_RAND_DATA_NUM; i++)
     {
-        seal_data_mrenclave(base_rand_data, PLOT_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
+        seal_data_mrenclave(base_rand_data, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
 
         sgx_sha256_hash_t out_hash256;
-        sgx_sha256_msg((unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH, &out_hash256);
+        sgx_sha256_msg((unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH, &out_hash256);
 
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
             hashs[i * HASH_LENGTH + j] = out_hash256[j];
         }
 
-        save_file(g_path.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, PLOT_RAND_DATA_LENGTH);
+        save_file(g_path.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH);
 
         free(p_sealed_data);
         p_sealed_data = NULL;
@@ -57,9 +83,9 @@ void ecall_plot_disk(const char *path)
 
     /* Generate G hashs */
     sgx_sha256_hash_t g_out_hash256;
-    sgx_sha256_msg(hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH, &g_out_hash256);
+    sgx_sha256_msg(hashs, SRD_RAND_DATA_NUM * HASH_LENGTH, &g_out_hash256);
 
-    save_m_hashs_file(g_path.c_str(), hashs, PLOT_RAND_DATA_NUM * HASH_LENGTH);
+    save_m_hashs_file(g_path.c_str(), hashs, SRD_RAND_DATA_NUM * HASH_LENGTH);
     delete[] hashs;
 
     /* Change G path name */
@@ -73,7 +99,7 @@ void ecall_plot_disk(const char *path)
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    log_info("Plot file -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
+    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 }
 
 /**
@@ -81,7 +107,7 @@ void ecall_plot_disk(const char *path)
  * @param path -> the directory path
  * @param change -> reduction
  */
-size_t ecall_decrease_disk(const char *path, size_t change)
+size_t srd_decrease_empty(const char *path, size_t change)
 {
     Workload *workload = get_workload();
     sgx_thread_mutex_lock(&g_workload_mutex);
@@ -104,7 +130,7 @@ size_t ecall_decrease_disk(const char *path, size_t change)
 /**
  * @description: generate empty root hash by using workload->empty_g_hashs 
  */
-void ecall_generate_empty_root(void)
+void srd_generate_empty_root(void)
 {
     sgx_thread_mutex_lock(&g_workload_mutex);
 
@@ -140,29 +166,4 @@ void ecall_generate_empty_root(void)
 
     free(hashs);
     sgx_thread_mutex_unlock(&g_workload_mutex);
-}
-
-/**
- * @description: call ocall_save_file to save file
- * @param g_path -> g folder path
- * @param index -> m file's index
- * @param hash -> m file's hash
- * @param data -> m file's data
- * @param data_size -> the length of m file's data
- */
-void save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
-{
-    std::string file_path = get_leaf_path(g_path, index, hash);
-    ocall_save_file(file_path.c_str(), data, data_size);
-}
-
-/**
- * @description: call ocall_save_file to save m_hashs.bin file
- * @param data -> data
- * @param data_size -> the length of data
- */
-void save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size)
-{
-    std::string file_path = get_m_hashs_file_path(g_path);
-    ocall_save_file(file_path.c_str(), data, data_size);
 }

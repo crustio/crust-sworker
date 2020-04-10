@@ -78,7 +78,7 @@ void validate_empty_disk(const char *path)
 
         /* Get leaf data */
         sgx_read_rand((unsigned char *)&rand_val_m, 4);
-        select = rand_val_m % PLOT_RAND_DATA_NUM;
+        select = rand_val_m % SRD_RAND_DATA_NUM;
         leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
         ocall_get_file(leaf_path.c_str(), &leaf_data, &leaf_data_len);
 

@@ -492,10 +492,10 @@ void *do_upload_work_report(void *)
 }
 
 /**
- * @description: plot disk
+ * @description: seal random data to fill disk
  * @return: successed or failed
  */
-void *do_plot_disk(void *)
+void *do_srd_empty_disk(void *)
 {
     change_empty_mutex.lock();
     in_changing_empty = true;
@@ -504,20 +504,20 @@ void *do_plot_disk(void *)
     create_directory(p_config->empty_path);
     size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
     p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
-    size_t true_plot = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
-    p_log->info("Start ploting disk %luG (plot thread number: %d) ...\n", true_plot, p_config->plot_thread_num);
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-#pragma omp parallel for num_threads(p_config->plot_thread_num)
-    for (size_t i = 0; i < true_plot; i++)
+    size_t true_srd_capacity = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
+    p_log->info("Start sealing %luG empty files (thread number: %d) ...\n", true_srd_capacity, p_config->srd_thread_num);
+    // Use omp parallel to seal empty disk, the number of threads is equal to the number of CPU cores
+    #pragma omp parallel for num_threads(p_config->srd_thread_num)
+    for (size_t i = 0; i < true_srd_capacity; i++)
     {
-        ecall_plot_disk(global_eid, p_config->empty_path.c_str());
+        ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
     }
 
     change_empty_mutex.lock();
     in_changing_empty = false;
     change_empty_mutex.unlock();
 
-    p_log->info("Plot disk %luG successed.\n", true_plot);
+    p_log->info("Seal %luG random data successed.\n", true_srd_capacity);
     return NULL;
 }
 
@@ -528,7 +528,7 @@ void start(void)
 {
     pid_t workerPID = getpid();
     pthread_t wthread;
-    pthread_t plot_thread;
+    pthread_t srd_empty_disk_thread;
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     p_log->info("WorkerPID=%d\n", workerPID);
@@ -578,10 +578,10 @@ void start(void)
             goto cleanup;
         }
 
-        /* Plot empty disk */
-        if (pthread_create(&plot_thread, NULL, do_plot_disk, NULL) != 0)
+        /* Srd empty disk */
+        if (pthread_create(&srd_empty_disk_thread, NULL, do_srd_empty_disk, NULL) != 0)
         {
-            p_log->err("Create plot empty disk thread failed!\n");
+            p_log->err("Create srd empty disk thread failed!\n");
             goto cleanup;
         }
 

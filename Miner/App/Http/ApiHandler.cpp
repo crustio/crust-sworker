@@ -192,50 +192,46 @@ int ApiHandler::start()
         ias_report.push_back(off_chain_chain_account_id.c_str()); //[3]
         ias_report.push_back(p_config->chain_account_id.c_str()); //[4]
 
-        // Print IAS report
-        if (p_config->verbose)
+        p_log->debug("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
+        if (version >= 3)
         {
-            p_log->info("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
-            if (version >= 3)
-            {
-                p_log->info("version               = %ld\n",
+            p_log->debug("version               = %ld\n",
                         res_json["version"].ToInt());
-            }
-            p_log->info("id:                   = %s\n",
-                        res_json["id"].ToString().c_str());
-            p_log->info("timestamp             = %s\n",
-                        res_json["timestamp"].ToString().c_str());
-            p_log->info("isvEnclaveQuoteStatus = %s\n",
-                        res_json["isvEnclaveQuoteStatus"].ToString().c_str());
-            p_log->info("isvEnclaveQuoteBody   = %s\n",
-                        res_json["isvEnclaveQuoteBody"].ToString().c_str());
-            std::string iasQuoteStr = res_json["isvEnclaveQuoteBody"].ToString();
-            size_t qs;
-            char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
-            sgx_quote_t *ias_quote = (sgx_quote_t *)malloc(qs);
-            memset(ias_quote, 0, qs);
-            memcpy(ias_quote, ppp, qs);
-            p_log->info("========== ias quote report data:%s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
-            p_log->info("ias quote report version:%d\n", ias_quote->version);
-            p_log->info("ias quote report signtype:%d\n", ias_quote->sign_type);
-            p_log->info("ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
-            p_log->info("ias quote report mr_enclave:%s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
-
-            p_log->info("\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
-
-            p_log->info("platformInfoBlob  = %s\n",
-                        res_json["platformInfoBlob"].ToString().c_str());
-            p_log->info("revocationReason  = %s\n",
-                        res_json["revocationReason"].ToString().c_str());
-            p_log->info("pseManifestStatus = %s\n",
-                        res_json["pseManifestStatus"].ToString().c_str());
-            p_log->info("pseManifestHash   = %s\n",
-                        res_json["pseManifestHash"].ToString().c_str());
-            p_log->info("nonce             = %s\n",
-                        res_json["nonce"].ToString().c_str());
-            p_log->info("epidPseudonym     = %s\n",
-                        res_json["epidPseudonym"].ToString().c_str());
         }
+        p_log->debug("id:                   = %s\n",
+                    res_json["id"].ToString().c_str());
+        p_log->debug("timestamp             = %s\n",
+                    res_json["timestamp"].ToString().c_str());
+        p_log->debug("isvEnclaveQuoteStatus = %s\n",
+                    res_json["isvEnclaveQuoteStatus"].ToString().c_str());
+        p_log->debug("isvEnclaveQuoteBody   = %s\n",
+                    res_json["isvEnclaveQuoteBody"].ToString().c_str());
+        std::string iasQuoteStr = res_json["isvEnclaveQuoteBody"].ToString();
+        size_t qs;
+        char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
+        sgx_quote_t *ias_quote = (sgx_quote_t *)malloc(qs);
+        memset(ias_quote, 0, qs);
+        memcpy(ias_quote, ppp, qs);
+        p_log->debug("========== ias quote report data:%s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
+        p_log->debug("ias quote report version:%d\n", ias_quote->version);
+        p_log->debug("ias quote report signtype:%d\n", ias_quote->sign_type);
+        p_log->debug("ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
+        p_log->debug("ias quote report mr_enclave:%s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
+
+        p_log->debug("\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
+
+        p_log->debug("platformInfoBlob  = %s\n",
+                    res_json["platformInfoBlob"].ToString().c_str());
+        p_log->debug("revocationReason  = %s\n",
+                    res_json["revocationReason"].ToString().c_str());
+        p_log->debug("pseManifestStatus = %s\n",
+                    res_json["pseManifestStatus"].ToString().c_str());
+        p_log->debug("pseManifestHash   = %s\n",
+                    res_json["pseManifestHash"].ToString().c_str());
+        p_log->debug("nonce             = %s\n",
+                    res_json["nonce"].ToString().c_str());
+        p_log->debug("epidPseudonym     = %s\n",
+                    res_json["epidPseudonym"].ToString().c_str());
 
         /* Verify IAS report in enclave */
         ias_status_t ias_status_ret;
@@ -776,28 +772,28 @@ void *ApiHandler::change_empty(void *)
 
     if (change > 0)
     {
-        // Increase empty plot
+        // Increase empty
         size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
         p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
         size_t true_change = free_space <= 10 ? 0 : std::min(free_space - 10, (size_t)change);
-        p_log->info("Start ploting %dG disk (plot thread number: %d) ...\n", true_change, p_config->plot_thread_num);
-// Use omp parallel to plot empty disk, the number of threads is equal to the number of CPU cores
-#pragma omp parallel for num_threads(p_config->plot_thread_num)
+        p_log->info("Start sealing %dG disk (thread number: %d) ...\n", true_change, p_config->srd_thread_num);
+// Use omp parallel to seal empty files, the number of threads is equal to the number of CPU cores
+#pragma omp parallel for num_threads(p_config->srd_thread_num)
         for (size_t i = 0; i < (size_t)true_change; i++)
         {
-            ecall_plot_disk(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
+            ecall_srd_increase_empty(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
         }
 
         p_config->change_empty_capacity(true_change);
-        p_log->info("Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", true_change);
+        p_log->info("Increase %dG empty files success, the empty workload will change gradually in next validation loops\n", true_change);
     }
     else if (change < 0)
     {
         change = -change;
         size_t true_decrease = 0;
-        ecall_decrease_disk(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
+        ecall_srd_decrease_empty(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
         p_config->change_empty_capacity(-change);
-        p_log->info("Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
+        p_log->info("Decrease %luG empty files success, the empty workload will change in next validation loop\n", true_decrease);
     }
 
     change_empty_mutex.lock();

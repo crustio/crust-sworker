@@ -8,7 +8,7 @@
 std::string get_m_hashs_file_path(const char *g_path)
 {
     std::string file_path(g_path);
-    file_path = file_path + '/' + PLOT_M_HASHS;
+    file_path = file_path + '/' + SRD_M_HASHS;
     return file_path;
 }
 

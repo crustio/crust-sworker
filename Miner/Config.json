@@ -20,8 +20,5 @@
     "ias_secondary_subscription_key": "2ecdd9cb7a004f3e8e0e45ed2ebd1fb4",
     "ias_base_url": "api.trustedservices.intel.com",
     "ias_base_path": "/sgx/dev/attestation/v3/report",
-
-    "flags": 4,
-    "debug": false,
-    "verbose": false
+    "flags": 4
 }

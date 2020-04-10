@@ -12,13 +12,13 @@ const char _hextable[] = "0123456789abcdef";
  */
 int eprintf(const char *fmt, ...)
 {
-    char buf[BUFSIZE] = {'\0'};
+    char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
     ocall_print_string(buf);
-    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+    return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
 
 /**
@@ -27,13 +27,13 @@ int eprintf(const char *fmt, ...)
  */
 int log_info(const char *fmt, ...)
 {
-    char buf[BUFSIZE] = {'\0'};
+    char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
     ocall_log_info(buf);
-    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+    return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
 
 /**
@@ -42,13 +42,13 @@ int log_info(const char *fmt, ...)
  */
 int log_warn(const char *fmt, ...)
 {
-    char buf[BUFSIZE] = {'\0'};
+    char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
     ocall_log_warn(buf);
-    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+    return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
 
 /**
@@ -57,13 +57,13 @@ int log_warn(const char *fmt, ...)
  */
 int log_err(const char *fmt, ...)
 {
-    char buf[BUFSIZE] = {'\0'};
+    char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
     ocall_log_err(buf);
-    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+    return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
 
 /**
@@ -72,13 +72,13 @@ int log_err(const char *fmt, ...)
  */
 int log_debug(const char *fmt, ...)
 {
-    char buf[BUFSIZE] = {'\0'};
+    char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZE, fmt, ap);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
     ocall_log_debug(buf);
-    return (int)strnlen(buf, BUFSIZE - 1) + 1;
+    return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
 
 /**
