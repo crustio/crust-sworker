@@ -136,7 +136,7 @@ bool initialize_components(void)
     }
 
     /* Init crust */
-    if (new_chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup) == NULL)
+    if (crust::Chain::get_instance() == NULL)
     {
         p_log->err("Init crust chain failed!\n");
         return false;
@@ -383,7 +383,8 @@ cleanup:
  * */
 bool wait_chain_run(void)
 {
-    if (get_chain() == NULL)
+    crust::Chain* p_chain = crust::Chain::get_instance();
+    if (p_chain == NULL)
     {
         p_log->err("Init crust chain failed.\n");
         return false;
@@ -391,7 +392,7 @@ bool wait_chain_run(void)
 
     while (true)
     {
-        if (get_chain()->is_online())
+        if (p_chain->is_online())
         {
             break;
         }
@@ -404,7 +405,7 @@ bool wait_chain_run(void)
 
     while (true)
     {
-        BlockHeader *block_header = get_chain()->get_block_header();
+        BlockHeader *block_header = p_chain->get_block_header();
         if (block_header->number > 0)
         {
             break;
@@ -427,9 +428,11 @@ void *do_upload_work_report(void *)
     size_t report_len = 0;
     sgx_ec256_signature_t ecc_signature;
     crust_status_t crust_status = CRUST_SUCCESS;
+    crust::Chain* p_chain = crust::Chain::get_instance();
+
     while (true)
     {
-        BlockHeader *block_header = get_chain()->get_block_header();
+        BlockHeader *block_header = p_chain->get_block_header();
         if (block_header->number % BLOCK_HEIGHT == 0)
         {
             sleep(20);
@@ -462,7 +465,7 @@ void *do_upload_work_report(void *)
                     // Delete space and line break
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
                     workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
-                    if (!get_chain()->post_tee_work_report(workStr))
+                    if (!p_chain->post_tee_work_report(workStr))
                     {
                         p_log->err("Send work report to crust chain failed!\n");
                     }
@@ -601,7 +604,7 @@ void start(void)
                 goto cleanup;
             }
 
-            if (!get_chain()->post_tee_identity(g_entry_net_res))
+            if (!crust::Chain::get_instance()->post_tee_identity(g_entry_net_res))
             {
                 p_log->err("Send identity to crust chain failed!\n");
                 goto cleanup;

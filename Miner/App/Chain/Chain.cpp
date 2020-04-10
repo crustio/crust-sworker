@@ -1,46 +1,25 @@
 #include "Chain.h"
-#include "Config.h"
 
-Chain *chain = NULL;
 crust::Log *p_log = crust::Log::get_instance();
 
-/**
- * @description: new a global chain handler to access chain node
- * @param url -> chain API base url
- * @param password -> the password of chain account id
- * @param backup ->  the backup of chain account id
- * @return: the point of chain handler
- */
-Chain *new_chain(std::string url, std::string password, std::string backup)
+namespace crust
 {
-    if (chain != NULL)
-    {
-        delete chain;
-    }
 
-    chain = new Chain(url, password, backup);
-    return chain;
-}
+Chain *Chain::chain = NULL;
 
 /**
- * @description: get the global chain handler to access chain node 
- * @return: the point of chain handle
- */
-Chain *get_chain(void)
+ * @desination: single instance class function to get instance
+ * @return: chain instance
+ * */
+Chain *Chain::get_instance()
 {
-    if (chain == NULL)
+    if (Chain::chain == NULL)
     {
-        p_log->info("Create chain instance!\n");
         Config *p_config = Config::get_instance();
-        if (p_config == NULL)
-        {
-            p_log->err("Get configuration failed!\n");
-            return NULL;
-        }
-        chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup);
+        Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup);
     }
 
-    return chain;
+    return Chain::chain;
 }
 
 /**
@@ -183,3 +162,5 @@ bool Chain::post_tee_work_report(std::string work_report)
 
     return false;
 }
+
+} // namespace crust
