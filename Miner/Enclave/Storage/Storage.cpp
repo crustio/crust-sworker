@@ -59,7 +59,7 @@ crust_status_t storage_validate_merkle_tree(MerkleTree *root)
  * @param sealed_data_size -> sealed file block data size
  * @return: Seal and generate result
  * */
-crust_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
+crust_status_t storage_seal_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
     /* Get merkle tree metadata */
@@ -140,7 +140,7 @@ crust_status_t storage_seal_file_data(const uint8_t *root_hash, uint32_t root_ha
  * @param unsealed_data_size -> unsealed file block data size
  * @return: Unseal status
  * */
-crust_status_t storage_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
+crust_status_t storage_unseal_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
         uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;

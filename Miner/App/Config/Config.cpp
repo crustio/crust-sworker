@@ -43,6 +43,7 @@ Config::Config(std::string path)
     this->base_path = config_value["base_path"].ToString();
     this->recover_file_path = this->base_path + "/recover.bin";
     this->empty_path = this->base_path + "/empty_path";
+    this->db_path = this->base_path + "/db";
     this->empty_capacity = config_value["empty_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["empty_capacity"].ToInt();
     this->api_base_url = config_value["api_base_url"].ToString();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
@@ -85,6 +86,7 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'recover file path' : '%s',\n", this->recover_file_path.c_str());
     printf("    'empty path' : '%s',\n", this->empty_path.c_str());
+    printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'empty capacity' : %lu,\n", this->empty_capacity);
 
     printf("    'ipfs api base url' : '%s',\n", this->ipfs_api_base_url.c_str());

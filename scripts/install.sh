@@ -42,9 +42,10 @@ function installPrerequisites()
     checkRes $? "quit"
 
     # For others
-    verbose INFO "Installing other prerequisites..." h
-    apt-get install -y libboost-all-dev openssl &>/dev/null
-    checkRes $? "quit"
+    setTimeWait "$(verbose INFO "Installing other prerequisites..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
+    apt-get install -y libboost-all-dev libleveldb-dev openssl &>/dev/null
+    checkRes $? "quit" "$SYNCFILE"
 
     verbose INFO "Install prerequisites successfully!"
 }
@@ -75,7 +76,7 @@ function installSGXSDK()
         checkRes $ret "quit"
     done
     cd - &>/dev/null
-    verbose INFO "Install SGX SDK successfully!!!"
+    verbose INFO "Install SGX SDK successfully!"
 }
 
 function installSGXSSL()
@@ -119,7 +120,7 @@ function installSGXSSL()
         rm -rf $sgxssldir
     fi
 
-    verbose INFO "Install SGX SSL successfully!!!"
+    verbose INFO "Install SGX SSL successfully!"
 }
 
 function uninstallOldCrustTee()
@@ -435,7 +436,7 @@ if checkSGXSDK; then
     ### Install sgx
     installSGXSDK
 else
-    verbose INFO "SGX SDK Dependencies have been installed!!!"
+    verbose INFO "SGX SDK Dependencies have been installed!"
 fi
 
 # Install SGX SSL

@@ -6,7 +6,6 @@
 #endif
 #include "Enclave_t.h"
 #include "tSgxSSL_api.h"
-#include "Verify.h"
 #include <string>
 #include <vector>
 
@@ -28,13 +27,10 @@
 #include <openssl/bn.h>
 #include <openssl/x509v3.h>
 
-#include "Models/Workload.h"
-#include "Utils/EUtils.h"
-#include "Validator/Validator.h"
-#include "Verify/Verify.h"
+#include "Workload.h"
+#include "EUtils.h"
+#include "Validator.h"
 #include "ValidationStatus.h"
 #include "Srd/Srd.h"
-
-#define CRUST_SEPARATOR "$crust_separator$"
 
 #endif /* !_CRUST_ENCLAVE_H_ */

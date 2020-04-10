@@ -32,6 +32,7 @@ sudo apt install openssl
 sudo apt install libssl-dev
 sudo apt install curl
 sudo apt install libelf-dev
+sudo apt install libleveldb-dev
 ```
 
 ### Package resources
