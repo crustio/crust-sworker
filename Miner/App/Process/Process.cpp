@@ -405,7 +405,7 @@ bool wait_chain_run(void)
 
     while (true)
     {
-        BlockHeader *block_header = p_chain->get_block_header();
+        crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header->number > 0)
         {
             break;
@@ -432,7 +432,7 @@ void *do_upload_work_report(void *)
 
     while (true)
     {
-        BlockHeader *block_header = p_chain->get_block_header();
+        crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header->number % BLOCK_HEIGHT == 0)
         {
             sleep(20);
