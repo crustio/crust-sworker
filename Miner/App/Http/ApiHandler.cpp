@@ -789,7 +789,7 @@ void *ApiHandler::change_empty(void *)
         }
 
         p_config->change_empty_capacity(true_change);
-        p_log->info("Increase %dG empty file success, the empty workload will change gradually in next validation loops\n", true_change);
+        p_log->info("Increase %dG empty files success, the empty workload will change gradually in next validation loops\n", true_change);
     }
     else if (change < 0)
     {
@@ -797,7 +797,7 @@ void *ApiHandler::change_empty(void *)
         size_t true_decrease = 0;
         ecall_srd_decrease_empty(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
         p_config->change_empty_capacity(-change);
-        p_log->info("Decrease %luG empty file success, the empty workload will change in next validation loop\n", true_decrease);
+        p_log->info("Decrease %luG empty files success, the empty workload will change in next validation loop\n", true_decrease);
     }
 
     change_empty_mutex.lock();

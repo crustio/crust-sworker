@@ -40,7 +40,7 @@ void ecall_srd_increase_empty(const char* path)
  */
 size_t ecall_srd_decrease_empty(const char* path, size_t change)
 {
-    return ecall_srd_decrease_empty(path, change);
+    return srd_decrease_empty(path, change);
 }
 
 /**

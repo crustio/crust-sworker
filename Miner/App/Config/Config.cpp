@@ -73,10 +73,7 @@ Config::Config(std::string path)
     this->ias_secondary_subscription_key = config_value["ias_secondary_subscription_key"].ToString();
     this->ias_base_url = config_value["ias_base_url"].ToString();
     this->ias_base_path = config_value["ias_base_path"].ToString();
-
     this->flags = config_value["flags"].ToInt();
-    this->verbose = config_value["verbose"].ToBool();
-    this->debug = config_value["debug"].ToBool();
 }
 
 /**
@@ -108,10 +105,7 @@ void Config::show(void)
     printf("    'IAS Secondary subscription key' : '%s',\n", this->ias_secondary_subscription_key.c_str());
     printf("    'IAS base url' : '%s',\n", this->ias_base_url.c_str());
     printf("    'IAS base path' : '%s',\n", this->ias_base_path.c_str());
-
-    printf("    'flags' : '%d',\n", this->flags);
-    printf("    'verbose info' : '%s',\n", this->verbose ? "true" : "false");
-    printf("    'debug info' : '%s',\n", this->debug ? "true" : "false");
+    printf("    'flags' : '%d'\n", this->flags);
     printf("}\n");
 }
 
