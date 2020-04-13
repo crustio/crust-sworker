@@ -11,6 +11,7 @@
 #include "Log.h"
 #include "Chain.h"
 #include "CrustStatus.h"
+#include "FormatUtils.h"
 
 #define REPORT_BLOCK_HEIGHT_BASE 300
 

@@ -702,7 +702,7 @@ int ApiHandler::start()
         else
         {
             // Check TEE has already launched
-            enum validation_status_t validation_status = VALIDATE_STOP;
+            validation_status_t validation_status = VALIDATE_STOP;
 
             if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
             {

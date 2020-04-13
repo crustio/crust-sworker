@@ -48,7 +48,7 @@ void *work_report_loop(void *)
                     // Delete space and line break
                     work_str.erase(std::remove(work_str.begin(), work_str.end(), ' '), work_str.end());
                     work_str.erase(std::remove(work_str.begin(), work_str.end(), '\n'), work_str.end());
-                    if (!p_chain->post_tee_work_report(workStr))
+                    if (!p_chain->post_tee_work_report(work_str))
                     {
                         p_log->err("Send work report to crust chain failed!\n");
                     }

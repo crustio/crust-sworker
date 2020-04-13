@@ -96,13 +96,12 @@ void *start_http(void *)
 {
     /* API handler component */
     p_log->info("Initing api url:%s...\n", p_config->api_base_url.c_str());
-    p_api_handler = new ApiHandler(&global_eid);
+    p_api_handler = new ApiHandler();
     if (p_api_handler == NULL)
     {
         p_log->err("Init api handler failed.\n");
         return NULL;
     }
-    //p_log->info("Init api handler successfully.\n");
     p_api_handler->start();
     p_log->err("Start network service failed!\n");
     return NULL;
