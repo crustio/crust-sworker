@@ -8,7 +8,7 @@ using namespace httplib;
 extern sgx_enclave_id_t global_eid;
 
 /* Used to show validation status*/
-const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
+const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
 bool in_changing_empty = false;
 std::mutex change_empty_mutex;
 int change_empty_num = 0;
@@ -43,7 +43,7 @@ int ApiHandler::start()
     // Outter APIs
     std::string path = urlendpoint->base + "/status";
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
-        enum ValidationStatus validation_status = ValidateStop;
+        validation_status_t validation_status = VALIDATE_STOP;
 
         if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
         {
@@ -52,7 +52,7 @@ int ApiHandler::start()
             return;
         }
 
-        res.set_content(std::string("{\"validationStatus\":") + "\"" + validation_status_strings[validation_status] + "\"}", "text/plain");
+        res.set_content(std::string("{\"validation_status\":") + "\"" + validation_status_strings[validation_status] + "\"}", "text/plain");
         return;
     });
 
@@ -702,7 +702,7 @@ int ApiHandler::start()
         else
         {
             // Check TEE has already launched
-            enum ValidationStatus validation_status = ValidateStop;
+            enum validation_status_t validation_status = ValidateStop;
 
             if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
             {

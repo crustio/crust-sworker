@@ -7,7 +7,7 @@ using namespace std;
 
 // TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
-enum ValidationStatus validation_status = ValidateStop;
+validation_status_t validation_status = VALIDATE_STOP;
 
 //------------------Srd ecalls-----------------//
 
@@ -40,7 +40,7 @@ void ecall_main_loop(const char *empty_path)
     {
         log_info("-----Meaningful Validation-----\n");
         /* Meaningful */
-        validation_status = ValidateMeaningful;
+        validation_status = VALIDATE_MEANINGFUL;
         crust_status_t crust_status = CRUST_SUCCESS;
         Node *diff_files = NULL;
         ocall_get_diff_files(&diff_files);
@@ -50,14 +50,13 @@ void ecall_main_loop(const char *empty_path)
 
         log_info("-----Empty Validation-----\n");
         /* Empty */
-        validation_status = ValidateEmpty;
+        validation_status = VALIDATE_EMPTY;
         srd_generate_empty_root();
         validate_empty_disk(empty_path);
         srd_generate_empty_root();
 
         log_info("-----Validation Waiting-----\n");
         /* Show result */
-        validation_status = ValidateWaiting;
         get_workload()->show();
 
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
@@ -69,6 +68,7 @@ void ecall_main_loop(const char *empty_path)
             log_info("Store enclave data successfully!\n");
         }
 
+        validation_status = VALIDATE_WAITING;
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
 }
@@ -106,7 +106,7 @@ crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
  * @description: return validation status
  * @return: the validation status
  */
-enum ValidationStatus ecall_return_validation_status(void)
+validation_status_t ecall_return_validation_status(void)
 {
     return validation_status;
 }

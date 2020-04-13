@@ -107,7 +107,7 @@ curl http://<url:port>/api/v0/status
 Output:
 ```json
 {
-  "validationStatus": "ValidateWaiting"
+  "validation_status": "validate_waiting"
 }
 ```
 
