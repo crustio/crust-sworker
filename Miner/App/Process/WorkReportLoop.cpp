@@ -70,7 +70,7 @@ void *work_report_loop(void *)
         }
         else
         {
-            p_log->info("Block height:%d is not enough!\n", block_header->number);
+            p_log->info("Block height: %lu is not enough!\n", block_header->number);
             sleep(3);
         }
     }
