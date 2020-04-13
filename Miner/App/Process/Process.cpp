@@ -378,49 +378,6 @@ cleanup:
 }
 
 /**
- * @description: waitting for the crust chain to run
- * @return: success or not
- * */
-bool wait_chain_run(void)
-{
-    crust::Chain* p_chain = crust::Chain::get_instance();
-    if (p_chain == NULL)
-    {
-        p_log->err("Init crust chain failed.\n");
-        return false;
-    }
-
-    while (true)
-    {
-        if (p_chain->is_online())
-        {
-            break;
-        }
-        else
-        {
-            p_log->info("Waitting for chain to run...\n");
-            sleep(3);
-        }
-    }
-
-    while (true)
-    {
-        crust::BlockHeader *block_header = p_chain->get_block_header();
-        if (block_header->number > 0)
-        {
-            break;
-        }
-        else
-        {
-            p_log->info("Waitting for chain to run...\n");
-            sleep(3);
-        }
-    }
-
-    return true;
-}
-
-/**
  * @description: Check if there is enough height, send signed validation report to chain
  * */
 void *do_upload_work_report(void *)
@@ -599,7 +556,7 @@ void start(void)
             p_log->info("Entry network application successfully!Info:%s\n", g_entry_net_res.c_str());
             
             /* Send identity to crust chain */
-            if (!wait_chain_run())
+            if (!crust::Chain::get_instance()->wait_for_running())
             {
                 goto cleanup;
             }
@@ -626,13 +583,7 @@ void start(void)
     }
 
     if (!offline_chain_mode)
-    {
-        /* Send identity to crust chain */
-        if (!wait_chain_run())
-        {
-            goto cleanup;
-        }
-        
+    {   
         // Check block height and post report to chain
         if (pthread_create(&wthread, NULL, do_upload_work_report, NULL) != 0)
         {

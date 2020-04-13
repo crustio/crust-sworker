@@ -100,6 +100,44 @@ bool Chain::is_online(void)
 }
 
 /**
+ * @description: waitting for the crust chain to run
+ * @return: success or not
+ * */
+bool Chain::wait_for_running(void)
+{
+    size_t start_block_height = 10;
+
+    while (true)
+    {
+        if (this->is_online())
+        {
+            break;
+        }
+        else
+        {
+            p_log->info("Waitting for chain to run...\n");
+            sleep(3);
+        }
+    }
+
+    while (true)
+    {
+        crust::BlockHeader *block_header = this->get_block_header();
+        if (block_header->number >= start_block_height)
+        {
+            break;
+        }
+        else
+        {
+            p_log->info("Wait for the chain to execute after %lu blocks, now is %lu ...\n", start_block_height, block_header->number);
+            sleep(3);
+        }
+    }
+
+    return true;
+}
+
+/**
  * @description: post tee identity to chain chain
  * @param identity -> tee identity
  * @return: success or fail

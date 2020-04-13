@@ -32,6 +32,7 @@ public:
     bool post_tee_work_report(std::string work_report);
     Chain(std::string url, std::string password_tmp, std::string backup_tmp);
     bool is_online(void);
+    bool wait_for_running(void);
     ~Chain();
 };
 
