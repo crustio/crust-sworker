@@ -127,9 +127,9 @@ int ApiHandler::start()
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
         status_ret = ecall_store_quote(global_eid, &crust_status,
-                                       (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
-                                       data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
-                                       off_chain_chain_account_id.size());
+                (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
+                data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
+                off_chain_chain_account_id.size());
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store and verify offChain node data failed!\n");
@@ -459,7 +459,7 @@ int ApiHandler::start()
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_seal_data(global_eid, &crust_status, root_hash, HASH_LENGTH,
-                                                       p_src, src_len, p_sealed_data, sealed_data_size_r);
+                p_src, src_len, p_sealed_data, sealed_data_size_r);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
@@ -544,7 +544,7 @@ int ApiHandler::start()
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = ecall_unseal_data(global_eid, &crust_status,
-                                                         p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
+                p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {

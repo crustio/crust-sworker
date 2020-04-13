@@ -106,7 +106,7 @@ crust_status_t storage_seal_data(const uint8_t *root_hash, uint32_t root_hash_le
     // Get sealed data
     uint8_t *p_sealed_data_r = NULL;
     crust_status_t crust_status = seal_data_mrenclave(p_src_r, src_r_len, 
-                (sgx_sealed_data_t**)&p_sealed_data_r, &sealed_data_size);
+            (sgx_sealed_data_t**)&p_sealed_data_r, &sealed_data_size);
     if (CRUST_SUCCESS != crust_status || p_sealed_data_r == NULL)
     {
         return CRUST_SEAL_DATA_FAILED;
