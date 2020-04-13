@@ -1,5 +1,8 @@
 #include "EntryNetwork.h"
 
+extern sgx_enclave_id_t global_eid;
+crust::Log *p_log = crust::Log::get_instance();
+
 /**
  * @description: entry network off-chain node sends quote to onchain node to verify identity
  * @param p_config -> configurations

@@ -1,11 +1,6 @@
 #ifndef _CRUST_PROCESS_H_
 #define _CRUST_PROCESS_H_
 
-#include <sgx_key_exchange.h>
-#include <sgx_report.h>
-#include <sgx_uae_service.h>
-#include <sgx_urts.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
@@ -17,17 +12,21 @@
 #include <mutex>
 #include <map>
 #include <fstream>
-#include "sgx_error.h"
-#include "sgx_eid.h"
-#include "sgx_urts.h"
-#include "sgx_capable.h"
-#include "SgxSupport.h"
+
+#include <sgx_key_exchange.h>
+#include <sgx_report.h>
+#include <sgx_uae_service.h>
+#include <sgx_error.h>
+#include <sgx_eid.h>
+#include <sgx_urts.h>
+#include <sgx_capable.h>
+
 #include "Enclave_u.h"
+#include "SgxSupport.h"
 #include "Config.h"
 #include "ApiHandler.h"
 #include "Ipfs.h"
 #include "Chain.h"
-#include "ValidationStatus.h"
 #include "FormatUtils.h"
 #include "Common.h"
 #include "Resource.h"
