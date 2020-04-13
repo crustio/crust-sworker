@@ -444,7 +444,7 @@ void *do_upload_work_report(void *)
                         p_log->info("Send work report to crust chain successfully!\n");
                     }
                 }
-                if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
+                else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
                 {
                     p_log->info("Block height expired.\n");
                 }

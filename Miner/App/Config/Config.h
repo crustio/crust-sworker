@@ -16,7 +16,6 @@ class Config
 public:
     // base information
     std::string base_path;              /* TEE base path */
-    std::string recover_file_path;      /* Recover file path */
     std::string empty_path;             /* Empty validation files base path */
     std::string db_path;                /* DB path */
     size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
