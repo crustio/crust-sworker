@@ -4,8 +4,12 @@
 #include "Config.h"
 #include "Log.h"
 
-DataBase* DataBase::database = NULL;
 crust::Log *p_log = crust::Log::get_instance();
+
+namespace crust
+{
+
+DataBase* DataBase::database = NULL;
 
 DataBase *DataBase::get_instance()
 {
@@ -76,3 +80,5 @@ crust_status_t DataBase::get(std::string key, std::string &value)
 
     return CRUST_SUCCESS;
 }
+
+} // namespace crust

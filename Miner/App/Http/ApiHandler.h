@@ -25,14 +25,12 @@
 class ApiHandler
 {
 public:
-    ApiHandler(sgx_enclave_id_t *p_global_eid_in);
+    ApiHandler();
     ~ApiHandler();
     int start();
     int stop();
-    int test = 32;
 
 private:
-    static sgx_enclave_id_t *p_global_eid; /* The point for sgx global eid*/
     httplib::Server *server;
     void handle_get(httplib::Request req);
     void handle_post(httplib::Request req);

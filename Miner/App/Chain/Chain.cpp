@@ -1,46 +1,25 @@
 #include "Chain.h"
-#include "Config.h"
 
-Chain *chain = NULL;
 crust::Log *p_log = crust::Log::get_instance();
 
-/**
- * @description: new a global chain handler to access chain node
- * @param url -> chain API base url
- * @param password -> the password of chain account id
- * @param backup ->  the backup of chain account id
- * @return: the point of chain handler
- */
-Chain *new_chain(std::string url, std::string password, std::string backup)
+namespace crust
 {
-    if (chain != NULL)
-    {
-        delete chain;
-    }
 
-    chain = new Chain(url, password, backup);
-    return chain;
-}
+Chain *Chain::chain = NULL;
 
 /**
- * @description: get the global chain handler to access chain node 
- * @return: the point of chain handle
- */
-Chain *get_chain(void)
+ * @desination: single instance class function to get instance
+ * @return: chain instance
+ * */
+Chain *Chain::get_instance()
 {
-    if (chain == NULL)
+    if (Chain::chain == NULL)
     {
-        p_log->info("Create chain instance!\n");
         Config *p_config = Config::get_instance();
-        if (p_config == NULL)
-        {
-            p_log->err("Get configuration failed!\n");
-            return NULL;
-        }
-        chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup);
+        Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup);
     }
 
-    return chain;
+    return Chain::chain;
 }
 
 /**
@@ -121,6 +100,44 @@ bool Chain::is_online(void)
 }
 
 /**
+ * @description: waitting for the crust chain to run
+ * @return: success or not
+ * */
+bool Chain::wait_for_running(void)
+{
+    size_t start_block_height = 10;
+
+    while (true)
+    {
+        if (this->is_online())
+        {
+            break;
+        }
+        else
+        {
+            p_log->info("Waitting for chain to run...\n");
+            sleep(3);
+        }
+    }
+
+    while (true)
+    {
+        crust::BlockHeader *block_header = this->get_block_header();
+        if (block_header->number >= start_block_height)
+        {
+            break;
+        }
+        else
+        {
+            p_log->info("Wait for the chain to execute after %lu blocks, now is %lu ...\n", start_block_height, block_header->number);
+            sleep(3);
+        }
+    }
+
+    return true;
+}
+
+/**
  * @description: post tee identity to chain chain
  * @param identity -> tee identity
  * @return: success or fail
@@ -183,3 +200,5 @@ bool Chain::post_tee_work_report(std::string work_report)
 
     return false;
 }
+
+} // namespace crust

@@ -5,27 +5,23 @@
 
 using namespace httplib;
 
+extern sgx_enclave_id_t global_eid;
+
 /* Used to show validation status*/
-const char *validation_status_strings[] = {"ValidateStop", "ValidateWaiting", "ValidateMeaningful", "ValidateEmpty"};
+const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
 bool in_changing_empty = false;
 std::mutex change_empty_mutex;
 int change_empty_num = 0;
-
-sgx_enclave_id_t *ApiHandler::p_global_eid = NULL;
 
 std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: constructor
- * @param url -> API base url 
- * @param p_global_eid The point for sgx global eid  
  */
-ApiHandler::ApiHandler(sgx_enclave_id_t *p_global_eid_in)
+ApiHandler::ApiHandler()
 {
-    // TODO: Should use https server
     this->server = new Server();
-    ApiHandler::p_global_eid = p_global_eid_in;
 }
 
 // TODO: Should limit thread number in enclave
@@ -47,16 +43,16 @@ int ApiHandler::start()
     // Outter APIs
     std::string path = urlendpoint->base + "/status";
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
-        enum ValidationStatus validation_status = ValidateStop;
+        validation_status_t validation_status = VALIDATE_STOP;
 
-        if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
+        if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
         {
             p_log->err("Get validation status failed.\n");
             res.set_content("InternalError", "text/plain");
             return;
         }
 
-        res.set_content(std::string("{\"validationStatus\":") + "\"" + validation_status_strings[validation_status] + "\"}", "text/plain");
+        res.set_content(std::string("{\"validation_status\":") + "\"" + validation_status_strings[validation_status] + "\"}", "text/plain");
         return;
     });
 
@@ -64,14 +60,14 @@ int ApiHandler::start()
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         /* Call ecall function to get work report */
         size_t report_len = 0;
-        if (ecall_generate_validation_report(*ApiHandler::p_global_eid, &report_len) != SGX_SUCCESS)
+        if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
         {
             p_log->err("Generate validation report failed.\n");
             res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
-        if (ecall_get_validation_report(*ApiHandler::p_global_eid, report, report_len) != SGX_SUCCESS)
+        if (ecall_get_validation_report(global_eid, report, report_len) != SGX_SUCCESS)
         {
             p_log->err("Get validation report failed.\n");
             res.set_content("InternalError", "text/plain");
@@ -130,10 +126,10 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(*this->p_global_eid, &crust_status,
-                                       (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
-                                       data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
-                                       off_chain_chain_account_id.size());
+        status_ret = ecall_store_quote(global_eid, &crust_status,
+                (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
+                data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
+                off_chain_chain_account_id.size());
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store and verify offChain node data failed!\n");
@@ -238,7 +234,7 @@ int ApiHandler::start()
 
         /* Verify IAS report in enclave */
         entry_network_signature ensig;
-        status_ret = ecall_verify_iasreport(*ApiHandler::p_global_eid, &crust_status, (const char **)ias_report.data(), ias_report.size(), &ensig);
+        status_ret = ecall_verify_iasreport(global_eid, &crust_status, (const char **)ias_report.data(), ias_report.size(), &ensig);
         if (SGX_SUCCESS == status_ret)
         {
             if (CRUST_SUCCESS == crust_status)
@@ -377,7 +373,7 @@ int ApiHandler::start()
 
         // Validate MerkleTree
         crust_status_t crust_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_validate_merkle_tree(*this->p_global_eid, &crust_status, &root) ||
+        if (SGX_SUCCESS != ecall_validate_merkle_tree(global_eid, &crust_status, &root) ||
             CRUST_SUCCESS != crust_status)
         {
             if (CRUST_SUCCESS != crust_status)
@@ -462,8 +458,8 @@ int ApiHandler::start()
         // Seal data
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_seal_data(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH,
-                                                       p_src, src_len, p_sealed_data, sealed_data_size_r);
+        sgx_status_t sgx_status = ecall_seal_data(global_eid, &crust_status, root_hash, HASH_LENGTH,
+                p_src, src_len, p_sealed_data, sealed_data_size_r);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
@@ -547,8 +543,8 @@ int ApiHandler::start()
         // Unseal data
         std::string content;
         crust_status_t crust_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_unseal_data(*this->p_global_eid, &crust_status,
-                                                         p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
+        sgx_status_t sgx_status = ecall_unseal_data(global_eid, &crust_status,
+                p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
@@ -620,7 +616,7 @@ int ApiHandler::start()
 
         // Generate MerkleTree
         crust_status_t crust_status = CRUST_SUCCESS;
-        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(*this->p_global_eid, &crust_status, root_hash, HASH_LENGTH);
+        sgx_status_t sgx_status = ecall_gen_new_merkle_tree(global_eid, &crust_status, root_hash, HASH_LENGTH);
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
         {
             if (CRUST_SUCCESS != crust_status)
@@ -706,16 +702,16 @@ int ApiHandler::start()
         else
         {
             // Check TEE has already launched
-            enum ValidationStatus validation_status = ValidateStop;
+            validation_status_t validation_status = VALIDATE_STOP;
 
-            if (ecall_return_validation_status(*ApiHandler::p_global_eid, &validation_status) != SGX_SUCCESS)
+            if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
             {
                 p_log->info("Get validation status failed.\n");
                 res.set_content("Get validation status failed", "text/plain");
                 res.status = 500;
                 goto end_change_empty;
             }
-            else if (validation_status == ValidateStop)
+            else if (validation_status == VALIDATE_STOP)
             {
                 p_log->info("TEE has not been fully launched.\n");
                 res.set_content("TEE has not been fully launched", "text/plain");
@@ -783,7 +779,7 @@ void *ApiHandler::change_empty(void *)
 #pragma omp parallel for num_threads(p_config->srd_thread_num)
         for (size_t i = 0; i < (size_t)true_change; i++)
         {
-            ecall_srd_increase_empty(*ApiHandler::p_global_eid, p_config->empty_path.c_str());
+            ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
         }
 
         p_config->change_empty_capacity(true_change);
@@ -793,7 +789,7 @@ void *ApiHandler::change_empty(void *)
     {
         change = -change;
         size_t true_decrease = 0;
-        ecall_srd_decrease_empty(*ApiHandler::p_global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
+        ecall_srd_decrease_empty(global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
         p_config->change_empty_capacity(-change);
         p_log->info("Decrease %luG empty files success, the empty workload will change in next validation loop\n", true_decrease);
     }

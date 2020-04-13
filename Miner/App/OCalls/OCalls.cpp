@@ -240,7 +240,7 @@ crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uin
  * */
 crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len)
 {
-    return DataBase::get_instance()->add(std::string(key), std::string(hexstring(value, value_len)));
+    return crust::DataBase::get_instance()->add(std::string(key), std::string(hexstring(value, value_len)));
 }
 
 /**
@@ -250,7 +250,7 @@ crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t v
  * */
 crust_status_t ocall_persist_del(const char *key)
 {
-    return DataBase::get_instance()->del(std::string(key));
+    return crust::DataBase::get_instance()->del(std::string(key));
 }
 
 /**
@@ -262,7 +262,7 @@ crust_status_t ocall_persist_del(const char *key)
  * */
 crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len)
 {
-    return DataBase::get_instance()->set(std::string(key), std::string(hexstring(value, value_len)));
+    return crust::DataBase::get_instance()->set(std::string(key), std::string(hexstring(value, value_len)));
 }
 
 /**
@@ -275,7 +275,7 @@ crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t v
 crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len)
 {
     std::string val;
-    crust_status_t crust_status = DataBase::get_instance()->get(std::string(key), val);
+    crust_status_t crust_status = crust::DataBase::get_instance()->get(std::string(key), val);
     *value = hex_string_to_bytes(val.c_str(), val.size());
     if (*value == NULL)
     {

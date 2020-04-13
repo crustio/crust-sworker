@@ -19,7 +19,7 @@ enclave {
         public void ecall_main_loop([in, string] const char* empty_path);
         public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
         public crust_status_t ecall_set_chain_account_id([in, size=len] const char *account_id, size_t len);
-        public enum ValidationStatus ecall_return_validation_status(void);
+        public validation_status_t ecall_return_validation_status(void);
         public void ecall_get_validation_report([out, size=len] char *report, size_t len);
         public void ecall_generate_validation_report([out] size_t *size); 
         public crust_status_t ecall_get_signed_validation_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 

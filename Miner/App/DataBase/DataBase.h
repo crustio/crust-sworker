@@ -4,6 +4,9 @@
 #include "leveldb/db.h"
 #include "CrustStatus.h"
 
+namespace crust
+{
+
 class DataBase
 {
 public:
@@ -22,5 +25,7 @@ private:
     leveldb::ReadOptions read_opt;
     leveldb::WriteOptions write_opt;
 };
+
+} // namespace crust
 
 #endif /* !_CRUST_DATABASE_H_ */
