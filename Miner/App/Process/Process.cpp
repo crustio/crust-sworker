@@ -1,4 +1,5 @@
 #include "Process.h"
+#include "DataBase.h"
 
 #define RECEIVE_PID_RETRY 30
 
@@ -122,6 +123,9 @@ void *start_http(void *)
  */
 bool initialize_components(void)
 {
+    /* Create base path */
+    create_directory(p_config->empty_path);
+
     /* IPFS component */
     if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
     {
@@ -150,6 +154,13 @@ bool initialize_components(void)
         return false;
     }
     p_log->info("Start rest service successfully!\n");
+
+    /* Initialize DataBase */
+    if (DataBase::get_instance() == NULL)
+    {
+        p_log->err("Initialize DataBase failed!\n");
+        return false;
+    }
 
     p_log->info("Init components successfully!\n");
 
@@ -311,7 +322,8 @@ bool entry_network()
     /* Send quote to validation node */
     p_log->info("Sending quote to on-chain node...\n");
 
-    // Send quote to validation node, try out 3 times for network error.
+    /* Send quote to validation node, try out 3 times for network error. */
+    // Get signed identity info
     std::string req_data;
     std::string send_data;
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -334,6 +346,7 @@ bool entry_network()
     req_data.append(signature_str).append("\" }");
     int net_tryout = IAS_TRYOUT;
 
+    // Send to validation node
     httplib::Params params;
     params.emplace("arg", req_data);
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->validator_api_base_url);
@@ -460,7 +473,6 @@ void *do_srd_empty_disk(void *)
     in_changing_empty = true;
     change_empty_mutex.unlock();
 
-    create_directory(p_config->empty_path);
     size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
     p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
     size_t true_srd_capacity = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
@@ -515,7 +527,7 @@ void start(void)
     }
 
     /* Restore data from file */
-    if (SGX_SUCCESS != ecall_restore_enclave_data(global_eid, &crust_status, p_config->recover_file_path.c_str()) || CRUST_SUCCESS != crust_status)
+    if (SGX_SUCCESS != ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
         // Restore data failed
         p_log->warn("Restore enclave data failed!Failed code:%lx\n", crust_status);
@@ -593,7 +605,7 @@ void start(void)
     }
 
     /* Main validate loop */
-    ecall_main_loop(global_eid, p_config->empty_path.c_str(), p_config->recover_file_path.c_str());
+    ecall_main_loop(global_eid, p_config->empty_path.c_str());
 
 cleanup:
     /* End and release */

@@ -60,11 +60,13 @@ else
 endif
 
 App_C_Files := $(wildcard App/Utils/*.c)
-App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Ipfs/*.cpp) \
-	$(wildcard App/Config/*.cpp) $(wildcard App/Http/*.cpp) $(wildcard App/OCalls/*.cpp) \
-	$(wildcard App/Process/*.cpp) $(wildcard App/Chain/*.cpp) $(wildcard App/Log/*.cpp)
+App_Cpp_Files := App/App.cpp $(wildcard App/Utils/*.cpp) $(wildcard App/Config/*.cpp) \
+	$(wildcard App/Log/*.cpp) $(wildcard App/DataBase/*.cpp) $(wildcard App/Http/*.cpp) \
+	$(wildcard App/Ipfs/*.cpp) $(wildcard App/OCalls/*.cpp) $(wildcard App/Process/*.cpp) \
+	$(wildcard App/Chain/*.cpp) \
+	
 App_Include_Paths := -IInclude -IApp -IApp/Ipfs -IApp/Utils -IApp/Http -IApp/Config -IApp/OCalls \
-	-IApp/Process -IApp/Chain -IApp/Log -I$(SGX_SDK)/include
+	-IApp/Process -IApp/Chain -IApp/Log -IApp/DataBase -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
@@ -82,7 +84,7 @@ endif
 
 App_Cpp_Flags := $(App_C_Flags)
 App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
-	-lpthread -ldl -lboost_system -lssl -lcrypto -fopenmp \
+	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp \
 	-l:libsgx_usgxssl.a -l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs
 
 ifneq ($(SGX_MODE), HW)
@@ -108,10 +110,10 @@ endif
 Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/Srd/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
-	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Verify/*.cpp) \
-	$(wildcard Enclave/Storage/*.cpp)
-Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Verify -IEnclave/Models \
-	-IEnclave/Srd -IEnclave/Validator -IEnclave/Storage -I$(SGX_SDK)/include \
+	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Models/*.cpp) $(wildcard Enclave/Identity/*.cpp) \
+	$(wildcard Enclave/Storage/*.cpp) $(wildcard Enclave/Persistence/*.cpp)
+Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Identity -IEnclave/Models \
+	-IEnclave/Srd -IEnclave/Validator -IEnclave/Storage -IEnclave/Persistence -I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -Wno-type-limits

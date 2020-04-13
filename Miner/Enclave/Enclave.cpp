@@ -1,26 +1,13 @@
 #include "Enclave.h"
 #include "Storage.h"
+#include "Persistence.h"
+#include "Identity.h"
 
 using namespace std;
 
 // TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 enum ValidationStatus validation_status = ValidateStop;
-// Store crust account id
-string g_chain_account_id;
-// Can only se crust account id once
-bool g_is_set_account_id = false;
-// Current code measurement
-sgx_measurement_t current_mr_enclave;
-// Current node public and private key pair
-ecc_key_pair id_key_pair;
-// Map used to store off-chain request
-map<vector<uint8_t>, vector<uint8_t>> accid_pubkey_map;
-// Used to check current block head out-of-date
-size_t now_work_report_block_height = 0;
-
-extern map<vector<uint8_t>, tuple<string, size_t, size_t>> tree_meta_map;
-extern map<vector<uint8_t>, MerkleTree *> new_tree_map;
 
 //------------------Srd ecalls-----------------//
 
@@ -47,7 +34,7 @@ size_t ecall_srd_decrease_empty(const char* path, size_t change)
  * @description: ecall main loop
  * @param empty_path -> the empty directory path
  */
-void ecall_main_loop(const char *empty_path, const char *recover_file_path)
+void ecall_main_loop(const char *empty_path)
 {
     while (true)
     {
@@ -73,7 +60,7 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
         validation_status = ValidateWaiting;
         get_workload()->show();
 
-        if (CRUST_SUCCESS != (crust_status = ecall_store_enclave_data(recover_file_path)))
+        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
         {
             log_err("Store enclave data failed!Error code:%lx\n", crust_status);
         }
@@ -87,153 +74,23 @@ void ecall_main_loop(const char *empty_path, const char *recover_file_path)
 }
 
 /**
- * @description: Store enclave data to file
- * @return: Store status
- * */
-crust_status_t ecall_store_enclave_data(const char *recover_file_path)
-{
-    // TODO: Group seal related functions into a class
-    // Gen seal data
-    std::string seal_data = get_workload()->serialize_workload();
-    seal_data.append(CRUST_SEPARATOR)
-        .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
-    seal_data.append(CRUST_SEPARATOR)
-        .append(std::to_string(now_work_report_block_height));
-    seal_data.append(CRUST_SEPARATOR)
-        .append(g_chain_account_id);
-    // Seal workload string
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, seal_data.size());
-    sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_size);
-    memset(p_sealed_data, 0, sealed_data_size);
-    sgx_attributes_t sgx_attr;
-    sgx_attr.flags = 0xFF0000000000000B;
-    sgx_attr.xfrm = 0;
-    sgx_misc_select_t sgx_misc = 0xF0000000;
-    sgx_status = sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
-                                  0, NULL, seal_data.size(), (const uint8_t *)seal_data.c_str(),
-                                  sealed_data_size, p_sealed_data);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_SEAL_DATA_FAILED;
-        goto cleanup;
-    }
-
-    // Store sealed data to file
-    if (SGX_SUCCESS != ocall_save_file(recover_file_path, (unsigned char *)p_sealed_data, sealed_data_size))
-    {
-        crust_status = CRUST_STORE_DATA_TO_FILE_FAILED;
-    }
-
-cleanup:
-    free(p_sealed_data);
-
-    return crust_status;
-}
-
-/**
  * @description: Restore enclave data from file
  * @return: Restore status
  * */
-crust_status_t ecall_restore_enclave_data(const char *recover_file_path)
+crust_status_t ecall_restore_metadata()
 {
-    unsigned char *p_sealed_data = NULL;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    size_t spos = 0, epos = 0;
-    size_t sealed_data_size;
-    string unseal_data;
-    string plot_data;
-    string id_key_pair_str;
-    uint8_t *byte_buf = NULL;
-
-    /* Unseal data */
-    // Get sealed data from file
-    if (SGX_SUCCESS != ocall_get_file(recover_file_path, &p_sealed_data, &sealed_data_size))
-    {
-        crust_status = CRUST_GET_DATA_FROM_FILE_FAILED;
-        return crust_status;
-    }
-    // Create buffer in enclave
-    sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t *)malloc(sealed_data_size);
-    memset(p_sealed_data_r, 0, sealed_data_size);
-    memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
-    // Create buffer for decrypted data
-    uint32_t decrypted_data_len = sgx_get_encrypt_txt_len(p_sealed_data_r);
-    uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_len);
-    // Unseal sealed data
-    sgx_status = sgx_unseal_data(p_sealed_data_r, NULL, NULL,
-                                 p_decrypted_data, &decrypted_data_len);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_UNSEAL_DATA_FAILED;
-        goto cleanup;
-    }
-
-    /* Restore related data */
-    unseal_data = std::string((const char *)p_decrypted_data, decrypted_data_len);
-
-    // Get plot data
-    spos = 0;
-    epos = unseal_data.find(CRUST_SEPARATOR, spos);
-    plot_data = unseal_data.substr(spos, epos - spos);
-    if (CRUST_SUCCESS != (crust_status = get_workload()->restore_workload(plot_data)))
-    {
-        crust_status = CRUST_BAD_SEAL_DATA;
-        goto cleanup;
-    }
-
-    // Get id_key_pair
-    spos = epos + strlen(CRUST_SEPARATOR);
-    epos = unseal_data.find(CRUST_SEPARATOR, spos);
-    if (epos == std::string::npos)
-    {
-        crust_status = CRUST_BAD_SEAL_DATA;
-        goto cleanup;
-    }
-    id_key_pair_str = unseal_data.substr(spos, epos - spos);
-    memset(&id_key_pair, 0, sizeof(id_key_pair));
-    byte_buf = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
-    if (byte_buf == NULL)
-    {
-        crust_status = CRUST_UNEXPECTED_ERROR;
-        goto cleanup;
-    }
-    memcpy(&id_key_pair, byte_buf, sizeof(id_key_pair));
-    free(byte_buf);
-
-    // Get now_work_report_block_height
-    spos = epos + strlen(CRUST_SEPARATOR);
-    epos = unseal_data.find(CRUST_SEPARATOR, spos);
-    if (epos == std::string::npos)
-    {
-        crust_status = CRUST_BAD_SEAL_DATA;
-        goto cleanup;
-    }
-    now_work_report_block_height = std::stoul(unseal_data.substr(spos, epos - spos));
-
-    // Get g_chain_account_id
-    spos = epos + strlen(CRUST_SEPARATOR);
-    epos = unseal_data.size();
-    g_chain_account_id = unseal_data.substr(spos, epos - spos);
-
-cleanup:
-    free(p_sealed_data_r);
-    free(p_decrypted_data);
-
-    return crust_status;
+    return id_restore_metadata();
 }
 
+/**
+ * @description: Compare chain account with enclave's
+ * @param account_id -> Pointer to account id
+ * @param len -> account id length
+ * @return: Compare status
+ * */
 crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
 {
-    string account_id_str = string(account_id, len);
-    if (g_chain_account_id.compare(account_id_str) != 0)
-    {
-        return CRUST_NOT_EQUAL;
-    }
-
-    return CRUST_SUCCESS;
+    return id_cmp_chain_account_id(account_id, len);
 }
 
 /**
@@ -242,23 +99,7 @@ crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
  * */
 crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
 {
-    // Check if value has been set
-    if (g_is_set_account_id)
-    {
-        return CRUST_DOUBLE_SET_VALUE;
-    }
-
-    char *buffer = (char *)malloc(len);
-    if (buffer == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(buffer, 0, len);
-    memcpy(buffer, account_id, len);
-    g_chain_account_id = string(buffer, len);
-    g_is_set_account_id = true;
-
-    return CRUST_SUCCESS;
+    return id_set_chain_account_id(account_id, len);
 }
 
 /**
@@ -304,13 +145,13 @@ crust_status_t ecall_get_signed_validation_report(const char *block_hash, size_t
         sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
 {
     // Judge whether block height is expired
-    if (block_height <= now_work_report_block_height)
+    if (block_height <= id_get_cwr_block_height())
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
     else
     {
-        now_work_report_block_height = block_height;
+        id_set_cwr_block_height(block_height);
     }
 
     // Create signature data
@@ -342,6 +183,7 @@ crust_status_t ecall_get_signed_validation_report(const char *block_hash, size_t
     memcpy(meaningful_workload_size_u, meaningful_workload_size_str.c_str(), meaningful_workload_size_str.size());
 
     size_t block_hash_len = strlen(block_hash);
+    ecc_key_pair id_key_pair = id_get_key_pair();
     size_t buf_len = sizeof(id_key_pair.pub_key) + block_height_str.size() + block_hash_len / 2 + HASH_LENGTH + empty_disk_capacity_str.size() + meaningful_workload_size_str.size();
     uint8_t *sigbuf = (uint8_t *)malloc(buf_len);
     memset(sigbuf, 0, buf_len);
@@ -376,7 +218,7 @@ crust_status_t ecall_get_signed_validation_report(const char *block_hash, size_t
     }
 
     sgx_status = sgx_ecdsa_sign(p_sigbuf, buf_len,
-                                &id_key_pair.pri_key, p_signature, ecc_state);
+            &id_key_pair.pri_key, p_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         crust_status = CRUST_SGX_SIGN_FAILED;
@@ -401,30 +243,17 @@ cleanup:
     return crust_status;
 }
 
+/**
+ * @description: Sign network entry information
+ * @param p_partial_data -> Partial data represented off chain node identity
+ * @param data_size -> Partial data size
+ * @param p_signature -> Pointer to signature
+ * @return: Sign status
+ * */
 crust_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
         sgx_ec256_signature_t *p_signature)
 {
-    std::string data_str(p_partial_data, data_size);
-    data_str.append(g_chain_account_id);
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        return CRUST_SGX_FAILED;
-    }
-
-    sgx_status = sgx_ecdsa_sign((const uint8_t *)data_str.c_str(), data_str.size(),
-                                &id_key_pair.pri_key, p_signature, ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_SGX_SIGN_FAILED;
-    }
-
-    sgx_ecc256_close_context(ecc_state);
-
-    return crust_status;
+    return id_sign_network_entry(p_partial_data, data_size, p_signature);
 }
 
 /*
@@ -441,35 +270,7 @@ crust_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t dat
  * */
 sgx_status_t ecall_gen_key_pair()
 {
-    // Generate public and private key
-    sgx_ec256_public_t pub_key;
-    sgx_ec256_private_t pri_key;
-    memset(&pub_key, 0, sizeof(pub_key));
-    memset(&pri_key, 0, sizeof(pri_key));
-    sgx_status_t se_ret;
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    se_ret = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != se_ret)
-    {
-        return se_ret;
-    }
-    se_ret = sgx_ecc256_create_key_pair(&pri_key, &pub_key, ecc_state);
-    if (SGX_SUCCESS != se_ret)
-    {
-        return se_ret;
-    }
-    if (ecc_state != NULL)
-    {
-        sgx_ecc256_close_context(ecc_state);
-    }
-
-    // Store key pair in enclave
-    memset(&id_key_pair.pub_key, 0, sizeof(id_key_pair.pub_key));
-    memset(&id_key_pair.pri_key, 0, sizeof(id_key_pair.pri_key));
-    memcpy(&id_key_pair.pub_key, &pub_key, sizeof(pub_key));
-    memcpy(&id_key_pair.pri_key, &pri_key, sizeof(pri_key));
-
-    return SGX_SUCCESS;
+    return id_gen_key_pair();
 }
 
 /**
@@ -479,16 +280,7 @@ sgx_status_t ecall_gen_key_pair()
  * */
 sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
-
-    // Copy public key to report data
-    sgx_report_data_t report_data;
-    memset(&report_data, 0, sizeof(report_data));
-    memcpy(&report_data, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-#ifdef SGX_HW_SIM
-    return sgx_create_report(NULL, &report_data, report);
-#else
-    return sgx_create_report(target_info, &report_data, report);
-#endif
+    return id_get_report(report, target_info);
 }
 
 /**
@@ -497,78 +289,17 @@ sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_in
  * */
 sgx_status_t ecall_gen_sgx_measurement()
 {
-    sgx_status_t status = SGX_SUCCESS;
-    sgx_report_t verify_report;
-    sgx_target_info_t verify_target_info;
-    sgx_report_data_t verify_report_data;
-
-    memset(&verify_report, 0, sizeof(sgx_report_t));
-    memset(&verify_report_data, 0, sizeof(sgx_report_data_t));
-    memset(&verify_target_info, 0, sizeof(sgx_target_info_t));
-
-    status = sgx_create_report(&verify_target_info, &verify_report_data, &verify_report);
-    if (SGX_SUCCESS != status)
-    {
-        return status;
-    }
-
-    memset(&current_mr_enclave, 0, sizeof(sgx_measurement_t));
-    memcpy(&current_mr_enclave, &verify_report.body.mr_enclave, sizeof(sgx_measurement_t));
-
-    return status;
+    return id_gen_sgx_measurement();
 }
 
 /**
  * @description: Store off-chain node quote and verify signature
  * @return: Store status
  * */
-crust_status_t ecall_store_quote(const char *quote, size_t len,
-        const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature, 
-        const uint8_t *p_account_id, uint32_t account_id_sz)
+crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
+        sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz)
 {
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    uint8_t result;
-    sgx_quote_t *offChain_quote = (sgx_quote_t *)malloc(len);
-    if (offChain_quote == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-
-    memset(offChain_quote, 0, len);
-    memcpy(offChain_quote, quote, len);
-    uint8_t *p_offchain_pubkey = offChain_quote->report_body.report_data.d;
-
-    // Verify off chain node's identity
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        return CRUST_SGX_FAILED;
-    }
-
-    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t*)p_offchain_pubkey,
-            p_signature, &result, ecc_state);
-
-    if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
-    {
-        crust_status = CRUST_SGX_VERIFY_SIG_FAILED;
-    }
-    else
-    {
-        uint8_t *p_account_id_u = hex_string_to_bytes(p_account_id, account_id_sz);
-        if (p_account_id_u == NULL)
-        {
-            return CRUST_MALLOC_FAILED;
-        }
-        vector<uint8_t> account_id_v(p_account_id_u, p_account_id_u + account_id_sz / 2);
-        vector<uint8_t> off_chain_pub_key_v(p_offchain_pubkey, p_offchain_pubkey + REPORT_DATA_SIZE);
-        accid_pubkey_map[account_id_v] = off_chain_pub_key_v;
-    }
-
-    sgx_ecc256_close_context(ecc_state);
-
-    return crust_status;
+    return id_store_quote(quote, len, p_data, data_size, p_signature, p_account_id, account_id_sz);
 }
 
 /**
@@ -578,9 +309,9 @@ crust_status_t ecall_store_quote(const char *quote, size_t len,
  * @param p_ensig -> Pointer to entry network report signature
  * @return: verify status
  * */
-ias_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_network_signature *p_ensig)
+crust_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_network_signature *p_ensig)
 {
-    return verify_iasreport(IASReport, len, p_ensig);
+    return id_verify_iasreport(IASReport, len, p_ensig);
 }
 
 /**
@@ -606,11 +337,10 @@ crust_status_t ecall_validate_merkle_tree(MerkleTree **root)
  * @param sealed_data_size -> sealed file block data size
  * @return: Seal and generate result
  * */
-crust_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_hash_len,
+crust_status_t ecall_seal_data(const uint8_t *root_hash, uint32_t root_hash_len,
         const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
 {
-    return storage_seal_file_data(root_hash, root_hash_len, p_src, src_len,
-            p_sealed_data, sealed_data_size);
+    return storage_seal_data(root_hash, root_hash_len, p_src, src_len, p_sealed_data, sealed_data_size);
 }
 
 /**
@@ -621,11 +351,10 @@ crust_status_t ecall_seal_file_data(const uint8_t *root_hash, uint32_t root_hash
  * @param unsealed_data_size -> unsealed file block data size
  * @return: Unseal status
  * */
-crust_status_t ecall_unseal_file_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
+crust_status_t ecall_unseal_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
         uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
 {
-    return storage_unseal_file_data(p_sealed_data, sealed_data_size,
-            p_unsealed_data, unsealed_data_size);
+    return storage_unseal_data(p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
 }
 
 /**

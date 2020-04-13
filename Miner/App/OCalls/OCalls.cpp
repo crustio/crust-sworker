@@ -1,4 +1,5 @@
 #include "OCalls.h"
+#include "DataBase.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
@@ -228,4 +229,59 @@ crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uin
     // TODO: Send path to storage and get corresponding file block
 
     return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Add record to DB
+ * @param key -> Pointer to key
+ * @param value -> Pointer to value
+ * @param value_len -> value length
+ * @return: Add status
+ * */
+crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len)
+{
+    return DataBase::get_instance()->add(std::string(key), std::string(hexstring(value, value_len)));
+}
+
+/**
+ * @description: Delete record from DB
+ * @param key -> Pointer to key
+ * @return: Delete status
+ * */
+crust_status_t ocall_persist_del(const char *key)
+{
+    return DataBase::get_instance()->del(std::string(key));
+}
+
+/**
+ * @description: Update record in DB
+ * @param key -> Pointer to key
+ * @param value -> Pointer to value
+ * @param value_len -> value length
+ * @return: Update status
+ * */
+crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len)
+{
+    return DataBase::get_instance()->set(std::string(key), std::string(hexstring(value, value_len)));
+}
+
+/**
+ * @description: Get record from DB
+ * @param key -> Pointer to key
+ * @param value -> Pointer points to pointer to value
+ * @param value_len -> value length
+ * @return: Get status
+ * */
+crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len)
+{
+    std::string val;
+    crust_status_t crust_status = DataBase::get_instance()->get(std::string(key), val);
+    *value = hex_string_to_bytes(val.c_str(), val.size());
+    if (*value == NULL)
+    {
+        return CRUST_PERSIST_GET_FAILED;
+    }
+    *value_len = val.size() / 2;
+
+    return crust_status;
 }
