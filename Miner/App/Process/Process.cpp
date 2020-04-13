@@ -162,79 +162,6 @@ bool initialize_components(void)
 }
 
 /**
- * @description: Check if there is enough height, send signed validation report to chain
- * */
-void *do_upload_work_report(void *)
-{
-    size_t report_len = 0;
-    sgx_ec256_signature_t ecc_signature;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    crust::Chain* p_chain = crust::Chain::get_instance();
-
-    while (true)
-    {
-        crust::BlockHeader *block_header = p_chain->get_block_header();
-        if (block_header->number % REPORT_BLOCK_HEIGHT_BASE == 0)
-        {
-            sleep(20);
-            // Generate validation report and get report size
-            if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
-            {
-                p_log->err("Generate validation report failed!\n");
-                continue;
-            }
-
-            // Get signed validation report
-            char *report = (char *)malloc(report_len);
-            memset(report, 0, report_len);
-            if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &crust_status,
-                        block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
-            {
-                p_log->err("Get signed validation report failed!\n");
-            }
-            else
-            {
-                if (crust_status == CRUST_SUCCESS)
-                {
-                    // Send signed validation report to crust chain
-                    json::JSON work_json = json::JSON::Load(std::string(report));
-                    work_json["sig"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
-                    work_json["block_height"] = block_header->number;
-                    work_json["block_hash"] = block_header->hash;
-                    std::string workStr = work_json.dump();
-                    p_log->info("Sign validation report successfully!\n%s\n", workStr.c_str());
-                    // Delete space and line break
-                    workStr.erase(std::remove(workStr.begin(), workStr.end(), ' '), workStr.end());
-                    workStr.erase(std::remove(workStr.begin(), workStr.end(), '\n'), workStr.end());
-                    if (!p_chain->post_tee_work_report(workStr))
-                    {
-                        p_log->err("Send work report to crust chain failed!\n");
-                    }
-                    else
-                    {
-                        p_log->info("Send work report to crust chain successfully!\n");
-                    }
-                }
-                else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
-                {
-                    p_log->info("Block height expired.\n");
-                }
-                else
-                {
-                    p_log->err("Get signed validation report failed! Error code:%x\n", crust_status);
-                }
-            }
-            free(report);
-        }
-        else
-        {
-            p_log->info("Block height:%d is not enough!\n", block_header->number);
-            sleep(3);
-        }
-    }
-}
-
-/**
  * @description: seal random data to fill disk
  * @return: successed or failed
  */
@@ -369,7 +296,7 @@ void start(void)
     if (!offline_chain_mode)
     {   
         // Check block height and post report to chain
-        if (pthread_create(&wthread, NULL, do_upload_work_report, NULL) != 0)
+        if (pthread_create(&wthread, NULL, work_report_loop, NULL) != 0)
         {
             p_log->err("Create checking block info thread failed!\n");
             goto cleanup;

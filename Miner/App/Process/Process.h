@@ -33,8 +33,7 @@
 #include "FileUtils.h"
 #include "Log.h"
 #include "EntryNetwork.h"
-
-#define REPORT_BLOCK_HEIGHT_BASE    300
+#include "WorkReportLoop.h"
 
 int process_run();
 

@@ -702,7 +702,7 @@ int ApiHandler::start()
         else
         {
             // Check TEE has already launched
-            enum validation_status_t validation_status = ValidateStop;
+            enum validation_status_t validation_status = VALIDATE_STOP;
 
             if (ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
             {
@@ -711,7 +711,7 @@ int ApiHandler::start()
                 res.status = 500;
                 goto end_change_empty;
             }
-            else if (validation_status == ValidateStop)
+            else if (validation_status == VALIDATE_STOP)
             {
                 p_log->info("TEE has not been fully launched.\n");
                 res.set_content("TEE has not been fully launched", "text/plain");
