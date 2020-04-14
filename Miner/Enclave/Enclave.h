@@ -31,6 +31,6 @@
 #include "EUtils.h"
 #include "Validator.h"
 #include "ValidationStatus.h"
-#include "Srd/Srd.h"
+#include "Srd.h"
 
 #endif /* !_CRUST_ENCLAVE_H_ */
