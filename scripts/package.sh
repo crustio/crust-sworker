@@ -21,6 +21,8 @@ VERSION=$(cat $instdir/VERSION)
 pkgdir=$instdir/crust-tee
 enclavefile="enclave.signed.so"
 SYNCFILE=$instdir/.syncfile
+sgxsdkdir="/opt/intel/sgxsdk"
+sgxssldir="/opt/intel/sgxssl"
 resourceUrl="ftp://47.102.98.136/pub/resource.tar"
 
 
@@ -52,6 +54,15 @@ cd -
 
 # Generate mrenclave file
 if [ x"$1" != x"debug" ]; then
+    if [ ! -d "$sgxsdkdir" ] || [ ! -d "$sgxssldir" ]; then
+        # Install dependencies
+        bash $basedir/install_deps.sh
+        if [ $? -ne 0 ]; then
+            verbose ERROR "Install dependencies failed!"
+            exit 1
+        fi
+    fi
+
     cd $appdir
     setTimeWait "$(verbose INFO "Building enclave.signed.so file..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!

@@ -126,10 +126,8 @@ int ApiHandler::start()
         memset(quote, 0, qsz);
         memcpy(quote, base64_decode(b64quote.c_str(), &dqsz), qsz);
 
-        status_ret = ecall_store_quote(global_eid, &crust_status,
-                (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
-                data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(),
-                off_chain_chain_account_id.size());
+        status_ret = ecall_store_quote(global_eid, &crust_status, (const char *)quote, qsz, (const uint8_t *)data_sig_str.c_str(),
+                data_sig_str.size(), &data_sig, (const uint8_t *)off_chain_chain_account_id.c_str(), off_chain_chain_account_id.size());
         if (SGX_SUCCESS != status_ret || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store and verify offChain node data failed!\n");
@@ -320,7 +318,7 @@ int ApiHandler::start()
     path = urlendpoint->base + "/storage/validate/merkletree";
     server->Post(path.c_str(), [&](const Request &req, Response &res) {
         res.status = 200;
-        //p_log->info("status:%d,validate MerkleTree body:%s\n", res.status, req.body.c_str());
+        p_log->debug("validate MerkleTree body:%s\n", req.body.c_str());
         std::string error_info;
         // Get backup info
         if (req.headers.find("backup") == req.headers.end())
@@ -468,13 +466,16 @@ int ApiHandler::start()
                 switch (crust_status)
                 {
                 case CRUST_NOTFOUND_MERKLETREE:
-                    error_info = "Given MerkleTree tree root hash is not found!";
+                    error_info = "Given MerkleTree tree is not found!";
                     break;
                 case CRUST_WRONG_FILE_BLOCK:
                     error_info = "Given file block doesn't meet sequential request!";
                     break;
                 case CRUST_SEAL_DATA_FAILED:
                     error_info = "Internal error: seal data failed!";
+                    break;
+                case CRUST_DUPLICATED_SEAL:
+                    error_info = "Given file has been completely sealed!";
                     break;
                 default:
                     error_info = "Undefined error!";
