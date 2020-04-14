@@ -17,18 +17,6 @@
 #include "Process.h"
 #include "Log.h"
 
-/* variable definition */
-typedef struct ra_session_struct
-{
-	unsigned char g_a[64];
-	unsigned char g_b[64];
-	unsigned char kdk[16];
-	unsigned char smk[16];
-	unsigned char sk[16];
-	unsigned char mk[16];
-	unsigned char vk[16];
-} ra_session_t;
-
 int main_daemon(void);
 int main_status(void);
 int main_report(void);

@@ -22,7 +22,6 @@ private:
     DataBase(const DataBase &);
     DataBase& operator = (const DataBase &);
     leveldb::DB *db;
-    leveldb::ReadOptions read_opt;
     leveldb::WriteOptions write_opt;
 };
 

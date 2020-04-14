@@ -3,44 +3,45 @@ function checkRes()
 {
     local res=$1
     local err_op=$2
-    local descriptor=$3
+    local tag=$3
+    local descriptor=$4
+    local tagfailed=""
+    local tagsuccess=""
 
     if [ x"$descriptor" = x"" ] ; then 
         descriptor="&1"
     fi
 
-    if [ $res -ne 0 ]; then
-        eval "verbose ERROR "FAILED" t >$descriptor"
-        case $err_op in 
-            quit)       exit 1;;
-            return)     return 1;;
-            *)          ;;
-        esac
-        return 1
+    if [ x"$tag" = x"yes" ]; then
+        tagsuccess="yes"
+        tagfailed="no"
+    elif [ x"$tag" = x"success" ]; then
+        tagsuccess="success"
+        tagfailed="failed"
     fi
 
-    eval "verbose INFO "SUCCESS" t >$descriptor"
+    if [ $res -ne 0 ]; then
+        eval "verbose ERROR "$tagfailed" t >$descriptor"
+    else
+        eval "verbose INFO "$tagsuccess" t >$descriptor"
+    fi
 
-    while [ -s $descriptor ]; do
-        sleep 1
-    done
-}
-
-function setTimeWait()
-{
-    local info=$1
-    local syncfile=$2
-    local index=1
-    local timeout=100
-    while [ ! -s "$syncfile" ] && [ $timeout -gt 0 ]; do
-        printf "%s\r" "${info}${index}s"
-        ((index++))
-        ((timeout--))
+    while [ -s "$descriptor" ]; do
         sleep 1
     done
 
-    echo "${info}$(cat $SYNCFILE)"
-    true > $SYNCFILE
+    if [ $res -ne 0 ]; then
+        case $err_op in
+            quit)       
+                verbose ERROR "Unexpected error occurs!Please check $ERRFILE for details!"
+                exit 1
+                ;;
+            return)     
+                return 1
+                ;;
+            *)  ;;
+        esac
+    fi
 }
 
 function verbose()
@@ -52,7 +53,7 @@ function verbose()
     local nc=$NC
     local opt="-e"
     local content=""
-    local time=`date "+%Y/%m/%d %T.%3N"`
+    local time="[$(date "+%Y/%m/%d %T.%3N")]"
 
     case $type in
         ERROR)  color=$HRED ;;
@@ -75,6 +76,24 @@ function verbose()
             content="${color}$time [$type] $info${nc}"
     esac
     echo $opt $content
+}
+
+function setTimeWait()
+{
+    ### Be careful that this function should be used with checkRes function!
+    local info=$1
+    local syncfile=$2
+    local index=1
+    local timeout=100
+    while [ ! -s "$syncfile" ] && [ $timeout -gt 0 ]; do
+        printf "%s\r" "${info}${index}s"
+        ((index++))
+        ((timeout--))
+        sleep 1
+    done
+
+    echo "${info}$(cat $syncfile)"
+    true > $syncfile
 }
 
 # color

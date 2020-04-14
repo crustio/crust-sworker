@@ -9,6 +9,9 @@
 #include <vector>
 #include "Enclave_t.h"
 
+// Data tag to enclave only data
+#define TEE_PRIVATE_TAG  "&+CRUSTTEEPRIVATE+&"
+
 /* The size of a empty disk leaf file */
 #define SRD_RAND_DATA_LENGTH 1048576
 //#define SRD_RAND_DATA_LENGTH 2097152

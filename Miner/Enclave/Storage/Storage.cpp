@@ -1,4 +1,5 @@
 #include "Storage.h"
+#include "EUtils.h"
 
 using namespace std;
 
@@ -76,7 +77,12 @@ crust_status_t storage_seal_data(const uint8_t *root_hash, uint32_t root_hash_le
     sgx_sha256_msg(p_src, src_len, &cur_hash);
 
     string ser_tree = std::get<0>(entry);
-    size_t spos = std::get<1>(entry) + strlen(LEAF_SEPARATOR);
+    size_t spos = std::get<1>(entry);
+    if (spos == std::string::npos)
+    {
+        return CRUST_DUPLICATED_SEAL;
+    }
+    spos += strlen(LEAF_SEPARATOR);
     size_t file_size = std::get<2>(entry);
     uint8_t *org_hash = hex_string_to_bytes(ser_tree.substr(spos, HASH_LENGTH * 2).c_str(), HASH_LENGTH * 2);
     // Compare hash value
@@ -163,6 +169,13 @@ crust_status_t storage_unseal_data(const uint8_t *p_sealed_data, size_t sealed_d
     {
         log_err("Unseal data failed!Error code:%lx\n", sgx_status);
         crust_status = CRUST_UNSEAL_DATA_FAILED;
+        goto cleanup;
+    }
+
+    // Check if data is private data
+    if (memcmp(p_decrypted_data, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG)) == 0)
+    {
+        crust_status = CRUST_MALWARE_DATA_BLOCK;
         goto cleanup;
     }
 

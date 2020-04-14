@@ -769,7 +769,8 @@ crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_da
 crust_status_t id_store_metadata()
 {
     // Gen seal data
-    std::string metadata = get_workload()->serialize_workload();
+    std::string metadata = TEE_PRIVATE_TAG;
+    metadata.append(get_workload()->serialize_workload());
     metadata.append(CRUST_SEPARATOR)
         .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
     metadata.append(CRUST_SEPARATOR)
@@ -804,7 +805,7 @@ crust_status_t id_restore_metadata()
     }
 
     /* Restore related data */
-    string metadata = std::string((const char *)p_data, data_len);
+    string metadata = std::string((const char *)(p_data+strlen(TEE_PRIVATE_TAG)), data_len);
 
     // Get plot data
     spos = 0;
@@ -857,8 +858,7 @@ crust_status_t id_restore_metadata()
  * */
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len)
 {
-    string account_id_str = string(account_id, len);
-    if (g_chain_account_id.compare(account_id_str) != 0)
+    if (memcmp(g_chain_account_id.c_str(), account_id, len) != 0)
     {
         return CRUST_NOT_EQUAL;
     }
