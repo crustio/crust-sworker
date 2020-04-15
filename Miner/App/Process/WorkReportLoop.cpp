@@ -4,6 +4,16 @@ extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
+ * @description: used to generate random waiting time to ensure that the reporting workload is not concentrated
+ * @return: wait time
+ */
+size_t get_random_wait_time(void)
+{
+    srand(time(NULL));
+    return (rand() % REPORT_INTERVAL_BLCOK_NUMBER_LIMIT) * BLOCK_INTERVAL + 15;
+}
+
+/**
  * @description: Check if there is enough height, send signed work report to chain
  * */
 void *work_report_loop(void *)
@@ -18,19 +28,21 @@ void *work_report_loop(void *)
         crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header->number % REPORT_BLOCK_HEIGHT_BASE == 0)
         {
-            sleep(20);
+            size_t get_random_wait_time = get_random_wait_time();
+            p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (get_random_wait_time / BLOCK_INTERVAL) + 1);
+            sleep(get_random_wait_time);
             // Generate validation report and get report size
-            if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
+            if (ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
             {
-                p_log->err("Generate validation report failed!\n");
+                p_log->err("Generate validation report failed! Error code: %x\n", crust_status);
                 continue;
             }
 
             // Get signed validation report
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
-            if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &crust_status,
-                                                                  block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
+            if (SGX_SUCCESS != ecall_get_signed_work_report(global_eid, &crust_status,
+                    block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
             {
                 p_log->err("Get signed validation report failed!\n");
             }
@@ -63,7 +75,7 @@ void *work_report_loop(void *)
                 }
                 else
                 {
-                    p_log->err("Get signed validation report failed! Error code:%x\n", crust_status);
+                    p_log->err("Get signed validation report failed! Error code: %x\n", crust_status);
                 }
             }
             free(report);
@@ -71,7 +83,7 @@ void *work_report_loop(void *)
         else
         {
             p_log->info("Block height: %lu is not enough!\n", block_header->number);
-            sleep(3);
+            sleep(BLOCK_INTERVAL / 2);
         }
     }
 }

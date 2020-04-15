@@ -5,7 +5,6 @@
 
 using namespace std;
 
-// TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 validation_status_t validation_status = VALIDATE_STOP;
 
@@ -51,13 +50,11 @@ void ecall_main_loop(const char *empty_path)
         log_info("-----Empty Validation-----\n");
         /* Empty */
         validation_status = VALIDATE_EMPTY;
-        srd_generate_empty_root();
         validate_empty_disk(empty_path);
-        srd_generate_empty_root();
 
         log_info("-----Validation Waiting-----\n");
         /* Show result */
-        get_workload()->show();
+        Workload::get_instance()->show();
 
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
         {
@@ -112,135 +109,39 @@ validation_status_t ecall_return_validation_status(void)
 }
 
 /**
- * @description: generate validation report
- * @return: the length of validation report
+ * @description: generate work report
+ * @param report_len (out) -> report's length
+ * @return: status
  */
-void ecall_generate_validation_report(size_t *size)
+crust_status_t ecall_generate_work_report(size_t *report_len)
 {
-    *size = get_workload()->serialize().size() + 1;
+    return generate_work_report(report_len);
 }
 
 /**
  * @description: get validation report
- * @param report(out) -> the validation report
- * @param len -> the length of validation report
- * @return: the validation report
+ * @param report (out) -> the validation report
+ * @param report_len (in) -> the length of validation report
+ * @return: status
  */
-void ecall_get_validation_report(char *report, size_t len)
+crust_status_t ecall_get_work_report(char *report, size_t report_len)
 {
-    std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
-    report[len - 1] = '\0';
+    return get_work_report(report, report_len);
 }
 
 /**
  * @description: Get signed validation report
- * @param: block_hash(in) -> block hash
- * @param: block_height(in) -> block height
- * @param: p_signature(out) -> sig by tee
- * @param: report(out) -> work report string
- * @param: report_len(in) -> work report string length
+ * @param block_hash (in) -> block hash
+ * @param block_height (in) -> block height
+ * @param p_signature (out) -> sig by tee
+ * @param report (out) -> work report string
+ * @param report_len (in) -> work report string length
  * @return: sign status
  * */
-crust_status_t ecall_get_signed_validation_report(const char *block_hash, size_t block_height,
+crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block_height,
         sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
 {
-    // Judge whether block height is expired
-    if (block_height <= id_get_cwr_block_height())
-    {
-        return CRUST_BLOCK_HEIGHT_EXPIRED;
-    }
-    else
-    {
-        id_set_cwr_block_height(block_height);
-    }
-
-    // Create signature data
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_status_t sgx_status;
-    Workload *wl = get_workload();
-    size_t meaningful_workload_size = 0;
-    for (auto it = wl->files.begin(); it != wl->files.end(); it++)
-    {
-        meaningful_workload_size += it->second;
-    }
-    unsigned long long tmpSize = wl->empty_disk_capacity;
-    tmpSize = tmpSize * 1024 * 1024 * 1024;
-    uint8_t *byte_buf = NULL;
-
-    // Convert number type to string
-    std::string block_height_str = std::to_string(block_height);
-    std::string empty_disk_capacity_str = std::to_string(tmpSize);
-    std::string meaningful_workload_size_str = std::to_string(meaningful_workload_size);
-    uint8_t *block_height_u = (uint8_t *)malloc(block_height_str.size());
-    uint8_t *empty_disk_capacity_u = (uint8_t *)malloc(empty_disk_capacity_str.size());
-    uint8_t *meaningful_workload_size_u = (uint8_t *)malloc(meaningful_workload_size_str.size());
-    memset(block_height_u, 0, block_height_str.size());
-    memset(empty_disk_capacity_u, 0, empty_disk_capacity_str.size());
-    memset(meaningful_workload_size_u, 0, meaningful_workload_size_str.size());
-    memcpy(block_height_u, block_height_str.c_str(), block_height_str.size());
-    memcpy(empty_disk_capacity_u, empty_disk_capacity_str.c_str(), empty_disk_capacity_str.size());
-    memcpy(meaningful_workload_size_u, meaningful_workload_size_str.c_str(), meaningful_workload_size_str.size());
-
-    size_t block_hash_len = strlen(block_hash);
-    ecc_key_pair id_key_pair = id_get_key_pair();
-    size_t buf_len = sizeof(id_key_pair.pub_key) + block_height_str.size() + block_hash_len / 2 + HASH_LENGTH + empty_disk_capacity_str.size() + meaningful_workload_size_str.size();
-    uint8_t *sigbuf = (uint8_t *)malloc(buf_len);
-    memset(sigbuf, 0, buf_len);
-    uint8_t *p_sigbuf = sigbuf;
-
-    // Convert to bytes and concat
-    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    sigbuf += sizeof(id_key_pair.pub_key);
-    memcpy(sigbuf, block_height_u, block_height_str.size());
-    sigbuf += block_height_str.size();
-    byte_buf = hex_string_to_bytes(block_hash, block_hash_len);
-    if (byte_buf == NULL)
-    {
-        crust_status = CRUST_UNEXPECTED_ERROR;
-        goto cleanup;
-    }
-    memcpy(sigbuf, byte_buf, block_hash_len / 2);
-    free(byte_buf);
-    sigbuf += (block_hash_len / 2);
-    memcpy(sigbuf, wl->empty_root_hash, HASH_LENGTH);
-    sigbuf += HASH_LENGTH;
-    memcpy(sigbuf, empty_disk_capacity_u, empty_disk_capacity_str.size());
-    sigbuf += empty_disk_capacity_str.size();
-    memcpy(sigbuf, meaningful_workload_size_u, meaningful_workload_size_str.size());
-
-    // Sign work report
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_SGX_SIGN_FAILED;
-        goto cleanup;
-    }
-
-    sgx_status = sgx_ecdsa_sign(p_sigbuf, buf_len,
-            &id_key_pair.pri_key, p_signature, ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_SGX_SIGN_FAILED;
-        goto cleanup;
-    }
-
-    // Get work report string
-    std::copy(get_workload()->report.begin(), get_workload()->report.end(), report);
-    report[report_len - 1] = '\0';
-
-cleanup:
-    if (ecc_state != NULL)
-    {
-        sgx_ecc256_close_context(ecc_state);
-    }
-
-    free(block_height_u);
-    free(empty_disk_capacity_u);
-    free(meaningful_workload_size_u);
-    free(p_sigbuf);
-
-    return crust_status;
+    return get_signed_work_report(block_hash, block_height, p_signature, report, report_len);
 }
 
 /**
@@ -255,14 +156,6 @@ crust_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t dat
 {
     return id_sign_network_entry(p_partial_data, data_size, p_signature);
 }
-
-/*
- * This doesn't really need to be a C++ source file, but a bug in 
- * 2.1.3 and earlier implementations of the SGX SDK left a stray
- * C++ symbol in libsgx_tkey_exchange.so so it won't link without
- * a C++ compiler. Just making the source C++ was the easiest way
- * to deal with that.
- */
 
 /**
  * @description: generate ecc key pair and store it in enclave

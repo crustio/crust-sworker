@@ -11,6 +11,5 @@
 
 void srd_increase_empty(const char *path);
 size_t srd_decrease_empty(const char *path, size_t change);
-void srd_generate_empty_root(void);
 
 #endif /* !_CRUST_SRD_H_ */

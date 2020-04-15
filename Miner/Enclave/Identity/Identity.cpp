@@ -770,7 +770,7 @@ crust_status_t id_store_metadata()
 {
     // Gen seal data
     std::string metadata = TEE_PRIVATE_TAG;
-    metadata.append(get_workload()->serialize_workload());
+    metadata.append(Workload::get_instance()->serialize_workload());
     metadata.append(CRUST_SEPARATOR)
         .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
     metadata.append(CRUST_SEPARATOR)
@@ -811,7 +811,7 @@ crust_status_t id_restore_metadata()
     spos = 0;
     epos = metadata.find(CRUST_SEPARATOR, spos);
     plot_data = metadata.substr(spos, epos - spos);
-    if (CRUST_SUCCESS != (crust_status = get_workload()->restore_workload(plot_data)))
+    if (CRUST_SUCCESS != (crust_status = Workload::get_instance()->restore_workload(plot_data)))
     {
         return CRUST_BAD_SEAL_DATA;
     }

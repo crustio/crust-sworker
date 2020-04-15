@@ -12,23 +12,18 @@
 class Workload
 {
 public:
-    std::string report;                                 /* used to store work report */
     std::vector<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
-    sgx_sha256_hash_t empty_root_hash;                  /* used to store empty root hash */
-    size_t empty_disk_capacity;                         /* empty disk capacity */
     std::map<std::vector<unsigned char>, size_t> files; /* meaningful files' information */
-
-    Workload();
+    
+    static Workload *workload;
+    static Workload *get_instance();
     ~Workload();
     void show(void);
-    std::string serialize();
     std::string serialize_workload();
     crust_status_t restore_workload(std::string plot_data);
-    crust_status_t store_plot_data();
-    crust_status_t get_plot_data();
+    crust_status_t generate_empty_info(sgx_sha256_hash_t *empty_root_out, size_t *empty_workload_out);
+    crust_status_t generate_meaningful_info(size_t *meaningful_workload_out);
     void clean_data();
 };
-
-Workload *get_workload();
 
 #endif /* !_CRUST_WORKLOAD_H_ */
