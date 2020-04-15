@@ -29,7 +29,7 @@ void *work_report_loop(void *)
             // Get signed validation report
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
-            if (SGX_SUCCESS != ecall_get_signed_validation_report(global_eid, &crust_status,
+            if (SGX_SUCCESS != ecall_get_signed_work_report(global_eid, &crust_status,
                     block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
             {
                 p_log->err("Get signed validation report failed!\n");

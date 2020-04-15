@@ -35,7 +35,7 @@ void Workload::show(void)
     size_t empty_workload = 0;
     size_t meaningful_workload = 0;
     this->generate_empty_info(&empty_root, &meaningful_workload);
-    this->generate_meaningful_info(&meaningful_workload)
+    this->generate_meaningful_info(&meaningful_workload);
 
     log_info("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
     log_info("Empty workload: %luB\n", empty_workload);
@@ -94,7 +94,7 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
     // generate empty information
     if (hashs_length == 0)
     {
-        empty_workload_out = 0;
+        *empty_workload_out = 0;
         for (size_t i = 0; i < HASH_LENGTH; i++)
         {
             (*empty_root_out)[i] = 0;
@@ -102,7 +102,7 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
     }
     else
     {
-        empty_workload_out = (hashs_length / HASH_LENGTH) * 1024 * 1024 * 1024;
+        *empty_workload_out = (hashs_length / HASH_LENGTH) * 1024 * 1024 * 1024;
         sgx_sha256_msg(hashs, (uint32_t)hashs_length, empty_root_out);
     }
 

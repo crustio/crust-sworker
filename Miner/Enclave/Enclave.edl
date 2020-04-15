@@ -22,8 +22,8 @@ enclave {
         public validation_status_t ecall_return_validation_status(void);
 
         public crust_status_t ecall_generate_work_report([out] size_t *report_len);
-        public crust_status_t ecall_get_work_report([out, size=len] char *report, size_t report_len);
-        public crust_status_t ecall_get_signed_validation_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
+        public crust_status_t ecall_get_work_report([out, size=report_len] char *report, size_t report_len);
+        public crust_status_t ecall_get_signed_work_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
         
         public crust_status_t ecall_sign_network_entry([in, size=data_size] const char *p_partial_data, uint32_t data_size, [out] sgx_ec256_signature_t *p_signature);
         public crust_status_t ecall_restore_metadata();

@@ -15,7 +15,6 @@ public:
     std::vector<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
     std::map<std::vector<unsigned char>, size_t> files; /* meaningful files' information */
 
-    Workload();
     ~Workload();
     void show(void);
     std::string serialize_workload();
