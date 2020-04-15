@@ -111,9 +111,9 @@ Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/Srd/*.cpp) $(wildcard Enclave/Utils/*.cpp) \
 	$(wildcard Enclave/Validator/*.cpp) $(wildcard Enclave/Workload/*.cpp) $(wildcard Enclave/Identity/*.cpp) \
-	$(wildcard Enclave/Storage/*.cpp) $(wildcard Enclave/Persistence/*.cpp)
+	$(wildcard Enclave/Storage/*.cpp) $(wildcard Enclave/Persistence/*.cpp) $(wildcard Enclave/Report/*.cpp)
 Enclave_Include_Paths := -IInclude -IEnclave -IEnclave/Utils -IEnclave/Identity -IEnclave/Workload \
-	-IEnclave/Srd -IEnclave/Validator -IEnclave/Storage -IEnclave/Persistence -I$(SGX_SDK)/include \
+	-IEnclave/Srd -IEnclave/Validator -IEnclave/Storage -IEnclave/Persistence -IEnclave/Report -I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -Wno-type-limits

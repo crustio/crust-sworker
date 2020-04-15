@@ -9,13 +9,6 @@ extern sgx_thread_mutex_t g_workload_mutex;
 void validate_empty_disk(const char *path)
 {
     Workload *workload = get_workload();
-    sgx_thread_mutex_lock(&g_workload_mutex);
-    if (get_workload()->empty_disk_capacity == 0)
-    {
-        sgx_thread_mutex_unlock(&g_workload_mutex);
-        return;
-    }
-    sgx_thread_mutex_unlock(&g_workload_mutex);
 
     for (auto it_g_hash = workload->empty_g_hashs.begin(); it_g_hash != workload->empty_g_hashs.end(); it_g_hash++)
     {

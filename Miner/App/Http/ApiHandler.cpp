@@ -60,14 +60,15 @@ int ApiHandler::start()
     server->Get(path.c_str(), [=](const Request & /*req*/, Response &res) {
         /* Call ecall function to get work report */
         size_t report_len = 0;
-        if (ecall_generate_validation_report(global_eid, &report_len) != SGX_SUCCESS)
+        crust_status_t crust_status = CRUST_SUCCESS;
+        if (ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
         {
-            p_log->err("Generate validation report failed.\n");
+            p_log->err("Generate validation report failed. Error code: %x\n", crust_status);
             res.set_content("InternalError", "text/plain");
         }
 
         char *report = new char[report_len];
-        if (ecall_get_validation_report(global_eid, report, report_len) != SGX_SUCCESS)
+        if (ecall_get_work_report(global_eid, &crust_status, report, report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
         {
             p_log->err("Get validation report failed.\n");
             res.set_content("InternalError", "text/plain");

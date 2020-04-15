@@ -32,5 +32,6 @@
 #include "Validator.h"
 #include "ValidationStatus.h"
 #include "Srd.h"
+#include "Report.h"
 
 #endif /* !_CRUST_ENCLAVE_H_ */
