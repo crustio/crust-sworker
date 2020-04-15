@@ -14,7 +14,9 @@ class Workload
 public:
     std::vector<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
     std::map<std::vector<unsigned char>, size_t> files; /* meaningful files' information */
-
+    
+    static Workload *workload;
+    static Workload *get_instance();
     ~Workload();
     void show(void);
     std::string serialize_workload();
@@ -23,7 +25,5 @@ public:
     crust_status_t generate_meaningful_info(size_t *meaningful_workload_out);
     void clean_data();
 };
-
-Workload *get_workload();
 
 #endif /* !_CRUST_WORKLOAD_H_ */

@@ -37,23 +37,24 @@ void srd_increase_empty(const char *path)
     unsigned char base_rand_data[SRD_RAND_DATA_LENGTH];
     sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
+    Workload* p_workload = Workload::get_instance();
 
     // Generate base random data
     sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
 
     // New and get now G hash index
     sgx_thread_mutex_lock(&g_workload_mutex);
-    size_t now_index = get_workload()->empty_g_hashs.size();
+    size_t now_index = p_workload->empty_g_hashs.size();
     uint8_t *p_hash = (uint8_t *)malloc(HASH_LENGTH);
     if (p_hash == NULL)
     {
         sgx_thread_mutex_unlock(&g_workload_mutex);
         return;
     }
-    get_workload()->empty_g_hashs.push_back(p_hash);
+    p_workload->empty_g_hashs.push_back(p_hash);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
-        get_workload()->empty_g_hashs[now_index][i] = 0;
+        p_workload->empty_g_hashs[now_index][i] = 0;
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
@@ -95,7 +96,7 @@ void srd_increase_empty(const char *path)
     sgx_thread_mutex_lock(&g_workload_mutex);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
-        get_workload()->empty_g_hashs[now_index][i] = g_out_hash256[i];
+        p_workload->empty_g_hashs[now_index][i] = g_out_hash256[i];
     }
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
@@ -109,15 +110,15 @@ void srd_increase_empty(const char *path)
  */
 size_t srd_decrease_empty(const char *path, size_t change)
 {
-    Workload *workload = get_workload();
+    Workload *p_workload = Workload::get_instance();
     sgx_thread_mutex_lock(&g_workload_mutex);
     size_t decrease_num = 0;
 
-    for (size_t i = workload->empty_g_hashs.size(); (decrease_num < change) && (i > 0); i--)
+    for (size_t i = p_workload->empty_g_hashs.size(); (decrease_num < change) && (i > 0); i--)
     {
-        if (!is_null_hash(workload->empty_g_hashs[i - 1]))
+        if (!is_null_hash(p_workload->empty_g_hashs[i - 1]))
         {
-            ocall_delete_folder_or_file(get_g_path_with_hash(path, workload->empty_g_hashs[i - 1]).c_str());
+            ocall_delete_folder_or_file(get_g_path_with_hash(path, p_workload->empty_g_hashs[i - 1]).c_str());
             decrease_num++;
         }
     }

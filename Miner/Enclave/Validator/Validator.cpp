@@ -8,9 +8,9 @@ extern sgx_thread_mutex_t g_workload_mutex;
  */
 void validate_empty_disk(const char *path)
 {
-    Workload *workload = get_workload();
+    Workload *p_workload = Workload::get_instance();
 
-    for (auto it_g_hash = workload->empty_g_hashs.begin(); it_g_hash != workload->empty_g_hashs.end(); it_g_hash++)
+    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); it_g_hash != p_workload->empty_g_hashs.end(); it_g_hash++)
     {
         // Base info
         unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
@@ -98,7 +98,7 @@ void validate_empty_disk(const char *path)
         sgx_thread_mutex_lock(&g_workload_mutex);
         ocall_delete_folder_or_file(g_path.c_str());
         free(*it_g_hash);
-        it_g_hash = workload->empty_g_hashs.erase(it_g_hash);
+        it_g_hash = p_workload->empty_g_hashs.erase(it_g_hash);
         it_g_hash--;
         sgx_thread_mutex_unlock(&g_workload_mutex);
         
@@ -123,18 +123,18 @@ void validate_empty_disk(const char *path)
 void validate_meaningful_disk(const Node *files, size_t files_num)
 {
     /* Remove deleted files */
-    Workload *workload = get_workload();
+    Workload *p_workload = Workload::get_instance();
     for (size_t i = 0; i < files_num; i++)
     {
         if (files[i].exist == 0)
         {
             log_warn("Delete: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
-            workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH));
+            p_workload->files.erase(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH));
         }
     }
 
     /* Validate old files */
-    for (auto it = workload->files.begin(); it != workload->files.end(); it++)
+    for (auto it = p_workload->files.begin(); it != p_workload->files.end(); it++)
     {
         unsigned char rand_val;
         sgx_read_rand((unsigned char *)&rand_val, 1);
@@ -193,7 +193,7 @@ void validate_meaningful_disk(const Node *files, size_t files_num)
             }
 
             log_info("Add: Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(files[i].hash, HASH_LENGTH).c_str(), files[i].size);
-            workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH), files[i].size));
+            p_workload->files.insert(std::pair<std::vector<unsigned char>, size_t>(unsigned_char_array_to_unsigned_char_vector(files[i].hash, HASH_LENGTH), files[i].size));
         }
     }
 }

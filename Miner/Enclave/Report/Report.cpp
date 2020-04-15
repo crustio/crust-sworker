@@ -13,17 +13,17 @@ sgx_sha256_hash_t empty_root;
  */
 crust_status_t generate_work_report(size_t *report_len)
 {
-    Workload *wl = get_workload();
+    Workload *p_workload = Workload::get_instance();
     ecc_key_pair id_key_pair = id_get_key_pair();
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    crust_status = wl->generate_empty_info(&empty_root, &empty_workload);
+    crust_status = p_workload->generate_empty_info(&empty_root, &empty_workload);
     if (crust_status != CRUST_SUCCESS)
     {
         return crust_status;
     }
 
-    crust_status = wl->generate_meaningful_info(&meaningful_workload);
+    crust_status = p_workload->generate_meaningful_info(&meaningful_workload);
     if (crust_status != CRUST_SUCCESS)
     {
         return crust_status;

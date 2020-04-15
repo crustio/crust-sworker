@@ -2,15 +2,21 @@
 
 extern ecc_key_pair id_key_pair;
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-Workload *workload = new Workload();
+
+Workload *Workload::workload = NULL;
 
 /**
- * @description: get the global workload
- * @return: the global workload
- */
-Workload *get_workload()
+ * @desination: single instance class function to get instance
+ * @return: workload instance
+ * */
+Workload *Workload::get_instance()
 {
-    return workload;
+    if (Workload::workload == NULL)
+    {
+        Workload::workload = new Workload();
+    }
+
+    return Workload::workload;
 }
 
 /**
@@ -34,18 +40,18 @@ void Workload::show(void)
     sgx_sha256_hash_t empty_root;
     size_t empty_workload = 0;
     size_t meaningful_workload = 0;
-    this->generate_empty_info(&empty_root, &meaningful_workload);
+    this->generate_empty_info(&empty_root, &empty_workload);
     this->generate_meaningful_info(&meaningful_workload);
 
     log_info("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
-    log_info("Empty workload: %luB\n", empty_workload);
+    log_info("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
     log_info("Meaningful work file number is: %lu, total size %luB\n", this->files.size(), meaningful_workload);
-    
+
     log_debug("Meaningful work details is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
     {
         log_debug("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH).c_str(), it->second);
-    }  
+    }
 }
 
 /**

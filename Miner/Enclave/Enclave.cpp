@@ -5,7 +5,6 @@
 
 using namespace std;
 
-// TODO: Divide ecall into different files according to functions
 /* Used to store validation status */
 validation_status_t validation_status = VALIDATE_STOP;
 
@@ -55,7 +54,7 @@ void ecall_main_loop(const char *empty_path)
 
         log_info("-----Validation Waiting-----\n");
         /* Show result */
-        get_workload()->show();
+        Workload::get_instance()->show();
 
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
         {
