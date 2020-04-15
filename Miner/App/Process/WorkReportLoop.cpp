@@ -4,6 +4,16 @@ extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
+ * @description: used to generate random waiting time to ensure that the reporting workload is not concentrated
+ * @return: wait time
+ */
+size_t get_random_wait_time(void)
+{
+    srand(time(NULL));
+    return (rand() % REPORT_INTERVAL_BLCOK_NUMBER_LIMIT) * BLOCK_INTERVAL + 15;
+}
+
+/**
  * @description: Check if there is enough height, send signed work report to chain
  * */
 void *work_report_loop(void *)
@@ -18,7 +28,9 @@ void *work_report_loop(void *)
         crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header->number % REPORT_BLOCK_HEIGHT_BASE == 0)
         {
-            sleep(20);
+            size_t get_random_wait_time = get_random_wait_time();
+            p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (get_random_wait_time / BLOCK_INTERVAL) + 1);
+            sleep(get_random_wait_time);
             // Generate validation report and get report size
             if (ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
             {
@@ -71,7 +83,7 @@ void *work_report_loop(void *)
         else
         {
             p_log->info("Block height: %lu is not enough!\n", block_header->number);
-            sleep(3);
+            sleep(BLOCK_INTERVAL / 2);
         }
     }
 }
