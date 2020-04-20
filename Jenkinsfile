@@ -5,9 +5,9 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building..'
-                ls
-                cd Miner
-                ls
+                sh 'ls'
+                sh 'cd Miner'
+                sh 'ls'
             }
         }
         stage('Test') {
