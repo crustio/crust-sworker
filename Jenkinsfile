@@ -8,7 +8,6 @@ pipeline {
                 ls
                 cd Miner
                 ls
-                make
             }
         }
         stage('Test') {
