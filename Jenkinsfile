@@ -5,7 +5,9 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building..'
+                ls
                 cd Miner
+                ls
                 make
             }
         }
