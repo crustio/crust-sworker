@@ -1,7 +1,7 @@
 # Crust TEE
 Implement the trusted layer based on TEE technology, functionally connect  the consensus layer, and be responsible for the trusted verification of the resource layer.
 
-## Preparation work test1
+## Preparation work test2
 - Hardware requirements: 
 
   CPU must contain **SGX module**, and make sure the SGX function is turned on in the bios, please click [this page](https://github.com/crustio/crust/wiki/Check-TEE-supportive) to check if your machine supports SGX
