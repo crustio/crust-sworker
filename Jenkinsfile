@@ -25,10 +25,10 @@ pipeline {
     }
     post {
     success {
-        setBuildStatus(context, "Build succeeded", "SUCCESS");
+        setBuildStatus("Build succeeded", "SUCCESS");
     }
     failure {
-        setBuildStatus(context, "Build failed", "FAILURE");
+        setBuildStatus("Build failed", "FAILURE");
     }
   }
 }
