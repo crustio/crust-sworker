@@ -1,9 +1,9 @@
-void setBuildStatus(String message, String state) {
+void setBuildStatus(context, message, state) {
   step([
       $class: "GitHubCommitStatusSetter",
-      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/my-org/my-repo"],
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/build-status"],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: context],
       errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
+      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/crustio/crust-tee"],
       statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
   ]);
 }
@@ -25,10 +25,10 @@ pipeline {
     }
     post {
     success {
-        setBuildStatus("Build succeeded", "SUCCESS");
+        setBuildStatus(context, "Build succeeded", "SUCCESS");
     }
     failure {
-        setBuildStatus("Build failed", "FAILURE");
+        setBuildStatus(context, "Build failed", "FAILURE");
     }
   }
 }
