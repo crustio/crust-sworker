@@ -146,7 +146,7 @@ int main_report()
     }
     p_log->info("%s", res->body.c_str());
 
-    delete p_config1;
+    delete p_config;
     delete client;
     return 0;
 }
