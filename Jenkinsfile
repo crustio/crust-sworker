@@ -1,7 +1,7 @@
-void setBuildStatus(context, message, state) {
+void setBuildStatus(message, state) {
   step([
       $class: "GitHubCommitStatusSetter",
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: context],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "continuous-integration/jenkins/pr-merge"],
       errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
       reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/crustio/crust-tee"],
       statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
