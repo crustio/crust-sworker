@@ -2,11 +2,11 @@ pipeline {
     agent any
     stages {
         stage('Build') {
-            script {
-                currentBuild.displayName = "The name."
-                currentBuild.description = "The best description."
-            }
             steps {
+                script {
+                    currentBuild.displayName = "The name."
+                    currentBuild.description = "The best description."
+                }
                 echo 'Building...'
                 sh """
                 cd Miner
