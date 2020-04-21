@@ -9,6 +9,7 @@ pipeline {
                 ls
                 cd Miner
                 ls
+                make clean
                 make
                 """
             }
