@@ -129,7 +129,7 @@ void Log::base_log(std::string log_str, std::string tag)
         time_str[0] = 0;
     }
     
-    printf("[%s] [%s] %s", time_str, tag.c_str(), log_str.c_str());
+     fprintf(stderr, "[%s] [%s] %s", time_str, tag.c_str(), log_str.c_str());
 }
 
 } // namespace crust
