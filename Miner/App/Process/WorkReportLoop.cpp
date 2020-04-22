@@ -82,7 +82,7 @@ void *work_report_loop(void *)
         }
         else
         {
-            p_log->info("Block height: %lu is not enough!\n", block_header->number);
+            p_log->debug("Block height: %lu is not enough!\n", block_header->number);
             sleep(BLOCK_INTERVAL / 2);
         }
     }

@@ -1,5 +1,7 @@
 #include "Log.h"
 
+std::mutex log_mutex;
+
 namespace crust
 {
 
@@ -13,7 +15,12 @@ Log *Log::get_instance()
 {
     if (Log::log == NULL)
     {
-        Log::log = new Log();
+        log_mutex.lock();
+        if(Log::log == NULL)
+        {
+            Log::log = new Log();
+        }
+        log_mutex.unlock(); 
     }
 
     return Log::log;
@@ -41,13 +48,13 @@ void Log::open_debug(void)
  * */
 void Log::info(const char *format, ...)
 {
-    this->log_mutex.lock();
+    log_mutex.lock();
     va_list va;
     va_start(va, format);
     int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
     va_end(va);
     std::string log_str(this->log_buf, n);
-    this->log_mutex.unlock();
+    log_mutex.unlock();
     this->base_log(log_str, CRUST_LOG_INFO_TAG);
 }
 
@@ -57,13 +64,13 @@ void Log::info(const char *format, ...)
  * */
 void Log::warn(const char *format, ...)
 {
-    this->log_mutex.lock();
+    log_mutex.lock();
     va_list va;
     va_start(va, format);
     int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
     va_end(va);
     std::string log_str(this->log_buf, n);
-    this->log_mutex.unlock();
+    log_mutex.unlock();
     this->base_log(log_str, CRUST_LOG_WARN_TAG);
 }
 
@@ -73,13 +80,13 @@ void Log::warn(const char *format, ...)
  * */
 void Log::err(const char *format, ...)
 {
-    this->log_mutex.lock();
+    log_mutex.lock();
     va_list va;
     va_start(va, format);
     int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
     va_end(va);
     std::string log_str(this->log_buf, n);
-    this->log_mutex.unlock();
+    log_mutex.unlock();
     this->base_log(log_str, CRUST_LOG_ERR_TAG);
 }
 
@@ -91,13 +98,13 @@ void Log::debug(const char *format, ...)
 {
     if (this->debug_flag)
     {
-        this->log_mutex.lock();
+        log_mutex.lock();
         va_list va;
         va_start(va, format);
         int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
         va_end(va);
         std::string log_str(this->log_buf, n);
-        this->log_mutex.unlock();
+        log_mutex.unlock();
         this->base_log(log_str, CRUST_LOG_DEBUG_TAG);
     }
 }

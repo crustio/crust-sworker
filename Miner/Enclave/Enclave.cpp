@@ -37,7 +37,7 @@ void ecall_main_loop(const char *empty_path)
 {
     while (true)
     {
-        log_info("-----Meaningful Validation-----\n");
+        log_debug("-----Meaningful Validation-----\n");
         /* Meaningful */
         validation_status = VALIDATE_MEANINGFUL;
         crust_status_t crust_status = CRUST_SUCCESS;
@@ -47,12 +47,12 @@ void ecall_main_loop(const char *empty_path)
         ocall_get_diff_files_num(&diff_files_num);
         validate_meaningful_disk(diff_files, diff_files_num);
 
-        log_info("-----Empty Validation-----\n");
+        log_debug("-----Empty Validation-----\n");
         /* Empty */
         validation_status = VALIDATE_EMPTY;
         validate_empty_disk(empty_path);
 
-        log_info("-----Validation Waiting-----\n");
+        log_debug("-----Validation Waiting-----\n");
         /* Show result */
         Workload::get_instance()->show();
 
@@ -62,7 +62,7 @@ void ecall_main_loop(const char *empty_path)
         }
         else
         {
-            log_info("Store enclave data successfully!\n");
+            log_debug("Store enclave data successfully!\n");
         }
 
         validation_status = VALIDATE_WAITING;
