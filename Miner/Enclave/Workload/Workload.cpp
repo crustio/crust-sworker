@@ -48,9 +48,9 @@ void Workload::show(void)
     this->generate_empty_info(&empty_root, &empty_workload);
     this->generate_meaningful_info(&meaningful_workload);
 
-    log_info("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
-    log_info("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
-    log_info("Meaningful work file number is: %lu, total size %luB\n", this->files.size(), meaningful_workload);
+    log_debug("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
+    log_debug("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
+    log_debug("Meaningful work file number is: %lu, total size %luB\n", this->files.size(), meaningful_workload);
 
     log_debug("Meaningful work details is: \n");
     for (auto it = this->files.begin(); it != this->files.end(); it++)
