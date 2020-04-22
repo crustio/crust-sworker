@@ -11,11 +11,16 @@ Workload *Workload::workload = NULL;
  * */
 Workload *Workload::get_instance()
 {
-    if (Workload::workload == NULL)
+    if(Workload::workload == NULL)
     {
-        Workload::workload = new Workload();
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        if (Workload::workload == NULL)
+        {
+            Workload::workload = new Workload();
+        }
+        sgx_thread_mutex_unlock(&g_workload_mutex);
     }
-
+    
     return Workload::workload;
 }
 
