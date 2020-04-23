@@ -84,11 +84,11 @@ std::string Chain::get_block_hash(size_t block_number)
 {
     try
     {
-        std::string url = this->url_end_point->base + "/block/hash?blockNumber=" + block_number;
+        std::string url = this->url_end_point->base + "/block/hash?blockNumber=" + std::to_string(block_number);
         auto res = this->chain_client->Get(url.c_str());
         if (res && res->status == 200)
         {
-            return res->body.erase(0, 2);
+            return res->body.substr(3, 64);
         }
 
         return NULL;
