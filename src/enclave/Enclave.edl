@@ -1,0 +1,67 @@
+enclave {
+    include "sgx_tcrypto.h"
+    include "sgx_dh.h"
+    include "sgx_tseal.h"
+    include "MerkleTree.h"
+    include "Node.h"
+    include "ValidationStatus.h"
+    include "CrustStatus.h"
+	include "IASReport.h"
+
+    from "sgx_tstdc.edl" import sgx_thread_wait_untrusted_event_ocall, sgx_thread_set_untrusted_event_ocall, sgx_thread_setwait_untrusted_events_ocall, sgx_thread_set_multiple_untrusted_events_ocall;
+    from "sgx_tsgxssl.edl" import *;
+
+    trusted {
+        // Srd ecalls for empty files
+        public void ecall_srd_increase_empty([in, string] const char* path);
+        public size_t ecall_srd_decrease_empty([in, string] const char* path, size_t change);  
+
+        public void ecall_main_loop([in, string] const char* empty_path);
+        public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
+        public crust_status_t ecall_set_chain_account_id([in, size=len] const char *account_id, size_t len);
+        public validation_status_t ecall_return_validation_status(void);
+
+        public crust_status_t ecall_generate_work_report([out] size_t *report_len);
+        public crust_status_t ecall_get_work_report([out, size=report_len] char *report, size_t report_len);
+        public crust_status_t ecall_get_signed_work_report([in, string] const char *block_hash, size_t block_height, [out] sgx_ec256_signature_t *p_signature, [out, size=report_len] char* report, size_t report_len); 
+        
+        public crust_status_t ecall_sign_network_entry([in, size=data_size] const char *p_partial_data, uint32_t data_size, [out] sgx_ec256_signature_t *p_signature);
+        public crust_status_t ecall_restore_metadata();
+		public sgx_status_t ecall_get_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
+        public crust_status_t ecall_store_quote([in, size=len] const char *quote, size_t len, [in, size=data_size] const uint8_t *p_data, uint32_t data_size, [in] sgx_ec256_signature_t *p_signature, [in, size=account_id_sz] const uint8_t *p_account_id, uint32_t account_id_sz);
+		public sgx_status_t ecall_gen_sgx_measurement();
+        public sgx_status_t ecall_gen_key_pair();
+        public crust_status_t ecall_verify_iasreport([in, count=len] const char ** IASReport, size_t len, [out] entry_network_signature *p_ensig);
+
+        public crust_status_t ecall_validate_merkle_tree([in] MerkleTree **root);
+        public crust_status_t ecall_seal_data([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
+        public crust_status_t ecall_unseal_data([in, size=sealed_data_size] const uint8_t *p_sealed_data, size_t sealed_data_size, [out, size=unsealed_data_size] uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
+        public crust_status_t ecall_gen_new_merkle_tree([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len);
+    };
+
+    untrusted {
+        void ocall_print_string([in, string] const char *str);
+        void ocall_log_info([in, string] const char *str);
+        void ocall_log_warn([in, string] const char *str);
+        void ocall_log_err([in, string] const char *str);
+        void ocall_log_debug([in, string] const char *str);
+        void ocall_create_dir([in, string] const char *path);
+        void ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
+        void ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
+        size_t ocall_get_folders_number_under_path([in, string] const char *path);
+        void ocall_get_file([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);
+        void ocall_get_merkle_tree([in, string] const char *root_hash, [out] MerkleTree **p_merkletree);
+        void ocall_get_block([in, string] const char* cid, [in, out] size_t* len, [out] unsigned char **p_block);
+        void ocall_get_diff_files([out] Node **node);
+        size_t ocall_get_diff_files_num(void);
+        void ocall_usleep(int u);
+        void ocall_delete_folder_or_file([in, string] const char *path);
+
+        crust_status_t ocall_get_file_block_by_path([in, size=hash_len] char *root_hash, [in, size=hash_len] char *cur_hash, uint32_t hash_len, [in, count=path_count] uint32_t *path, uint32_t path_count);
+
+        crust_status_t ocall_persist_add([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
+        crust_status_t ocall_persist_del([in, string] const char *key);
+        crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
+        crust_status_t ocall_persist_get([in, string] const char *key, [out] uint8_t **value, [out] size_t *value_len);
+    };
+};
