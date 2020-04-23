@@ -10,7 +10,8 @@ crust::Log *p_log = crust::Log::get_instance();
 size_t get_random_wait_time(void)
 {
     srand(time(NULL));
-    return (rand() % REPORT_INTERVAL_BLCOK_NUMBER_LIMIT) * BLOCK_INTERVAL + BLOCK_INTERVAL / 2;
+    //[9  199]
+    return (rand() % (REPORT_INTERVAL_BLCOK_NUMBER_UPPER_LIMIT - REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT + 1) + REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT - 1) * BLOCK_INTERVAL;
 }
 
 /**
@@ -31,6 +32,10 @@ void *work_report_loop(void *)
             size_t wait_time = get_random_wait_time();
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
             sleep(wait_time);
+
+            // Get confirmed block hash
+            block_header->hash = p_chain->get_block_hash(block_header->number);
+
             // Generate validation report and get report size
             if (ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
             {

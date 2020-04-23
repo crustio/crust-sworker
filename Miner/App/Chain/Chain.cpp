@@ -74,6 +74,34 @@ BlockHeader *Chain::get_block_header(void)
     return NULL;
 }
 
+
+/**
+ * @description: get block hash by number
+ * @param block_number block number
+ * @return: block hash
+ * */
+std::string Chain::get_block_hash(size_t block_number)
+{
+    try
+    {
+        std::string url = this->url_end_point->base + "/block/hash?blockNumber=" + std::to_string(block_number);
+        auto res = this->chain_client->Get(url.c_str());
+        if (res && res->status == 200)
+        {
+            return res->body.substr(3, 64);
+        }
+
+        return NULL;
+    }
+    catch (const std::exception &e)
+    {
+        p_log->err("HTTP throw: %s\n", e.what());
+    }
+
+    return NULL;
+}
+
+
 /**
  * @description: test if chian is online
  * @return: test result
