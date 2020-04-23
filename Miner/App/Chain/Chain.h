@@ -28,6 +28,7 @@ public:
     static Chain *chain;
     static Chain *get_instance();
     BlockHeader *get_block_header(void);
+    std::string get_block_hash(size_t block_number);
     bool post_tee_identity(std::string identity);
     bool post_tee_work_report(std::string work_report);
     Chain(std::string url, std::string password_tmp, std::string backup_tmp);
