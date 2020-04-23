@@ -16,7 +16,7 @@ function success_exit()
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
-appdir=$instdir/Miner
+appdir=$instdir/src
 VERSION=$(cat $instdir/VERSION)
 pkgdir=$instdir/crust-tee
 enclavefile="enclave.signed.so"
@@ -78,7 +78,7 @@ else
 fi
 
 cd $instdir
-cp -r bin etc log Miner resource scripts $pkgdir
+cp -r bin etc log src resource scripts $pkgdir
 cp LICENSE README.md VERSION $pkgdir
 rm etc/$enclavefile
 cd -

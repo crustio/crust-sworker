@@ -5,7 +5,7 @@ pipeline {
             steps {
                 echo 'Building...'
                 sh """
-                cd Miner
+                cd src
                 make clean
                 make
                 """
