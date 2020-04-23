@@ -1,4 +1,4 @@
-# Crust TEE
+# Crust TEE test
 Implement the trusted layer based on TEE technology, functionally connect  the consensus layer, and be responsible for the trusted verification of the resource layer.
 
 ## Preparation work
