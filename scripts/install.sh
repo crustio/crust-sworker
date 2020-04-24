@@ -107,7 +107,7 @@ function success_exit()
 ############## MAIN BODY ###############
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
-appdir=$basedir/Miner
+appdir=$basedir/src
 instdir=$basedir
 TMPFILE=$appdir/tmp.$$
 ERRFILE=$basedir/err.log
