@@ -214,7 +214,7 @@ endif
 ######## App Objects ########
 
 app/Enclave_u.h: $(SGX_EDGER8R) enclave/Enclave.edl
-	cd App && $(SGX_EDGER8R) --untrusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
+	cd app && $(SGX_EDGER8R) --untrusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
 	@echo "GEN  =>  $@"
 
 app/Enclave_u.c: app/Enclave_u.h
@@ -223,7 +223,7 @@ app/Enclave_u.o: app/Enclave_u.c
 	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-app/Utils/%.o: app/Utils/%.c
+app/utils/%.o: app/utils/%.c
 	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
@@ -238,7 +238,7 @@ $(App_Name): app/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
 ######## Enclave Objects ########
 
 enclave/Enclave_t.c: $(SGX_EDGER8R) enclave/Enclave.edl
-	@cd Enclave && $(SGX_EDGER8R) --trusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
+	@cd enclave && $(SGX_EDGER8R) --trusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
 	@echo "GEN  =>  $@"
 
 enclave/Enclave_t.o: enclave/Enclave_t.c
