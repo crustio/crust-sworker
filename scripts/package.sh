@@ -79,7 +79,7 @@ fi
 
 cd $instdir
 cp -r bin etc log src resource scripts $pkgdir
-cp LICENSE README.md VERSION $pkgdir
+cp LICENSE README.md VERSION buildenv.mk $pkgdir
 rm etc/$enclavefile
 cd -
 
