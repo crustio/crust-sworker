@@ -55,7 +55,7 @@ Config::Config(std::string path)
     this->chain_api_base_url = config_value["chain_api_base_url"].ToString();
     this->chain_address = config_value["chain_address"].ToString();
     this->chain_account_id = config_value["chain_account_id"].ToString();
-    if (this->chain_account_id.find("0x"))
+    if (this->chain_account_id.find("0x") != this->chain_account_id.npos)
     {
         this->chain_account_id.erase(0, 2);
     }
