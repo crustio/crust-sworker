@@ -59,14 +59,16 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-App_C_Files := $(wildcard app/utils/*.c)
-App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*.cpp) \
-	$(wildcard app/log/*.cpp) $(wildcard app/data_base/*.cpp) $(wildcard app/http/*.cpp) \
-	$(wildcard app/ipfs/*.cpp) $(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) \
-	$(wildcard app/chain/*.cpp) \
+
+App_C_Files := $(wildcard ${SRC_PATH}app/utils/*.c)
+
+App_Cpp_Files := ${SRC_PATH}app/App.cpp $(wildcard ${SRC_PATH}app/utils/*.cpp) $(wildcard ${SRC_PATH}app/config/*.cpp) \
+	$(wildcard ${SRC_PATH}app/log/*.cpp) $(wildcard ${SRC_PATH}app/data_base/*.cpp) $(wildcard ${SRC_PATH}app/http/*.cpp) \
+	$(wildcard ${SRC_PATH}app/ipfs/*.cpp) $(wildcard ${SRC_PATH}app/ocalls/*.cpp) $(wildcard ${SRC_PATH}app/process/*.cpp) \
+	$(wildcard ${SRC_PATH}app/chain/*.cpp) \
 	
-App_Include_Paths := -Iinclude -Iapp -Iapp/ipfs -Iapp/utils -Iapp/http -Iapp/config -Iapp/ocalls \
-	-Iapp/process -Iapp/chain -Iapp/log -Iapp/data_base -I$(SGX_SDK)/include
+App_Include_Paths := -I${SRC_PATH}include -I${SRC_PATH}app -I${SRC_PATH}app/ipfs -I${SRC_PATH}app/utils -I${SRC_PATH}app/http -I${SRC_PATH}app/config -I${SRC_PATH}app/ocalls \
+	-I${SRC_PATH}app/process -I${SRC_PATH}app/chain -I${SRC_PATH}app/log -I${SRC_PATH}app/data_base -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
