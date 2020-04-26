@@ -5,11 +5,20 @@ pipeline {
             steps {
                 echo 'Building...'
                 sh """
-                cd src
                 make clean
                 make
                 """
                 echo 'Build successfully'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Testing...'
+                sh """
+                make clean
+                make test
+                """
+                echo 'Test successfully'
             }
         }
     }
