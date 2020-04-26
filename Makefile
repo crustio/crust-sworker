@@ -1,10 +1,10 @@
-.PHONY: all clean
+.PHONY: build test clean
 
-all:
+build:
 	@$(MAKE) -C src/ all
 
 test:
-	@$(MAKE) -C test/ all
+	@$(MAKE) -C test/ test
 
 clean:
 	@$(MAKE) -C src/ clean

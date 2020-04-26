@@ -3,15 +3,18 @@ SRC_PATH := ../src/
 include ../buildenv.mk
 
 ######## Test ########
-TEST_SOURCES := FormatUtilsTest.cpp
+TEST_SOURCES := FormatUtilsTest.cpp CommonTest.cpp
 TEST_TARGETS := $(TEST_SOURCES:.cpp=.test)
 TEST_OBJECTS := $(TEST_SOURCES:.cpp=.o)
 
 .PHONY: test
-test: $(TEST_TARGETS)
+test: build-src $(TEST_TARGETS)
 	@for target in $(TEST_TARGETS) ; do \
 		./$$target ; \
 	done
+
+build-src:
+	@$(MAKE) -C ../src/ all
 
 %.o: %.cpp  ${SRC_PATH}app/Enclave_u.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
