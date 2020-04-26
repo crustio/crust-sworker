@@ -11,7 +11,7 @@ TEST_TARGET := crust-tee-test
 test: build-src $(TEST_TARGET)
 	@./${TEST_TARGET} ;
 
-build-src: ${SRC_PATH}app/Enclave_u.h ${SRC_PATH}app/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
+build-src:
 	@$(MAKE) -C ../src/ all --no-print-directory
 
 %.o: %.cpp  ${SRC_PATH}app/Enclave_u.h
