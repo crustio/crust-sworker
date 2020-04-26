@@ -1,7 +1,11 @@
 .PHONY: all clean
 
 all:
-	make -C src/ all
+	@$(MAKE) -C src/ all
+
+test:
+	@$(MAKE) -C test/ all
 
 clean:
-	make -C src/ clean
+	@$(MAKE) -C src/ clean
+	@$(MAKE) -C test/ clean

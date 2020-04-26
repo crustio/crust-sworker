@@ -1,4 +1,4 @@
-../buildenv.mk
+include ../buildenv.mk
 
 .PHONY: all target run
 all: .config_$(Build_Mode)_$(SGX_ARCH)
