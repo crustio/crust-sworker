@@ -1,5 +1,7 @@
-# Crust TEE
+# Crust TEE &middot; [![Build Status](http://cicd.crust.run:7080/buildStatus/icon?job=crust-tee-ci%2Fmaster)](http://cicd.crust.run:7080/job/crust-tee-ci/job/master/) [![GitHub license](https://img.shields.io/github/license/crustio/crust-tee)](LICENSE)
 Implement the trusted layer based on TEE technology, functionally connect  the consensus layer, and be responsible for the trusted verification of the resource layer.
+
+<a href='https://web3.foundation/'><img width='320' alt='Funded by web3 foundation' src='docs/img/web3f_grants_badge.png'></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='https://builders.parity.io/'><img width='360' src='docs/img/sbp_grants_badge.png'></a>
 
 ## Preparation work
 - Hardware requirements: 
