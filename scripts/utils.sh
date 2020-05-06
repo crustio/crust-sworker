@@ -83,12 +83,10 @@ function setTimeWait()
     ### Be careful that this function should be used with checkRes function!
     local info=$1
     local syncfile=$2
-    local index=1
-    local timeout=100
-    while [ ! -s "$syncfile" ] && [ $timeout -gt 0 ]; do
-        printf "%s\r" "${info}${index}s"
-        ((index++))
-        ((timeout--))
+    local acc=1
+    while [ ! -s "$syncfile" ]; do
+        printf "%s\r" "${info}${acc}s"
+        ((acc++))
         sleep 1
     done
 

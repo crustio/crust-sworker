@@ -25,9 +25,9 @@ function installAPP()
     local res=0
     cd $appdir
     make clean &>/dev/null
-    setTimeWait "$(verbose INFO "Installing application(about 50s)..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Installing application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make &>$ERRFILE
+    make -j${coreNum} &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     cp $appname ../bin
     if [ ! -e "../etc/$enclaveso" ]; then
@@ -35,7 +35,7 @@ function installAPP()
     fi
     cp $configfile ../etc
     cd - &>/dev/null
-    
+
     # Copy related files to install directory
     cp -r $instdir/bin $crustteedir
     cp -r $instdir/etc $crustteedir
@@ -89,7 +89,7 @@ function success_exit()
     # Kill alive useless sub process
     for el in ${toKillPID[@]}; do
         if ps -ef | grep -v grep | grep $el &>/dev/null; then
-            kill -9 $el
+            kill -9 $el &>/dev/null
         fi
     done
 
@@ -120,6 +120,7 @@ res=0
 uid=$(stat -c '%U' $basedir)
 pad="$(printf '%0.1s' ' '{1..10})"
 instSuccess=false
+coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
 # Control configuration
 toKillPID=()
 # App related

@@ -49,7 +49,10 @@ MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
 {
     MerkleTree *root = new MerkleTree();
     std::string hash = tree_json["hash"].ToString();
-    root->hash = (char*)hex_string_to_bytes(hash.c_str(), hash.size());
+    size_t hash_len = hash.size() + 1;
+    root->hash = (char*)malloc(hash_len);
+    memset(root->hash, 0, hash_len);
+    memcpy(root->hash, hash.c_str(), hash.size());
     root->links_num = tree_json["links_num"].ToInt();
     json::JSON children = tree_json["links"];
 
@@ -65,4 +68,25 @@ MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
     }
 
     return root;
+}
+
+/**
+ * @description: Serialize MerkleTree to json
+ * @param root -> MerkleTree root node
+ * @return: MerkleTree json structure
+ * */
+json::JSON serialize_merkletree_to_json(MerkleTree *root)
+{
+    if (root == NULL)
+        return "";
+
+    json::JSON tree;
+    tree["hash"] = std::string(root->hash);
+    tree["links_num"] = root->links_num;
+    for (size_t i = 0; i < root->links_num; i++)
+    {
+        tree["links"][i] = serialize_merkletree_to_json(root->links[i]);
+    }
+
+    return tree;
 }

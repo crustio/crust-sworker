@@ -11,7 +11,6 @@
 #include "Common.h"
 #include "Config.h"
 #include "Log.h"
-#include "HttpLib.h"
 #include "SgxSupport.h"
 #include "FormatUtils.h"
 #include "CrustStatus.h"

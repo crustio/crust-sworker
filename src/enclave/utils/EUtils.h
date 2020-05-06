@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include "Enclave_t.h"
+#include "Resource.h"
 
 // Data tag to enclave only data
 #define TEE_PRIVATE_TAG  "&+CRUSTTEEPRIVATE+&"
@@ -22,7 +23,7 @@
 
 /* Main loop waiting time (us) */
 #define MAIN_LOOP_WAIT_TIME 10000000
-#define LOG_BUF_SIZE 100000
+#define LOG_BUF_SIZE 32*1024
 /* The length of hash */
 #define HASH_LENGTH 32
 
@@ -45,7 +46,10 @@ char* unsigned_char_to_hex(unsigned char in);
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 
 crust_status_t validate_merkle_tree_c(MerkleTree *root);
+std::string serialize_merkletree_to_json_string(MerkleTree *root);
 bool is_null_hash(unsigned char *hash);
+void *enc_malloc(size_t size);
+void *enc_realloc(void *p, size_t size);
 
 #if defined(__cplusplus)
 }

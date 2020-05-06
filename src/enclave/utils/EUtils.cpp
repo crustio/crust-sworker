@@ -285,6 +285,8 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_sha256_hash_t g_hashs_hash256;
 
+    uint8_t *hash_u = NULL;
+
     uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
     memset(g_hashs, 0, tree->links_num * HASH_LENGTH);
     for (uint32_t i = 0; i < tree->links_num; i++)
@@ -294,13 +296,27 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
             crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
         }
-        memcpy(g_hashs + i * HASH_LENGTH, tree->links[i]->hash, HASH_LENGTH);
+        string hash_r = string(tree->links[i]->hash);
+        size_t n_pos = hash_r.find("_");
+        if (n_pos != hash_r.npos)
+        {
+            hash_r.erase(0, n_pos + 1);
+        }
+        uint8_t *tmp_hash = hex_string_to_bytes(hash_r.c_str(), HASH_LENGTH * 2);
+        if (tmp_hash == NULL)
+        {
+            crust_status = CRUST_INVALID_MERKLETREE;
+            goto cleanup;
+        }
+        memcpy(g_hashs + i * HASH_LENGTH, tmp_hash, HASH_LENGTH);
+        free(tmp_hash);
     }
 
     // Compute and compare hash value
     sgx_sha256_msg(g_hashs, tree->links_num * HASH_LENGTH, &g_hashs_hash256);
 
-    if (memcmp(tree->hash, g_hashs_hash256, HASH_LENGTH) != 0)
+    hash_u = hex_string_to_bytes(tree->hash, HASH_LENGTH * 2);
+    if (memcmp(hash_u, g_hashs_hash256, HASH_LENGTH) != 0)
     {
         crust_status = CRUST_INVALID_MERKLETREE;
         goto cleanup;
@@ -311,7 +327,37 @@ cleanup:
 
     free(g_hashs);
 
+    if (hash_u != NULL)
+        free(hash_u);
+
     return crust_status;
+}
+
+/**
+ * @description: Serialize MerkleTree to json string
+ * @param root -> MerkleTree root node
+ * @return: Json string
+ * */
+string serialize_merkletree_to_json_string(MerkleTree *root)
+{
+    if (root == NULL)
+        return "";
+
+    string node;
+    node.append("{\"hash\":\"").append(root->hash).append("\",");
+    node.append("\"links_num\":").append(to_string(root->links_num)).append(",");
+    node.append("[");
+
+    for (size_t i = 0; i < root->links_num; i++)
+    {
+        string sub_node = serialize_merkletree_to_json_string(root->links[i]);
+        node.append(sub_node).append(",");
+    }
+
+    node.erase(node.size() - 1, 1);
+    node.append("]");
+
+    return node;
 }
 
 /**
@@ -330,4 +376,40 @@ bool is_null_hash(unsigned char *hash)
     }
 
     return true;
+}
+
+/**
+ * @description: Wrapper for malloc function, add tryout
+ * @param size -> malloc buffer size
+ * @return: Pointer to malloc buffer
+ * */
+void *enc_malloc(size_t size)
+{
+    int tryout = 0;
+    void *p = NULL;
+
+    while (tryout++ < ENCLAVE_MALLOC_TRYOUT && p == NULL)
+    {
+        p = (void*)malloc(size);
+    }
+
+    return p;
+}
+
+/**
+ * @description: Wrapper for realloc function, add tryout
+ * @param p -> Realloc pointer
+ * @param size -> realloc buffer size
+ * @return: Realloc buffer pointer
+ * */
+void *enc_realloc(void *p, size_t size)
+{
+    int tryout = 0;
+
+    while (tryout++ < ENCLAVE_MALLOC_TRYOUT && p == NULL)
+    {
+        p = (void*)realloc(p, size);
+    }
+
+    return p;
 }

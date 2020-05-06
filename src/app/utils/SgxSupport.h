@@ -1,3 +1,6 @@
+#ifndef _SGX_SUPPORT_H_
+#define _SGX_SUPPORT_H_
+
 #pragma once
 
 #include <sgx_urts.h>
@@ -22,3 +25,5 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* !_SGX_SUPPORT_H_ */

@@ -1,6 +1,9 @@
 #!/bin/bash
 function installPrerequisites()
 {
+    # For basic
+    checkAndInstall "${basicsprereq[*]}"
+
     # For SGX PSW
     checkAndInstall "${sgxpswprereq[*]}"
 
@@ -13,32 +16,39 @@ function installPrerequisites()
 
 function installSGXSDK()
 {
-    if hasInstalledSGXSDK; then
-        return 0
+    if ! hasInstalledSGXSDK; then
+        local cmd=""
+        local expCmd=""
+        local ret=0
+
+        # Unstall previous SGX component
+        uninstallSGX
+
+        cd $rsrcdir
+        for dep in ${sdkInstOrd[@]}; do 
+            verbose INFO "Installing $dep..." h
+            if echo $dep | grep lib &>/dev/null; then
+                dpkg -i $rsrcdir/$dep &>$ERRFILE
+                ret=$?
+            elif [[ $dep =~ sdk ]]; then
+                execWithExpect_sdk "" "$rsrcdir/$dep"
+                ret=$?
+            else
+                $rsrcdir/$dep &>$ERRFILE
+                ret=$?
+            fi
+            checkRes $ret "quit" "success"
+        done
+        cd - &>/dev/null
     fi
-    local cmd=""
-    local expCmd=""
-    local ret=0
 
-    # Unstall previous SGX component
-    uninstallSGX
-
-    cd $rsrcdir
-    for dep in ${sdkInstOrd[@]}; do 
-        verbose INFO "Installing $dep..." h
-        if echo $dep | grep lib &>/dev/null; then
-            dpkg -i $rsrcdir/$dep &>$ERRFILE
-            ret=$?
-        elif [[ $dep =~ sdk ]]; then
-            execWithExpect_sdk "" "$rsrcdir/$dep"
-            ret=$?
-        else
-            $rsrcdir/$dep &>$ERRFILE
-            ret=$?
-        fi
-        checkRes $ret "quit" "success"
-    done
-    cd - &>/dev/null
+    # Check if psw daemon process is running
+    if ! ps -ef | grep -v grep | grep aesm_service &>/dev/null; then
+        verbose INFO "Starting up aesm_service..." h
+        export LD_LIBRARY_PATH=LD_LIBRARY_PATH:$inteldir/libsgx-enclave-common/aesm
+        $inteldir/libsgx-enclave-common/aesm/aesm_service &
+        checkRes $? "quit" "success"
+    fi
 }
 
 function installSGXSSL()
@@ -54,7 +64,7 @@ function installSGXSSL()
 
     # Install SGXSDK
     > $SYNCFILE
-    setTimeWait "$(verbose INFO "Installing SGX SSL(about 60s)..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Installing SGX SSL..." h)" $SYNCFILE &
     cd $rsrcdir
     sgxssltmpdir=$rsrcdir/$(unzip -l $sgxsslpkg | awk '{print $NF}' | awk -F/ '{print $1}' | grep intel | head -n 1)
     sgxssl_openssl_source_dir=$sgxssltmpdir/openssl_source
@@ -222,6 +232,7 @@ opensslpkg=$rsrcdir/$(basename $OPENSSLURL)
 openssldir=$rsrcdir/$(basename $OPENSSLURL | grep -Po ".*(?=\.tar)")
 sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
 # SGX prerequisites
+basicsprereq=(expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
 sgxpswprereq=(libssl-dev libcurl4-openssl-dev libprotobuf-dev)
 othersprereq=(libboost-all-dev libleveldb-dev openssl)
@@ -235,7 +246,7 @@ sgx_env_file=/opt/intel/sgxsdk/environment
 
 . $basedir/utils.sh
 
-trap "success_exit" INT
+#trap "success_exit" INT
 trap "success_exit" EXIT
 
 if [ $(id -u) -ne 0 ]; then
@@ -243,16 +254,6 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-
-# check if there is expect installed
-which expect &>/dev/null
-if [ $? -ne 0 ]; then
-    apt-get install expect
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Install expect failed!"
-        exit 1
-    fi
-fi
 
 # Installing Prerequisites
 installPrerequisites

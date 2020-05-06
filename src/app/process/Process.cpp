@@ -1,5 +1,6 @@
 #include "Process.h"
 #include "DataBase.h"
+#include "WebServer.h"
 
 #define RECEIVE_PID_RETRY 30
 
@@ -90,24 +91,6 @@ bool initialize_enclave()
 }
 
 /**
- * @description: Start http service
- * */
-void *start_http(void *)
-{
-    /* API handler component */
-    p_log->info("Initing api url:%s...\n", p_config->api_base_url.c_str());
-    p_api_handler = new ApiHandler();
-    if (p_api_handler == NULL)
-    {
-        p_log->err("Init api handler failed.\n");
-        return NULL;
-    }
-    p_api_handler->start();
-    p_log->err("Start network service failed!\n");
-    return NULL;
-}
-
-/**
  * @description: initialize the components:
  *   config -> user configurations and const configurations
  *   ipfs -> used to store meaningful files, please make sure ipfs is running before running daemon
@@ -116,10 +99,10 @@ void *start_http(void *)
  */
 bool initialize_components(void)
 {
-    /* Create base path */
+    // Create base path
     create_directory(p_config->empty_path);
 
-    /* IPFS component */
+    // IPFS component
     if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
     {
         p_log->err("Init ipfs failed.\n");
@@ -132,23 +115,21 @@ bool initialize_components(void)
         return false;
     }
 
-    /* Init crust */
+    // Init crust
     if (crust::Chain::get_instance() == NULL)
     {
         p_log->err("Init crust chain failed!\n");
         return false;
     }
 
-    /* Start http service */
+    // Start http service
     pthread_t wthread;
-    if (pthread_create(&wthread, NULL, start_http, NULL) != 0)
+    if (pthread_create(&wthread, NULL, start_webservice, NULL) != 0)
     {
-        p_log->err("Create rest service thread failed!\n");
         return false;
     }
-    p_log->info("Start rest service successfully!\n");
 
-    /* Initialize DataBase */
+    // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)
     {
         p_log->err("Initialize DataBase failed!\n");

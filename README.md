@@ -176,202 +176,91 @@ Output (500, TEE has not been fully launched , this API does not support concurr
 ```
 
 
-### Use 'storage/validate/merkletree' to start storage related work, 
-
-Curl shell:
-```shell
-curl --location --request POST 'http://<url:port>/api/v0/storage/validate/merkletree' \
---header 'Content-Type: application/json' \
---header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
---data-raw '{
-  "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
-  "links_num":2,
-  "links":
-  [
-    {
-      "hash":"ca8fcf43b852d7d73801c1c13f38e3d8f80e6c53d4556aa4e18aaa6632c0914b",
-      "links_num":2,
-      "links":
-      [
-        {
-          "hash":"df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
-          "links_num":0,
-          "links":[]
-        },
-        {
-          "hash":"82ef6f9e48bcbdf232db1d5c5c6e8f390156f5305b35d4b32f75fc92c8126a32",
-          "links_num":0,
-          "links":[]
-        }
-      ]
+### Use 'storage/seal' to start storage related work, 
+This API is a websocket API.
+1. Websocket api: wss://<url:port>/api/v0/storage/seal
+```
+{
+    "backup" : {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}},
+    "body" : {
+        "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
+        "links_num":2,
+        "links":
+        [
+          {
+            "hash":"ca8fcf43b852d7d73801c1c13f38e3d8f80e6c53d4556aa4e18aaa6632c0914b",
+            "links_num":2,
+            "links":
+            [
+              {
+                "hash":"df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+                "links_num":0,
+                "links":[]
+              },
+              {
+                "hash":"82ef6f9e48bcbdf232db1d5c5c6e8f390156f5305b35d4b32f75fc92c8126a32",
+                "links_num":0,
+                "links":[]
+              }
+            ]
+          },
+          {
+            "hash":"e2f3daf19abfb40766b4c507a9b191fe274f343dfff18287c8e1d8552b8aac77",
+            "links_num":2,
+            "links":
+            [
+              {
+                "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
+                "links_num":0,
+                "links":[]
+              },
+              {
+                "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
+                "links_num":0,
+                "links":[]
+              }
+            ]
+          }
+        ]
     },
-    {
-      "hash":"e2f3daf19abfb40766b4c507a9b191fe274f343dfff18287c8e1d8552b8aac77",
-      "links_num":2,
-      "links":
-      [
-        {
-          "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
-          "links_num":0,
-          "links":[]
-        },
-        {
-          "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
-          "links_num":0,
-          "links":[]
-        }
-      ]
-    }
-  ]
-}'
-
+    "path" : "/home/xxxx/xxxx/xxxxx"
+}
 ```
+Parameter:
+1. backup: Indicates identity
+1. body: Valid merkletree json structure
+1. path: Path to the to be sealed file data
 
-Output (200, success):
-```shell
-Validate merkle tree successfully
-```
-
-Output (400, empty backup):
-```shell
-empty backup
-```
-
-Output (401, invalid backup):
-```shell
-invalid backup
-```
-
-Output (402, error: empty body):
-```shell
-empty request body
-```
-
-Output (403, error merkletree json):
-```shell
-error merkletree json
-```
-
-Output (404, deserialize merkletree failed):
-```shell
-Invalidated merkletree results in failure
-```
-
-Output (405, validate merkletree failed):
-```shell
-Validate merkle tree failed, because of invalid tree structure
-```
-
-
-### Use 'storage/seal' to seal file block, 
-
-Curl shell:
-```shell
-curl --location --request POST 'http://<url:port>/api/v0/storage/seal?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17' \
---header 'Content-Type: application/octet-stream' \
---header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
---data-binary '<path_to_file_block>'
-```
-
-Output (200, success):
-```shell
-seal file block successfully
-```
-
-Output (400, empty backup):
-```shell
-empty backup
-```
-
-Output (401, invalid backup):
-```shell
-invalid backup
-```
-
-Output (402, error: empty request body):
-```shell
-empty source data
-```
-
-Output (403, empty root hash):
-```shell
-empty root hash
-```
-
-Output (404, seal failed):
-```shell
-seal file block failed
-```
+Output status:
+1. 200: validate successfully, return sealed merkletree json structure
+1. 201: given merkletree has been validated
+1. 400: validate failed! Invalid merkletree
+1. 401: validate failed! Invalid backup
+1. 402: validate failed! Empty body
+1. 403: validate failed! Deserialize merkletree failed
+1. 404: validate failed! Invoke ECALL failed
+1. 405: seal failed! Invoke ECALL failed
 
 
 ### Use 'storage/unseal' to unseal file block, 
-
-Curl shell:
-```shell
-curl --location --request POST 'http://<url:port>/api/v0/storage/unseal' \
---header 'Content-Type: application/octet-stream' \
---header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
---data-binary '<path_to_file_block>'
+This API is a websocket API.
+1. Websocket api: wss://<url:port>/api/v0/storage/unseal
 ```
-
-Output (200, success):
-```shell
-unseal file block successfully
+{
+    "backup" : {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}},
+    "path" : "/home/xxxx/xxxx/xxxxx"
+}
 ```
+Parameter:
+1. backup: Indicates identity
+1. path: Path to the to be unsealed file data
 
-Output (400, empty backup):
-```shell
-empty backup
-```
-
-Output (401, invalid backup):
-```shell
-invalid backup
-```
-
-Output (402, error: emtpy request body):
-```shell
-emtpy request body
-```
-
-Output (403, unseal failed):
-```shell
-unseal file block failed
-```
-
-
-### Use 'storage/generate/merkletree' to generate validated merkletree in enclave, 
-
-Curl shell:
-```shell
-curl --location --request POST 'http://<url:port>/api/v0/storage/generate/merkletree?root_hash=0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17' \
---header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}'
-```
-
-Output (200, success):
-```shell
-generate validated merkletree successfully
-```
-
-Output (400, empty backup):
-```shell
-empty backup
-```
-
-Output (401, invalid backup):
-```shell
-invalid backup
-```
-
-Output (402, error: empty root hash):
-```shell
-empty root hash
-```
-
-Output (403, generate failed):
-```shell
-generate validated merkletree failed
-```
+Output status:
+1. 200: unseal data successfully!
+1. 400: Unseal file failed!Error invalid request json!
+1. 401: Unseal file failed!Error invalid backup 
+1. 402: Unseal file failed!Error empty file directory
+1. 403: Unseal file failed!Error Invoke ECALL failed
 
 
 ## Contribution

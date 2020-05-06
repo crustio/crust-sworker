@@ -1,11 +1,18 @@
 #include "OCalls.h"
 #include "DataBase.h"
+#include "FileUtils.h"
+#include <exception>
 
 crust::Log *p_log = crust::Log::get_instance();
-extern std::map<std::vector<uint8_t>, MerkleTree *> hash_tree_map;
 
 // Used to store ocall file data
-unsigned char *ocall_file_data = NULL;
+uint8_t *ocall_file_data = NULL;
+size_t ocall_file_data_len = 0;
+// Used to store storage related data
+uint8_t *_storage_buffer = NULL;
+size_t _storage_buffer_len = 0;
+// Used to temporarily store sealed serialized MerkleTree
+std::map<std::string, std::string> sealed_tree_map;
 
 
 /**
@@ -57,21 +64,26 @@ void ocall_log_debug(const char *str)
  * @description: ocall for creating directory
  * @param path -> the path of directory
  */
-void ocall_create_dir(const char *path)
+crust_status_t ocall_create_dir(const char *path)
 {
-    std::vector<std::string> fields;
-    boost::split(fields, path, boost::is_any_of("/"));
-    std::string current_path = "";
+    std::vector<std::string> entries;
+    boost::split(entries, path, boost::is_any_of("/"));
+    std::string cur_path = "";
 
-    for (size_t i = 0; i < fields.size(); i++)
+    for (size_t i = 0; i < entries.size(); i++)
     {
-        if (access((current_path + fields[i]).c_str(), 0) == -1)
+        cur_path.append("/").append(entries[i]);
+        if (access(cur_path.c_str(), 0) == -1)
         {
-            mkdir((current_path + fields[i]).c_str(), S_IRWXU);
+            if (mkdir(cur_path.c_str(), S_IRWXU) == -1)
+            {
+                p_log->err("Create directory:%s failed!\n", cur_path.c_str());
+                return CRUST_MKDIR_FAILED;
+            }
         }
-
-        current_path += fields[i] + "/";
     }
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -79,12 +91,41 @@ void ocall_create_dir(const char *path)
  * @param old_path -> the old path of directory
  * @param new_path -> the new path of directory
  */
-void ocall_rename_dir(const char *old_path, const char *new_path)
+crust_status_t ocall_rename_dir(const char *old_path, const char *new_path)
 {
-    if (access(old_path, 0) != -1)
+    if (access(old_path, 0) == -1)
+        return CRUST_RENAME_FILE_FAILED;
+
+    std::vector<std::string> old_path_entry;
+    std::vector<std::string> new_path_entry;
+    boost::split(old_path_entry, old_path, boost::is_any_of("/"));
+    boost::split(new_path_entry, new_path, boost::is_any_of("/"));
+
+    if (old_path_entry.size() != new_path_entry.size())
     {
-        rename(old_path, new_path);
+        p_log->err("entry size no equal!\n");
+        return CRUST_RENAME_FILE_FAILED;
     }
+
+    size_t entry_size = old_path_entry.size();
+    for (size_t i = 0; i < entry_size; i++)
+    {
+        if (i == entry_size - 1)
+        {
+            if (rename(old_path, new_path) == -1)
+            {
+                p_log->err("Rename file:%s to file:%s failed!\n", old_path, new_path);
+                return CRUST_RENAME_FILE_FAILED;
+            }
+        }
+        else if (old_path_entry[i].compare(new_path_entry[i]) != 0)
+        {
+            p_log->err("entry not equal!\n");
+            return CRUST_RENAME_FILE_FAILED;
+        }
+    }
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -93,12 +134,30 @@ void ocall_rename_dir(const char *old_path, const char *new_path)
  * @param data -> data for saving
  * @param len -> the length of data
  */
-void ocall_save_file(const char *file_path, const unsigned char *data, size_t len)
+crust_status_t ocall_save_file(const char *file_path, const unsigned char *data, size_t len)
 {
     std::ofstream out;
     out.open(file_path, std::ios::out | std::ios::binary);
-    out.write(reinterpret_cast<const char *>(data), len);
+    if (! out)
+    {
+        return CRUST_OPEN_FILE_FAILED;
+    }
+
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    try
+    {
+        out.write(reinterpret_cast<const char *>(data), len);
+    }
+    catch (std::exception e)
+    {
+        crust_status = CRUST_WRITE_FILE_FAILED;
+        p_log->err("Save file:%s failed! Error: %s\n", file_path, e.what());
+    }
+
     out.close();
+
+    return crust_status;
 }
 
 /**
@@ -118,15 +177,15 @@ size_t ocall_get_folders_number_under_path(const char *path)
     }
 }
 
-void ocall_delete_folder_or_file(const char *path)
+crust_status_t ocall_delete_folder_or_file(const char *path)
 {
-    if (access(path, 0) != -1)
+    if (access(path, 0) == -1 || rm(path) == -1)
     {
-        if(rm(path) == -1)
-        {
-            p_log->err("Delete '%s' error!\n", path);
-        }
+        p_log->err("Delete '%s' error!\n", path);
+        return CRUST_DELETE_FILE_FAILED;
     }
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -135,32 +194,143 @@ void ocall_delete_folder_or_file(const char *path)
  * @param len -> the length of data
  * @return file data
  */
-void ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len)
+crust_status_t ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len)
 {
+    crust_status_t crust_status = CRUST_SUCCESS;
+
     if (access(file_path, 0) == -1)
     {
-        return;
+        return CRUST_ACCESS_FILE_FAILED;
     }
+
+    // Judge if given path is file
+    struct stat s;
+    if (stat (file_path, &s) == 0)
+    {
+        if (s.st_mode & S_IFDIR)
+            return CRUST_OPEN_FILE_FAILED;
+    } 
 
     std::ifstream in;
 
     in.open(file_path, std::ios::out | std::ios::binary);
+    if (! in)
+    {
+        return CRUST_OPEN_FILE_FAILED;
+    }
 
     in.seekg(0, std::ios::end);
     *len = in.tellg();
     in.seekg(0, std::ios::beg);
 
-    if (ocall_file_data != NULL)
+    if (*len > ocall_file_data_len)
     {
-        delete[] ocall_file_data;
+        ocall_file_data_len = 1024 * (*len / 1024) + ((*len % 1024) ? 1024 : 0);
+        ocall_file_data = (uint8_t*)realloc(ocall_file_data, ocall_file_data_len);
+        if (ocall_file_data == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
     }
-
-    ocall_file_data = new unsigned char[*len];
 
     in.read(reinterpret_cast<char *>(ocall_file_data), *len);
     in.close();
 
     *p_file = ocall_file_data;
+
+    return crust_status;
+}
+
+/**
+ * @description: ocall for getting file (ps: can't used by multithreading)
+ * @param path -> the path of file
+ * @param len -> the length of data
+ * @return file data
+ */
+crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_file, size_t *len)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    if (access(file_path, 0) == -1)
+    {
+        return CRUST_ACCESS_FILE_FAILED;
+    }
+
+    // Judge if given path is file
+    struct stat s;
+    if (stat (file_path, &s) == 0)
+    {
+        if (s.st_mode & S_IFDIR)
+            return CRUST_OPEN_FILE_FAILED;
+    } 
+
+    std::ifstream in;
+
+    in.open(file_path, std::ios::out | std::ios::binary);
+    if (! in)
+    {
+        return CRUST_OPEN_FILE_FAILED;
+    }
+
+    in.seekg(0, std::ios::end);
+    *len = in.tellg();
+    in.seekg(0, std::ios::beg);
+
+    if (*len > _storage_buffer_len)
+    {
+        _storage_buffer_len = 1024 * (*len / 1024) + ((*len % 1024) ? 1024 : 0);
+        _storage_buffer = (uint8_t*)realloc(_storage_buffer, _storage_buffer_len);
+        if (_storage_buffer == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+    }
+
+    in.read(reinterpret_cast<char *>(_storage_buffer), *len);
+    in.close();
+
+    *p_file = _storage_buffer;
+
+    return crust_status;
+}
+
+/**
+ * @description: Temporarily store sealed MerkleTree structure
+ * @param org_root_hash -> Original MerkleTree root hash
+ * @param tree_data -> Serialized MerkleTree
+ * @param tree_len -> Serialized MerkleTree length 
+ * */
+void ocall_store_sealed_merkletree(const char *org_root_hash, const char *tree_data, size_t tree_len)
+{
+    std::string org_root_hash_str(org_root_hash);
+    sealed_tree_map[org_root_hash_str] = std::string(tree_data, tree_len);
+}
+
+/**
+ * @description: Replace old file with new file
+ * @param old_path -> Old file path
+ * @param new_path -> New file path
+ * @param data -> New file data
+ * @param len -> New file data length
+ * @return: Replace status
+ * */
+crust_status_t ocall_replace_file(const char *old_path, const char *new_path, const uint8_t *data, size_t len)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    // Save new file
+    if (CRUST_SUCCESS != (crust_status = ocall_save_file(new_path, data, len)))
+    {
+        return crust_status;
+    }
+
+    // Delete old file
+    if (CRUST_SUCCESS != (crust_status = ocall_delete_folder_or_file(old_path)))
+    {
+        return crust_status;
+    }
+
+    return crust_status;
 }
 
 /**
@@ -223,7 +393,7 @@ void ocall_usleep(int u)
  * @param path_count -> Vector size
  * @return: Get status
  * */
-crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count)
+crust_status_t ocall_get_file_block_by_path(char * /*root_hash*/, char * /*cur_hash*/, uint32_t /*hash_len*/, uint32_t *path, uint32_t path_count)
 {
     std::vector<uint32_t> path_v(path, path + path_count);
     // TODO: Send path to storage and get corresponding file block
@@ -284,4 +454,23 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
     *value_len = val.size() / 2;
 
     return crust_status;
+}
+
+/**
+ * @description: Get sub folders and files in indicated path
+ * @param path -> Indicated path
+ * @param files -> Indicate sub folders and files vector
+ * @param files_num -> Sub folders and files number
+ * */
+void ocall_get_sub_folders_and_files(const char *path, char ***files, size_t *files_num)
+{
+    std::vector<std::string> dirs = get_sub_folders_and_files(path);
+    std::vector<const char *> dirs_r;
+    for (auto dir : dirs)
+    {
+        dirs_r.push_back(dir.c_str());
+    }
+
+    *files = const_cast<char**>(dirs_r.data());
+    *files_num = dirs_r.size();
 }
