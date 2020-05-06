@@ -8,6 +8,7 @@ extern sgx_thread_mutex_t g_workload_mutex;
  */
 void validate_empty_disk(const char *path)
 {
+    crust_status_t crust_status = CRUST_SUCCESS;
     Workload *p_workload = Workload::get_instance();
 
     for (auto it_g_hash = p_workload->empty_g_hashs.begin(); it_g_hash != p_workload->empty_g_hashs.end(); it_g_hash++)
@@ -45,7 +46,7 @@ void validate_empty_disk(const char *path)
         g_path = get_g_path_with_hash(path, g_hash);
 
         // Get M hashs
-        ocall_get_file(get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
+        ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)
         {
             log_warn("Get m hashs file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
@@ -73,7 +74,7 @@ void validate_empty_disk(const char *path)
         sgx_read_rand((unsigned char *)&rand_val_m, 4);
         select = rand_val_m % SRD_RAND_DATA_NUM;
         leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
-        ocall_get_file(leaf_path.c_str(), &leaf_data, &leaf_data_len);
+        ocall_get_file(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
 
         if (leaf_data == NULL)
         {
@@ -96,7 +97,7 @@ void validate_empty_disk(const char *path)
     goto end_validate_one_g_empty;
     end_validate_one_g_empty_failed:
         sgx_thread_mutex_lock(&g_workload_mutex);
-        ocall_delete_folder_or_file(g_path.c_str());
+        ocall_delete_folder_or_file(&crust_status, g_path.c_str());
         free(*it_g_hash);
         it_g_hash = p_workload->empty_g_hashs.erase(it_g_hash);
         it_g_hash--;

@@ -3,5 +3,7 @@
 #define LOG_FILE_PATH       CRUST_INST_DIR "/log/crust.log"
 #define CONFIG_FILE_PATH    CRUST_INST_DIR "/etc/Config.json"
 
-#define APP_RUN_MODE_SINGLE "single"
 #define HASH_LENGTH 32
+#define SEAL_BLOCK_MAX_SIZE 2*1024*1024
+#define WEB_TIMEOUT 60
+#define ENCLAVE_MALLOC_TRYOUT 3

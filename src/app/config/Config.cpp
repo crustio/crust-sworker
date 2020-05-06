@@ -45,6 +45,8 @@ Config::Config(std::string path)
     this->db_path = this->base_path + "/db";
     this->empty_capacity = config_value["empty_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["empty_capacity"].ToInt();
     this->api_base_url = config_value["api_base_url"].ToString();
+    this->websocket_url = config_value["websocket_url"].ToString();
+    this->websocket_thread_num = config_value["websocket_thread_num"].ToInt();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
     this->srd_thread_num = std::min(omp_get_num_procs(), 8);
 
@@ -89,6 +91,8 @@ void Config::show(void)
 
     printf("    'ipfs api base url' : '%s',\n", this->ipfs_api_base_url.c_str());
     printf("    'api base url' : '%s',\n", this->api_base_url.c_str());
+    printf("    'websocket url' : '%s',\n", this->websocket_url.c_str());
+    printf("    'websocket thread number' : '%d',\n", this->websocket_thread_num);
     printf("    'validator api base url' : '%s',\n", this->validator_api_base_url.c_str());
 
     printf("    'chain api base url' : %s,\n", this->chain_api_base_url.c_str());

@@ -1,4 +1,5 @@
 #include "FileUtils.h"
+#include <dirent.h>
 
 /**
  * @description: get all files' name in directory
@@ -181,4 +182,28 @@ bool create_directory(std::string path)
         }
     }
     return true;
+}
+
+/**
+ * @description: Get sub folders and files in indicated path
+ * @param path -> Indicated path
+ * @return: Array of sub folders and files
+ * */
+std::vector<std::string> get_sub_folders_and_files(const char *path)
+{
+    DIR *dir;
+    struct dirent *ent;
+    std::vector<std::string> dirs;
+    if ((dir = opendir(path)) != NULL)
+    {
+        while ((ent = readdir(dir)) != NULL)
+        {
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+                continue;
+
+            dirs.push_back(std::string(ent->d_name));
+        }
+    }
+
+    return dirs;
 }

@@ -1,5 +1,5 @@
-#ifndef __COMMON_H
-#define __COMMON_H
+#ifndef _COMMON_H_
+#define _COMMON_H_
 
 /* Help keep our console messages clean and organzied */
 
@@ -30,6 +30,7 @@ extern "C"
     UrlEndPoint *get_url_end_point(std::string url);
     void remove_chars_from_string(std::string &str, const char *chars_to_remove);
     MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json);
+    json::JSON serialize_merkletree_to_json(MerkleTree *root);
 
 #if defined(__cplusplus)
 }

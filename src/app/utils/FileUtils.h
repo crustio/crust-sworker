@@ -19,5 +19,6 @@ int rm_dir(std::string dir_full_path);
 int rm(std::string path);
 size_t get_free_space_under_directory(std::string path);
 bool create_directory(std::string path);
+std::vector<std::string> get_sub_folders_and_files(const char *path);
 
 #endif /* !_CRUST_FILE_UTILS_H_ */

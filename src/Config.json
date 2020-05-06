@@ -5,6 +5,8 @@
     "ipfs_api_base_url" : "http://127.0.0.1:15001/api/v0",
     "api_base_url": "http://0.0.0.0:12222/api/v0",
     "validator_api_base_url": "http://127.0.0.1:12222/api/v0",
+    "websocket_url" : "wss://0.0.0.0:19002",
+    "websocket_thread_num" : 3,
 
     "chain_api_base_url" : "http://139.196.122.228:6009/api/v1",
     "chain_address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",

@@ -202,7 +202,7 @@ crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p
  * @param p_ensig -> Pointer to entry network report signature
  * @return: verify status
  * */
-crust_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_network_signature *p_ensig)
+crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, entry_network_signature *p_ensig)
 {
     return id_verify_iasreport(IASReport, len, p_ensig);
 }
@@ -216,6 +216,31 @@ crust_status_t ecall_verify_iasreport(const char **IASReport, size_t len, entry_
 crust_status_t ecall_validate_merkle_tree(MerkleTree **root)
 {
     return storage_validate_merkle_tree(*root);
+}
+
+/**
+ * @description: Seal file according to given path and return new MerkleTree
+ * @param root -> MerkleTree root node
+ * @param path -> Reference to file path
+ * @param tree -> New MerkleTree
+ * @return: Seal status
+ * */
+crust_status_t ecall_seal_file(MerkleTree **root, const char *path, size_t path_len)
+{
+    return storage_seal_file(*root, path, path_len);
+}
+
+/**
+ * @description: Unseal file according to given path
+ * @param p_dir -> Root directory path
+ * @param dir_len -> Root dir path length
+ * @param files -> Files in root directory
+ * @param files_num -> Files number in root directory
+ * @return: Unseal status
+ * */
+crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir)
+{
+    return storage_unseal_file(files, files_num, p_dir);
 }
 
 /**

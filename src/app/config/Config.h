@@ -20,6 +20,8 @@ public:
     std::string db_path;                /* DB path */
     size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
     std::string api_base_url;           /* External API base url */
+    std::string websocket_url;          /* WebSocket url */
+    int websocket_thread_num;           /* WebSocket thread number */
     std::string validator_api_base_url; /* Validator base API base url */
     int srd_thread_num;                 /* srd empty files thread number */
 

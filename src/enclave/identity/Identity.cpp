@@ -315,7 +315,7 @@ char *base64_decode(const char *msg, size_t *sz)
  * @description: Verify IAS report
  * @return: Verify status
  * */
-crust_status_t id_verify_iasreport(const char **IASReport, size_t size, entry_network_signature *p_ensig)
+crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_signature *p_ensig)
 {
     string certchain;
     size_t cstart, cend, count, i;
@@ -354,7 +354,7 @@ crust_status_t id_verify_iasreport(const char **IASReport, size_t size, entry_ne
     {
         return CRUST_GET_ACCOUNT_ID_BYTE_FAILED;
     }
-    
+
 
     size_t chain_account_id_size = response[3].length() / 2;
     uint8_t *sigbuf, *p_sig = NULL;

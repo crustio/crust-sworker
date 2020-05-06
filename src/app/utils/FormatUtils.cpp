@@ -1,4 +1,6 @@
 #include "FormatUtils.h"
+#include <algorithm>
+#include <string.h>
 
 static char *_hex_buffer = NULL;
 static size_t _hex_buffer_size = 0;
@@ -74,7 +76,7 @@ int from_hexstring(unsigned char *dest, const void *vsrc, size_t len)
 		if (sscanf_s(&src[i * 2], "%2xhh", &v) == 0)
 			return 0;
 #else
-		if (sscanf(&src[i * 2], "%2xhh", &v) == 0)
+		if (sscanf(reinterpret_cast<const char*>(&src[i * 2]), "%2xhh", &v) == 0)
 			return 0;
 #endif
 		dest[i] = (unsigned char)v;
@@ -102,7 +104,7 @@ char *hexstring(const void *vsrc, size_t len)
 		_hex_buffer = (char *)realloc(_hex_buffer, newsz);
 		if (_hex_buffer == NULL)
 		{
-			return "(out of memory)";
+			return const_cast<char*>("(out of memory)");
 		}
 	}
 
@@ -116,6 +118,11 @@ char *hexstring(const void *vsrc, size_t len)
 	_hex_buffer[len * 2] = 0;
 
 	return _hex_buffer;
+}
+
+void remove_char(std::string &data, char c)
+{
+    data.erase(std::remove(data.begin(), data.end(), c), data.end());
 }
 
 /**
@@ -143,7 +150,7 @@ char *base64_encode(const char *msg, size_t sz)
 		return NULL;
 	}
 
-	BIO_flush(b64);
+	if (BIO_flush(b64)) {}
 
 	len = (size_t)BIO_get_mem_data(bmem, &bstr);
 	dup = (char *)malloc(len + 1);

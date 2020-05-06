@@ -1,4 +1,5 @@
 #include "EntryNetwork.h"
+#include "HttpLib.h"
 
 extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
@@ -184,8 +185,6 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     int net_tryout = IAS_TRYOUT;
 
     // Send to validation node
-    httplib::Params params;
-    params.emplace("arg", req_data);
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->validator_api_base_url);
     httplib::Client *client = new httplib::Client(urlendpoint->ip, urlendpoint->port);
     client->set_timeout_sec(CLIENT_TIMEOUT);
@@ -193,7 +192,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     std::shared_ptr<httplib::Response> res;
     while (net_tryout > 0)
     {
-        res = client->Post(path.c_str(), params);
+        res = client->Post(path.c_str(), req_data, "text/plain");
         if (!(res && res->status == 200))
         {
             p_log->info("Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
