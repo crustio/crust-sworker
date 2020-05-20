@@ -6,7 +6,7 @@ pipeline {
                 echo 'Building...'
                 sh """
                 make clean
-                make
+                make -j4
                 """
                 echo 'Build successfully'
             }
@@ -16,7 +16,7 @@ pipeline {
                 echo 'Testing...'
                 sh """
                 make clean
-                make test
+                make -j4 test
                 """
                 echo 'Test successfully'
             }

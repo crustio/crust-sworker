@@ -1,8 +1,8 @@
 #include "Report.h"
+#include "EJson.h"
 
 /* used to store work report */
 std::string work_report;
-size_t meaningful_workload;
 size_t empty_workload;
 sgx_sha256_hash_t empty_root;
 
@@ -23,20 +23,20 @@ crust_status_t generate_work_report(size_t *report_len)
         return crust_status;
     }
 
-    crust_status = p_workload->generate_meaningful_info(&meaningful_workload);
-    if (crust_status != CRUST_SUCCESS)
-    {
-        return crust_status;
-    }
+    json::JSON report_json;
+    report_json["pub_key"] = std::string((const char *)hexstring(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key)));
+    report_json["reserved"] = std::to_string(empty_workload);
+    std::string files_str = Workload::get_instance()->files_json.dump();
+    remove_char(files_str, '\\');
+    remove_char(files_str, '\n');
+    remove_char(files_str, ' ');
+    log_info("files str:%s\n", files_str.c_str());
+    report_json["files"] = files_str;
+    work_report = report_json.dump();
+    *report_len = work_report.length();
 
-    work_report = "{";
-    work_report += "\"pub_key\":\"" + std::string((const char *)hexstring(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key))) + "\",";
-    work_report += "\"empty_root\":\"" + unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH) + "\",";
-    work_report += "\"empty_workload\":" + std::to_string(empty_workload) + ",";
-    work_report += "\"meaningful_workload\":" + std::to_string(meaningful_workload);
-    work_report += "}";
-
-    *report_len = work_report.size() + 1;
+    // Reset meaningful data
+    Workload::get_instance()->reset_meaningful_data();
 
     return crust_status;
 }
@@ -64,64 +64,56 @@ crust_status_t get_work_report(char *report, size_t report_len)
  * @return: sign status
  * */
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height,
-        sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
+        sgx_ec256_signature_t *p_signature, char *report, size_t /*report_len*/)
 {
     // Judge whether block height is expired
     if (block_height <= id_get_cwr_block_height())
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
-    else
-    {
-        id_set_cwr_block_height(block_height);
-    }
+    id_set_cwr_block_height(block_height);
 
-    // Create signature data
+    // ----- Create signature data ----- //
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_status_t sgx_status;
-    uint8_t *byte_buf = NULL;
-
-    // Convert number type to string
-    std::string block_height_str = std::to_string(block_height);
-    std::string empty_workload_str = std::to_string(empty_workload);
-    std::string meaningful_workload_str = std::to_string(meaningful_workload);
-    uint8_t *block_height_u = (uint8_t *)malloc(block_height_str.size());
-    uint8_t *empty_workload_u = (uint8_t *)malloc(empty_workload_str.size());
-    uint8_t *meaningful_workload_u = (uint8_t *)malloc(meaningful_workload_str.size());
-    memset(block_height_u, 0, block_height_str.size());
-    memset(empty_workload_u, 0, empty_workload_str.size());
-    memset(meaningful_workload_u, 0, meaningful_workload_str.size());
-    memcpy(block_height_u, block_height_str.c_str(), block_height_str.size());
-    memcpy(empty_workload_u, empty_workload_str.c_str(), empty_workload_str.size());
-    memcpy(meaningful_workload_u, meaningful_workload_str.c_str(), meaningful_workload_str.size());
-
-    size_t block_hash_len = strlen(block_hash);
     ecc_key_pair id_key_pair = id_get_key_pair();
-    size_t buf_len = sizeof(id_key_pair.pub_key) + block_height_str.size() + block_hash_len / 2 + HASH_LENGTH + empty_workload_str.size() + meaningful_workload_str.size();
-    uint8_t *sigbuf = (uint8_t *)malloc(buf_len);
-    memset(sigbuf, 0, buf_len);
+    uint8_t *block_hash_u = NULL;
+    std::string block_height_str = std::to_string(block_height);
+    std::string reserved_str = std::to_string(empty_workload);
+    std::string files = Workload::get_instance()->files_json.dump();
+    remove_char(files, '\\');
+    remove_char(files, '\n');
+    remove_char(files, ' ');
+    size_t sigbuf_len = sizeof(id_key_pair.pub_key) 
+        + block_height_str.size() 
+        + HASH_LENGTH 
+        + reserved_str.size() 
+        + files.size();
+    uint8_t *sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
+    memset(sigbuf, 0, sigbuf_len);
     uint8_t *p_sigbuf = sigbuf;
-
-    // Convert to bytes and concat
+    // Public key
     memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     sigbuf += sizeof(id_key_pair.pub_key);
-    memcpy(sigbuf, block_height_u, block_height_str.size());
+    // Block height
+    memcpy(sigbuf, block_height_str.c_str(), block_height_str.size());
     sigbuf += block_height_str.size();
-    byte_buf = hex_string_to_bytes(block_hash, block_hash_len);
-    if (byte_buf == NULL)
+    // Block hash
+    block_hash_u = hex_string_to_bytes(block_hash, HASH_LENGTH * 2);
+    if (block_hash_u == NULL)
     {
         crust_status = CRUST_UNEXPECTED_ERROR;
         goto cleanup;
     }
-    memcpy(sigbuf, byte_buf, block_hash_len / 2);
-    free(byte_buf);
-    sigbuf += (block_hash_len / 2);
-    memcpy(sigbuf, empty_root, HASH_LENGTH);
+    memcpy(sigbuf, block_hash_u, HASH_LENGTH);
     sigbuf += HASH_LENGTH;
-    memcpy(sigbuf, empty_workload_u, empty_workload_str.size());
-    sigbuf += empty_workload_str.size();
-    memcpy(sigbuf, meaningful_workload_u, meaningful_workload_str.size());
+    free(block_hash_u);
+    // Reserve
+    memcpy(sigbuf, reserved_str.c_str(), reserved_str.size());
+    sigbuf += reserved_str.size();
+    // Files
+    memcpy(sigbuf, files.c_str(), files.size());
 
     // Sign work report
     sgx_status = sgx_ecc256_open_context(&ecc_state);
@@ -131,7 +123,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         goto cleanup;
     }
 
-    sgx_status = sgx_ecdsa_sign(p_sigbuf, buf_len, &id_key_pair.pri_key, p_signature, ecc_state);
+    sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len, &id_key_pair.pri_key, p_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         crust_status = CRUST_SGX_SIGN_FAILED;
@@ -139,8 +131,9 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
 
     // Get work report string
-    std::copy(work_report.begin(), work_report.end(), report);
-    report[report_len - 1] = '\0';
+    log_info("report:%s\n", work_report.c_str());
+    memcpy(report, work_report.c_str(), work_report.size());
+
 
 cleanup:
     if (ecc_state != NULL)
@@ -148,9 +141,6 @@ cleanup:
         sgx_ecc256_close_context(ecc_state);
     }
 
-    free(block_height_u);
-    free(empty_workload_u);
-    free(meaningful_workload_u);
     free(p_sigbuf);
 
     return crust_status;

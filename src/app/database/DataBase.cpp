@@ -36,6 +36,15 @@ DataBase *DataBase::get_instance()
 }
 
 /**
+ * @description: Close leveldb
+ * */
+DataBase::~DataBase()
+{
+    if (this->db != NULL)
+        delete this->db;
+}
+
+/**
  * @description: Add key value pair to db
  * @param key -> key
  * @param value -> value
@@ -43,7 +52,13 @@ DataBase *DataBase::get_instance()
  * */
 crust_status_t DataBase::add(std::string key, std::string value)
 {
-    leveldb::Status s = this->db->Put(this->write_opt, key, value);
+    std::string old_val;
+    leveldb::Status s = this->db->Get(leveldb::ReadOptions(), key, &old_val);
+    if (old_val.compare("") != 0)
+    {
+        value.append(";").append(old_val);
+    }
+    s = this->db->Put(this->write_opt, key, value);
     if (!s.ok())
     {
         p_log->warn("Insert record to DB failed!Error: %s\n", s.ToString().c_str());

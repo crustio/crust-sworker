@@ -10,6 +10,7 @@ namespace crust
 class DataBase
 {
 public:
+    ~DataBase();
     static DataBase *get_instance();
     crust_status_t add(std::string key, std::string value);
     crust_status_t del(std::string key);
@@ -21,7 +22,7 @@ private:
     DataBase() {}
     DataBase(const DataBase &);
     DataBase& operator = (const DataBase &);
-    leveldb::DB *db;
+    leveldb::DB *db = NULL;
     leveldb::WriteOptions write_opt;
 };
 

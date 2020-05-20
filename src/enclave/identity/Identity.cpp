@@ -2,6 +2,7 @@
 #include "Identity.h"
 #include "Workload.h"
 #include "Persistence.h"
+#include "EJson.h"
 
 using namespace std;
 
@@ -11,12 +12,16 @@ string g_chain_account_id;
 ecc_key_pair id_key_pair;
 // Can only se crust account id once
 bool g_is_set_account_id = false;
+// Can only se crust account id once
+bool g_is_set_id_key_pair = false;
 // Current code measurement
 sgx_measurement_t current_mr_enclave;
 // Used to check current block head out-of-date
 size_t now_work_report_block_height = 0;
 // Map used to store off-chain request
 map<vector<uint8_t>, vector<uint8_t>> accid_pubkey_map;
+// Protect metadata 
+sgx_thread_mutex_t g_metadata_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 // Intel SGX root certificate
 static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
@@ -633,6 +638,12 @@ crust_status_t id_sign_network_entry(const char *p_partial_data, uint32_t data_s
  * */
 sgx_status_t id_gen_key_pair()
 {
+    if (g_is_set_id_key_pair)
+    {
+        log_err("Identity key pair has been generated!\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
     // Generate public and private key
     sgx_ec256_public_t pub_key;
     sgx_ec256_private_t pri_key;
@@ -660,6 +671,8 @@ sgx_status_t id_gen_key_pair()
     memset(&id_key_pair.pri_key, 0, sizeof(id_key_pair.pri_key));
     memcpy(&id_key_pair.pub_key, &pub_key, sizeof(pub_key));
     memcpy(&id_key_pair.pri_key, &pri_key, sizeof(pri_key));
+
+    g_is_set_id_key_pair = true;
 
     return SGX_SUCCESS;
 }
@@ -763,23 +776,142 @@ crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_da
 }
 
 /**
- * @description: Store enclave data to file
+ * @description: Get metadata
+ * @param meta_json -> Reference to metadata json
+ * @param locked -> Indicate whether lock current operation
+ * @return: Get status
+ * */
+void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
+{
+    if (locked)
+        sgx_thread_mutex_lock(&g_metadata_mutex);
+
+    uint8_t *p_data = NULL;
+    size_t data_len = 0;
+    std::string id_key_pair_str;
+    uint8_t *p_id_key = NULL;
+    crust_status_t crust_status = persist_get("metadata", &p_data, &data_len);
+    if (CRUST_SUCCESS != crust_status || data_len == 0)
+    {
+        meta_json =  json::JSON();
+        goto cleanup;
+    }
+    meta_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_data + strlen(TEE_PRIVATE_TAG)), data_len));
+    if (meta_json.size() == 0)
+    {
+        goto cleanup;
+    }
+    // Verify meta data
+    id_key_pair_str = meta_json["id_key_pair"].ToString();
+    p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
+    if (p_id_key == NULL)
+    {
+        log_err("Identity: Get id key pair failed!\n");
+        crust_status = CRUST_INVALID_META_DATA;
+        goto cleanup;
+    }
+    if (g_is_set_id_key_pair && memcmp(p_id_key, &id_key_pair, sizeof(id_key_pair)) != 0)
+    {
+        log_err("Identity: Get wrong id key pair!\n");
+        crust_status = CRUST_INVALID_META_DATA;
+        goto cleanup;
+    }
+
+cleanup:
+    if (p_id_key != NULL)
+        free(p_id_key);
+
+    if (p_data != NULL)
+        free(p_data);
+
+    if (locked)
+        sgx_thread_mutex_unlock(&g_metadata_mutex);
+
+    return;
+}
+
+/**
+ * @description: Set old matadata by new key values in meta_json
+ * @param meta_json -> New metadata json to be set
+ * @return: Set status
+ * */
+crust_status_t id_metadata_set_by_new(json::JSON meta_json)
+{
+    sgx_thread_mutex_lock(&g_metadata_mutex);
+
+    json::JSON meta_json_org;
+    std::string meta_str;
+    size_t meta_len = 0;
+    uint8_t *p_meta = NULL;
+    crust_status_t crust_status = CRUST_SUCCESS;
+    id_get_metadata(meta_json_org, false);
+    for (auto it : meta_json.ObjectRange())
+    {
+        meta_json_org[it.first] = it.second;
+    }
+
+    meta_str = meta_json_org.dump();
+    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
+    p_meta = (uint8_t*)enc_malloc(meta_len);
+    if (p_meta == NULL)
+    {
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
+    }
+    memset(p_meta, 0, meta_len);
+    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
+    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
+    crust_status = persist_set("metadata", p_meta, meta_len);
+    free(p_meta);
+
+cleanup:
+    sgx_thread_mutex_unlock(&g_metadata_mutex);
+
+    return crust_status;
+}
+
+/**
+ * @description: Store metadata periodically
  * @return: Store status
  * */
 crust_status_t id_store_metadata()
 {
-    // Gen seal data
-    std::string metadata = TEE_PRIVATE_TAG;
-    metadata.append(Workload::get_instance()->serialize_workload());
-    metadata.append(CRUST_SEPARATOR)
-        .append(hexstring(&id_key_pair, sizeof(id_key_pair)));
-    metadata.append(CRUST_SEPARATOR)
-        .append(std::to_string(now_work_report_block_height));
-    metadata.append(CRUST_SEPARATOR)
-        .append(g_chain_account_id);
+    sgx_thread_mutex_lock(&g_metadata_mutex);
+
+    // Get original metadata
+    json::JSON meta_json;
+    size_t meta_len = 0;
+    uint8_t *p_meta = NULL;
+    crust_status_t crust_status = CRUST_SUCCESS;
+    id_get_metadata(meta_json, false);
+    meta_json["workload"] = Workload::get_instance()->serialize_workload();
+    meta_json["id_key_pair"] = std::string(hexstring(&id_key_pair, sizeof(id_key_pair)));
+    meta_json["block_height"] = now_work_report_block_height;
+    meta_json["chain_account_id"] = g_chain_account_id;
+    std::string meta_str = meta_json.dump();
 
     // Seal workload string
-    return persist_add("metadata", (const uint8_t *)metadata.c_str(), metadata.size());
+    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
+    p_meta = (uint8_t*)enc_malloc(meta_len);
+    if (p_meta == NULL)
+    {
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
+    }
+    memset(p_meta, 0, meta_len);
+    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
+    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
+    crust_status = persist_set("metadata", p_meta, meta_len);
+
+
+cleanup:
+
+    if (p_meta != NULL)
+        free(p_meta);
+
+    sgx_thread_mutex_unlock(&g_metadata_mutex);
+
+    return crust_status;
 }
 
 /**
@@ -788,64 +920,43 @@ crust_status_t id_store_metadata()
  * */
 crust_status_t id_restore_metadata()
 {
-    //unsigned char *p_sealed_data = NULL;
+    // Get metadata
+    json::JSON meta_json;
     crust_status_t crust_status = CRUST_SUCCESS;
-    size_t spos = 0, epos = 0;
-    string plot_data;
-    string id_key_pair_str;
-    uint8_t *byte_buf = NULL;
-
-    /* Unseal data */
-    uint8_t *p_data = NULL;
-    size_t data_len = 0;
-    crust_status = persist_get("metadata", &p_data, &data_len);
-    if (CRUST_SUCCESS != crust_status)
+    id_get_metadata(meta_json);
+    if (meta_json.size() <= 0)
     {
-        return crust_status;
-    }
-
-    /* Restore related data */
-    string metadata = std::string((const char *)(p_data+strlen(TEE_PRIVATE_TAG)), data_len);
-
-    // Get plot data
-    spos = 0;
-    epos = metadata.find(CRUST_SEPARATOR, spos);
-    plot_data = metadata.substr(spos, epos - spos);
-    if (CRUST_SUCCESS != (crust_status = Workload::get_instance()->restore_workload(plot_data)))
-    {
-        return CRUST_BAD_SEAL_DATA;
-    }
-
-    // Get id_key_pair
-    spos = epos + strlen(CRUST_SEPARATOR);
-    epos = metadata.find(CRUST_SEPARATOR, spos);
-    if (epos == std::string::npos)
-    {
-        return CRUST_BAD_SEAL_DATA;
-    }
-    id_key_pair_str = metadata.substr(spos, epos - spos);
-    memset(&id_key_pair, 0, sizeof(id_key_pair));
-    byte_buf = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
-    if (byte_buf == NULL)
-    {
+        log_warn("Get empty metadata, cannot restore metadata!\n");
         return CRUST_UNEXPECTED_ERROR;
     }
-    memcpy(&id_key_pair, byte_buf, sizeof(id_key_pair));
-    free(byte_buf);
 
-    // Get now_work_report_block_height
-    spos = epos + strlen(CRUST_SEPARATOR);
-    epos = metadata.find(CRUST_SEPARATOR, spos);
-    if (epos == std::string::npos)
+    // Restore workload
+    Workload *wl = Workload::get_instance();
+    std::string workload_str = meta_json["workload"].ToString();
+    remove_char(workload_str, '\\');
+    crust_status = wl->restore_workload(json::JSON::Load(workload_str));
+    if (CRUST_SUCCESS != crust_status)
     {
         return CRUST_BAD_SEAL_DATA;
     }
-    now_work_report_block_height = std::stoul(metadata.substr(spos, epos - spos));
+    // Restore meaningful files
+    wl->files_json = meta_json[MEANINGFUL_FILE_DB_TAG];
+    // Restore id key pair
+    std::string id_key_pair_str = meta_json["id_key_pair"].ToString();
+    uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
+    if (p_id_key == NULL)
+    {
+        return CRUST_BAD_SEAL_DATA;
+    }
+    memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
+    free(p_id_key);
+    // Restore block height
+    now_work_report_block_height = meta_json["block_height"].ToInt();
+    // Restore chain account id
+    g_chain_account_id = meta_json["chain_account_id"].ToString();
 
-    // Get g_chain_account_id
-    spos = epos + strlen(CRUST_SEPARATOR);
-    epos = metadata.size();
-    g_chain_account_id = metadata.substr(spos, epos - spos);
+    g_is_set_id_key_pair = true;
+    g_is_set_account_id = true;
 
     return CRUST_SUCCESS;
 }

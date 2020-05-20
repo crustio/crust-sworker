@@ -2,6 +2,8 @@
 #include "Resource.h"
 #include "FormatUtils.h"
 
+crust::Log *p_log = crust::Log::get_instance();
+
 /**
  * @description: get url end point from url
  * @param url base url, like: http://127.0.0.1:56666/api/v1
@@ -9,19 +11,47 @@
  * */
 UrlEndPoint *get_url_end_point(std::string url)
 {
-    std::vector<std::string> fields;
-    boost::split(fields, url, boost::is_any_of(":"));
     UrlEndPoint *url_end_point = new UrlEndPoint();
-    url_end_point->ip = fields[1].substr(2);
+    std::string proto_type;
+    size_t spos = 0, epos;
 
-    std::vector<std::string> fields2;
-    boost::split(fields2, fields[2], boost::is_any_of("/"));
-
-    url_end_point->port = std::stoi(fields2[0]);
-    url_end_point->base = "";
-    for (size_t i = 1; i < fields2.size(); i++)
+    // Get protocal tag
+    epos = url.find("://");
+    if (epos != url.npos)
     {
-        url_end_point->base += "/" + fields2[i];
+        proto_type = url.substr(0, epos);
+        spos = epos + std::strlen("://");
+    }
+
+    // Get host, port and path
+    epos = url.find(":", spos);
+    if (epos == url.npos)
+    {
+        epos = url.find("/", spos);
+        url_end_point->ip = url.substr(spos, epos - spos);
+        url_end_point->base = url.substr(epos, url.size());
+        p_log->warn("Parse url warn: Port not indicate, will assign port by protocol.\n");
+        if (proto_type.compare("https") == 0)
+        {
+            url_end_point->port = 443;
+        }
+        else if (proto_type.compare("http") == 0)
+        {
+            url_end_point->port = 80;
+        }
+        else
+        {
+            p_log->warn("Parse url warn: Cannot assign port by protocal!\n");
+        }
+        p_log->info("Parse url warn: Set port to:%d\n", url_end_point->port);
+    }
+    else
+    {
+        url_end_point->ip = url.substr(spos, epos - spos);
+        spos = epos + 1;
+        epos = url.find("/", spos);
+        url_end_point->port = std::atoi(url.substr(spos, epos - spos).c_str());
+        url_end_point->base = url.substr(epos, url.size());
     }
 
     return url_end_point;
@@ -47,6 +77,9 @@ void remove_chars_from_string(std::string &str, const char *chars_to_remove)
  * */
 MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
 {
+    if (tree_json.JSONType() != json::JSON::Class::Object)
+        return NULL;
+
     MerkleTree *root = new MerkleTree();
     std::string hash = tree_json["hash"].ToString();
     size_t hash_len = hash.size() + 1;
@@ -59,12 +92,17 @@ MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
     if (root->links_num != 0)
     {
         root->links = (MerkleTree**)malloc(root->links_num * sizeof(MerkleTree*));
-    }
-
-    for (uint32_t i = 0; i < root->links_num; i++)
-    {
-        MerkleTree *child = deserialize_merkle_tree_from_json(children[i]);
-        root->links[i] = child;
+        for (uint32_t i = 0; i < root->links_num; i++)
+        {
+            MerkleTree *child = deserialize_merkle_tree_from_json(children[i]);
+            if (child == NULL)
+            {
+                free(root->hash);
+                free(root->links);
+                return NULL;
+            }
+            root->links[i] = child;
+        }
     }
 
     return root;

@@ -44,18 +44,16 @@ void Workload::show(void)
 {
     sgx_sha256_hash_t empty_root;
     size_t empty_workload = 0;
-    size_t meaningful_workload = 0;
     this->generate_empty_info(&empty_root, &empty_workload);
-    this->generate_meaningful_info(&meaningful_workload);
 
     log_debug("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
     log_debug("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
-    log_debug("Meaningful work file number is: %lu, total size %luB\n", this->files.size(), meaningful_workload);
 
     log_debug("Meaningful work details is: \n");
-    for (auto it = this->files.begin(); it != this->files.end(); it++)
+    for (int i = 0; i < this->files_json.size(); i++)
     {
-        log_debug("Hash->%s, Size->%luB\n", unsigned_char_array_to_hex_string(it->first.data(), HASH_LENGTH).c_str(), it->second);
+        log_debug("Meaninful root hash:%s -> size:%ld\n", 
+                this->files_json[i]["hash"].ToString().c_str(), this->files_json[i]["size"].ToInt());
     }
 }
 
@@ -71,9 +69,6 @@ void Workload::clean_data()
             free(it);
     }
     this->empty_g_hashs.clear();
-
-    // Clean files
-    this->files.clear();
 }
 
 /**
@@ -124,70 +119,38 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
 }
 
 /**
- * @description: generate meaningful information
- * @param meaningful_workload_out meaningful workload
- * @return: status
- */
-crust_status_t Workload::generate_meaningful_info(size_t *meaningful_workload_out)
-{
-    sgx_thread_mutex_lock(&g_workload_mutex);
-
-    *meaningful_workload_out = 0;
-    for (auto it = this->files.begin(); it != this->files.end(); it++)
-    {
-        *meaningful_workload_out += it->second;
-    }
-
-    sgx_thread_mutex_unlock(&g_workload_mutex);
-    return CRUST_SUCCESS;
-}
-
-/**
  * @description: serialize workload for sealing
  * @return: serialized workload
  * */
 std::string Workload::serialize_workload()
 {
     sgx_thread_mutex_lock(&g_workload_mutex);
-    std::string plot_data;
 
     // Store empty_g_hashs
-    std::string g_hashs = "{";
-    for (auto it = this->empty_g_hashs.begin(); it != this->empty_g_hashs.end(); it++)
+    json::JSON g_hashs;
+    int i = 0;
+    for (auto it = this->empty_g_hashs.begin(); it != this->empty_g_hashs.end(); it++, i++)
     {
-        g_hashs += std::string(hexstring(*it, HASH_LENGTH)) + ",";
+        g_hashs[i] = std::string(hexstring(*it, HASH_LENGTH));
     }
-    g_hashs += "}";
-    plot_data += g_hashs + ";";
-
-    // Store files
-    std::string file_str = "{";
-    for (auto it = this->files.begin(); it != this->files.end(); it++)
-    {
-        file_str += std::string(hexstring(it->first.data(), it->first.size())) + ":" + std::to_string(it->second) + ",";
-    }
-    file_str += "}";
-    plot_data += file_str + ";";
 
     sgx_thread_mutex_unlock(&g_workload_mutex);
-    return plot_data;
+
+    std::string g_hashs_str = g_hashs.dump();
+    remove_char(g_hashs_str, '\\');
+    remove_char(g_hashs_str, '\n');
+    remove_char(g_hashs_str, ' ');
+
+    return g_hashs_str;
 }
 
 /**
  * @description: Restore workload from serialized workload
  * @return: Restore status
  * */
-crust_status_t Workload::restore_workload(std::string plot_data)
+crust_status_t Workload::restore_workload(json::JSON g_hashs)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    size_t spos = 0, epos = 0;
-    std::string empty_g_hashs_str;
-    std::string strbuf;
-    std::string files_str;
-    std::string file_entry;
-    std::string hash_str;
-    size_t hash_size;
-    uint8_t *hash_u;
 
     // Get empty_g_hashs
     for (auto it : this->empty_g_hashs)
@@ -196,62 +159,40 @@ crust_status_t Workload::restore_workload(std::string plot_data)
             free(it);
     }
     this->empty_g_hashs.clear(); // Clear current empty_g_hashs
-    spos = 0;
-    epos = plot_data.find(";");
-    if (epos == std::string::npos)
+    // Restore g_hashs
+    for (int i = 0; i < g_hashs.size(); i++)
     {
-        clean_data();
-        return CRUST_BAD_SEAL_DATA;
-    }
-    empty_g_hashs_str = plot_data.substr(spos, epos);
-    empty_g_hashs_str = empty_g_hashs_str.substr(1, empty_g_hashs_str.length() - 2);
-    while (true)
-    {
-        epos = empty_g_hashs_str.find(",", spos);
-        if ((size_t)epos == std::string::npos)
-            break;
-
-        strbuf = empty_g_hashs_str.substr(spos, epos - spos);
-        uint8_t *g_hash = hex_string_to_bytes(strbuf.c_str(), strbuf.size());
+        std::string g_hash_str = g_hashs[i].ToString();
+        uint8_t *g_hash = hex_string_to_bytes(g_hash_str.c_str(), g_hash_str.size());
         if (g_hash == NULL)
         {
             clean_data();
             return CRUST_UNEXPECTED_ERROR;
         }
         this->empty_g_hashs.push_back(g_hash);
-        spos = epos + 1;
-    }
-
-    // Get files
-    spos = plot_data.find(";") + 1;
-    epos = plot_data.find(";", spos);
-    if (epos == std::string::npos)
-    {
-        clean_data();
-        return CRUST_BAD_SEAL_DATA;
-    }
-    files_str = plot_data.substr(spos + 1, epos - spos - 1);
-    spos = 0;
-    while (true)
-    {
-        epos = files_str.find(",", spos);
-        if (epos == std::string::npos)
-            break;
-
-        file_entry = files_str.substr(spos, epos - spos);
-        spos = epos + 1;
-        hash_str = file_entry.substr(0, file_entry.find(":"));
-        hash_size = std::stoi(file_entry.substr(file_entry.find(":") + 1, file_entry.size()));
-        hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
-        if (hash_u == NULL)
-        {
-            clean_data();
-            return CRUST_UNEXPECTED_ERROR;
-        }
-        this->files.insert(make_pair(std::vector<unsigned char>(hash_u, hash_u + hash_str.size() / 2), hash_size));
-
-        free(hash_u);
     }
 
     return crust_status;
+}
+
+bool Workload::reset_meaningful_data()
+{
+    // Get metadata
+    json::JSON meta_json;
+    id_get_metadata(meta_json);
+
+    // Reset meaningful files
+    json::JSON meaningful_files = meta_json[MEANINGFUL_FILE_DB_TAG];
+    if (meaningful_files.JSONType() == json::JSON::Class::Array)
+    {
+        this->files_json = meaningful_files;
+        return true;
+    }
+
+    log_warn("Workload: invalid meaningful roots! Set meaningful files to empty.\n");
+
+    this->files_json = json::Array();
+
+
+    return true;
 }

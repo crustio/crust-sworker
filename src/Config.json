@@ -5,6 +5,7 @@
     "ipfs_api_base_url" : "http://127.0.0.1:15001/api/v0",
     "api_base_url": "http://0.0.0.0:12222/api/v0",
     "validator_api_base_url": "http://127.0.0.1:12222/api/v0",
+    "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",
     "websocket_url" : "wss://0.0.0.0:19002",
     "websocket_thread_num" : 3,
 
@@ -20,7 +21,7 @@
     "use_platform_services": false,
     "ias_primary_subscription_key": "e2e08166ca0f41ef88af2797f007c7cd",
     "ias_secondary_subscription_key": "2ecdd9cb7a004f3e8e0e45ed2ebd1fb4",
-    "ias_base_url": "api.trustedservices.intel.com",
+    "ias_base_url": "https://api.trustedservices.intel.com",
     "ias_base_path": "/sgx/dev/attestation/v3/report",
     "flags": 4
 }

@@ -30,6 +30,7 @@ namespace net = boost::asio;                    // from <boost/asio.hpp>
 namespace ssl = boost::asio::ssl;               // from <boost/asio/ssl.hpp>
 using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 
+crust::Log *p_log = crust::Log::get_instance();
 
 // Return a reasonable mime type based on the extension of a file.
 beast::string_view mime_type(beast::string_view path)
@@ -91,6 +92,7 @@ void fail(beast::error_code ec, char const* what)
     if(ec == net::ssl::error::stream_truncated)
         return;
 
+    p_log->err("Webserver error: ");
     std::cerr << what << ": " << ec.message() << "\n";
 }
 
@@ -112,6 +114,7 @@ class websocket_session
     beast::flat_buffer buffer_;
     ApiHandler *api_handler_;
     std::string path_;
+    bool close_connection_;
 
     // Start the asynchronous operation
     template<class Body, class Allocator>
@@ -178,8 +181,8 @@ class websocket_session
 
         // Deal the message
         std::string buf = beast::buffers_to_string(buffer_.data());
-        bool close_connection = false;
-        std::string res = api_handler_->websocket_handler(path_, buf, close_connection);
+        close_connection_ = false;
+        std::string res = api_handler_->websocket_handler(path_, buf, close_connection_);
 
         // ----- Async write data ----- //
         derived().ws().async_write(
@@ -477,7 +480,6 @@ public:
 
         // Send the response
         api_handler_->http_handler(*doc_root_, parser_->release(), queue_, is_ssl_);
-        //handle_http_request(*doc_root_, parser_->release(), queue_);
 
         // If we aren't at the Queue limit, try to pipeline another request
         if(! queue_.is_full())

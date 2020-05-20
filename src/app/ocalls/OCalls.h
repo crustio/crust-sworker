@@ -18,6 +18,7 @@
 #include "Common.h"
 #include "Log.h"
 #include "CrustStatus.h"
+#include "WebsocketClient.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -51,6 +52,10 @@ extern "C"
     crust_status_t ocall_persist_del(const char *key);
     crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len);
     crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len);
+
+    crust_status_t ocall_validate_init();
+    crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash, uint8_t **p_sealed_data, size_t *sealed_data_size);
+    void ocall_validate_close();
 
 #if defined(__cplusplus)
 }

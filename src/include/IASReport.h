@@ -3,7 +3,7 @@
 
 #define REPORT_DATA_SIZE	    64
 #define ACCOUNT_SIZE	        48
-#define SIGNER_ID_SIZE          SGX_ECP256_KEY_SIZE*2
+#define SIGNER_ID_SIZE          (SGX_ECP256_KEY_SIZE*2)
 
 #define IAS_TRYOUT              6
 #define IAS_TIMEOUT             10

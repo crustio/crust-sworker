@@ -16,7 +16,7 @@
 #include "IASReport.h"
 #include "SgxSupport.h"
 #include "Resource.h"
-#include "HttpLib.h"
+#include "HttpClient.h"
 #include "FileUtils.h"
 #include "Log.h"
 #include "Json.hpp"
@@ -52,11 +52,11 @@ public:
     template<class Body, class Allocator, class Send>
     void http_handler(beast::string_view doc_root,
         http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, bool is_ssl);
+    //void ApiHandler::http_handler(beast::string_view doc_root,
+    //    http::request<http::basic_fields<http::string_body>>&& req, Queue&& send, bool is_ssl)
 
 private:
     static void *change_empty(void *);
-    void set_root_hash(uint8_t *root_hash, size_t hash_len);
-    void set_root_hash(std::string root_hash_str);
     std::shared_ptr<WebServer> server = NULL;
     std::vector<uint8_t> root_hash_v;
     long block_left_num;
@@ -70,6 +70,7 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
+extern std::map<std::string, std::string> sealed_tree_map;
 // Used to show validation status
 const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
 bool in_changing_empty = false;
@@ -97,7 +98,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::string_body> res{http::status::bad_request, req.version()};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "text/html");
-        res.keep_alive(req.keep_alive());
+        //res.keep_alive(req.keep_alive());
         res.body() = std::string(why);
         res.prepare_payload();
         return res;
@@ -132,7 +133,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::empty_body> res{http::status::ok, req.version()};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-        res.keep_alive(req.keep_alive());
+        //res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 
@@ -168,7 +169,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint->base + "/report";
         if (path.compare(cur_path) == 0)
         {
-            /* Call ecall function to get work report */
+            // ----- Call ecall function to get work report ----- //
             size_t report_len = 0;
             crust_status_t crust_status = CRUST_SUCCESS;
             if (ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
@@ -200,7 +201,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     getcleanup:
 
         res.content_length(res.body().size());
-        res.keep_alive(req.keep_alive());
+        //res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 
@@ -212,6 +213,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::piecewise_construct,
             std::make_tuple("crust return"),
             std::make_tuple(http::status::ok, req.version())};
+        res.result(400);
+        res.body() = "Unknown request!";
+        json::JSON res_json;
+
         // Entry network process
         cur_path = urlendpoint->base + "/entry/network";
         if (path.compare(cur_path) == 0)
@@ -225,7 +230,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             size_t dqsz = 0;
             sgx_quote_t *quote;
             json::JSON req_json = json::JSON::Load(req.body());
-            p_log->info("request body:%s\n", req_json.dump().c_str());
             std::string b64quote = req_json["isvEnclaveQuote"].ToString();
             std::string off_chain_chain_address = req_json["chain_address"].ToString();
             std::string off_chain_chain_account_id = req_json["chain_account_id"].ToString();
@@ -269,28 +273,23 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             p_log->info("Storing quote in enclave successfully!\n");
 
-            // Request IAS verification
-            httplib::SSLClient *client = new httplib::SSLClient(p_config->ias_base_url);
-            httplib::Headers headers = {
+            // ----- Request IAS verification ----- //
+            HttpClient *client = new HttpClient();
+            ApiHeaders headers = {
                 {"Ocp-Apim-Subscription-Key", p_config->ias_primary_subscription_key}
                 //{"Content-Type", "application/json"}
             };
-            client->set_timeout_sec(IAS_TIMEOUT);
-
             std::string body = "{\n\"isvEnclaveQuote\":\"";
             body.append(b64quote);
             body.append("\"\n}");
-
             std::string resStr;
-            json::JSON res_json;
-            std::shared_ptr<httplib::Response> ias_res;
-
+            http::response<http::string_body> ias_res;
             // Send quote to IAS service
             int net_tryout = IAS_TRYOUT;
             while (net_tryout > 0)
             {
-                ias_res = client->Post(p_config->ias_base_path.c_str(), headers, body, "application/json");
-                if (!(ias_res && ias_res->status == 200))
+                ias_res = client->SSLPost(p_config->ias_base_url+p_config->ias_base_path, body, "application/json", headers);
+                if ((int)ias_res.result() != 200)
                 {
                     p_log->err("Send to IAS failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
                     sleep(3);
@@ -300,7 +299,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 break;
             }
 
-            if (!(ias_res && ias_res->status == 200))
+            if ((int)ias_res.result() != 200)
             {
                 p_log->err("Request IAS failed!\n");
                 res.body() = "Request IAS failed!";
@@ -308,14 +307,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 delete client;
                 goto postcleanup;
             }
-            res_json = json::JSON::Load(ias_res->body);
             p_log->info("Sending quote to IAS service successfully!\n");
 
-            httplib::Headers res_headers = ias_res->headers;
             std::vector<const char *> ias_report;
-            ias_report.push_back(res_headers.find("X-IASReport-Signing-Certificate")->second.c_str());
-            ias_report.push_back(res_headers.find("X-IASReport-Signature")->second.c_str());
-            ias_report.push_back(ias_res->body.c_str());
+            std::string ias_cer(ias_res["X-IASReport-Signing-Certificate"]);
+            std::string ias_sig(ias_res["X-IASReport-Signature"]);
+            ias_report.push_back(ias_cer.c_str());
+            ias_report.push_back(ias_sig.c_str());
+            ias_report.push_back(ias_res.body().c_str());
 
             // Identity info
             ias_report.push_back(off_chain_chain_account_id.c_str()); //[3]
@@ -543,11 +542,276 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
+        // Storage seal file block
+        cur_path = urlendpoint->base + "/storage/seal";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            res.result(200);
+            std::string error_info;
+            crust_status_t crust_status = CRUST_SUCCESS;
+            sgx_status_t sgx_status = SGX_SUCCESS;
+
+            p_log->info("Dealing with seal request...\n");
+
+            // ----- Validate MerkleTree ----- //
+            json::JSON req_json;
+            try
+            {
+                req_json = json::JSON::Load(req.body());
+            }
+            catch (std::exception e)
+            {
+                error_info.append("Validate MerkleTree failed! Parse json failed! Error: ").append(e.what());
+                p_log->err("%s\n", error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(400);
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+            json::JSON body_json = req_json["body"];
+            std::string backup = req_json["backup"].ToString();
+            std::string dir_path = req_json["path"].ToString();
+            this->block_left_num = this->block_num = req_json["block_num"].ToInt();
+            remove_char(backup, '\\');
+
+            // Get backup info
+            if (p_config->chain_backup.compare(backup) != 0)
+            {
+                error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+                p_log->err("%s\n", error_info.c_str());
+                res_json["body"] = error_info;
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+            // Check if body is validated
+            if (body_json.size() == 0)
+            {
+                error_info = "Validate MerkleTree failed!Error: Empty body!";
+                p_log->err("%s\n", error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(402);
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+
+            // Get MerkleTree
+            MerkleTree *root = deserialize_merkle_tree_from_json(body_json);
+            if (root == NULL)
+            {
+                p_log->err("Deserialize MerkleTree failed!\n");
+                res_json["body"] = "Deserialize MerkleTree failed!";
+                res.result(403);
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+
+            // Validate MerkleTree
+            if (SGX_SUCCESS != ecall_validate_merkle_tree(global_eid, &crust_status, &root) ||
+                (CRUST_SUCCESS != crust_status && CRUST_MERKLETREE_DUPLICATED != crust_status))
+            {
+                if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_INVALID_MERKLETREE:
+                        error_info = "Invalid MerkleTree structure!";
+                        break;
+                    default:
+                        error_info = "Undefined error!";
+                    }
+                }
+                else
+                {
+                    error_info = "Invoke SGX api failed!";
+                }
+                p_log->err("Validate merkle tree failed!Error code:%lx(%s)\n",
+                           crust_status, error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(404);
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+            else
+            {
+                if (CRUST_MERKLETREE_DUPLICATED == crust_status)
+                {
+                    res.result(201);
+                    res_json["body"] = "MerkleTree has been validated!";
+                }
+                else
+                {
+                    p_log->info("Validate merkle tree successfully!\n");
+                }
+                seal_check_validate = true;
+            }
+
+
+            // ----- Seal file ----- //
+            std::string org_root_hash_str(root->hash, HASH_LENGTH * 2);
+            char *p_new_path = (char*)malloc(dir_path.size());
+            memset(p_new_path, 0, dir_path.size());
+            sgx_status = ecall_seal_file(global_eid, &crust_status, &root, 
+                    dir_path.c_str(), p_new_path, dir_path.size());
+    
+            if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
+            {
+                if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_SEAL_DATA_FAILED:
+                        error_info = "Internal error: seal data failed!";
+                        break;
+                    case CRUST_STORAGE_FILE_NOTFOUND:
+                        error_info = "Given file cannot be found!";
+                        break;
+                    default:
+                        error_info = "Unexpected error!";
+                    }
+                }
+                else
+                {
+                    error_info = "Invoke SGX api failed!";
+                }
+                p_log->err("Seal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(405);
+            }
+            else
+            {
+                p_log->info("Seal file successfully!\n");
+                std::string tree_str = sealed_tree_map[org_root_hash_str];
+                remove_char(tree_str, ' ');
+                remove_char(tree_str, '\n');
+                remove_char(tree_str, '\\');
+                res_json["body"] = tree_str;
+                res_json["path"] = std::string(p_new_path, dir_path.size());
+                sealed_tree_map.erase(org_root_hash_str);
+            }
+
+            std::string res_str = res_json.dump();
+            remove_char(res_str, '\\');
+            res.body() = res_str;
+
+            free(p_new_path);
+
+            goto postcleanup;
+        }
+
+
+        // Storage unseal file block
+        cur_path = urlendpoint->base + "/storage/unseal";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            res.result(200);
+            std::string error_info;
+
+            p_log->info("Dealing with unseal request...\n");
+
+            // Parse parameters
+            json::JSON req_json;
+            try
+            {
+                req_json = json::JSON::Load(req.body());
+            }
+            catch (std::exception e)
+            {
+                error_info.append("Unseal file failed! Parse json failed! Error: ").append(e.what());
+                p_log->err("%s\n", error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(400);
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+
+            std::string dir_path = req_json["path"].ToString();
+            std::string backup = req_json["backup"].ToString();
+
+            // Check backup
+            remove_char(backup, '\\');
+            if (p_config->chain_backup.compare(backup) != 0)
+            {
+                error_info = "Unseal data failed!Invalid backup!";
+                p_log->err("%s\n", error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(401);
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+
+            // Get sub files' path
+            std::vector<std::string> files_str = get_sub_folders_and_files(dir_path.c_str());
+            std::vector<const char *> sub_files;
+            for (size_t i = 0; i < files_str.size(); i++)
+            {
+                sub_files.push_back(files_str[i].c_str());
+            }
+            if (sub_files.size() == 0)
+            {
+                error_info = "Empty data directory!";
+                p_log->err("%s\n", error_info.c_str());
+                res.result(402);
+                res_json["body"] = error_info;
+                res.body() = res_json.dump();
+                goto postcleanup;
+            }
+
+            // Unseal file
+            crust_status_t crust_status = CRUST_SUCCESS;
+            char *p_new_path = (char*)malloc(dir_path.size());
+            memset(p_new_path, 0, dir_path.size());
+            sgx_status_t sgx_status = ecall_unseal_file(global_eid, &crust_status,
+                    const_cast<char**>(sub_files.data()), sub_files.size(), dir_path.c_str(), p_new_path, dir_path.size());
+
+            if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
+            {
+                if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_UNSEAL_DATA_FAILED:
+                        error_info = "Internal error: unseal data failed!";
+                        break;
+                    case CRUST_STORAGE_UPDATE_FILE_FAILED:
+                        error_info = "Update new file failed!";
+                        break;
+                    case CRUST_STORAGE_FILE_NOTFOUND:
+                        error_info = "Given file cannot be found!";
+                        break;
+                    default:
+                        error_info = "Unexpected error!";
+                    }
+                }
+                else
+                {
+                    error_info = "Invoke SGX api failed!";
+                }
+                p_log->err("Unseal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
+                res_json["body"] = error_info;
+                res.result(403);
+            }
+            else
+            {
+                p_log->info("Unseal data successfully!\n");
+                res_json["body"] = "Unseal data successfully!";
+                res_json["path"] = std::string(p_new_path, dir_path.size());
+            }
+
+            std::string res_str = res_json.dump();
+            remove_char(res_str, '\\');
+            res.body() = res_str;
+
+            free(p_new_path);
+
+            goto postcleanup;
+        }
+
     postcleanup:
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
         res.content_length(res.body().size());
-        res.keep_alive(req.keep_alive());
+        //res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 }
