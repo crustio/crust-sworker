@@ -12,7 +12,7 @@ test: build-src $(TEST_TARGET)
 	@./${TEST_TARGET} ;
 
 build-src:
-	@$(MAKE) -C ../src/ all --no-print-directory
+	@$(MAKE) -C ../src/ all --no-print-directory -j4
 
 %.o: %.cpp  ${SRC_PATH}app/Enclave_u.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@

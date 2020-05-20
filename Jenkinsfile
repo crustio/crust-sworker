@@ -16,7 +16,7 @@ pipeline {
                 echo 'Testing...'
                 sh """
                 make clean
-                make -j4 test
+                make test
                 """
                 echo 'Test successfully'
             }
