@@ -34,11 +34,8 @@ enclave {
         public crust_status_t ecall_verify_iasreport([in, count=len] char ** IASReport, size_t len, [out] entry_network_signature *p_ensig);
 
         public crust_status_t ecall_validate_merkle_tree([in] MerkleTree **root);
-        public crust_status_t ecall_seal_data([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len, [in, size=src_len] const uint8_t *p_src, size_t src_len, [out, size=sealed_data_size] uint8_t *p_sealed_data, size_t sealed_data_size);
-        public crust_status_t ecall_seal_file([in] MerkleTree **root, [in, size=path_len] const char *path, size_t path_len);
-        public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir);
-        public crust_status_t ecall_unseal_data([in, size=sealed_data_size] const uint8_t *p_sealed_data, size_t sealed_data_size, [out, size=unsealed_data_size] uint8_t *p_unsealed_data, uint32_t unsealed_data_size);
-        public crust_status_t ecall_gen_new_merkle_tree([in, size=root_hash_len] const uint8_t *root_hash, uint32_t root_hash_len);
+        public crust_status_t ecall_seal_file([in] MerkleTree **root, [in, size=path_len] const char *path, [out, size=path_len] char *p_new_path, size_t path_len);
+        public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
     };
 
     untrusted {
@@ -69,5 +66,9 @@ enclave {
         crust_status_t ocall_persist_del([in, string] const char *key);
         crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
         crust_status_t ocall_persist_get([in, string] const char *key, [out] uint8_t **value, [out] size_t *value_len);
+
+        crust_status_t ocall_validate_init();
+        crust_status_t ocall_validate_get_file([in, string] const char *root_hash, [in, string] const char *leaf_hash, [out] uint8_t **p_sealed_data, [out] size_t *sealed_data_size);
+        void ocall_validate_close();
     };
 };

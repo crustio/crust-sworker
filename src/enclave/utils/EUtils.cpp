@@ -1,4 +1,5 @@
 #include "EUtils.h"
+#include "EJson.h"
 
 using namespace std;
 
@@ -149,7 +150,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
 
     const char *rsrc = (const char*)src;
     uint8_t *p_target;
-    uint8_t *target = (uint8_t *)malloc(len / 2);
+    uint8_t *target = (uint8_t *)enc_malloc(len / 2);
     if (target == NULL)
     {
         return NULL;
@@ -277,18 +278,18 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
  * */
 crust_status_t validate_merkle_tree_c(MerkleTree *tree)
 {
-    if (tree->links_num == 0)
+    if (tree == NULL || tree->links_num == 0)
     {
         return CRUST_SUCCESS;
     }
 
     crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_sha256_hash_t g_hashs_hash256;
+    sgx_sha256_hash_t parent_hash;
 
-    uint8_t *hash_u = NULL;
+    uint8_t *parent_hash_org = NULL;
 
-    uint8_t *g_hashs = (uint8_t*)malloc(tree->links_num * HASH_LENGTH);
-    memset(g_hashs, 0, tree->links_num * HASH_LENGTH);
+    uint8_t *children_hashs = (uint8_t*)enc_malloc(tree->links_num * HASH_LENGTH);
+    memset(children_hashs, 0, tree->links_num * HASH_LENGTH);
     for (uint32_t i = 0; i < tree->links_num; i++)
     {
         if(validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
@@ -296,27 +297,21 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
             crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
         }
-        string hash_r = string(tree->links[i]->hash);
-        size_t n_pos = hash_r.find("_");
-        if (n_pos != hash_r.npos)
-        {
-            hash_r.erase(0, n_pos + 1);
-        }
-        uint8_t *tmp_hash = hex_string_to_bytes(hash_r.c_str(), HASH_LENGTH * 2);
+        uint8_t *tmp_hash = hex_string_to_bytes(tree->links[i]->hash, HASH_LENGTH * 2);
         if (tmp_hash == NULL)
         {
             crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
         }
-        memcpy(g_hashs + i * HASH_LENGTH, tmp_hash, HASH_LENGTH);
+        memcpy(children_hashs + i * HASH_LENGTH, tmp_hash, HASH_LENGTH);
         free(tmp_hash);
     }
 
     // Compute and compare hash value
-    sgx_sha256_msg(g_hashs, tree->links_num * HASH_LENGTH, &g_hashs_hash256);
+    sgx_sha256_msg(children_hashs, tree->links_num * HASH_LENGTH, &parent_hash);
 
-    hash_u = hex_string_to_bytes(tree->hash, HASH_LENGTH * 2);
-    if (memcmp(hash_u, g_hashs_hash256, HASH_LENGTH) != 0)
+    parent_hash_org = hex_string_to_bytes(tree->hash, HASH_LENGTH * 2);
+    if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
     {
         crust_status = CRUST_INVALID_MERKLETREE;
         goto cleanup;
@@ -325,10 +320,10 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
 
 cleanup:
 
-    free(g_hashs);
+    free(children_hashs);
 
-    if (hash_u != NULL)
-        free(hash_u);
+    if (parent_hash_org != NULL)
+        free(parent_hash_org);
 
     return crust_status;
 }
@@ -341,23 +336,66 @@ cleanup:
 string serialize_merkletree_to_json_string(MerkleTree *root)
 {
     if (root == NULL)
+    {
         return "";
+    }
 
+    uint32_t hash_len = strlen(root->hash);
     string node;
-    node.append("{\"hash\":\"").append(root->hash).append("\",");
-    node.append("\"links_num\":").append(to_string(root->links_num)).append(",");
-    node.append("[");
+    node.append("{\"size\":").append(to_string(root->size)).append(",")
+        .append("\"links_num\":").append(to_string(root->links_num)).append(",")
+        .append("\"hash\":\"").append(hexstring(root->hash, hash_len), hash_len * 2).append("\",")
+        .append("\"links\":[");
 
     for (size_t i = 0; i < root->links_num; i++)
     {
-        string sub_node = serialize_merkletree_to_json_string(root->links[i]);
-        node.append(sub_node).append(",");
+        node.append(serialize_merkletree_to_json_string(root->links[i])).append(",");
     }
 
     node.erase(node.size() - 1, 1);
-    node.append("]");
+    node.append("]}");
 
     return node;
+}
+
+/**
+ * @description: Deserialize json string to MerkleTree
+ * @param root -> Pointer to MerkleTree root
+ * @param ser_tree -> Serialized MerkleTree string
+ * @param spos -> Search start position
+ * @return: Deseialize status
+ * */
+MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
+{
+    if (tree_json.JSONType() != json::JSON::Class::Object)
+        return NULL;
+
+    MerkleTree *root = new MerkleTree();
+    std::string hash = tree_json["hash"].ToString();
+    size_t hash_len = hash.size() + 1;
+    root->hash = (char*)malloc(hash_len);
+    memset(root->hash, 0, hash_len);
+    memcpy(root->hash, hash.c_str(), hash.size());
+    root->links_num = tree_json["links_num"].ToInt();
+    json::JSON children = tree_json["links"];
+
+    if (root->links_num != 0)
+    {
+        root->links = (MerkleTree**)malloc(root->links_num * sizeof(MerkleTree*));
+        for (uint32_t i = 0; i < root->links_num; i++)
+        {
+            MerkleTree *child = deserialize_json_to_merkletree(children[i]);
+            if (child == NULL)
+            {
+                free(root->hash);
+                free(root->links);
+                return NULL;
+            }
+            root->links[i] = child;
+        }
+    }
+
+    return root;
 }
 
 /**
@@ -412,4 +450,14 @@ void *enc_realloc(void *p, size_t size)
     }
 
     return p;
+}
+
+/**
+ * @description: Remove indicated character from given string
+ * @param data -> Reference to given string
+ * @param c -> Indicated character
+ * */
+void remove_char(std::string &data, char c)
+{
+    data.erase(std::remove(data.begin(), data.end(), c), data.end());
 }

@@ -37,25 +37,23 @@ void ecall_main_loop(const char *empty_path)
 {
     while (true)
     {
-        log_debug("-----Meaningful Validation-----\n");
-        /* Meaningful */
-        validation_status = VALIDATE_MEANINGFUL;
         crust_status_t crust_status = CRUST_SUCCESS;
-        Node *diff_files = NULL;
-        ocall_get_diff_files(&diff_files);
-        size_t diff_files_num = 0;
-        ocall_get_diff_files_num(&diff_files_num);
-        validate_meaningful_disk(diff_files, diff_files_num);
 
-        log_debug("-----Empty Validation-----\n");
-        /* Empty */
+        // ----- Meaningful ----- //
+        log_debug("----- Meaningful Validation -----\n");
+        validation_status = VALIDATE_MEANINGFUL;
+        validate_meaningful_file();
+
+        // ----- Empty ----- //
+        log_debug("----- Empty Validation -----\n");
         validation_status = VALIDATE_EMPTY;
         validate_empty_disk(empty_path);
 
-        log_debug("-----Validation Waiting-----\n");
-        /* Show result */
+        // ----- Show result ----- //
+        log_debug("----- Validation Waiting -----\n");
         Workload::get_instance()->show();
 
+        // Store metadata periodically
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
         {
             log_err("Store enclave data failed!Error code:%lx\n", crust_status);
@@ -225,9 +223,9 @@ crust_status_t ecall_validate_merkle_tree(MerkleTree **root)
  * @param tree -> New MerkleTree
  * @return: Seal status
  * */
-crust_status_t ecall_seal_file(MerkleTree **root, const char *path, size_t path_len)
+crust_status_t ecall_seal_file(MerkleTree **root, const char *path, char *p_new_path , size_t path_len)
 {
-    return storage_seal_file(*root, path, path_len);
+    return storage_seal_file(*root, path, path_len, p_new_path);
 }
 
 /**
@@ -238,50 +236,7 @@ crust_status_t ecall_seal_file(MerkleTree **root, const char *path, size_t path_
  * @param files_num -> Files number in root directory
  * @return: Unseal status
  * */
-crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir)
+crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path, uint32_t /*path_len*/)
 {
-    return storage_unseal_file(files, files_num, p_dir);
-}
-
-/**
- * @description: Seal file block and generate new tree
- * @param root_hash -> file root hash
- * @param root_hash_len -> file root hash lenght
- * @param path -> path from root node to file block node
- * @param path_count -> path vector size
- * @param p_src -> pointer to file block data
- * @param src_len -> file block data size
- * @param p_sealed_data -> sealed file block data
- * @param sealed_data_size -> sealed file block data size
- * @return: Seal and generate result
- * */
-crust_status_t ecall_seal_data(const uint8_t *root_hash, uint32_t root_hash_len,
-        const uint8_t *p_src, size_t src_len, uint8_t *p_sealed_data, size_t sealed_data_size)
-{
-    return storage_seal_data(root_hash, root_hash_len, p_src, src_len, p_sealed_data, sealed_data_size);
-}
-
-/**
- * @description: Unseal and verify file block data
- * @param p_sealed_data -> sealed file block data
- * @param sealed_data_size -> sealed file block data size
- * @param p_unsealed_data -> unsealed file block data
- * @param unsealed_data_size -> unsealed file block data size
- * @return: Unseal status
- * */
-crust_status_t ecall_unseal_data(const uint8_t *p_sealed_data, size_t sealed_data_size,
-        uint8_t *p_unsealed_data, uint32_t unsealed_data_size)
-{
-    return storage_unseal_data(p_sealed_data, sealed_data_size, p_unsealed_data, unsealed_data_size);
-}
-
-/**
- * @description: Generate validate Merkle hash tree after seal file successfully
- * @param root_hash -> root hash of Merkle tree
- * @param root_hash_len -> root hash length
- * @return: Generate status
- * */
-crust_status_t ecall_gen_new_merkle_tree(const uint8_t *root_hash, uint32_t root_hash_len)
-{
-    return storage_gen_new_merkle_tree(root_hash, root_hash_len);
+    return storage_unseal_file(files, files_num, p_dir, p_new_path);
 }

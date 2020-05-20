@@ -15,6 +15,7 @@
 #include <boost/algorithm/string.hpp>
 #include "MerkleTree.h"
 #include "Json.hpp"
+#include "Log.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -24,7 +25,7 @@ extern "C"
     {
         std::string ip;
         std::string base;
-        int port;
+        int port = -1;
     };
 
     UrlEndPoint *get_url_end_point(std::string url);

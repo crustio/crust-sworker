@@ -63,8 +63,10 @@ void *work_report_loop(void *)
                     std::string work_str = work_json.dump();
                     p_log->info("Sign validation report successfully!\n%s\n", work_str.c_str());
                     // Delete space and line break
-                    work_str.erase(std::remove(work_str.begin(), work_str.end(), ' '), work_str.end());
-                    work_str.erase(std::remove(work_str.begin(), work_str.end(), '\n'), work_str.end());
+                    remove_char(work_str, '\\');
+                    remove_char(work_str, '\n');
+                    remove_char(work_str, ' ');
+                    p_log->info("===== work report:%s\n", work_str.c_str());
                     if (!p_chain->post_tee_work_report(work_str))
                     {
                         p_log->err("Send work report to crust chain failed!\n");

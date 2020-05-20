@@ -27,7 +27,7 @@ function installAPP()
     make clean &>/dev/null
     setTimeWait "$(verbose INFO "Installing application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make -j${coreNum} &>$ERRFILE
+    make -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     cp $appname ../bin
     if [ ! -e "../etc/$enclaveso" ]; then
@@ -111,7 +111,9 @@ appdir=$basedir/src
 instdir=$basedir
 TMPFILE=$appdir/tmp.$$
 ERRFILE=$basedir/err.log
-crustteedir=/opt/crust/crust-tee
+crustdir=/opt/crust
+crustteedir=$crustdir/crust-tee
+crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 selfName=$(basename $0)
 selfPID=$$
@@ -161,6 +163,10 @@ uninstallOldCrustTee
 # Create directory
 verbose INFO "Creating and setting diretory related..." h
 res=0
+mkdir -p $crustdir
+res=$(($?|$res))
+mkdir -p $crusttooldir
+res=$(($?|$res))
 mkdir -p $crustteedir
 res=$(($?|$res))
 mkdir -p $inteldir
@@ -177,7 +183,11 @@ fi
 installAPP
 
 verbose INFO "Changing diretory owner..." h
+res=0
 chown -R $uid:$uid $crustteedir
+res=$(($?|$res))
+chown -R $uid:$uid $crusttooldir
+res=$(($?|$res))
 checkRes $res "quit" "success"
 
 verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee! Go to /opt/crust/crust-tee and follow README to start crust."

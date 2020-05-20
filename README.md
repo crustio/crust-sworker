@@ -25,7 +25,7 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 
 ## Development launch
 ### Install dependent libs
-Install gcc, git, openssl, boost, curl, elf
+Install gcc, git, openssl, boost, curl, elf, boost beast
 ```shell
 sudo apt install build-essential
 sudo apt install git
@@ -140,8 +140,7 @@ curl --location --request POST 'http://<url:port>/api/v0/change/empty' \
 --header 'Content-Type: application/json' \
 --header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
 --data-raw '{
-	"change": 2,
-	"backup": "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
+	"change": 2
 }'
 ```
 
@@ -185,21 +184,25 @@ This API is a websocket API.
     "body" : {
         "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
         "links_num":2,
+        "size": 4,
         "links":
         [
           {
             "hash":"ca8fcf43b852d7d73801c1c13f38e3d8f80e6c53d4556aa4e18aaa6632c0914b",
             "links_num":2,
+            "size": 2,
             "links":
             [
               {
                 "hash":"df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
                 "links_num":0,
+                "size": 1,
                 "links":[]
               },
               {
                 "hash":"82ef6f9e48bcbdf232db1d5c5c6e8f390156f5305b35d4b32f75fc92c8126a32",
                 "links_num":0,
+                "size": 1,
                 "links":[]
               }
             ]
@@ -207,16 +210,19 @@ This API is a websocket API.
           {
             "hash":"e2f3daf19abfb40766b4c507a9b191fe274f343dfff18287c8e1d8552b8aac77",
             "links_num":2,
+            "size": 2,
             "links":
             [
               {
                 "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
                 "links_num":0,
+                "size": 1,
                 "links":[]
               },
               {
                 "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
                 "links_num":0,
+                "size": 1,
                 "links":[]
               }
             ]
@@ -233,8 +239,15 @@ Parameter:
 
 Output status:
 1. 200: validate successfully, return sealed merkletree json structure
+```
+{
+    "body" : <sealed_merkletree_json>,
+    "path" : <path_to_sealed_dir>,
+    "status" : 200
+}
+```
 1. 201: given merkletree has been validated
-1. 400: validate failed! Invalid merkletree
+1. 400: validate failed! Invalid request json 
 1. 401: validate failed! Invalid backup
 1. 402: validate failed! Empty body
 1. 403: validate failed! Deserialize merkletree failed
@@ -257,6 +270,13 @@ Parameter:
 
 Output status:
 1. 200: unseal data successfully!
+```
+{
+    "body" : <seal_msg>,
+    "path" : <path_to_new_dir>,
+    "status" : 200
+}
+```
 1. 400: Unseal file failed!Error invalid request json!
 1. 401: Unseal file failed!Error invalid backup 
 1. 402: Unseal file failed!Error empty file directory

@@ -65,6 +65,7 @@ function installSGXSSL()
     # Install SGXSDK
     > $SYNCFILE
     setTimeWait "$(verbose INFO "Installing SGX SSL..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
     cd $rsrcdir
     sgxssltmpdir=$rsrcdir/$(unzip -l $sgxsslpkg | awk '{print $NF}' | awk -F/ '{print $1}' | grep intel | head -n 1)
     sgxssl_openssl_source_dir=$sgxssltmpdir/openssl_source
@@ -78,13 +79,57 @@ function installSGXSSL()
     # build SGX SSL
     cd $sgxssltmpdir/Linux
     cp $opensslpkg $sgxssl_openssl_source_dir
-    toKillPID[${#toKillPID[*]}]=$!
     make all test &>$ERRFILE && make install &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     cd - &>/dev/null
 
     if [ x"$sgxssltmpdir" != x"/" ]; then
         rm -rf $sgxssltmpdir
+    fi
+}
+
+function installBOOST()
+{
+    verbose INFO "Checking boost..." h
+    if [ -d "$boostdir" ]; then
+        verbose INFO "yes" t
+        return
+    fi
+    verbose ERROR "no" t
+    mkdir -p $boostdir
+
+    # Install boost beast
+    > $SYNCFILE
+    setTimeWait "$(verbose INFO "Installing boost..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
+    cd $rsrcdir
+    local tmpboostdir=$rsrcdir/boost
+    mkdir $tmpboostdir
+    tar -xvf $boostpkg -C $tmpboostdir --strip-components=1 &>$ERRFILE
+    if [ $? -ne 0 ]; then
+        verbose "failed" t
+        exit 1
+    fi
+    cd - &>/dev/null
+
+    # Build boost
+    cd $tmpboostdir
+    ./bootstrap.sh &>$ERRFILE
+    if [ $? -ne 0 ]; then
+        verbose "failed" t
+        exit 1
+    fi
+    ./b2 install --prefix=$boostdir threading=multi -j$((coreNum*2)) &>$ERRFILE
+    checkRes $? "quit" "success" "$SYNCFILE"
+    cd - &>/dev/null
+
+    # Set and refresh ldconfig
+    echo "$boostdir/lib" > $crustldfile
+    ldconfig
+    ln -s $boostdir/include/boost /usr/local/include/boost
+
+    if [ x"$tmpboostdir" != x"/" ]; then
+        rm -rf $tmpboostdir
     fi
 }
 
@@ -198,9 +243,12 @@ basedir=$(cd `dirname $0`;pwd)
 TMPFILE=$basedir/tmp.$$
 ERRFILE=$basedir/err.log
 rsrcdir=$basedir/../resource
-crustteedir=/opt/crust/crust-tee
+crustdir=/opt/crust
+crustteedir=$crustdir/crust-tee
+crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 sgxssldir=$inteldir/sgxssl
+boostdir=$crusttooldir/boost
 sgxssltmpdir=""
 selfPID=$$
 OSID=$(cat /etc/os-release | grep '^ID\b' | grep -Po "(?<==).*")
@@ -208,7 +256,10 @@ OSVERSION=$(cat /etc/os-release | grep 'VERSION_ID' | grep -Po "(?<==\").*(?=\")
 tmo=180
 SYNCFILE=$basedir/.syncfile
 res=0
+# Environment related
+crustldfile="/etc/ld.so.conf.d/crust.conf"
 uid=$(stat -c '%U' $basedir)
+coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
 # Control configuration
 instTimeout=30
 toKillPID=()
@@ -231,6 +282,7 @@ sgxsslpkg=$rsrcdir/$SGXSSLPKGNAME
 opensslpkg=$rsrcdir/$(basename $OPENSSLURL)
 openssldir=$rsrcdir/$(basename $OPENSSLURL | grep -Po ".*(?=\.tar)")
 sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
+boostpkg=$rsrcdir/boost_1_70_0.tar.gz
 # SGX prerequisites
 basicsprereq=(expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
@@ -263,3 +315,6 @@ installSGXSDK
 
 # Installing SGX SSL
 installSGXSSL
+
+# Installing BOOST
+installBOOST

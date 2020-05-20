@@ -186,7 +186,7 @@ int process_run()
     p_log->info("WorkerPID = %d\n", worker_pid);
     p_log->info("Worker global eid: %d\n", global_eid);
 
-    /* Init conifigure */
+    // Init conifigure
     if (!initialize_config())
     {
         p_log->err("Init configuration failed!\n");
@@ -194,7 +194,7 @@ int process_run()
         goto cleanup;
     }
 
-    /* Init related components */
+    // Init related components
     if (!initialize_components())
     {
         p_log->err("Init component failed!\n");
@@ -202,7 +202,7 @@ int process_run()
         goto cleanup;
     }
 
-    /* Init enclave */
+    // Init enclave
     if (!initialize_enclave())
     {
         p_log->err("Init enclave failed!\n");
@@ -210,12 +210,12 @@ int process_run()
         goto cleanup;
     }
 
-    /* Restore data from file */
+    // ----- Restore data from file ----- //
     if (SGX_SUCCESS != ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
         // Restore data failed
         p_log->warn("Restore enclave data failed!Failed code:%lx\n", crust_status);
-        /* Generate ecc key pair */
+        // Generate ecc key pair
         if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
         {
             p_log->err("Generate key pair failed!\n");
@@ -224,7 +224,7 @@ int process_run()
         }
         p_log->info("Generate key pair successfully!\n");
 
-        /* Store crust info in enclave */
+        // Store crust info in enclave
         crust_status_t crust_status = CRUST_SUCCESS;
         if (SGX_SUCCESS != ecall_set_chain_account_id(global_eid, &crust_status,
                 p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
@@ -235,7 +235,7 @@ int process_run()
             goto cleanup;
         }
 
-        /* Srd empty disk */
+        // Srd empty disk
         if (pthread_create(&srd_empty_disk_thread, NULL, do_srd_empty_disk, NULL) != 0)
         {
             p_log->err("Create srd empty disk thread failed!\n");
@@ -243,10 +243,10 @@ int process_run()
             goto cleanup;
         }
 
-        /* Send identity to chain and send work report */
+        // Send identity to chain and send work report
         if (!offline_chain_mode)
         {
-            /* Entry network */
+            // Entry network
             p_log->info("Entrying network...\n");
             if (!entry_network(p_config, tee_identity_result))
             {
@@ -255,7 +255,7 @@ int process_run()
             }
             p_log->info("Entry network application successfully! TEE identity: %s\n", tee_identity_result.c_str());
 
-            /* Send identity to crust chain */
+            // Send identity to crust chain
             if (!crust::Chain::get_instance()->wait_for_running())
             {
                 return_status = -1;
@@ -296,11 +296,11 @@ int process_run()
         }
     }
 
-    /* Main validate loop */
+    // Main validate loop
     ecall_main_loop(global_eid, p_config->empty_path.c_str());
 
 cleanup:
-    /* End and release */
+    // End and release
     delete p_config;
     if (get_ipfs() != NULL)
         delete get_ipfs();

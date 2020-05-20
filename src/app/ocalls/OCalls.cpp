@@ -1,6 +1,8 @@
 #include "OCalls.h"
 #include "DataBase.h"
 #include "FileUtils.h"
+#include "Config.h"
+#include "BufferPool.h"
 #include <exception>
 
 crust::Log *p_log = crust::Log::get_instance();
@@ -11,6 +13,13 @@ size_t ocall_file_data_len = 0;
 // Used to store storage related data
 uint8_t *_storage_buffer = NULL;
 size_t _storage_buffer_len = 0;
+// Buffer used to store sealed data
+uint8_t *_sealed_data_buf = NULL;
+size_t _sealed_data_size = 0;
+// Used to validation websocket client
+WebsocketClient *wssclient = NULL;
+// Buffer pool
+BufferPool *p_buf_pool = BufferPool::get_instance();
 // Used to temporarily store sealed serialized MerkleTree
 std::map<std::string, std::string> sealed_tree_map;
 
@@ -410,7 +419,7 @@ crust_status_t ocall_get_file_block_by_path(char * /*root_hash*/, char * /*cur_h
  * */
 crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len)
 {
-    return crust::DataBase::get_instance()->add(std::string(key), std::string(hexstring(value, value_len)));
+    return crust::DataBase::get_instance()->add(std::string(key), std::string((const char*)value, value_len));
 }
 
 /**
@@ -432,7 +441,7 @@ crust_status_t ocall_persist_del(const char *key)
  * */
 crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len)
 {
-    return crust::DataBase::get_instance()->set(std::string(key), std::string(hexstring(value, value_len)));
+    return crust::DataBase::get_instance()->set(std::string(key), std::string((const char*)value, value_len));
 }
 
 /**
@@ -446,12 +455,16 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
 {
     std::string val;
     crust_status_t crust_status = crust::DataBase::get_instance()->get(std::string(key), val);
-    *value = hex_string_to_bytes(val.c_str(), val.size());
-    if (*value == NULL)
+    if (CRUST_SUCCESS != crust_status)
     {
-        return CRUST_PERSIST_GET_FAILED;
+        *value_len = 0;
+        return crust_status;
     }
-    *value_len = val.size() / 2;
+    *value_len = val.size();
+    // Get buffer
+    uint8_t *p_buffer = p_buf_pool->get_buffer(*value_len);
+    memcpy(p_buffer, val.c_str(), *value_len);
+    *value = p_buffer;
 
     return crust_status;
 }
@@ -473,4 +486,110 @@ void ocall_get_sub_folders_and_files(const char *path, char ***files, size_t *fi
 
     *files = const_cast<char**>(dirs_r.data());
     *files_num = dirs_r.size();
+}
+
+/**
+ * @description: Initialize websocket client
+ * @return: Initialize status
+ * */
+crust_status_t ocall_validate_init()
+{
+    if (wssclient != NULL)
+        delete wssclient;
+
+    wssclient = new WebsocketClient();
+    Config *p_config = Config::get_instance();
+    UrlEndPoint *urlendpoint = get_url_end_point(p_config->karst_url);
+    if (! wssclient->websocket_init(urlendpoint->ip, std::to_string(urlendpoint->port), urlendpoint->base))
+    {
+        return CRUST_VALIDATE_INIT_WSS_FAILED;
+    }
+
+    // Send backup to server
+    std::string res;
+    json::JSON backup_json;
+    backup_json["backup"] = p_config->chain_backup;
+    if (! wssclient->websocket_request(backup_json.dump(), res))
+    {
+        p_log->err("Validate failed! Send backup to server failed!\n");
+        return CRUST_VALIDATE_WSS_REQUEST_FAILED;
+    }
+    json::JSON res_json = json::JSON::Load(res);
+    if (res_json["status"].ToInt() != 200)
+    {
+        p_log->err("Validate failed! Karst response: %s\n", res.c_str());
+        return CRUST_VALIDATE_WSS_REQUEST_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Get validation files
+ * @param root_hash -> File tree root hash
+ * @param leaf_hash -> File tree leaf hash
+ * @param p_sealed_data -> Pointer to sealed data
+ * @param sealed_data_size -> Sealed data size
+ * @return: Get validation files status
+ * */
+// TODO: malloc a const space for p_sealed_data
+crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash,
+        uint8_t **p_sealed_data, size_t *sealed_data_size)
+{
+    std::string leaf_hash_str(leaf_hash);
+    size_t spos = leaf_hash_str.find("_");
+    if (spos == leaf_hash_str.npos)
+    {
+        p_log->err("Invalid merkletree leaf hash!\n");
+        return CRUST_INVALID_MERKLETREE;
+    }
+    int node_index = atoi(leaf_hash_str.substr(0, spos).c_str());
+    std::string leaf_hash_r = leaf_hash_str.substr(spos + 1, leaf_hash_str.size());
+
+    json::JSON req_json;
+    req_json["file_hash"] = std::string(root_hash);
+    req_json["node_hash"] = leaf_hash_r;
+    req_json["node_index"] = node_index;
+    std::string res;
+    if (! wssclient->websocket_request(req_json.dump(), res))
+    {
+        return CRUST_VALIDATE_WSS_REQUEST_FAILED;
+    }
+    size_t data_size = res.size();
+    if (data_size > _sealed_data_size)
+    {
+        _sealed_data_buf = (uint8_t*)realloc(_sealed_data_buf, data_size);
+        if (_sealed_data_buf == NULL)
+        {
+            p_log->err("Validate: malloc buffer failed!\n");
+            return CRUST_MALLOC_FAILED;
+        }
+        _sealed_data_size = data_size;
+    }
+    memset(_sealed_data_buf, 0, _sealed_data_size);
+    memcpy(_sealed_data_buf, res.c_str(), data_size);
+    *p_sealed_data = _sealed_data_buf;
+    *sealed_data_size = data_size;
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Close websocket connection
+ * */
+void ocall_validate_close()
+{
+    if (wssclient != NULL)
+    {
+        wssclient->websocket_close();
+        delete wssclient;
+        wssclient = NULL;
+    }
+
+    if (_sealed_data_buf != NULL)
+    {
+        free(_sealed_data_buf);
+        _sealed_data_buf = NULL;
+        _sealed_data_size = 0;
+    }
 }

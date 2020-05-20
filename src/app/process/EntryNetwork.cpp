@@ -1,5 +1,7 @@
 #include "EntryNetwork.h"
-#include "HttpLib.h"
+#include "HttpClient.h"
+
+namespace http = boost::beast::http;   // from <boost/beast/http.hpp>
 
 extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
@@ -185,15 +187,13 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     int net_tryout = IAS_TRYOUT;
 
     // Send to validation node
-    UrlEndPoint *urlendpoint = get_url_end_point(p_config->validator_api_base_url);
-    httplib::Client *client = new httplib::Client(urlendpoint->ip, urlendpoint->port);
-    client->set_timeout_sec(CLIENT_TIMEOUT);
-    std::string path = urlendpoint->base + "/entry/network";
-    std::shared_ptr<httplib::Response> res;
+    HttpClient *client = new HttpClient();
+    std::string url = p_config->validator_api_base_url + "/entry/network";
+    http::response<http::string_body> res;
     while (net_tryout > 0)
     {
-        res = client->Post(path.c_str(), req_data, "text/plain");
-        if (!(res && res->status == 200))
+        res = client->Post(url, req_data);
+        if ((int)res.result() != 200)
         {
             p_log->info("Sending quote to verify failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
             sleep(3);
@@ -202,22 +202,14 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
         }
         break;
     }
-
-    if (!res || res->status != 200)
+    if ((int)res.result() != 200)
     {
-        if (res)
-        {
-            p_log->err("Entry network failed!Error code:%d\n", res->status);
-        }
-        else
-        {
-            p_log->err("Entry network failed!Error: Get response failed!\n");
-        }
+        p_log->err("Entry network failed!Error :%d\n", res.result());
         entry_status = false;
         goto cleanup;
     }
 
-    tee_identity_out = res->body;
+    tee_identity_out = res.body();
 
 cleanup:
 
