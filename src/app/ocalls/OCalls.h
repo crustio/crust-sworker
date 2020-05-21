@@ -12,7 +12,6 @@
 #include <map>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
-#include "Ipfs.h"
 #include "FileUtils.h"
 #include "FormatUtils.h"
 #include "Common.h"
@@ -41,10 +40,6 @@ extern "C"
     crust_status_t ocall_replace_file(const char *old_path, const char *new_path, const uint8_t *data, size_t len);
     crust_status_t ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len);
     crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_file, size_t *len);
-    void ocall_get_merkle_tree(const char *root_hash, MerkleTree **p_merkletree);
-    void ocall_get_block(const char *hash, size_t *len, unsigned char **p_block);
-    void ocall_get_diff_files(Node **node);
-    size_t ocall_get_diff_files_num();
     void ocall_usleep(int u);
     crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count);
 

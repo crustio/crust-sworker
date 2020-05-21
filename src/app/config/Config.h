@@ -20,14 +20,14 @@ public:
     std::string db_path;                /* DB path */
     size_t empty_capacity;              /* Hard drive storage space for empty validation files, The unit is GB */
     std::string api_base_url;           /* External API base url */
-    std::string karst_url;              /* karst websocket url */
+    
     std::string websocket_url;          /* WebSocket url */
     int websocket_thread_num;           /* WebSocket thread number */
     std::string validator_api_base_url; /* Validator base API base url */
     int srd_thread_num;                 /* srd empty files thread number */
 
     // crust storage
-    std::string ipfs_api_base_url; /* Used to connect to IPFS */
+    std::string karst_url;              /* karst websocket url */
 
     // crust chain
     std::string chain_api_base_url; /* Used to connect to Crust API */

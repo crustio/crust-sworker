@@ -51,9 +51,11 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
     "base_path" : "/opt/crust/crust-tee/tee_base_path",                  # All files will be stored in this directory, must be absolute path
     "empty_capacity" : 4,                                                # empty disk storage in Gb
     
-    "ipfs_api_base_url" : "http://127.0.0.1:5001/api/v0",                # for connect to ipfs
     "api_base_url": "http://127.0.0.1:12222/api/v0",                     # your tee node api address
     "validator_api_base_url": "http://127.0.0.1:12222/api/v0",           # the tee validator address (**if you are genesis node, this url must equal to 'api_base_url'**)
+    "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
+    "websocket_url" : "wss://0.0.0.0:19002",
+    "websocket_thread_num" : 3,
 
     "chain_api_base_url" : "http://127.0.0.1:56666/api/v1",              # the address of crust api
     "chain_address" : "",                                                # your crust chain identity
@@ -66,11 +68,6 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
 
 ### Start
 Crust TEE apllication is installed in /opt/crust/crust-tee.
-#### Lanuch ipfs
-```shell
-cd /opt/crust/crust-tee
-./scripts/start-ipfs.sh # please make sure your machine ports: 14001, 15001, 18080 are free
-```
 
 #### Lanuch crust TEE
 ```shell

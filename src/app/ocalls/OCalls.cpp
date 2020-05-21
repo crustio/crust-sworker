@@ -343,48 +343,6 @@ crust_status_t ocall_replace_file(const char *old_path, const char *new_path, co
 }
 
 /**
- * @description: ocall for getting merkle tree by root hash
- * @param root_hash -> the root hash of file
- * @return: the merkle tree of file
- */
-void ocall_get_merkle_tree(const char *root_hash, MerkleTree **p_merkletree)
-{
-    //return get_ipfs()->get_merkle_tree(root_hash);
-    *p_merkletree = get_ipfs()->get_merkle_tree(root_hash);
-}
-
-/**
- * @description: ocall for getting block data from ipfs by block hash
- * @param hash -> the block hash
- * @param len(out) -> the length of block data 
- * @return: the block data
- */
-void ocall_get_block(const char *hash, size_t *len, unsigned char **p_block)
-{
-    //return get_ipfs()->get_block_data(hash, len);
-    *p_block = get_ipfs()->get_block_data(hash, len);
-}
-
-/**
- * @description: ocall for getting changed files
- * @return: changed files
- */
-void ocall_get_diff_files(Node **node)
-{
-    get_ipfs()->generate_diff_files();
-    *node = get_ipfs()->get_diff_files();
-}
-
-/**
- * @description: ocall for getting the number of changed files
- * @return: the number of changed files
- */
-size_t ocall_get_diff_files_num()
-{
-    return get_ipfs()->get_diff_files_num();
-}
-
-/**
  * @description: ocall for wait
  * @param u microsecond
  */

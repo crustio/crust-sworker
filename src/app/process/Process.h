@@ -24,7 +24,6 @@
 #include "Enclave_u.h"
 #include "SgxSupport.h"
 #include "Config.h"
-#include "Ipfs.h"
 #include "Chain.h"
 #include "FormatUtils.h"
 #include "Common.h"
