@@ -43,6 +43,7 @@ cd -
 
 # Generate mrenclave file
 mkdir $instdir/etc
+mkdir $instdir/bin
 if [ x"$1" != x"debug" ]; then
     if [ ! -d "$sgxsdkdir" ] || [ ! -d "$sgxssldir" ]; then
         # Install dependencies
@@ -68,9 +69,9 @@ else
 fi
 
 cd $instdir
-cp -r etc log src resource scripts $pkgdir
+cp -r bin etc log src resource scripts $pkgdir
 cp LICENSE README.md VERSION buildenv.mk $pkgdir
-rm -rf etc
+rm -rf etc bin
 cd -
 
 cd $pkgdir
