@@ -93,7 +93,6 @@ bool initialize_enclave()
 /**
  * @description: initialize the components:
  *   config -> user configurations and const configurations
- *   ipfs -> used to store meaningful files, please make sure ipfs is running before running daemon
  *   api handler -> external API interface 
  * @return: success or failure
  */
@@ -101,19 +100,6 @@ bool initialize_components(void)
 {
     // Create base path
     create_directory(p_config->empty_path);
-
-    // IPFS component
-    if (new_ipfs(p_config->ipfs_api_base_url.c_str()) == NULL)
-    {
-        p_log->err("Init ipfs failed.\n");
-        return false;
-    }
-
-    if (!get_ipfs()->is_online())
-    {
-        p_log->err("ipfs daemon is not started up! Please start it up!\n");
-        return false;
-    }
 
     // Init crust
     if (crust::Chain::get_instance() == NULL)
@@ -302,8 +288,6 @@ int process_run()
 cleanup:
     // End and release
     delete p_config;
-    if (get_ipfs() != NULL)
-        delete get_ipfs();
 
     if (p_api_handler != NULL)
         delete p_api_handler;

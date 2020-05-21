@@ -64,10 +64,10 @@ App_C_Files := $(wildcard ${SRC_PATH}app/utils/*.c)
 
 App_Cpp_Files := ${SRC_PATH}app/App.cpp $(wildcard ${SRC_PATH}app/utils/*.cpp) $(wildcard ${SRC_PATH}app/config/*.cpp) \
 	$(wildcard ${SRC_PATH}app/log/*.cpp) $(wildcard ${SRC_PATH}app/database/*.cpp) $(wildcard ${SRC_PATH}app/http/*.cpp) \
-	$(wildcard ${SRC_PATH}app/ipfs/*.cpp) $(wildcard ${SRC_PATH}app/ocalls/*.cpp) $(wildcard ${SRC_PATH}app/process/*.cpp) \
+	$(wildcard ${SRC_PATH}app/ocalls/*.cpp) $(wildcard ${SRC_PATH}app/process/*.cpp) \
 	$(wildcard ${SRC_PATH}app/chain/*.cpp) \
 	
-App_Include_Paths := -I${SRC_PATH}include -I${SRC_PATH}app -I${SRC_PATH}app/ipfs -I${SRC_PATH}app/utils -I${SRC_PATH}app/http \
+App_Include_Paths := -I${SRC_PATH}include -I${SRC_PATH}app -I${SRC_PATH}app/utils -I${SRC_PATH}app/http \
 	-I${SRC_PATH}app/config -I${SRC_PATH}app/ocalls -I${SRC_PATH}app/process -I${SRC_PATH}app/chain -I${SRC_PATH}app/log \
 	-I${SRC_PATH}app/database -I$(SGX_SDK)/include
 
