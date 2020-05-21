@@ -179,21 +179,25 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 goto getcleanup;
             }
 
-            char *report = new char[report_len];
+            char *report = (char*)malloc(report_len);
+            memset(report, 0, report_len);
             if (ecall_get_work_report(global_eid, &crust_status, report, report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
             {
                 p_log->err("Get validation report failed.\n");
                 res.body() = "InternalError";
+                free(report);
                 goto getcleanup;
             }
 
             if (report == NULL)
             {
                 res.body() = "InternalError";
+                free(report);
                 goto getcleanup;
             }
 
-            res.body() = report;
+            res.body() = std::string(report, report_len);
+            free(report);
             goto getcleanup;
         }
 

@@ -23,6 +23,5 @@
 void validate_empty_disk(const char *path);
 void validate_meaningful_file();
 std::vector<std::string> get_hashs_from_block(unsigned char *block_data, size_t block_size);
-void validate_timeout();
 
 #endif /* !_CRUST_VALIDATOR_H_ */

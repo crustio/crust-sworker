@@ -182,6 +182,12 @@ bool Workload::reset_meaningful_data()
     id_get_metadata(meta_json);
 
     // Reset meaningful files
+    if (! meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
+    {
+        this->files_json = json::Array();
+        return true;
+    }
+
     json::JSON meaningful_files = meta_json[MEANINGFUL_FILE_DB_TAG];
     if (meaningful_files.JSONType() == json::JSON::Class::Array)
     {

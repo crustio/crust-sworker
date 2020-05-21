@@ -57,7 +57,7 @@ if [ x"$1" != x"debug" ]; then
     cd $appdir
     setTimeWait "$(verbose INFO "Building enclave.signed.so file..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make clean && make &>/dev/null
+    make clean && make -j4 &>/dev/null
     checkRes $? "quit" "$SYNCFILE"
     cp $enclavefile $instdir/etc
     make clean
