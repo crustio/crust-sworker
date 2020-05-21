@@ -66,7 +66,6 @@ void *work_report_loop(void *)
                     remove_char(work_str, '\\');
                     remove_char(work_str, '\n');
                     remove_char(work_str, ' ');
-                    p_log->info("===== work report:%s\n", work_str.c_str());
                     if (!p_chain->post_tee_work_report(work_str))
                     {
                         p_log->err("Send work report to crust chain failed!\n");

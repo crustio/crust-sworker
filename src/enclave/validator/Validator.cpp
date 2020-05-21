@@ -297,8 +297,3 @@ void validate_meaningful_file()
 
     ocall_validate_close();
 }
-
-void validate_timeout()
-{
-    return;
-}
