@@ -23,7 +23,7 @@ crust_status_t generate_work_report(size_t *report_len)
         return crust_status;
     }
     
-    // Get old hash
+    // Get old hash and size
     Workload *wl = Workload::get_instance();
     json::JSON old_files_json;
     for (int i = 0; i < wl->files_json.size(); i++)
