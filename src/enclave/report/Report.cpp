@@ -38,6 +38,7 @@ crust_status_t generate_work_report(size_t *report_len)
         std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
         json::JSON meta_json = json::JSON::Load(tree_meta);
         old_files_json[i]["hash"] = meta_json["old_hash"].ToString();
+        old_files_json[i]["size"] = meta_json["size"].ToInt();
     }
 
     json::JSON report_json;
