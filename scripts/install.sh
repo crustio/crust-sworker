@@ -29,6 +29,7 @@ function installAPP()
     toKillPID[${#toKillPID[*]}]=$!
     make -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
+    mkdir -p ../bin
     cp $appname ../bin
     if [ ! -e "../etc/$enclaveso" ]; then
         cp $enclaveso ../etc
