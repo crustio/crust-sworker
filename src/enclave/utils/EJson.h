@@ -68,7 +68,7 @@ class JSON
 {
     union BackingData {
         BackingData(double d) : Float(d) {}
-        BackingData(long l) : Int(l) {}
+        BackingData(long long l) : Int(l) {}
         BackingData(bool b) : Bool(b) {}
         BackingData(string s) : String(new string(s)) {}
         BackingData() : Int(0) {}
@@ -77,7 +77,7 @@ class JSON
         map<string, JSON> *Map;
         string *String;
         double Float;
-        long Int;
+        long long Int;
         bool Bool;
     } Internal;
 
@@ -370,12 +370,12 @@ public:
         return ok ? Internal.Float : 0.0;
     }
 
-    long ToInt() const
+    long long ToInt() const
     {
         bool b;
         return ToInt(b);
     }
-    long ToInt(bool &ok) const
+    long long ToInt(bool &ok) const
     {
         ok = (Type == Class::Integral);
         return ok ? Internal.Int : 0;

@@ -940,7 +940,11 @@ crust_status_t id_restore_metadata()
         return CRUST_BAD_SEAL_DATA;
     }
     // Restore meaningful files
-    wl->files_json = meta_json[MEANINGFUL_FILE_DB_TAG];
+    wl->files_json = json::Array();
+    if (meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
+    {
+        wl->files_json = meta_json[MEANINGFUL_FILE_DB_TAG];
+    }
     // Restore id key pair
     std::string id_key_pair_str = meta_json["id_key_pair"].ToString();
     uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());

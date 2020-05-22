@@ -267,9 +267,16 @@ void validate_meaningful_file()
             sgx_sha256_hash_t got_hash;
             sgx_sha256_msg(p_sealed_data, sealed_data_size, &got_hash);
             uint8_t *leaf_hash_u = hex_string_to_bytes(leaf_hash.c_str(), leaf_hash.size());
+            if (leaf_hash_u == NULL)
+            {
+                log_warn("Validate: Hexstring to bytes failed!Skip block:%ld check.\n", check_block_idx);
+                continue;
+            }
             if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
             {
                 log_err("Index:%ld block hash is not expected!\n", check_block_idx);
+                log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
+                log_err("Org hash : %s\n", leaf_hash.c_str());
                 exist_indexes[file_idx] = 0;
                 exist_acc--;
                 free(leaf_hash_u);

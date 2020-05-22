@@ -88,9 +88,10 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     sgx_status_t sgx_status;
     ecc_key_pair id_key_pair = id_get_key_pair();
     uint8_t *block_hash_u = NULL;
+    json::JSON workreport_json = json::JSON::Load(work_report);
     std::string block_height_str = std::to_string(block_height);
-    std::string reserved_str = std::to_string(empty_workload);
-    std::string files = json::JSON::Load(work_report)["files"].dump();
+    std::string reserved_str = std::to_string(workreport_json["reserved"].ToInt());
+    std::string files = workreport_json["files"].dump();
     remove_char(files, '\\');
     remove_char(files, '\n');
     remove_char(files, ' ');
