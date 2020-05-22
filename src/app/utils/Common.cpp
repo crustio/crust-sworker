@@ -128,3 +128,24 @@ json::JSON serialize_merkletree_to_json(MerkleTree *root)
 
     return tree;
 }
+
+/**
+ * @description: Free MerkleTree buffer
+ * @param root -> Pointer to MerkleTree root
+ * */
+void free_merkletree(MerkleTree *root)
+{
+    if (root == NULL)
+        return;
+
+    free(root->hash);
+
+    if (root->links_num > 0)
+    {
+        for (size_t i = 0; i < root->links_num; i++)
+        {
+            free_merkletree(root->links[i]);
+        }
+        free(root->links);
+    }
+}

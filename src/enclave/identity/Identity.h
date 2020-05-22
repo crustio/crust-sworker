@@ -94,13 +94,20 @@ crust_status_t id_metadata_set_or_append(const char *key, T val, metadata_op_e o
     // Check if corresponding entry is set or append
     if (ID_APPEND == op)
     {
-        if (meta_json.hasKey(key_str) && meta_json[key_str].JSONType() != json::JSON::Class::Array)
+        if (meta_json.hasKey(key_str))
         {
-            log_err("Store metadata: key:%s is not a Array!\n", key_str.c_str());
-            crust_status = CRUST_UNEXPECTED_ERROR;
-            goto cleanup;
+            if (meta_json[key_str].JSONType() != json::JSON::Class::Array)
+            {
+                log_err("Store metadata: key:%s is not a Array!\n", key_str.c_str());
+                crust_status = CRUST_UNEXPECTED_ERROR;
+                goto cleanup;
+            }
+            meta_json[key_str].append(val);
         }
-        meta_json[key_str].append(val);
+        else
+        {
+            meta_json[key_str][0] = val;
+        }
     }
     else if (ID_UPDATE == op)
     {

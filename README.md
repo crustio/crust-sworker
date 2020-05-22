@@ -243,13 +243,10 @@ Output status:
     "status" : 200
 }
 ```
-1. 201: given merkletree has been validated
-1. 400: validate failed! Invalid request json 
-1. 401: validate failed! Invalid backup
-1. 402: validate failed! Empty body
-1. 403: validate failed! Deserialize merkletree failed
-1. 404: validate failed! Invoke ECALL failed
-1. 405: seal failed! Invoke ECALL failed
+1. 400: Invalid request json 
+1. 401: nvalid backup
+1. 402: Empty body
+1. 403: seal failed! Invoke ECALL failed
 
 
 ### Use 'storage/unseal' to unseal file block, 

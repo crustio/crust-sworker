@@ -61,7 +61,6 @@ private:
     std::vector<uint8_t> root_hash_v;
     long block_left_num;
     long block_num;
-    bool seal_check_validate = false;
     bool unseal_check_backup = false;
     MerkleTree *tree_root = NULL;
 };
@@ -546,6 +545,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
+        /*
         // Storage seal file block
         cur_path = urlendpoint->base + "/storage/seal";
         if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
@@ -647,7 +647,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     p_log->info("Validate merkle tree successfully!\n");
                 }
-                seal_check_validate = true;
             }
 
 
@@ -810,6 +809,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             goto postcleanup;
         }
+        */
 
     postcleanup:
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);

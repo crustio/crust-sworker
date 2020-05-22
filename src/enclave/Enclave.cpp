@@ -206,26 +206,15 @@ crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, entry_networ
 }
 
 /**
- * @description: Validate merkle tree and storage tree related meta data
- * @param root_hash -> Merkle tree root hash
- * @param hash_len -> Merkle tree root hash length
- * @return: Validate status
- * */
-crust_status_t ecall_validate_merkle_tree(MerkleTree **root)
-{
-    return storage_validate_merkle_tree(*root);
-}
-
-/**
  * @description: Seal file according to given path and return new MerkleTree
  * @param root -> MerkleTree root node
  * @param path -> Reference to file path
  * @param tree -> New MerkleTree
  * @return: Seal status
  * */
-crust_status_t ecall_seal_file(MerkleTree **root, const char *path, char *p_new_path , size_t path_len)
+crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *path, char *p_new_path , size_t path_len)
 {
-    return storage_seal_file(*root, path, path_len, p_new_path);
+    return storage_seal_file(p_tree, tree_len, path, path_len, p_new_path);
 }
 
 /**

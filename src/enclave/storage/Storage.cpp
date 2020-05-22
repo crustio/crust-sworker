@@ -5,80 +5,13 @@
 
 using namespace std;
 
-// Old tree root hash to pair which consists of serialized old tree and leaf position and total size
-map<vector<uint8_t>, tuple<string,size_t,size_t>> tree_meta_map;
-// Map used to store sealed tree root to sealed tree root node
-map<vector<uint8_t>, MerkleTree *> new_tree_map;
 // Lock used to lock outside buffer
 sgx_thread_mutex_t g_file_buffer_mutex;
 
 // Current node public and private key pair
 extern ecc_key_pair id_key_pair;
 
-crust_status_t _storage_seal_file(MerkleTree *root, string path, string &tree, size_t &node_size, size_t &block_num);
-
-/**
- * @description: Validate merkle tree and storage tree related meta data
- * @param root_hash -> Merkle tree root hash
- * @param hash_len -> Merkle tree root hash length
- * @return: Validate status
- * */
-crust_status_t storage_validate_merkle_tree_old(MerkleTree *root, size_t *snapshot_pos)
-{
-    // Check duplicated
-    vector<uint8_t> root_hash_v(root->hash, root->hash + HASH_LENGTH);
-    if (tree_meta_map.find(root_hash_v) != tree_meta_map.end())
-    {
-        // Get current block position
-        auto entry = tree_meta_map[root_hash_v];
-        string ser_tree = std::get<0>(entry);
-        size_t epos = std::get<1>(entry);
-        size_t spos = 0;
-        size_t acc = 0;
-        if (epos != std::string::npos)
-        {
-            while (spos < epos)
-            {
-                spos = ser_tree.find(LEAF_SEPARATOR, spos) + strlen(LEAF_SEPARATOR);
-                acc++;
-            }
-            *snapshot_pos = acc;
-        }
-        return CRUST_MERKLETREE_DUPLICATED;
-    }
-
-    // Do validation
-    if (CRUST_SUCCESS != validate_merkle_tree_c(root))
-    {
-        return CRUST_INVALID_MERKLETREE;
-    }
-
-    // Serialize Merkle tree
-    string ser_tree = serialize_merkletree_to_json_string(root);
-    log_info("size:%d, serialized tree:%s\n", ser_tree.size(), ser_tree.c_str());
-
-    // Record position of first leaf node
-    size_t spos = ser_tree.find(LEAF_SEPARATOR);
-
-    // Get vector of root hash
-    vector<uint8_t> hash_v(root->hash, root->hash + HASH_LENGTH);
-
-    // Record merkle tree metadata
-    tree_meta_map[hash_v] = make_tuple(ser_tree, spos, 0);
-
-    return CRUST_SUCCESS;
-}
-
-/**
- * @description: Validate merkle tree and storage tree related meta data
- * @param root_hash -> Merkle tree root hash
- * @param hash_len -> Merkle tree root hash length
- * @return: Validate status
- * */
-crust_status_t storage_validate_merkle_tree(MerkleTree *root)
-{
-    return validate_merkle_tree_c(root);
-}
+crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree, size_t &node_size, size_t &block_num);
 
 /**
  * @description: Seal file according to given path and return new MerkleTree
@@ -87,22 +20,36 @@ crust_status_t storage_validate_merkle_tree(MerkleTree *root)
  * @param tree -> New MerkleTree
  * @return: Seal status
  * */
-crust_status_t storage_seal_file(MerkleTree *root, const char *path, size_t path_len, char *p_new_path)
+crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char *path, size_t path_len, char *p_new_path)
 {
-    std::string org_root_hash_str(root->hash, HASH_LENGTH * 2);
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    // Validate MerkleTree
+    json::JSON tree_json = json::JSON::Load(std::string(p_tree, tree_len));
+    if (tree_json.size() == 0)
+    {
+        log_err("Storage: empty MerkleTree!");
+        return CRUST_INVALID_MERKLETREE;
+    }
+    if (CRUST_SUCCESS != (crust_status = validate_merkletree_json(tree_json)))
+    {
+        return crust_status;
+    }
+
+    std::string org_root_hash_str = tree_json["hash"].ToString();
     std::string old_path(path, path_len);
     std::string new_tree;
 
     // Do seal file
     size_t node_size = 0;
     size_t block_num = 0;
-    crust_status_t crust_status = _storage_seal_file(root, old_path, new_tree, node_size, block_num);
+    crust_status = _storage_seal_file(tree_json, old_path, new_tree, node_size, block_num);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
     }
     new_tree.erase(new_tree.size() - 1, 1);
-    std::string new_root_hash_str(root->hash, HASH_LENGTH * 2);
+    std::string new_root_hash_str = tree_json["hash"].ToString();
 
     // Store Meaningful file entry to enclave metadata
     json::JSON file_entry_json;
@@ -116,9 +63,7 @@ crust_status_t storage_seal_file(MerkleTree *root, const char *path, size_t path
     Workload::get_instance()->files_json.append(file_entry_json);
 
     // Store new tree structure
-    std::string new_tree_meta_data;
-    new_tree_meta_data.append(new_tree);
-    crust_status = persist_set(new_root_hash_str.c_str(), (const uint8_t*)new_tree_meta_data.c_str(), new_tree_meta_data.size());
+    crust_status = persist_set(new_root_hash_str.c_str(), (const uint8_t*)new_tree.c_str(), new_tree.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -143,31 +88,22 @@ crust_status_t storage_seal_file(MerkleTree *root, const char *path, size_t path
     ocall_rename_dir(&crust_status, old_path.c_str(), new_path.c_str());
     memcpy(p_new_path, new_path.c_str(), new_path.size());
 
-    json::JSON cur_data;
-    id_get_metadata(cur_data);
 
     return crust_status;
 }
 
-/**
- * @description: Seal file according to given path and return new MerkleTree
- * @param root -> MerkleTree root node
- * @param path -> Reference to file path
- * @param tree -> New MerkleTree
- * @return: Seal status
- * */
-crust_status_t _storage_seal_file(MerkleTree *root, string path, string &tree, size_t &node_size, size_t &block_num)
+crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree, size_t &node_size, size_t &block_num)
 {
-    if (root == NULL)
+    if (tree_json.size() == 0)
         return CRUST_SUCCESS;
 
     crust_status_t crust_status = CRUST_SUCCESS;
 
     // ----- Deal with leaf node ----- //
-    if (root->links_num == 0)
+    if (tree_json["links_num"].ToInt() == 0)
     {
         std::string old_path;
-        std::string old_hash_str = std::string(root->hash);
+        std::string old_hash_str = tree_json["hash"].ToString();
         old_path.append(path).append("/").append(to_string(block_num)).append("_").append(old_hash_str);
 
         uint8_t *p_sealed_data = NULL;
@@ -211,14 +147,14 @@ crust_status_t _storage_seal_file(MerkleTree *root, string path, string &tree, s
         {
             goto sealend;
         }
-        root->hash = hex_new_hash;
+        tree_json["hash"] = std::string(hex_new_hash, HASH_LENGTH * 2);
         node_size += sealed_data_size;
         block_num++;
 
         // Construct tree string
         // note: Cannot change append sequence!
-        tree.append("{\"links_num\":").append(to_string(root->links_num)).append(",");
-        tree.append("\"hash\":\"").append(root->hash, HASH_LENGTH * 2).append("\",");
+        tree.append("{\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
+        tree.append("\"hash\":\"").append(tree_json["hash"].ToString()).append("\",");
         tree.append("\"size\":").append(to_string(sealed_data_size)).append("},");
 
     sealend:
@@ -236,19 +172,19 @@ crust_status_t _storage_seal_file(MerkleTree *root, string path, string &tree, s
     // Construct tree string
     tree.append("{\"links\": [");
 
-    size_t sub_hashs_len = root->links_num * HASH_LENGTH;
+    size_t sub_hashs_len = tree_json["links_num"].ToInt() * HASH_LENGTH;
     uint8_t *sub_hashs = (uint8_t*)malloc(sub_hashs_len);
     memset(sub_hashs, 0, sub_hashs_len);
     char *hex_new_hash = NULL;
     size_t cur_size = 0;
-    for (size_t i = 0; i < root->links_num; i++)
+    for (int i = 0; i < tree_json["links_num"].ToInt(); i++)
     {
-        crust_status = _storage_seal_file(root->links[i], path, tree, cur_size, block_num);
+        crust_status = _storage_seal_file(tree_json["links"][i], path, tree, cur_size, block_num);
         if (CRUST_SUCCESS != crust_status)
         {
             goto cleanup;
         }
-        uint8_t *p_new_hash = hex_string_to_bytes(root->links[i]->hash, HASH_LENGTH * 2);
+        uint8_t *p_new_hash = hex_string_to_bytes(tree_json["links"][i]["hash"].ToString().c_str(), HASH_LENGTH * 2);
         if (p_new_hash == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
@@ -261,12 +197,12 @@ crust_status_t _storage_seal_file(MerkleTree *root, string path, string &tree, s
     sgx_sha256_hash_t new_hash;
     sgx_sha256_msg(sub_hashs, sub_hashs_len, &new_hash);
     hex_new_hash = hexstring(new_hash, HASH_LENGTH);
-    root->hash = hex_new_hash;
+    tree_json["hash"] = std::string(hex_new_hash, HASH_LENGTH * 2);
 
     // Construct tree string
     tree.erase(tree.size() - 1, 1);
-    tree.append("],\"links_num\":").append(to_string(root->links_num)).append(",");
-    tree.append("\"hash\":\"").append(root->hash, HASH_LENGTH * 2).append("\",");
+    tree.append("],\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
+    tree.append("\"hash\":\"").append(tree_json["hash"].ToString()).append("\",");
     tree.append("\"size\":").append(to_string(cur_size)).append("},");
 
     node_size += cur_size;

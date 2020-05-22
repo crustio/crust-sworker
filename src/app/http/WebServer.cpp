@@ -204,6 +204,9 @@ class websocket_session
         // Clear the buffer
         buffer_.consume(buffer_.size());
 
+        if (close_connection_)
+            return;
+
         // Do another read
         do_read();
     }

@@ -19,9 +19,7 @@ extern "C"
 {
 #endif
 
-crust_status_t storage_validate_merkle_tree(MerkleTree *root);
-
-crust_status_t storage_seal_file(MerkleTree *root, const char *path, size_t path_len, char *p_new_path);
+crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char *path, size_t path_len, char *p_new_path);
 
 crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path);
 

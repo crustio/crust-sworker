@@ -328,6 +328,63 @@ cleanup:
     return crust_status;
 }
 
+crust_status_t validate_merkletree_json(json::JSON tree)
+{
+    if (tree["links_num"].ToInt() == 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
+    if (tree["links_num"].ToInt() != tree["links"].size())
+    {
+        return CRUST_INVALID_MERKLETREE;
+    }
+
+    crust_status_t crust_status = CRUST_SUCCESS;
+    sgx_sha256_hash_t parent_hash;
+
+    uint8_t *parent_hash_org = NULL;
+
+    uint8_t *children_hashs = (uint8_t*)enc_malloc(tree["links_num"].ToInt() * HASH_LENGTH);
+    memset(children_hashs, 0, tree["links_num"].ToInt() * HASH_LENGTH);
+    for (int i = 0; i < tree["links_num"].ToInt(); i++)
+    {
+        if(validate_merkletree_json(tree["links"][i]) != CRUST_SUCCESS)
+        {
+            crust_status = CRUST_INVALID_MERKLETREE;
+            goto cleanup;
+        }
+        uint8_t *tmp_hash = hex_string_to_bytes(tree["links"][i]["hash"].ToString().c_str(), HASH_LENGTH * 2);
+        if (tmp_hash == NULL)
+        {
+            crust_status = CRUST_INVALID_MERKLETREE;
+            goto cleanup;
+        }
+        memcpy(children_hashs + i * HASH_LENGTH, tmp_hash, HASH_LENGTH);
+        free(tmp_hash);
+    }
+
+    // Compute and compare hash value
+    sgx_sha256_msg(children_hashs, tree["links_num"].ToInt() * HASH_LENGTH, &parent_hash);
+
+    parent_hash_org = hex_string_to_bytes(tree["hash"].ToString().c_str(), HASH_LENGTH * 2);
+    if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
+    {
+        crust_status = CRUST_INVALID_MERKLETREE;
+        goto cleanup;
+    }
+
+
+cleanup:
+
+    free(children_hashs);
+
+    if (parent_hash_org != NULL)
+        free(parent_hash_org);
+
+    return crust_status;
+}
+
 /**
  * @description: Serialize MerkleTree to json string
  * @param root -> MerkleTree root node

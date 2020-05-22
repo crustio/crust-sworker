@@ -32,6 +32,7 @@ extern "C"
     void remove_chars_from_string(std::string &str, const char *chars_to_remove);
     MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json);
     json::JSON serialize_merkletree_to_json(MerkleTree *root);
+    void free_merkletree(MerkleTree *root);
 
 #if defined(__cplusplus)
 }
