@@ -15,8 +15,7 @@ void validate_empty_disk(const char *path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *p_workload = Workload::get_instance();
-
-    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); it_g_hash != p_workload->empty_g_hashs.end(); it_g_hash++)
+    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); ;)
     {
         // Base info
         unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
@@ -117,6 +116,14 @@ void validate_empty_disk(const char *path)
         {
             delete[] m_hashs;
         }
+
+        it_g_hash++;
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        if (it_g_hash == p_workload->empty_g_hashs.end()) {
+            sgx_thread_mutex_unlock(&g_workload_mutex);
+            break;
+        }
+        sgx_thread_mutex_unlock(&g_workload_mutex);
     }
 }
 

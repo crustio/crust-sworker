@@ -188,7 +188,7 @@ size_t ocall_get_folders_number_under_path(const char *path)
 
 crust_status_t ocall_delete_folder_or_file(const char *path)
 {
-    if (access(path, 0) == -1 || rm(path) == -1)
+    if (access(path, 0) != -1 && rm(path) == -1)
     {
         p_log->err("Delete '%s' error!\n", path);
         return CRUST_DELETE_FILE_FAILED;
