@@ -804,7 +804,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
     // Verify meta data
     id_key_pair_str = meta_json["id_key_pair"].ToString();
     p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
-	if (p_id_key == NULL)
+    if (p_id_key == NULL)
     {
         log_err("Identity: Get id key pair failed!\n");
         crust_status = CRUST_INVALID_META_DATA;
