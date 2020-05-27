@@ -177,7 +177,12 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
         p_log->err("Sign entry network data failed!\n");
         return false;
     }
-    std::string signature_str(hexstring(&send_data_sig, sizeof(sgx_ec256_signature_t)));
+    char *p_hex_sig = hexstring_safe(&send_data_sig, sizeof(sgx_ec256_signature_t));
+    std::string signature_str(p_hex_sig, sizeof(sgx_ec256_signature_t) * 2);
+    if (p_hex_sig != NULL)
+    {
+        free(p_hex_sig);
+    }
 
     req_data.append("{ \"isvEnclaveQuote\": \"");
     req_data.append(b64quote).append("\", \"chain_address\": \"");

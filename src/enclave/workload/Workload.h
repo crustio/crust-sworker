@@ -19,7 +19,6 @@ class Workload
 public:
     std::vector<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
     json::JSON files_json = json::Array();
-    //json::JSON empty_g_hashs = json::Array();
     
     static Workload *workload;
     static Workload *get_instance();
