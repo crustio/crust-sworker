@@ -804,8 +804,13 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
     // Verify meta data
     id_key_pair_str = meta_json["id_key_pair"].ToString();
     p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
-    if (g_is_set_id_key_pair && 
-            (p_id_key == NULL || memcmp(p_id_key, &id_key_pair, sizeof(id_key_pair)) != 0))
+	if (p_id_key == NULL)
+    {
+        log_err("Identity: Get id key pair failed!\n");
+        crust_status = CRUST_INVALID_META_DATA;
+        goto cleanup;
+    }
+    if (g_is_set_id_key_pair && memcmp(p_id_key, &id_key_pair, sizeof(id_key_pair)) != 0)
     {
         log_err("Identity: Get wrong id key pair!\n");
         crust_status = CRUST_INVALID_META_DATA;
