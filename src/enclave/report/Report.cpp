@@ -42,11 +42,16 @@ crust_status_t generate_work_report(size_t *report_len)
     }
 
     json::JSON report_json;
-    report_json["pub_key"] = std::string((const char *)hexstring(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key)));
+    char *p_hex_pub_key = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    report_json["pub_key"] = std::string(p_hex_pub_key, sizeof(id_key_pair.pub_key) * 2);
     report_json["reserved"] = empty_workload;
     report_json["files"] = old_files_json;
     work_report = report_json.dump();
     *report_len = work_report.length();
+    if (p_hex_pub_key != NULL)
+    {
+        free(p_hex_pub_key);
+    }
 
     return crust_status;
 }

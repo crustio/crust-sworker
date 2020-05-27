@@ -128,7 +128,7 @@ bool Chain::is_online(void)
 }
 
 /**
- * @description: waitting for the crust chain to run
+ * @description: waiting for the crust chain to run
  * @return: success or not
  * */
 bool Chain::wait_for_running(void)
@@ -143,7 +143,7 @@ bool Chain::wait_for_running(void)
         }
         else
         {
-            p_log->info("Waitting for chain to run...\n");
+            p_log->info("Waiting for chain to run...\n");
             sleep(3);
         }
     }

@@ -57,11 +57,16 @@ void *work_report_loop(void *)
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
-                    work_json["sig"] = hexstring((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
+                    char *p_hex_sig = hexstring_safe((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
+                    work_json["sig"] = std::string(p_hex_sig, sizeof(ecc_signature) * 2);
                     work_json["block_height"] = block_header->number;
                     work_json["block_hash"] = block_header->hash;
                     std::string work_str = work_json.dump();
                     p_log->info("Sign validation report successfully!\n%s\n", work_str.c_str());
+                    if (p_hex_sig != NULL)
+                    {
+                        free(p_hex_sig);
+                    }
                     // Delete space and line break
                     remove_char(work_str, '\\');
                     remove_char(work_str, '\n');

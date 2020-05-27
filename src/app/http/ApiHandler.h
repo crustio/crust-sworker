@@ -372,12 +372,28 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 if (CRUST_SUCCESS == crust_status)
                 {
                     json::JSON identity_json;
-                    identity_json["pub_key"] = hexstring((const char *)&ensig.pub_key, sizeof(ensig.pub_key));
+                    char *p_hex_pub_key = hexstring_safe((const char *)&ensig.pub_key, sizeof(ensig.pub_key));
+                    char *p_hex_v_pub_key = hexstring_safe((const char *)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
+                    char *p_hex_sig = hexstring_safe((const char *)&ensig.signature, sizeof(ensig.signature));
+                    identity_json["pub_key"] = std::string(p_hex_pub_key, sizeof(ensig.pub_key) * 2);
                     identity_json["account_id"] = off_chain_chain_address;
-                    identity_json["validator_pub_key"] = hexstring((const char *)&ensig.validator_pub_key, sizeof(ensig.validator_pub_key));
+                    identity_json["validator_pub_key"] = std::string(p_hex_v_pub_key, sizeof(ensig.validator_pub_key) * 2);
                     identity_json["validator_account_id"] = p_config->chain_address;
-                    identity_json["sig"] = hexstring((const char *)&ensig.signature, sizeof(ensig.signature));
+                    identity_json["sig"] = std::string(p_hex_sig, sizeof(ensig.signature) * 2);
                     std::string jsonstr = identity_json.dump();
+                    // Free temp buffer
+                    if (p_hex_pub_key != NULL)
+                    {
+                        free(p_hex_pub_key);
+                    }
+                    if (p_hex_v_pub_key != NULL)
+                    {
+                        free(p_hex_v_pub_key);
+                    }
+                    if (p_hex_sig != NULL)
+                    {
+                        free(p_hex_sig);
+                    }
                     // Delete space
                     jsonstr.erase(std::remove(jsonstr.begin(), jsonstr.end(), ' '), jsonstr.end());
                     // Delete line break

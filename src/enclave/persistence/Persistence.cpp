@@ -100,7 +100,7 @@ crust_status_t persist_get(const char *key, uint8_t **value, size_t *value_len)
     memset(p_sealed_data_r, 0, sealed_data_size);
     memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
     uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
-    uint8_t *p_unsealed_data = (uint8_t*)malloc(unsealed_data_size);
+    uint8_t *p_unsealed_data = (uint8_t*)enc_malloc(unsealed_data_size);
     memset(p_unsealed_data, 0, unsealed_data_size);
     sgx_status = sgx_unseal_data(p_sealed_data_r, NULL, NULL,
             p_unsealed_data, &unsealed_data_size);
