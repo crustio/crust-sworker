@@ -83,7 +83,7 @@ int change_empty_num = 0;
  * */
 template<class Body, class Allocator, class Send>
 void ApiHandler::http_handler(beast::string_view /*doc_root*/,
-    http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, bool is_ssl)
+    http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, bool /*is_ssl*/)
 {
     Config *p_config = Config::get_instance();
     crust::Log *p_log = crust::Log::get_instance();
