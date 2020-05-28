@@ -135,6 +135,35 @@ char *hexstring(const void *vsrc, size_t len)
 }
 
 /**
+ * @description: Transform string to hexstring, thread safe
+ * @param vsrc -> Source byte array
+ * @param len -> Srouce byte array length
+ * @return: Hexstringed data
+ * */
+char *hexstring_safe(const void *vsrc, size_t len)
+{
+    size_t i;
+    const unsigned char *src = (const unsigned char *)vsrc;
+    char *hex_buffer = (char*)enc_malloc(len * 2);
+    if (hex_buffer == NULL)
+    {
+        return NULL;
+    }
+    memset(hex_buffer, 0, len * 2);
+    char *bp;
+
+    for (i = 0, bp = hex_buffer; i < len; ++i)
+    {
+        *bp = (uint8_t)_hextable[src[i] >> 4];
+        ++bp;
+        *bp = (uint8_t)_hextable[src[i] & 0xf];
+        ++bp;
+    }
+
+    return hex_buffer;
+}
+
+/**
  * @description: Convert hexstring to bytes array, note that
  * the size of got data is half of len
  * @param src -> Source char*
@@ -399,10 +428,18 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
 
     uint32_t hash_len = strlen(root->hash);
     string node;
+    char *p_hex_hash = hexstring_safe(root->hash, hash_len);
+    if (p_hex_hash == NULL)
+    {
+        log_err("Internal error: Allocate buffer failed!\n");
+        return "";
+    }
     node.append("{\"size\":").append(to_string(root->size)).append(",")
         .append("\"links_num\":").append(to_string(root->links_num)).append(",")
-        .append("\"hash\":\"").append(hexstring(root->hash, hash_len), hash_len * 2).append("\",")
+        .append("\"hash\":\"").append(p_hex_hash, hash_len * 2).append("\",")
         .append("\"links\":[");
+
+    free(p_hex_hash);
 
     for (size_t i = 0; i < root->links_num; i++)
     {

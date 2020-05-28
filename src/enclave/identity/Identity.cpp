@@ -788,8 +788,8 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
 
     uint8_t *p_data = NULL;
     size_t data_len = 0;
-    std::string id_key_pair_str;
     uint8_t *p_id_key = NULL;
+    std::string id_key_pair_str;
     crust_status_t crust_status = persist_get("metadata", &p_data, &data_len);
     if (CRUST_SUCCESS != crust_status || data_len == 0)
     {
@@ -818,6 +818,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
     }
 
 cleanup:
+
     if (p_id_key != NULL)
         free(p_id_key);
 
@@ -879,13 +880,14 @@ crust_status_t id_store_metadata()
     sgx_thread_mutex_lock(&g_metadata_mutex);
 
     // Get original metadata
+    crust_status_t crust_status = CRUST_SUCCESS;
     json::JSON meta_json;
     size_t meta_len = 0;
     uint8_t *p_meta = NULL;
-    crust_status_t crust_status = CRUST_SUCCESS;
+    char *p_hex_id_key = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
     id_get_metadata(meta_json, false);
     meta_json["workload"] = Workload::get_instance()->serialize_workload();
-    meta_json["id_key_pair"] = std::string(hexstring(&id_key_pair, sizeof(id_key_pair)));
+    meta_json["id_key_pair"] = std::string(p_hex_id_key, sizeof(id_key_pair) * 2);
     meta_json["block_height"] = now_work_report_block_height;
     meta_json["chain_account_id"] = g_chain_account_id;
     std::string meta_str = meta_json.dump();
@@ -905,6 +907,9 @@ crust_status_t id_store_metadata()
 
 
 cleanup:
+
+    if (p_hex_id_key != NULL)
+        free(p_hex_id_key);
 
     if (p_meta != NULL)
         free(p_meta);
@@ -950,7 +955,8 @@ crust_status_t id_restore_metadata()
     uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
     if (p_id_key == NULL)
     {
-        return CRUST_BAD_SEAL_DATA;
+        log_err("Identity: restore metadata failed!\n");
+        return CRUST_UNEXPECTED_ERROR;
     }
     memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
     free(p_id_key);

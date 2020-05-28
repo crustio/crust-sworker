@@ -15,9 +15,11 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
 /**
  * @description: Seal file according to given path and return new MerkleTree
- * @param root -> MerkleTree root node
+ * @param p_tree -> Pointer to MerkleTree json structure buffer 
+ * @param tree_len -> MerkleTree json structure buffer length
  * @param path -> Reference to file path
- * @param tree -> New MerkleTree
+ * @param path_len -> Pointer to file path length
+ * @param p_new_path -> Pointer to sealed data path
  * @return: Seal status
  * */
 crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char *path, size_t path_len, char *p_new_path)
@@ -73,6 +75,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     json::JSON tree_meta_json;
     tree_meta_json["old_hash"] = org_root_hash_str;
     tree_meta_json["size"] = node_size;
+    tree_meta_json["block_num"] = block_num;
     std::string tree_meta_str = tree_meta_json.dump();
     crust_status = persist_set((new_root_hash_str+"_meta").c_str(), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
@@ -92,6 +95,15 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     return crust_status;
 }
 
+/**
+ * @description: Do seal file
+ * @param tree_json -> Reference to current node json
+ * @param path -> Origin data path
+ * @param tree -> Sealed tree structure
+ * @param node_size -> Current node data length
+ * @param block_num -> Current block index
+ * @return: Seal status
+ * */
 crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree, size_t &node_size, size_t &block_num)
 {
     if (tree_json.size() == 0)
@@ -139,8 +151,10 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
         // Get new hash
         sgx_sha256_msg(p_sealed_data, sealed_data_size, &new_hash);
-        hex_new_hash = hexstring(new_hash, HASH_LENGTH);
-        new_path.append(path).append("/").append(to_string(block_num)).append("_").append(hex_new_hash);
+        hex_new_hash = hexstring_safe(new_hash, HASH_LENGTH);
+        new_path.append(path)
+            .append("/").append(to_string(block_num))
+            .append("_").append(hex_new_hash, HASH_LENGTH * 2);
         // Replace old file with new file
         ocall_replace_file(&crust_status, old_path.c_str(), new_path.c_str(), p_sealed_data, sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
@@ -159,6 +173,9 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
     sealend:
 
+        if (hex_new_hash != NULL)
+            free(hex_new_hash);
+
         if (file_data_r != NULL)
             free(file_data_r);
 
@@ -173,7 +190,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     tree.append("{\"links\": [");
 
     size_t sub_hashs_len = tree_json["links_num"].ToInt() * HASH_LENGTH;
-    uint8_t *sub_hashs = (uint8_t*)malloc(sub_hashs_len);
+    uint8_t *sub_hashs = (uint8_t*)enc_malloc(sub_hashs_len);
     memset(sub_hashs, 0, sub_hashs_len);
     char *hex_new_hash = NULL;
     size_t cur_size = 0;
@@ -196,7 +213,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     // Get new hash
     sgx_sha256_hash_t new_hash;
     sgx_sha256_msg(sub_hashs, sub_hashs_len, &new_hash);
-    hex_new_hash = hexstring(new_hash, HASH_LENGTH);
+    hex_new_hash = hexstring_safe(new_hash, HASH_LENGTH);
     tree_json["hash"] = std::string(hex_new_hash, HASH_LENGTH * 2);
 
     // Construct tree string
@@ -210,17 +227,21 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
 cleanup:
 
-    free(sub_hashs);
+    if (hex_new_hash != NULL)
+        free(hex_new_hash);
+
+    if (sub_hashs != NULL)
+        free(sub_hashs);
 
     return crust_status;
 }
 
 /**
  * @description: Unseal file according to given path
- * @param p_dir -> Root directory path
- * @param dir_len -> Root dir path length
  * @param files -> Files in root directory
  * @param files_num -> Files number in root directory
+ * @param p_dir -> Root directory path
+ * @param p_new_path -> Pointer to unsealed data path
  * @return: Unseal status
  * */
 crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path)
@@ -313,8 +334,15 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
         sgx_sha256_hash_t new_hash;
         sgx_sha256_msg(p_decrypted_data, decrypted_data_len_r, &new_hash);
         std::string new_path;
+        char *p_hex_new_hash = hexstring_safe(new_hash, HASH_LENGTH);
+        if (p_hex_new_hash == NULL)
+        {
+            crust_status = CRUST_MALLOC_FAILED;
+            goto cleanup;
+        }
         new_path.append(dir).append("/").append(tag).append("_")
-            .append(hexstring(new_hash, HASH_LENGTH), HASH_LENGTH * 2);
+            .append(p_hex_new_hash, HASH_LENGTH * 2);
+        free(p_hex_new_hash);
         ocall_replace_file(&crust_status, path.c_str(), new_path.c_str(), p_decrypted_data, decrypted_data_len_r);
         if (CRUST_SUCCESS != crust_status)
         {

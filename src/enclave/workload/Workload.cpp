@@ -52,7 +52,7 @@ void Workload::show(void)
     log_debug("Meaningful work details is: \n");
     for (int i = 0; i < this->files_json.size(); i++)
     {
-        log_debug("Meaninful root hash:%s -> size:%ld\n", 
+        log_debug("Meaningful root hash:%s -> size:%ld\n", 
                 this->files_json[i]["hash"].ToString().c_str(), this->files_json[i]["size"].ToInt());
     }
 }
@@ -131,7 +131,12 @@ std::string Workload::serialize_workload()
     int i = 0;
     for (auto it = this->empty_g_hashs.begin(); it != this->empty_g_hashs.end(); it++, i++)
     {
-        g_hashs[i] = std::string(hexstring(*it, HASH_LENGTH));
+        char *p_hexstr = hexstring_safe(*it, HASH_LENGTH);
+        g_hashs[i] = std::string(p_hexstr, HASH_LENGTH * 2);
+        if (p_hexstr != NULL)
+        {
+            free(p_hexstr);
+        }
     }
 
     sgx_thread_mutex_unlock(&g_workload_mutex);

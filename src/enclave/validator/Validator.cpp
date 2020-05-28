@@ -205,9 +205,19 @@ void validate_meaningful_file()
     for (auto file_idx : file_idx_s)
     {
         std::string root_hash = wl->files_json[file_idx]["hash"].ToString();
-        size_t file_block_num = wl->files_json[file_idx]["size"].ToInt();
-        file_block_num = file_block_num / MAX_BLOCK_SIZE;
         log_debug("Validating file root hash:%s\n", root_hash.c_str());
+        // Get file total block number
+        crust_status = persist_get((root_hash+"_meta").c_str(), &p_data, &data_len);
+        if (CRUST_SUCCESS != crust_status || 0 == data_len)
+        {
+            log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
+            exist_indexes[file_idx] = 0;
+            exist_acc--;
+            continue;
+        }
+        json::JSON tree_meta_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_data), data_len));
+        size_t file_block_num = tree_meta_json["block_num"].ToInt();
+        free(p_data);
         // Get tree string
         crust_status = persist_get(root_hash.c_str(), &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
@@ -219,14 +229,17 @@ void validate_meaningful_file()
         }
         std::string tree_str(reinterpret_cast<char *>(p_data), data_len);
         free(p_data);
-        // Validate MerkleTree
+
+        // ----- Validate MerkleTree ----- //
+        // Note: should store serialized tree structure as "links_num":x,"hash":"xxxxx","size":
+        // be careful about "links_num", "hash" and "size" sequence
         size_t spos, epos;
         spos = epos = 0;
         std::string stag = "\"links_num\":0,\"hash\":\"";
         std::string etag = "\",\"size\"";
         // Get to be checked block index
         std::set<size_t> block_idx_s;
-        while (block_idx_s.size() < MAX_VALIDATE_BLOCK_NUM && block_idx_s.size() < file_block_num)
+        while (block_idx_s.size() < MAX_VALIDATE_BLOCK_NUM && block_idx_s.size() <= file_block_num)
         {
             size_t tmp_idx = 0;
             do

@@ -44,6 +44,7 @@ int log_warn(const char* fmt, ...);
 int log_err(const char* fmt, ...);
 int log_debug(const char* fmt, ...);
 char *hexstring(const void *vsrc, size_t len);
+char *hexstring_safe(const void *vsrc, size_t len);
 uint8_t *hex_string_to_bytes(const void *src, size_t len);
 std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size);
 std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size);

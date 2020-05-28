@@ -79,7 +79,7 @@ crust_status_t ecall_restore_metadata()
 
 /**
  * @description: Compare chain account with enclave's
- * @param account_id -> Pointer to account id
+ * @param account_id (in) -> Pointer to account id
  * @param len -> account id length
  * @return: Compare status
  * */
@@ -90,6 +90,8 @@ crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
 
 /**
  * @description: Set crust account id
+ * @param account_id (in) -> Pointer to account id
+ * @param len -> Account id length
  * @return: Set status
  * */
 crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
@@ -144,9 +146,9 @@ crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block
 
 /**
  * @description: Sign network entry information
- * @param p_partial_data -> Partial data represented off chain node identity
+ * @param p_partial_data (in) -> Partial data represented off chain node identity
  * @param data_size -> Partial data size
- * @param p_signature -> Pointer to signature
+ * @param p_signature (out) -> Pointer to signature
  * @return: Sign status
  * */
 crust_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
@@ -167,6 +169,8 @@ sgx_status_t ecall_gen_key_pair()
 /**
  * @description: get sgx report, our generated public key contained
  *  in report data
+ * @param report (out) -> Pointer to SGX report
+ * @param target_info (in) -> Data used to generate report
  * @return: get sgx report status
  * */
 sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_info)
@@ -185,6 +189,13 @@ sgx_status_t ecall_gen_sgx_measurement()
 
 /**
  * @description: Store off-chain node quote and verify signature
+ * @param quote (in) -> Pointer to quote
+ * @param len -> Quote length
+ * @param p_data (in) -> Original data to be verified
+ * @param data_size -> Original data length
+ * @param p_signature (in) -> Signature of p_data
+ * @param p_account_id (in) -> Pointer to chain account id
+ * @param account_id_sz -> Chain account id size
  * @return: Store status
  * */
 crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
@@ -195,9 +206,9 @@ crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p
 
 /**
  * @description: verify IAS report
- * @param IASReport -> Vector first address
+ * @param IASReport (in) -> Vector first address
  * @param len -> Count of Vector IASReport
- * @param p_ensig -> Pointer to entry network report signature
+ * @param p_ensig (out) -> Pointer to entry network report signature
  * @return: verify status
  * */
 crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, entry_network_signature *p_ensig)
@@ -207,9 +218,11 @@ crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, entry_networ
 
 /**
  * @description: Seal file according to given path and return new MerkleTree
- * @param root -> MerkleTree root node
- * @param path -> Reference to file path
- * @param tree -> New MerkleTree
+ * @param p_tree (in) -> Pointer to MerkleTree json structure buffer 
+ * @param tree_len -> MerkleTree json structure buffer length
+ * @param path (in) -> Reference to file path
+ * @param p_new_path (out) -> Pointer to sealed data path
+ * @param path_len -> Pointer to file path length
  * @return: Seal status
  * */
 crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *path, char *p_new_path , size_t path_len)
@@ -219,10 +232,11 @@ crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *
 
 /**
  * @description: Unseal file according to given path
- * @param p_dir -> Root directory path
- * @param dir_len -> Root dir path length
- * @param files -> Files in root directory
+ * @param files (in) -> Files in root directory
  * @param files_num -> Files number in root directory
+ * @param p_dir (in) -> Root directory path
+ * @param p_new_path (out) -> Pointer to unsealed data path
+ * @param path_len -> Root dir path length
  * @return: Unseal status
  * */
 crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path, uint32_t /*path_len*/)
