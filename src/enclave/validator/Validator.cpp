@@ -14,9 +14,21 @@ long long g_validate_timeout = 0;
 void validate_empty_disk(const char *path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
+   
     Workload *p_workload = Workload::get_instance();
-    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); ;)
+
+    sgx_thread_mutex_lock(&g_workload_mutex);
+    auto it_g_hash = p_workload->empty_g_hashs.begin();
+    sgx_thread_mutex_unlock(&g_workload_mutex);
+
+    while (true)
     {
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        if (it_g_hash == p_workload->empty_g_hashs.end()) {
+            sgx_thread_mutex_unlock(&g_workload_mutex);
+            break;
+        }
+
         // Base info
         unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
         std::string g_path;
@@ -36,7 +48,6 @@ void validate_empty_disk(const char *path)
         sgx_sha256_hash_t leaf_data_hash256;
 
         // Get g hash
-        sgx_thread_mutex_lock(&g_workload_mutex);
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
             g_hash[j] = (*it_g_hash)[j];
@@ -48,7 +59,7 @@ void validate_empty_disk(const char *path)
             goto end_validate_one_g_empty;
         }
         g_path = get_g_path_with_hash(path, g_hash);
-
+ 
         // Get M hashs
         ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
         if (m_hashs_o == NULL)
@@ -100,12 +111,12 @@ void validate_empty_disk(const char *path)
 
     goto end_validate_one_g_empty;
     end_validate_one_g_empty_failed:
-        sgx_thread_mutex_lock(&g_workload_mutex);
         ocall_delete_folder_or_file(&crust_status, g_path.c_str());
+        sgx_thread_mutex_lock(&g_workload_mutex);
         free(*it_g_hash);
         it_g_hash = p_workload->empty_g_hashs.erase(it_g_hash);
         it_g_hash--;
-        sgx_thread_mutex_unlock(&g_workload_mutex);
+        sgx_thread_mutex_unlock(&g_workload_mutex);    
         
     end_validate_one_g_empty:
         if (g_hash != NULL)
@@ -116,14 +127,7 @@ void validate_empty_disk(const char *path)
         {
             delete[] m_hashs;
         }
-
         it_g_hash++;
-        sgx_thread_mutex_lock(&g_workload_mutex);
-        if (it_g_hash == p_workload->empty_g_hashs.end()) {
-            sgx_thread_mutex_unlock(&g_workload_mutex);
-            break;
-        }
-        sgx_thread_mutex_unlock(&g_workload_mutex);
     }
 }
 

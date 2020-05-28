@@ -454,12 +454,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint->base + "/change/empty";
         if (path.compare(cur_path) == 0)
         {
-            if (!is_ssl)
-            {
-                res.body() = "Insecure http request!Please use https request!";
-                res.result(300);
-                goto postcleanup;
-            }
             res.result(200);
             std::string error_info;
             // Get backup info
