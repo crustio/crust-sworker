@@ -49,7 +49,7 @@ Config::Config(std::string path)
     this->websocket_url = config_value["websocket_url"].ToString();
     this->websocket_thread_num = config_value["websocket_thread_num"].ToInt();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
-    this->srd_thread_num = std::min(omp_get_num_procs(), 8);
+    this->srd_thread_num = std::min(omp_get_num_procs(), 6);
 
     // storage configurations
     this->karst_url = config_value["karst_url"].ToString();

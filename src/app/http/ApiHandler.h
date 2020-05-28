@@ -83,7 +83,7 @@ int change_empty_num = 0;
  * */
 template<class Body, class Allocator, class Send>
 void ApiHandler::http_handler(beast::string_view /*doc_root*/,
-    http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, bool is_ssl)
+    http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, bool /*is_ssl*/)
 {
     Config *p_config = Config::get_instance();
     crust::Log *p_log = crust::Log::get_instance();
@@ -470,12 +470,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint->base + "/change/empty";
         if (path.compare(cur_path) == 0)
         {
-            if (!is_ssl)
-            {
-                res.body() = "Insecure http request!Please use https request!";
-                res.result(300);
-                goto postcleanup;
-            }
             res.result(200);
             std::string error_info;
             // Get backup info

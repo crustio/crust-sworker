@@ -55,12 +55,12 @@ void srd_increase_empty(const char *path)
     {
         sgx_thread_mutex_unlock(&g_workload_mutex);
         return;
-    }
-    p_workload->empty_g_hashs.push_back(p_hash);
+    }   
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
-        p_workload->empty_g_hashs[now_index][i] = 0;
+        p_hash[i] = 0;
     }
+    p_workload->empty_g_hashs.push_back(p_hash);
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
     // Create directory

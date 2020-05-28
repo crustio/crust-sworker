@@ -14,10 +14,22 @@ long long g_validate_timeout = 0;
 void validate_empty_disk(const char *path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
+
     Workload *p_workload = Workload::get_instance();
 
-    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); it_g_hash != p_workload->empty_g_hashs.end(); it_g_hash++)
+    sgx_thread_mutex_lock(&g_workload_mutex);
+    auto it_g_hash = p_workload->empty_g_hashs.begin();
+    sgx_thread_mutex_unlock(&g_workload_mutex);
+
+    while (true)
     {
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        if (it_g_hash == p_workload->empty_g_hashs.end())
+        {
+            sgx_thread_mutex_unlock(&g_workload_mutex);
+            break;
+        }
+
         // Base info
         unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
         std::string g_path;
@@ -37,7 +49,6 @@ void validate_empty_disk(const char *path)
         sgx_sha256_hash_t leaf_data_hash256;
 
         // Get g hash
-        sgx_thread_mutex_lock(&g_workload_mutex);
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
             g_hash[j] = (*it_g_hash)[j];
@@ -99,15 +110,15 @@ void validate_empty_disk(const char *path)
             }
         }
 
-    goto end_validate_one_g_empty;
+        goto end_validate_one_g_empty;
     end_validate_one_g_empty_failed:
-        sgx_thread_mutex_lock(&g_workload_mutex);
         ocall_delete_folder_or_file(&crust_status, g_path.c_str());
+        sgx_thread_mutex_lock(&g_workload_mutex);
         free(*it_g_hash);
         it_g_hash = p_workload->empty_g_hashs.erase(it_g_hash);
         it_g_hash--;
         sgx_thread_mutex_unlock(&g_workload_mutex);
-        
+
     end_validate_one_g_empty:
         if (g_hash != NULL)
         {
@@ -117,6 +128,7 @@ void validate_empty_disk(const char *path)
         {
             delete[] m_hashs;
         }
+        it_g_hash++;
     }
 }
 
@@ -182,8 +194,7 @@ void validate_meaningful_file()
         {
             sgx_read_rand((uint8_t *)&rand_val, 1);
             rand_index = rand_val % wl->files_json.length();
-        } 
-        while (file_idx_s.find(rand_index) != file_idx_s.end());
+        } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
     }
 
@@ -235,8 +246,7 @@ void validate_meaningful_file()
             {
                 sgx_read_rand((uint8_t *)&rand_val, 4);
                 tmp_idx = rand_val % file_block_num;
-            }
-            while (block_idx_s.find(tmp_idx) != block_idx_s.end());
+            } while (block_idx_s.find(tmp_idx) != block_idx_s.end());
             block_idx_s.insert(tmp_idx);
         }
         // Do check
@@ -252,8 +262,7 @@ void validate_meaningful_file()
                     break;
                 }
                 spos += stag.size();
-            }
-            while (cur_block_idx++ < check_block_idx);
+            } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
                 log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
@@ -268,7 +277,7 @@ void validate_meaningful_file()
             size_t sealed_data_size = 0;
             log_debug("Checking block hash:%ld_%s\n", check_block_idx, leaf_hash.c_str());
             ocall_validate_get_file(&crust_status, root_hash.c_str(), block_str.c_str(),
-                    &p_sealed_data, &sealed_data_size);
+                                    &p_sealed_data, &sealed_data_size);
             if (CRUST_SUCCESS != crust_status)
             {
                 log_err("Get file block:%ld failed!\n", check_block_idx);
@@ -304,7 +313,7 @@ void validate_meaningful_file()
     if (exist_acc != wl->files_json.size())
     {
         json::JSON new_files_json = json::Array();
-        for (size_t i = 0,j = 0; i < exist_indexes.size(); i++)
+        for (size_t i = 0, j = 0; i < exist_indexes.size(); i++)
         {
             if (exist_indexes[i] == 1)
             {
