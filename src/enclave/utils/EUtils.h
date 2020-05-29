@@ -43,6 +43,7 @@ int log_info(const char* fmt, ...);
 int log_warn(const char* fmt, ...);
 int log_err(const char* fmt, ...);
 int log_debug(const char* fmt, ...);
+int char_to_int(char input);
 char *hexstring(const void *vsrc, size_t len);
 char *hexstring_safe(const void *vsrc, size_t len);
 uint8_t *hex_string_to_bytes(const void *src, size_t len);
