@@ -17,19 +17,8 @@ void validate_empty_disk(const char *path)
 
     Workload *p_workload = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_workload_mutex);
-    auto it_g_hash = p_workload->empty_g_hashs.begin();
-    sgx_thread_mutex_unlock(&g_workload_mutex);
-
-    while (true)
+    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); it_g_hash != p_workload->empty_g_hashs.end(); it_g_hash++)
     {
-        sgx_thread_mutex_lock(&g_workload_mutex);
-        if (it_g_hash == p_workload->empty_g_hashs.end())
-        {
-            sgx_thread_mutex_unlock(&g_workload_mutex);
-            break;
-        }
-
         // Base info
         unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
         std::string g_path;
@@ -48,6 +37,7 @@ void validate_empty_disk(const char *path)
         size_t leaf_data_len = 0;
         sgx_sha256_hash_t leaf_data_hash256;
 
+        sgx_thread_mutex_lock(&g_workload_mutex);
         // Get g hash
         for (size_t j = 0; j < HASH_LENGTH; j++)
         {
@@ -55,10 +45,6 @@ void validate_empty_disk(const char *path)
         }
         sgx_thread_mutex_unlock(&g_workload_mutex);
 
-        if (is_null_hash(g_hash))
-        {
-            goto end_validate_one_g_empty;
-        }
         g_path = get_g_path_with_hash(path, g_hash);
 
         // Get M hashs
@@ -115,8 +101,8 @@ void validate_empty_disk(const char *path)
         ocall_delete_folder_or_file(&crust_status, g_path.c_str());
         sgx_thread_mutex_lock(&g_workload_mutex);
         free(*it_g_hash);
-        it_g_hash = p_workload->empty_g_hashs.erase(it_g_hash);
-        it_g_hash--;
+        p_workload->empty_g_hashs.erase(it_g_hash);
+        p_workload->empty_g_hashs_number--;
         sgx_thread_mutex_unlock(&g_workload_mutex);
 
     end_validate_one_g_empty:
@@ -128,7 +114,6 @@ void validate_empty_disk(const char *path)
         {
             delete[] m_hashs;
         }
-        it_g_hash++;
     }
 }
 
@@ -207,7 +192,7 @@ void validate_meaningful_file()
         std::string root_hash = wl->files_json[file_idx]["hash"].ToString();
         log_debug("Validating file root hash:%s\n", root_hash.c_str());
         // Get file total block number
-        crust_status = persist_get((root_hash+"_meta").c_str(), &p_data, &data_len);
+        crust_status = persist_get((root_hash + "_meta").c_str(), &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
