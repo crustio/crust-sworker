@@ -51,6 +51,7 @@ SGX_COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
 SGX_COMMON_CFLAGS := $(SGX_COMMON_FLAGS) -Wjump-misses-init -Wstrict-prototypes -Wunsuffixed-float-constants -Wno-pointer-sign
 SGX_COMMON_CXXFLAGS := $(SGX_COMMON_FLAGS) -Wnon-virtual-dtor -std=c++11
 
+
 ######## App Settings ########
 
 ifneq ($(SGX_MODE), HW)
@@ -60,16 +61,15 @@ else
 endif
 
 
-App_C_Files := $(wildcard ${SRC_PATH}app/utils/*.c)
+App_C_Files := $(wildcard app/utils/*.c)
 
-App_Cpp_Files := ${SRC_PATH}app/App.cpp $(wildcard ${SRC_PATH}app/utils/*.cpp) $(wildcard ${SRC_PATH}app/config/*.cpp) \
-	$(wildcard ${SRC_PATH}app/log/*.cpp) $(wildcard ${SRC_PATH}app/database/*.cpp) $(wildcard ${SRC_PATH}app/http/*.cpp) \
-	$(wildcard ${SRC_PATH}app/ocalls/*.cpp) $(wildcard ${SRC_PATH}app/process/*.cpp) \
-	$(wildcard ${SRC_PATH}app/chain/*.cpp) \
+App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*.cpp) \
+	$(wildcard app/log/*.cpp) $(wildcard app/database/*.cpp) $(wildcard app/http/*.cpp) \
+	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp)
 	
-App_Include_Paths := -I${SRC_PATH}include -I${SRC_PATH}app -I${SRC_PATH}app/utils -I${SRC_PATH}app/http \
-	-I${SRC_PATH}app/config -I${SRC_PATH}app/ocalls -I${SRC_PATH}app/process -I${SRC_PATH}app/chain -I${SRC_PATH}app/log \
-	-I${SRC_PATH}app/database -I$(SGX_SDK)/include
+App_Include_Paths := -Iinclude -Iapp -Iapp/utils -Iapp/http \
+	-Iapp/config -Iapp/ocalls -Iapp/process -Iapp/chain -Iapp/log \
+	-Iapp/database -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
@@ -87,8 +87,8 @@ endif
 
 App_Cpp_Flags := $(App_C_Flags)
 App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
-	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp \
-	-l:libsgx_usgxssl.a -l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs
+	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp -l:libsgx_usgxssl.a \
+	-l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs $(App_Include_Paths)
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -100,6 +100,7 @@ App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 App_C_Objects := $(App_C_Files:.c=.o)
 
 App_Name := crust-tee
+
 
 ######## Enclave Settings ########
 
@@ -114,10 +115,16 @@ Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files := enclave/Enclave.cpp $(wildcard enclave/srd/*.cpp) $(wildcard enclave/utils/*.cpp) \
 	$(wildcard enclave/validator/*.cpp) $(wildcard enclave/workload/*.cpp) $(wildcard enclave/identity/*.cpp) \
-	$(wildcard enclave/storage/*.cpp) $(wildcard enclave/persistence/*.cpp) $(wildcard enclave/report/*.cpp)
+	$(wildcard enclave/storage/*.cpp) $(wildcard enclave/persistence/*.cpp) $(wildcard enclave/report/*.cpp) \
+
 Enclave_Include_Paths := -Iinclude -Ienclave -Ienclave/utils -Ienclave/identity -Ienclave/workload \
-	-Ienclave/srd -Ienclave/validator -Ienclave/storage -Ienclave/persistence -Ienclave/report -I$(SGX_SDK)/include \
-	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
+	-Ienclave/srd -Ienclave/validator -Ienclave/storage -Ienclave/persistence -Ienclave/report \
+	-I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
+
+ifeq ($(TFLAG), 1)
+	Enclave_Cpp_Files += $(wildcard enclave/utilsTest/*.cpp)
+	Enclave_Include_Paths += -Ienclave/utilsTest
+endif
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -Wno-type-limits
 CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
@@ -174,3 +181,10 @@ else
 	Build_Mode = SIM_RELEASE
 endif
 endif
+
+
+######## Test Settings ########
+
+Test_Source_Files := EnclaveUtilsTest.cpp MainTest.cpp
+Test_Objects := $(Test_Source_Files:.cpp=.o)
+Test_Target := crust-tee-test

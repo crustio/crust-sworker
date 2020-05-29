@@ -1,6 +1,12 @@
 #!/bin/bash
 function checkRes()
 {
+    ### receive 4 parameters at most:
+    ### $1 : Command execution result
+    ### $2 : Should be "return" or "quit", 
+    ###      which means if command failed, function returns or process exits
+    ### $3 : Success information, which means if command executes successfully, print this info
+    ### $4 : Output stream, default is standard output stream
     local res=$1
     local err_op=$2
     local tag=$3
