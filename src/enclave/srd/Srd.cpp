@@ -48,10 +48,8 @@ void srd_increase_empty(const char *path)
     sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
 
     // New and get now G hash index
-    sgx_thread_mutex_lock(&g_workload_mutex);
-    size_t now_index = p_workload->empty_g_hashs_number + 1;
-    p_workload->empty_g_hashs_number++;
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    size_t now_index = 0;
+    sgx_read_rand((unsigned char *)&now_index, 8);
 
     // Create directory
     std::string g_path = get_g_path(path, now_index);
@@ -97,7 +95,7 @@ void srd_increase_empty(const char *path)
     p_workload->empty_g_hashs.push_back(p_hash);
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
+    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index);
 }
 
 /**
@@ -112,7 +110,7 @@ size_t srd_decrease_empty(const char *path, size_t change)
     sgx_thread_mutex_lock(&g_workload_mutex);
     size_t decrease_num = 0;
 
-    for (auto it = p_workload->empty_g_hashs.begin(); (decrease_num < change) && it != this->empty_g_hashs.end(); it++)
+    for (auto it = p_workload->empty_g_hashs.begin(); (decrease_num < change) && it != p_workload->empty_g_hashs.end(); it++)
     {
         ocall_delete_folder_or_file(&crust_status, get_g_path_with_hash(path, *it).c_str());
         decrease_num++;

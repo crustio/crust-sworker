@@ -102,7 +102,6 @@ void validate_empty_disk(const char *path)
         sgx_thread_mutex_lock(&g_workload_mutex);
         free(*it_g_hash);
         p_workload->empty_g_hashs.erase(it_g_hash);
-        p_workload->empty_g_hashs_number--;
         sgx_thread_mutex_unlock(&g_workload_mutex);
 
     end_validate_one_g_empty:

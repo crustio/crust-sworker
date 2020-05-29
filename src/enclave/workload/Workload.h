@@ -19,12 +19,10 @@ class Workload
 {
 public:
     std::list<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
-    size_t empty_g_hashs_number;
     json::JSON files_json = json::Array();
     
     static Workload *workload;
     static Workload *get_instance();
-    Workload();
     ~Workload();
     void show(void);
     std::string serialize_workload();

@@ -27,14 +27,6 @@ Workload *Workload::get_instance()
 /**
  * @description: destructor
  */
-Workload::Workload()
-{
-    this->empty_g_hashs_number = 0;
-}
-
-/**
- * @description: destructor
- */
 Workload::~Workload()
 {
     for (auto g_hash : this->empty_g_hashs)
