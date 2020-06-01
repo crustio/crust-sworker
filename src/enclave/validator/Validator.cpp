@@ -126,7 +126,7 @@ void validate_empty_disk(const char *path)
         }
 
         sgx_thread_mutex_lock(&g_workload_mutex);
-        it_g_hash++
+        it_g_hash++;
         sgx_thread_mutex_unlock(&g_workload_mutex);  
     }
 }
