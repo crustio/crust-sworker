@@ -13,6 +13,12 @@
 #include <iostream>
 #include <string>
 
+typedef enum _request_type_t
+{
+    HTTP_REQ_SECURE,
+    HTTP_REQ_INSECURE,
+} request_type_t;
+
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace http = beast::http;   // from <boost/beast/http.hpp>
 namespace ssl = boost::asio::ssl; // from <boost/asio/ssl.hpp>
@@ -56,12 +62,16 @@ public:
     http::response<http::string_body> SSLGet(std::string url, std::string body, std::string content_type, ApiHeaders &headers);
     http::response<http::string_body> SSLPost(std::string url);
     http::response<http::string_body> SSLPost(std::string url, std::string body);
+    http::response<http::string_body> SSLPost(std::string url, std::string body, request_type_t type);
     http::response<http::string_body> SSLPost(std::string url, std::string body, std::string content_type);
+    http::response<http::string_body> SSLPost(std::string url, std::string body, std::string content_type, request_type_t type);
     http::response<http::string_body> SSLPost(std::string url, std::string body, ApiHeaders &headers);
+    http::response<http::string_body> SSLPost(std::string url, std::string body, ApiHeaders &headers, request_type_t type);
     http::response<http::string_body> SSLPost(std::string url, std::string body, std::string content_type, ApiHeaders &headers);
+    http::response<http::string_body> SSLPost(std::string url, std::string body, std::string content_type, ApiHeaders &headers, request_type_t type);
 
 private:
-    http::response<http::string_body> request_sync_ssl(http::verb method, std::string url, std::string body, std::string content_type = "text/plain", ApiHeaders *headers = NULL);
+    http::response<http::string_body> request_sync_ssl(http::verb method, std::string url, std::string body, std::string content_type = "text/plain", ApiHeaders *headers = NULL, request_type_t type = HTTP_REQ_SECURE);
     http::response<http::string_body> request_sync(http::verb method, std::string url, std::string body, std::string content_type = "text/plain", ApiHeaders *headers = NULL);
 };
 
