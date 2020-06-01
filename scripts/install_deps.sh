@@ -175,7 +175,7 @@ function checkAndInstall()
 {
     for dep in $1; do
         verbose INFO "Checking $dep..." h
-        dpkg -l | grep $dep &>/dev/null
+        dpkg -l | grep "\b$dep\b" &>/dev/null
         checkRes $? "return" "yes"
         if [ $? -ne 0 ]; then
             > $SYNCFILE

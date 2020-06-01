@@ -1,11 +1,15 @@
 include ../buildenv.mk
 
+ifneq ($(TFLAG), 1)
+	Test_Target := 
+endif
+
 .PHONY: all target run
 all: .config_$(Build_Mode)_$(SGX_ARCH)
 	@$(MAKE) target
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target:  $(App_Name) $(Enclave_Name)
+target:  $(App_Name) $(Enclave_Name) $(Test_Target)
 	@echo "The project has been built in release hardware mode."
 	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the $(App_Name) to launch and access the enclave."
 	@echo "To sign the enclave use the command:"
@@ -15,7 +19,7 @@ target:  $(App_Name) $(Enclave_Name)
 
 
 else
-target: $(App_Name) $(Signed_Enclave_Name)
+target: $(App_Name) $(Signed_Enclave_Name) $(Test_Target)
 ifeq ($(Build_Mode), HW_DEBUG)
 	@echo "The project has been built in debug hardware mode."
 else ifeq ($(Build_Mode), SIM_DEBUG)
@@ -39,6 +43,7 @@ endif
 .config_$(Build_Mode)_$(SGX_ARCH):
 	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) app/Enclave_u.* $(Enclave_Cpp_Objects) enclave/Enclave_t.*
 	@touch .config_$(Build_Mode)_$(SGX_ARCH)
+
 
 ######## App Objects ########
 
@@ -64,6 +69,7 @@ $(App_Name): app/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
 	@$(CXX) -o $@ $^ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
+
 ######## Enclave Objects ########
 
 enclave/Enclave_t.c: $(SGX_EDGER8R) enclave/Enclave.edl
@@ -85,6 +91,17 @@ $(Enclave_Name): enclave/Enclave_t.o $(Enclave_Cpp_Objects)
 $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/EnclavePrivate.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
+
+
+######## Test Objects ########
+
+%.o: %.cpp app/Enclave_u.h
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $@"
+
+$(Test_Target): app/Enclave_u.o $(Test_Objects) $(App_Cpp_Objects) $(App_C_Objects)
+	@$(CXX) -o $@ $^ $(App_Link_Flags)
+	@echo "LINK =>  $@"
 
 .PHONY: clean
 
