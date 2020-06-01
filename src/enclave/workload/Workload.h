@@ -2,6 +2,7 @@
 #define _CRUST_WORKLOAD_H_
 
 #include <vector>
+#include <list>
 #include <string>
 #include <map>
 #include <set>
@@ -17,7 +18,7 @@
 class Workload
 {
 public:
-    std::vector<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
+    std::list<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
     json::JSON files_json = json::Array();
     
     static Workload *workload;

@@ -493,24 +493,6 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
 }
 
 /**
- * @description: determine if a hash is all 0
- * @param hash -> input hash for check
- * @return: true or false
- */
-bool is_null_hash(unsigned char *hash)
-{
-    for (size_t i = 0; i < HASH_LENGTH; i++)
-    {
-        if (hash[i] != 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/**
  * @description: Wrapper for malloc function, add tryout
  * @param size -> malloc buffer size
  * @return: Pointer to malloc buffer

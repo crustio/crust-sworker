@@ -56,7 +56,6 @@ crust_status_t validate_merkle_tree_c(MerkleTree *root);
 crust_status_t validate_merkletree_json(json::JSON tree);
 std::string serialize_merkletree_to_json_string(MerkleTree *root);
 MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json);
-bool is_null_hash(unsigned char *hash);
 void *enc_malloc(size_t size);
 void *enc_realloc(void *p, size_t size);
 void remove_char(std::string &data, char c);

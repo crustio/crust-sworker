@@ -42,26 +42,14 @@ void srd_increase_empty(const char *path)
     unsigned char base_rand_data[SRD_RAND_DATA_LENGTH];
     sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
-    Workload* p_workload = Workload::get_instance();
+    Workload *p_workload = Workload::get_instance();
 
     // Generate base random data
     sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
 
     // New and get now G hash index
-    sgx_thread_mutex_lock(&g_workload_mutex);
-    size_t now_index = p_workload->empty_g_hashs.size();
-    uint8_t *p_hash = (uint8_t *)malloc(HASH_LENGTH);
-    if (p_hash == NULL)
-    {
-        sgx_thread_mutex_unlock(&g_workload_mutex);
-        return;
-    }   
-    for (size_t i = 0; i < HASH_LENGTH; i++)
-    {
-        p_hash[i] = 0;
-    }
-    p_workload->empty_g_hashs.push_back(p_hash);
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    size_t now_index = 0;
+    sgx_read_rand((unsigned char *)&now_index, 8);
 
     // Create directory
     std::string g_path = get_g_path(path, now_index);
@@ -99,13 +87,14 @@ void srd_increase_empty(const char *path)
     ocall_rename_dir(&crust_status, g_path.c_str(), new_g_path.c_str());
 
     sgx_thread_mutex_lock(&g_workload_mutex);
+    uint8_t *p_hash = (uint8_t *)malloc(HASH_LENGTH);
     for (size_t i = 0; i < HASH_LENGTH; i++)
     {
-        p_workload->empty_g_hashs[now_index][i] = g_out_hash256[i];
+        p_hash[i] = g_out_hash256[i];
     }
+    p_workload->empty_g_hashs.push_back(p_hash);
+    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), p_workload->empty_g_hashs.size());
     sgx_thread_mutex_unlock(&g_workload_mutex);
-
-    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index + 1);
 }
 
 /**
@@ -120,13 +109,10 @@ size_t srd_decrease_empty(const char *path, size_t change)
     sgx_thread_mutex_lock(&g_workload_mutex);
     size_t decrease_num = 0;
 
-    for (size_t i = p_workload->empty_g_hashs.size(); (decrease_num < change) && (i > 0); i--)
+    for (auto it = p_workload->empty_g_hashs.begin(); (decrease_num < change) && it != p_workload->empty_g_hashs.end(); it++)
     {
-        if (!is_null_hash(p_workload->empty_g_hashs[i - 1]))
-        {
-            ocall_delete_folder_or_file(&crust_status, get_g_path_with_hash(path, p_workload->empty_g_hashs[i - 1]).c_str());
-            decrease_num++;
-        }
+        ocall_delete_folder_or_file(&crust_status, get_g_path_with_hash(path, *it).c_str());
+        decrease_num++;
     }
 
     sgx_thread_mutex_unlock(&g_workload_mutex);

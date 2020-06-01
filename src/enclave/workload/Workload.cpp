@@ -11,7 +11,7 @@ Workload *Workload::workload = NULL;
  * */
 Workload *Workload::get_instance()
 {
-    if(Workload::workload == NULL)
+    if (Workload::workload == NULL)
     {
         sgx_thread_mutex_lock(&g_workload_mutex);
         if (Workload::workload == NULL)
@@ -20,7 +20,7 @@ Workload *Workload::get_instance()
         }
         sgx_thread_mutex_unlock(&g_workload_mutex);
     }
-    
+
     return Workload::workload;
 }
 
@@ -29,11 +29,11 @@ Workload *Workload::get_instance()
  */
 Workload::~Workload()
 {
-    for (size_t i = 0; i < this->empty_g_hashs.size(); i++)
+    for (auto g_hash : this->empty_g_hashs)
     {
-        delete[] this->empty_g_hashs[i];
+        if (g_hash != NULL)
+            free(g_hash);
     }
-
     this->empty_g_hashs.clear();
 }
 
@@ -52,8 +52,8 @@ void Workload::show(void)
     log_debug("Meaningful work details is: \n");
     for (int i = 0; i < this->files_json.size(); i++)
     {
-        log_debug("Meaningful root hash:%s -> size:%ld\n", 
-                this->files_json[i]["hash"].ToString().c_str(), this->files_json[i]["size"].ToInt());
+        log_debug("Meaningful root hash:%s -> size:%ld\n",
+                  this->files_json[i]["hash"].ToString().c_str(), this->files_json[i]["size"].ToInt());
     }
 }
 
@@ -63,10 +63,10 @@ void Workload::show(void)
 void Workload::clean_data()
 {
     // Clean empty_g_hashs
-    for (auto it : this->empty_g_hashs)
+    for (auto g_hash : this->empty_g_hashs)
     {
-        if (it != NULL)
-            free(it);
+        if (g_hash != NULL)
+            free(g_hash);
     }
     this->empty_g_hashs.clear();
 }
@@ -85,16 +85,13 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
     unsigned char *hashs = (unsigned char *)malloc(this->empty_g_hashs.size() * HASH_LENGTH);
     size_t hashs_length = 0;
 
-    for (size_t i = 0; i < this->empty_g_hashs.size(); i++)
+    for (auto g_hash : this->empty_g_hashs)
     {
-        if (!is_null_hash(this->empty_g_hashs[i]))
+        for (size_t j = 0; j < HASH_LENGTH; j++)
         {
-            for (size_t j = 0; j < HASH_LENGTH; j++)
-            {
-                hashs[i * 32 + j] = this->empty_g_hashs[i][j];
-            }
-            hashs_length += HASH_LENGTH;
+            hashs[hashs_length + j] = g_hash[j];
         }
+        hashs_length += HASH_LENGTH;
     }
 
     // generate empty information
@@ -187,7 +184,7 @@ bool Workload::reset_meaningful_data()
     id_get_metadata(meta_json);
 
     // Reset meaningful files
-    if (! meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
+    if (!meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
     {
         this->files_json = json::Array();
         return true;
@@ -203,7 +200,6 @@ bool Workload::reset_meaningful_data()
     log_warn("Workload: invalid meaningful roots! Set meaningful files to empty.\n");
 
     this->files_json = json::Array();
-
 
     return true;
 }
