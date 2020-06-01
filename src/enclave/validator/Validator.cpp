@@ -17,8 +17,19 @@ void validate_empty_disk(const char *path)
 
     Workload *p_workload = Workload::get_instance();
 
-    for (auto it_g_hash = p_workload->empty_g_hashs.begin(); it_g_hash != p_workload->empty_g_hashs.end(); it_g_hash++)
+    sgx_thread_mutex_lock(&g_workload_mutex);
+    auto it_g_hash = p_workload->empty_g_hashs.begin();
+    sgx_thread_mutex_unlock(&g_workload_mutex);
+
+    while (true)
     {
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        if (it_g_hash == p_workload->empty_g_hashs.end())
+        {
+            sgx_thread_mutex_unlock(&g_workload_mutex);
+            break;
+        }
+        sgx_thread_mutex_unlock(&g_workload_mutex);
         // Base info
         unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
         std::string g_path;
@@ -113,6 +124,10 @@ void validate_empty_disk(const char *path)
         {
             delete[] m_hashs;
         }
+
+        sgx_thread_mutex_lock(&g_workload_mutex);
+        it_g_hash++
+        sgx_thread_mutex_unlock(&g_workload_mutex);  
     }
 }
 
