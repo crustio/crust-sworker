@@ -224,7 +224,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint->base + "/entry/network";
         if (path.compare(cur_path) == 0)
         {
-            res.result(200);
+            res.result(500);
             sgx_status_t status_ret = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
             int version = IAS_API_DEF_VERSION;
@@ -291,7 +291,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int net_tryout = IAS_TRYOUT;
             while (net_tryout > 0)
             {
-                ias_res = client->SSLPost(p_config->ias_base_url+p_config->ias_base_path, body, "application/json", headers);
+                ias_res = client->SSLPost(p_config->ias_base_url+p_config->ias_base_path, body, "application/json", headers, HTTP_REQ_INSECURE);
                 if ((int)ias_res.result() != 200)
                 {
                     p_log->err("Send to IAS failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);
@@ -401,6 +401,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
                     p_log->info("Verify IAS report in enclave successfully!\n");
                     res.body() = jsonstr.c_str();
+                    res.result(200);
                 }
                 else
                 {

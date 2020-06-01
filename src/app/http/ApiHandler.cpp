@@ -97,7 +97,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
     std::string cur_path = url_end_point->base + "/storage/seal";
     if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
     {
-        res["status"] = 200;
+        res["status"] = 500;
         std::string error_info;
         crust_status_t crust_status = CRUST_SUCCESS;
         sgx_status_t sgx_status = SGX_SUCCESS;
@@ -188,6 +188,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
         remove_char(new_tree_str, '\\');
         res["body"] = new_tree_str;
         res["path"] = std::string(p_new_path, dir_path.size());
+        res["status"] = 200;
         sealed_tree_map.erase(org_root_hash_str);
 
         close_connection = true;
@@ -200,7 +201,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
     cur_path = url_end_point->base + "/storage/unseal";
     if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
     {
-        res["status"] = 200;
+        res["status"] = 500;
         std::string error_info;
 
         p_log->info("Dealing with unseal request...\n");
@@ -289,6 +290,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
             p_log->info("Unseal data successfully!\n");
             res["body"] = "Unseal data successfully!";
             res["path"] = std::string(p_new_path, dir_path.size());
+            res["status"] = 200;
         }
 
         free(p_new_path);

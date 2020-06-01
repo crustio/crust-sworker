@@ -105,9 +105,19 @@ http::response<http::string_body> HttpClient::SSLPost(std::string url, std::stri
     return request_sync_ssl(http::verb::post, url, body);
 }
 
+http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, request_type_t type)
+{
+    return request_sync_ssl(http::verb::post, url, body, "text/plain", NULL, type);
+}
+
 http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, std::string content_type)
 {
     return request_sync_ssl(http::verb::post, url, body, content_type);
+}
+
+http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, std::string content_type, request_type_t type)
+{
+    return request_sync_ssl(http::verb::post, url, body, content_type, NULL, type);
 }
 
 http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, ApiHeaders &headers)
@@ -115,9 +125,19 @@ http::response<http::string_body> HttpClient::SSLPost(std::string url, std::stri
     return request_sync_ssl(http::verb::post, url, body, "text/plain", &headers);
 }
 
+http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, ApiHeaders &headers, request_type_t type)
+{
+    return request_sync_ssl(http::verb::post, url, body, "text/plain", &headers, type);
+}
+
 http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, std::string content_type, ApiHeaders &headers)
 {
     return request_sync_ssl(http::verb::post, url, body, content_type, &headers);
+}
+
+http::response<http::string_body> HttpClient::SSLPost(std::string url, std::string body, std::string content_type, ApiHeaders &headers, request_type_t type)
+{
+    return request_sync_ssl(http::verb::post, url, body, content_type, &headers, type);
 }
 
 
@@ -131,7 +151,7 @@ http::response<http::string_body> HttpClient::SSLPost(std::string url, std::stri
  * @return: Json result
  * */
 http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method, std::string url, 
-        std::string body,std::string content_type, ApiHeaders *headers)
+        std::string body,std::string content_type, ApiHeaders *headers, request_type_t type)
 {
     // Declare a container to hold the response
     http::response<http::string_body> res;
@@ -165,7 +185,10 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
         //load_root_certificates_http(ctx);
 
         // Verify the remote server's certificate
-        ctx.set_verify_mode(ssl::verify_peer);
+        if (HTTP_REQ_SECURE == type)
+        {
+            ctx.set_verify_mode(ssl::verify_peer);
+        }
         beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
 
         // Set SNI Hostname (many hosts need this to handshake successfully)
