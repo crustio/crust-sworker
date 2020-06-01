@@ -93,9 +93,8 @@ void srd_increase_empty(const char *path)
         p_hash[i] = g_out_hash256[i];
     }
     p_workload->empty_g_hashs.push_back(p_hash);
+    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), p_workload->empty_g_hashs.size());
     sgx_thread_mutex_unlock(&g_workload_mutex);
-
-    log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), now_index);
 }
 
 /**
