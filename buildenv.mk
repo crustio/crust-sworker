@@ -65,11 +65,11 @@ App_C_Files := $(wildcard app/utils/*.c)
 
 App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*.cpp) \
 	$(wildcard app/log/*.cpp) $(wildcard app/database/*.cpp) $(wildcard app/http/*.cpp) \
-	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp)
+	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp) \
+	$(wildcard app/ecalls/*.cpp)
 	
-App_Include_Paths := -Iinclude -Iapp -Iapp/utils -Iapp/http \
-	-Iapp/config -Iapp/ocalls -Iapp/process -Iapp/chain -Iapp/log \
-	-Iapp/database -I$(SGX_SDK)/include
+App_Include_Paths := -I$(SGX_SDK)/include -Iinclude -Iapp -Iapp/utils -Iapp/http \
+	-Iapp/config -Iapp/ocalls -Iapp/ecalls -Iapp/process -Iapp/chain -Iapp/log -Iapp/database
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
 
@@ -117,9 +117,10 @@ Enclave_Cpp_Files := enclave/Enclave.cpp $(wildcard enclave/srd/*.cpp) $(wildcar
 	$(wildcard enclave/validator/*.cpp) $(wildcard enclave/workload/*.cpp) $(wildcard enclave/identity/*.cpp) \
 	$(wildcard enclave/storage/*.cpp) $(wildcard enclave/persistence/*.cpp) $(wildcard enclave/report/*.cpp)
 
-Enclave_Include_Paths := -Iinclude -Ienclave -Ienclave/utils -Ienclave/identity -Ienclave/workload \
-	-Ienclave/srd -Ienclave/validator -Ienclave/storage -Ienclave/persistence -Ienclave/report \
-	-I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I$(SGXSSL_INCDIR)
+Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx \
+	-I$(SGXSSL_INCDIR) -Iinclude -Ienclave -Ienclave/utils -Ienclave/identity -Ienclave/workload \
+	-Ienclave/srd -Ienclave/validator -Ienclave/storage -Ienclave/persistence -Ienclave/report
+	
 
 ifeq ($(TFLAG), 1)
 	Enclave_Cpp_Files += $(wildcard enclave/utilsTest/*.cpp)

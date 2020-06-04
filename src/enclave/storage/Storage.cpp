@@ -62,7 +62,6 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     {
         return crust_status;
     }
-    Workload::get_instance()->files_json.append(file_entry_json);
 
     // Store new tree structure
     crust_status = persist_set(new_root_hash_str.c_str(), (const uint8_t*)new_tree.c_str(), new_tree.size());
@@ -90,6 +89,11 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     std::string new_path = old_path.substr(0, old_path.find(org_root_hash_str)) + new_root_hash_str;
     ocall_rename_dir(&crust_status, old_path.c_str(), new_path.c_str());
     memcpy(p_new_path, new_path.c_str(), new_path.size());
+
+    // Add new meaningful file to workload
+    // TODO: when tee finish sealing file, karst persisting this sealed file will take some time.
+    // So adding new meaningful file to check queue should not happen here. This sentence just used to test
+    Workload::get_instance()->files_json.append(file_entry_json);
 
 
     return crust_status;

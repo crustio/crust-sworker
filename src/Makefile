@@ -1,5 +1,10 @@
 include ../buildenv.mk
 
+define setMaxThreadNum
+	max_thread_num=$$(cat enclave/Enclave.config.xml | grep -Po "(?<=<TCSNum>).*(?=</TCSNum>)"); \
+	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" app/ecalls/ECalls.h
+endef
+
 ifneq ($(TFLAG), 1)
 	Test_Target := 
 endif
@@ -74,6 +79,7 @@ $(App_Name): app/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
 
 enclave/Enclave_t.c: $(SGX_EDGER8R) enclave/Enclave.edl
 	@cd enclave && $(SGX_EDGER8R) --trusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
+	@$(call setMaxThreadNum)
 	@echo "GEN  =>  $@"
 
 enclave/Enclave_t.o: enclave/Enclave_t.c

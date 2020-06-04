@@ -79,7 +79,7 @@ bool initialize_enclave()
     }
 
     /* Generate code measurement */
-    if (SGX_SUCCESS != ecall_gen_sgx_measurement(global_eid, &ret))
+    if (SGX_SUCCESS != Ecall_gen_sgx_measurement(global_eid, &ret))
     {
         p_log->err("Generate code measurement failed!error code:%08x\n", ret);
         return false;
@@ -145,7 +145,7 @@ void *do_srd_empty_disk(void *)
     #pragma omp parallel for num_threads(p_config->srd_thread_num)
     for (size_t i = 0; i < true_srd_capacity; i++)
     {
-        ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
+        Ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
     }
 
     change_empty_mutex.lock();
@@ -197,12 +197,12 @@ int process_run()
     }
 
     // ----- Restore data from file ----- //
-    if (SGX_SUCCESS != ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
+    if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
         // Restore data failed
         p_log->warn("Restore enclave data failed!Failed code:%lx\n", crust_status);
         // Generate ecc key pair
-        if (SGX_SUCCESS != ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
+        if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
         {
             p_log->err("Generate key pair failed!\n");
             return_status = -1;
@@ -212,7 +212,7 @@ int process_run()
 
         // Store crust info in enclave
         crust_status_t crust_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != ecall_set_chain_account_id(global_eid, &crust_status,
+        if (SGX_SUCCESS != Ecall_set_chain_account_id(global_eid, &crust_status,
                 p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
             CRUST_SUCCESS != crust_status)
         {
@@ -260,7 +260,7 @@ int process_run()
     else
     {
         // Compare crust account it in configure file and recovered file
-        if (SGX_SUCCESS != ecall_cmp_chain_account_id(global_eid, &crust_status,
+        if (SGX_SUCCESS != Ecall_cmp_chain_account_id(global_eid, &crust_status,
                 p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
             CRUST_SUCCESS != crust_status)
         {
@@ -283,7 +283,7 @@ int process_run()
     }
 
     // Main validate loop
-    ecall_main_loop(global_eid, p_config->empty_path.c_str());
+    Ecall_main_loop(global_eid, p_config->empty_path.c_str());
 
 cleanup:
     // End and release

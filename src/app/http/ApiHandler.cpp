@@ -152,7 +152,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
         remove_char(org_tree_str, '\\');
         remove_char(org_tree_str, '\n');
         remove_char(org_tree_str, ' ');
-        sgx_status = ecall_seal_file(global_eid, &crust_status, org_tree_str.c_str(), org_tree_str.size(),
+        sgx_status = Ecall_seal_file(global_eid, &crust_status, org_tree_str.c_str(), org_tree_str.size(),
                 dir_path.c_str(), p_new_path, dir_path.size());
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
@@ -255,7 +255,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
         crust_status_t crust_status = CRUST_SUCCESS;
         char *p_new_path = (char*)malloc(dir_path.size());
         memset(p_new_path, 0, dir_path.size());
-        sgx_status_t sgx_status = ecall_unseal_file(global_eid, &crust_status,
+        sgx_status_t sgx_status = Ecall_unseal_file(global_eid, &crust_status,
                 const_cast<char**>(sub_files.data()), sub_files.size(), dir_path.c_str(), p_new_path, dir_path.size());
 
         if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
@@ -326,7 +326,7 @@ void *ApiHandler::change_empty(void *)
 #pragma omp parallel for num_threads(p_config->srd_thread_num)
         for (size_t i = 0; i < (size_t)true_change; i++)
         {
-            ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
+            Ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
         }
 
         p_config->change_empty_capacity(true_change);
@@ -336,7 +336,7 @@ void *ApiHandler::change_empty(void *)
     {
         change = -change;
         size_t true_decrease = 0;
-        ecall_srd_decrease_empty(global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
+        Ecall_srd_decrease_empty(global_eid, &true_decrease, p_config->empty_path.c_str(), (size_t)change);
         p_config->change_empty_capacity(-change);
         p_log->info("Decrease %luG empty files success, the empty workload will change in next validation loop\n", true_decrease);
     }

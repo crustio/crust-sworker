@@ -27,6 +27,8 @@ sgxssldir="/opt/intel/sgxssl"
 
 . $basedir/utils.sh
 
+true > $SYNCFILE
+
 trap "success_exit" INT
 trap "success_exit" EXIT
 
@@ -39,7 +41,7 @@ if [ ! -e "$instdir/resource" ]; then
     verbose ERROR "Need resource to install environment, please go to https://github.com/crustio/crust-tee/releases to download the latest crust-tee.tar and find resource in it"
     exit 1
 fi
-cd -
+cd - &>/dev/null
 
 # Generate mrenclave file
 mkdir $instdir/etc
@@ -61,24 +63,24 @@ if [ x"$1" != x"debug" ]; then
     checkRes $? "quit" "$SYNCFILE"
     cp $enclavefile $instdir/etc
     make clean
-    cd -
+    cd - &>/dev/null
 else
     cd $appdir
     make clean
-    cd -
+    cd - &>/dev/null
 fi
 
 cd $instdir
-cp -r bin etc log src resource scripts $pkgdir
+cp -r bin etc src resource scripts $pkgdir
 cp LICENSE README.md VERSION buildenv.mk $pkgdir
 rm -rf etc bin
-cd -
+cd - &>/dev/null
 
 cd $pkgdir
 rm scripts/package.sh
 mv scripts/install.sh ./
-cd -
+cd - &>/dev/null
 
 cd $instdir
 tar -cvf crust-tee-$VERSION.tar $(basename $pkgdir)
-cd -
+cd - &>/dev/null

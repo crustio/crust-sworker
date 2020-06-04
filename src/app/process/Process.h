@@ -21,8 +21,8 @@
 #include <sgx_urts.h>
 #include <sgx_capable.h>
 
-#include "Enclave_u.h"
 #include "SgxSupport.h"
+#include "ECalls.h"
 #include "Config.h"
 #include "Chain.h"
 #include "FormatUtils.h"
