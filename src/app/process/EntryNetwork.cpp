@@ -81,7 +81,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
         }
     } while (true);
 
-    status = ecall_get_report(global_eid, &sgxrv, &report, &target_info);
+    status = Ecall_get_report(global_eid, &sgxrv, &report, &target_info);
     if (status != SGX_SUCCESS)
     {
         p_log->err("get_report: %08x\n", status);
@@ -170,7 +170,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     send_data.append(b64quote);
     send_data.append(p_config->chain_address);
     sgx_ec256_signature_t send_data_sig;
-    sgx_status_t sgx_status = ecall_sign_network_entry(global_eid, &crust_status, 
+    sgx_status_t sgx_status = Ecall_sign_network_entry(global_eid, &crust_status, 
             send_data.c_str(), send_data.size(), &send_data_sig);
     if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
     {

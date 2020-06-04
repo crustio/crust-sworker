@@ -14,6 +14,8 @@
 #include "sgx_thread.h"
 #include <sgx_report.h>
 #include <string>
+#include <map>
+#include <set>
 #include <vector>
 
 #include <sgx_utils.h>

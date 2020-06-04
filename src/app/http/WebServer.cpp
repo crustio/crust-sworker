@@ -8,7 +8,7 @@
 #include <sgx_report.h>
 #include <sgx_key_exchange.h>
 #include <sgx_error.h>
-#include "Enclave_u.h"
+#include "ECalls.h"
 #include "sgx_eid.h"
 #include "Common.h"
 #include "Config.h"

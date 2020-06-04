@@ -92,6 +92,13 @@ function installBOOST()
 {
     verbose INFO "Checking boost..." h
     if [ -d "$boostdir" ]; then
+        if [ ! -s "$crustldfile" ]; then
+            echo "$boostdir/lib" > $crustldfile
+            ldconfig
+        fi
+        if ! find /usr/local/include/boost -name "core.hpp" | grep "core" &>/dev/null; then
+            ln -s $boostdir/include/boost /usr/local/include/boost &>/dev/null
+        fi
         verbose INFO "yes" t
         return
     fi

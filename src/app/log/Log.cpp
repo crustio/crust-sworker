@@ -54,8 +54,8 @@ void Log::info(const char *format, ...)
     int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
     va_end(va);
     std::string log_str(this->log_buf, n);
-    log_mutex.unlock();
     this->base_log(log_str, CRUST_LOG_INFO_TAG);
+    log_mutex.unlock();
 }
 
 /**
@@ -70,8 +70,8 @@ void Log::warn(const char *format, ...)
     int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
     va_end(va);
     std::string log_str(this->log_buf, n);
-    log_mutex.unlock();
     this->base_log(log_str, CRUST_LOG_WARN_TAG);
+    log_mutex.unlock();
 }
 
 /**
@@ -86,8 +86,8 @@ void Log::err(const char *format, ...)
     int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
     va_end(va);
     std::string log_str(this->log_buf, n);
-    log_mutex.unlock();
     this->base_log(log_str, CRUST_LOG_ERR_TAG);
+    log_mutex.unlock();
 }
 
 /**
@@ -104,8 +104,8 @@ void Log::debug(const char *format, ...)
         int n = vsnprintf(this->log_buf, CRUST_LOG_BUF_SIZE, format, va);
         va_end(va);
         std::string log_str(this->log_buf, n);
-        log_mutex.unlock();
         this->base_log(log_str, CRUST_LOG_DEBUG_TAG);
+        log_mutex.unlock();
     }
 }
 

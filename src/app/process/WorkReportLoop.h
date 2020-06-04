@@ -6,7 +6,7 @@
 #include <time.h>
 
 #include <sgx_eid.h>
-#include "Enclave_u.h"
+#include "ECalls.h"
 
 #include "Config.h"
 #include "Log.h"

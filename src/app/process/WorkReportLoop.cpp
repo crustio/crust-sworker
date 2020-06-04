@@ -37,7 +37,7 @@ void *work_report_loop(void *)
             block_header->hash = p_chain->get_block_hash(block_header->number);
 
             // Generate validation report and get report size
-            if (ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
+            if (Ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
             {
                 p_log->err("Generate validation report failed! Error code: %x\n", crust_status);
                 continue;
@@ -46,7 +46,7 @@ void *work_report_loop(void *)
             // Get signed validation report
             char *report = (char *)malloc(report_len);
             memset(report, 0, report_len);
-            if (SGX_SUCCESS != ecall_get_signed_work_report(global_eid, &crust_status,
+            if (SGX_SUCCESS != Ecall_get_signed_work_report(global_eid, &crust_status,
                     block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
             {
                 p_log->err("Get signed validation report failed!\n");

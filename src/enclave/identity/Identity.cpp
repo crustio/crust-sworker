@@ -1,4 +1,3 @@
-#include <map>
 #include "Identity.h"
 #include "Workload.h"
 #include "Persistence.h"
