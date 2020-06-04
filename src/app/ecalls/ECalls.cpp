@@ -78,6 +78,7 @@ sgx_status_t try_get_enclave(const char *name)
     std::stringstream ss;
     ss << this_id;
     std::string id_str = ss.str();
+    uint32_t timeout = 0;
 
     // Get current task priority
     int cur_task_prio = g_task_priority_m[tname];
@@ -124,11 +125,13 @@ sgx_status_t try_get_enclave(const char *name)
         }
 
     loop:
-        g_task_m[this_id].timeout++;
+        timeout++;
         // Timeout and current task priority lower than level 1
-        if (g_task_m[this_id].timeout >= ENC_TASK_TIMEOUT && cur_task_prio > ENC_PRIO_TIMEOUT_THRESHOLD)
+        if (timeout >= ENC_TASK_TIMEOUT && cur_task_prio > ENC_PRIO_TIMEOUT_THRESHOLD)
         {
+            g_task_mutex.lock();
             g_task_m.erase(this_id);
+            g_task_mutex.unlock();
             p_log->warn("task:%s(thread id:%s) timeout!\n", name, id_str.c_str());
             return SGX_ERROR_SERVICE_TIMEOUT;
         }

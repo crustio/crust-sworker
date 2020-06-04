@@ -16,7 +16,7 @@
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
-#define ENC_MAX_THREAD_NUM  4
+#define ENC_MAX_THREAD_NUM  10
 #define ENC_RESERVED_THREAD_NUM  2
 #define ENC_TASK_TIMEOUT  30
 // Threshold to trigger timeout mechanism
