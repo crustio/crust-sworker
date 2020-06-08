@@ -60,6 +60,7 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
+TBB_LIBRARY_PATH := /opt/crust/tools/onetbb/lib
 
 App_C_Files := $(wildcard app/utils/*.c)
 
@@ -88,7 +89,8 @@ endif
 App_Cpp_Flags := $(App_C_Flags)
 App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
 	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp -l:libsgx_usgxssl.a \
-	-l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs $(App_Include_Paths)
+	-l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs $(App_Include_Paths) \
+	-L$(TBB_LIBRARY_PATH) -ltbb
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim

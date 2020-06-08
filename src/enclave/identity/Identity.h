@@ -60,7 +60,7 @@ int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
 X509_STORE * cert_init_ca(X509 *cert);
 char *base64_decode(const char *msg, size_t *sz);
 
-crust_status_t id_verify_iasreport(char ** IASReport, size_t size, entry_network_signature *p_ensig);
+crust_status_t id_verify_iasreport(char ** IASReport, size_t size, sgx_ec256_signature_t *p_ensig);
 crust_status_t id_sign_network_entry(const char *p_partial_data, uint32_t data_size, sgx_ec256_signature_t *p_signature);
 sgx_status_t id_gen_key_pair();
 sgx_status_t id_get_report(sgx_report_t *report, sgx_target_info_t *target_info);

@@ -1,4 +1,6 @@
 #include "ECalls.h"
+#include "tbb/concurrent_vector.h"
+#include "tbb/concurrent_unordered_map.h"
 
 // Enclave task structure
 typedef struct _enclave_task_t {
@@ -8,34 +10,34 @@ typedef struct _enclave_task_t {
 } enclave_task_t;
 
 // Task info
-std::unordered_map<std::thread::id, enclave_task_t> g_task_m;
+tbb::concurrent_unordered_map<std::string, enclave_task_t> g_running_task_m;
 // Record running task number
-int g_task_num;
+int g_running_task_num;
 // Lock to ensure mutex
 std::mutex g_task_mutex;
 // Task priority map, lower number represents higher priority
 std::unordered_map<std::string, int> g_task_priority_m = {
-    {"Ecall_restore_metadata", 1},
-    {"Ecall_gen_key_pair", 1},
-    {"Ecall_set_chain_account_id", 1},
-    {"Ecall_cmp_chain_account_id", 1},
-    {"Ecall_gen_sgx_measurement", 1},
-    {"Ecall_sign_network_entry", 1},
-    {"Ecall_main_loop", 1},
-    {"Ecall_generate_work_report", 1},
-    {"Ecall_get_signed_work_report", 1},
-    {"Ecall_get_report", 1},
-    {"Ecall_store_quote", 1},
-    {"Ecall_verify_iasreport", 1},
-    {"Ecall_srd_increase_empty", 2},
-    {"Ecall_srd_decrease_empty", 2},
+    {"Ecall_restore_metadata", 0},
+    {"Ecall_gen_key_pair", 0},
+    {"Ecall_set_chain_account_id", 0},
+    {"Ecall_cmp_chain_account_id", 0},
+    {"Ecall_gen_sgx_measurement", 0},
+    {"Ecall_sign_network_entry", 0},
+    {"Ecall_main_loop", 0},
+    {"Ecall_generate_work_report", 0},
+    {"Ecall_get_signed_work_report", 0},
+    {"Ecall_get_report", 0},
+    {"Ecall_store_quote", 0},
+    {"Ecall_verify_iasreport", 0},
+    {"Ecall_srd_increase_empty", 1},
+    {"Ecall_srd_decrease_empty", 1},
+    {"Ecall_seal_file", 2},
+    {"Ecall_unseal_file", 2},
     {"Ecall_get_work_report", 3},
     {"Ecall_return_validation_status", 3},
-    {"Ecall_seal_file", 3},
-    {"Ecall_unseal_file", 3}
 };
 // Indicate number of each priority task, higher index represents lower priority
-std::vector<int> g_task_queue_v(4, 0);
+tbb::concurrent_vector<int> g_waiting_task_sum_v(4, 0);
 // Waiting time(million seconds) for different priority task
 std::vector<uint32_t> g_task_wait_time_v = {0, 10000, 100000, 1000000};
 
@@ -46,12 +48,12 @@ crust::Log *p_log = crust::Log::get_instance();
  * @param cur_prio -> current priority
  * @return: The higher task number
  * */
-int get_higher_prio_task_num(int priority)
+int get_higher_prio_waiting_task_num(int priority)
 {
     int ret = 0;
     while (--priority >= 0)
     {
-        ret += g_task_queue_v[priority];
+        ret += g_waiting_task_sum_v[priority];
     }
 
     return ret;
@@ -74,21 +76,21 @@ void task_sleep(int priority)
 sgx_status_t try_get_enclave(const char *name)
 {
     std::string tname(name);
-    std::thread::id this_id = std::this_thread::get_id();
+    std::thread::id tid = std::this_thread::get_id();
     std::stringstream ss;
-    ss << this_id;
-    std::string id_str = ss.str();
+    ss << tid;
+    std::string this_id = ss.str();
     uint32_t timeout = 0;
 
     // Get current task priority
     int cur_task_prio = g_task_priority_m[tname];
     // Increase corresponding task queue
-    g_task_queue_v[cur_task_prio]++;
+    g_waiting_task_sum_v[cur_task_prio]++;
 
     // ----- Task scheduling ----- //
     while (true)
     {
-        if (g_task_num < ENC_MAX_THREAD_NUM)
+        if (g_running_task_num < ENC_MAX_THREAD_NUM)
         {
             // Try to get lock
             if (!g_task_mutex.try_lock())
@@ -96,44 +98,48 @@ sgx_status_t try_get_enclave(const char *name)
 
             // If cannot get enclave resource
             // 1. Current task number equal or larger than ENC_MAX_THREAD_NUM
-            // 2. Current task priority lower than level 1 and remaining resource less than ENC_RESERVED_THREAD_NUM
+            // 2. Current task priority lower than highest level and remaining resource less than ENC_RESERVED_THREAD_NUM
             // 3. There exists higher priority task waiting
-            if (g_task_num >= ENC_MAX_THREAD_NUM 
-                    || (cur_task_prio > ENC_HIGHEST_PRIORITY && ENC_MAX_THREAD_NUM - g_task_num <= ENC_RESERVED_THREAD_NUM)
-                    || get_higher_prio_task_num(cur_task_prio) > 1)
+            if (g_running_task_num >= ENC_MAX_THREAD_NUM 
+                    || (cur_task_prio > ENC_HIGHEST_PRIORITY && ENC_MAX_THREAD_NUM - g_running_task_num <= ENC_RESERVED_THREAD_NUM)
+                    || get_higher_prio_waiting_task_num(cur_task_prio) - ENC_PERMANENT_TASK_NUM > 0)
             {
                 g_task_mutex.unlock();
                 if (cur_task_prio > ENC_PRIO_TIMEOUT_THRESHOLD)
                 {
-                    p_log->debug("task:%s(thread id:%s) blocked because of SGX busy!\n", name, id_str.c_str());
+                    p_log->debug("task:%s(thread id:%s) blocked because of SGX busy!\n", name, this_id.c_str());
                 }
                 goto loop;
             }
             // Get enclave resource
-            if (g_task_m[this_id].task_info.size() == 0)
+            if (g_running_task_m[this_id].task_info.size() == 0)
             {
-                (g_task_m[this_id].task_info)[tname]++;
-                g_task_num++;
+                // This situation happens when an ecall invokes an ocall
+                // and the ocall invokes an ecall again.
+                (g_running_task_m[this_id].task_info)[tname]++;
+                g_running_task_num++;
             }
             else
             {
                 // This thread is running, this situation happens when a ocall invokes ecall function
-                (g_task_m[this_id].task_info)[tname]++;
+                (g_running_task_m[this_id].task_info)[tname]++;
             }
+            g_waiting_task_sum_v[cur_task_prio]--;
             g_task_mutex.unlock();
             break;
         }
 
     loop:
-        timeout++;
-        // Timeout and current task priority lower than level 1
-        if (timeout >= ENC_TASK_TIMEOUT && cur_task_prio > ENC_PRIO_TIMEOUT_THRESHOLD)
+        // Check if current task is a tiemout task
+        if (cur_task_prio > ENC_PRIO_TIMEOUT_THRESHOLD)
         {
-            g_task_mutex.lock();
-            g_task_m.erase(this_id);
-            g_task_mutex.unlock();
-            p_log->warn("task:%s(thread id:%s) timeout!\n", name, id_str.c_str());
-            return SGX_ERROR_SERVICE_TIMEOUT;
+            timeout++;
+            if (timeout >= ENC_TASK_TIMEOUT)
+            {
+                g_running_task_m.unsafe_erase(this_id);
+                p_log->warn("task:%s(thread id:%s) timeout!\n", name, this_id.c_str());
+                return SGX_ERROR_SERVICE_TIMEOUT;
+            }
         }
         task_sleep(cur_task_prio);
     }
@@ -149,17 +155,17 @@ void free_enclave(const char *name)
 {
     g_task_mutex.lock();
     std::string tname = std::string(name);
-    std::thread::id this_id = std::this_thread::get_id();
-    // Get current task priority
-    int cur_task_prio = g_task_priority_m[tname];
-    if (--(g_task_m[this_id].task_info)[tname] <= 0)
+    std::thread::id tid = std::this_thread::get_id();
+    std::stringstream ss;
+    ss << tid;
+    std::string this_id = ss.str();
+    if (--(g_running_task_m[this_id].task_info)[tname] <= 0)
     {
-        g_task_m[this_id].task_info.erase(tname);
-        if (g_task_m[this_id].task_info.size() == 0)
+        g_running_task_m[this_id].task_info.erase(tname);
+        if (g_running_task_m[this_id].task_info.size() == 0)
         {
-            g_task_m.erase(this_id);
-            g_task_num--;
-            g_task_queue_v[cur_task_prio]--;
+            g_running_task_m.unsafe_erase(this_id);
+            g_running_task_num--;
         }
     }
     g_task_mutex.unlock();
@@ -486,7 +492,7 @@ sgx_status_t Ecall_store_quote(sgx_enclave_id_t eid, crust_status_t *status, con
  * @param p_ensig (out) -> Pointer to entry network report signature
  * @return: verify status
  * */
-sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len, entry_network_signature *p_ensig)
+sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len, sgx_ec256_signature_t *p_ensig)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))

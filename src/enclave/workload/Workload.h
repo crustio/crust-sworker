@@ -1,6 +1,7 @@
 #ifndef _CRUST_WORKLOAD_H_
 #define _CRUST_WORKLOAD_H_
 
+#include <utility>
 #include <vector>
 #include <list>
 #include <string>
@@ -19,7 +20,8 @@ class Workload
 {
 public:
     std::list<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
-    json::JSON files_json = json::Array();
+    std::vector<std::pair<std::string, size_t>> checked_files;
+    std::vector<std::pair<std::string, size_t>> new_files;
     
     static Workload *workload;
     static Workload *get_instance();

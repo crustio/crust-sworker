@@ -211,7 +211,7 @@ crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p
  * @param p_ensig (out) -> Pointer to entry network report signature
  * @return: verify status
  * */
-crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, entry_network_signature *p_ensig)
+crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, sgx_ec256_signature_t *p_ensig)
 {
     return id_verify_iasreport(IASReport, len, p_ensig);
 }

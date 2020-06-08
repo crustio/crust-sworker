@@ -13,6 +13,8 @@ ecc_key_pair id_key_pair;
 bool g_is_set_account_id = false;
 // Can only se crust account id once
 bool g_is_set_id_key_pair = false;
+// TODO:Indicate if entry network successful
+bool g_is_entry_network = false;
 // Current code measurement
 sgx_measurement_t current_mr_enclave;
 // Used to check current block head out-of-date
@@ -319,7 +321,7 @@ char *base64_decode(const char *msg, size_t *sz)
  * @description: Verify IAS report
  * @return: Verify status
  * */
-crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_signature *p_ensig)
+crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_signature_t *p_ensig)
 {
     string certchain;
     size_t cstart, cend, count, i;
@@ -328,16 +330,16 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
     vector<X509 *> certvec;
     vector<string> messages;
     int rv;
-    string sigstr, header;
+    string ias_sig, header;
     size_t sigsz;
     X509 *sign_cert;
     EVP_PKEY *pkey = NULL;
     crust_status_t status = CRUST_SUCCESS;
     uint8_t *sig = NULL;
-    string content;
+    string isv_body;
     int quoteSPos = 0;
     int quoteEPos = 0;
-    string iasQuoteBodyStr;
+    string ias_quote_body;
     sgx_quote_t *iasQuote;
     sgx_report_body_t *iasReportBody;
     char *p_decode_quote_body = NULL;
@@ -345,26 +347,24 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
     sgx_status_t sgx_status;
     sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_ec256_signature_t ecc_signature;
-    uint8_t *p_offchain_pubkey = NULL;
 
     BIO *bio_mem = BIO_new(BIO_s_mem());
     BIO_puts(bio_mem, INTELSGXATTROOTCA);
     X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
     vector<string> response(IASReport, IASReport + size);
 
-    uint8_t *off_chain_chain_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
-    uint8_t *validator_chain_account_id = hex_string_to_bytes(response[4].c_str(), response[4].length());
-    if(off_chain_chain_account_id == NULL || validator_chain_account_id == NULL)
+    uint8_t *chain_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
+    if(chain_account_id == NULL)
     {
         return CRUST_GET_ACCOUNT_ID_BYTE_FAILED;
     }
 
-
     size_t chain_account_id_size = response[3].length() / 2;
     uint8_t *sigbuf, *p_sig = NULL;
-    size_t context_size = 0;
-    vector<uint8_t> off_chain_accid_v(off_chain_chain_account_id, off_chain_chain_account_id + chain_account_id_size);
+    size_t siglen = 0;
 
+
+    // ----- Verify IAS signature ----- //
 
     /*
      * The response body has the attestation report. The headers have
@@ -449,14 +449,14 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
 
     // The signing cert is valid, so extract and verify the signature
 
-    sigstr = response[1];
-    if (sigstr == "")
+    ias_sig = response[1];
+    if (ias_sig == "")
     {
         status = CRUST_IAS_BAD_SIGNATURE;
         goto cleanup;
     }
 
-    sig = (uint8_t *)base64_decode(sigstr.c_str(), &sigsz);
+    sig = (uint8_t *)base64_decode(ias_sig.c_str(), &sigsz);
     if (sig == NULL)
     {
         status = CRUST_IAS_BAD_SIGNATURE;
@@ -478,11 +478,10 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
         goto cleanup;
     }
 
-    content = response[2];
+    isv_body = response[2];
 
     // verify IAS signature
-
-    if (!sha256_verify((const uint8_t *)content.c_str(), content.length(), sig, sigsz, pkey))
+    if (!sha256_verify((const uint8_t *)isv_body.c_str(), isv_body.length(), sig, sigsz, pkey))
     {
         status = CRUST_IAS_BAD_SIGNATURE;
         goto cleanup;
@@ -492,14 +491,13 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
         status = CRUST_SUCCESS;
     }
 
-    /* Verify quote */
+    // Verify quote
+    quoteSPos = (int)isv_body.find("\"isvEnclaveQuoteBody\":\"");
+    quoteSPos = (int)isv_body.find("\":\"", quoteSPos) + 3;
+    quoteEPos = (int)isv_body.size() - 2;
+    ias_quote_body = isv_body.substr(quoteSPos, quoteEPos - quoteSPos);
 
-    quoteSPos = (int)content.find("\"isvEnclaveQuoteBody\":\"");
-    quoteSPos = (int)content.find("\":\"", quoteSPos) + 3;
-    quoteEPos = (int)content.size() - 2;
-    iasQuoteBodyStr = content.substr(quoteSPos, quoteEPos - quoteSPos);
-
-    p_decode_quote_body = base64_decode(iasQuoteBodyStr.c_str(), &qbsz);
+    p_decode_quote_body = base64_decode(ias_quote_body.c_str(), &qbsz);
     if (p_decode_quote_body == NULL)
     {
         status = CRUST_IAS_BAD_BODY;
@@ -513,13 +511,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
 
     // This report data is our ecc public key
     // should be equal to the one contained in IAS report
-    if (accid_pubkey_map.find(off_chain_accid_v) == accid_pubkey_map.end())
-    {
-        status = CRUST_IAS_UNEXPECTED_ERROR;
-        goto cleanup;
-    }
-    p_offchain_pubkey = accid_pubkey_map[off_chain_accid_v].data();
-    if (memcmp(iasReportBody->report_data.d, p_offchain_pubkey, REPORT_DATA_SIZE) != 0)
+    if (memcmp(iasReportBody->report_data.d, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key)) != 0)
     {
         status = CRUST_IAS_REPORTDATA_NE;
         goto cleanup;
@@ -532,7 +524,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
         goto cleanup;
     }
 
-    // Sign entry network node's public key
+    // ----- Sign IAS report with current private key ----- //
     sgx_status = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
@@ -541,20 +533,20 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
     }
 
     // Generate identity data for sig
-    context_size = chain_account_id_size * 2 + REPORT_DATA_SIZE * 2;
-    sigbuf = (uint8_t *)malloc(context_size);
-    memset(sigbuf, 0, context_size);
+    siglen = certchain.size() + ias_sig.size() + isv_body.size() + chain_account_id_size;
+    sigbuf = (uint8_t *)malloc(siglen);
+    memset(sigbuf, 0, siglen);
     p_sig = sigbuf;
 
-    memcpy(sigbuf, p_offchain_pubkey, REPORT_DATA_SIZE);
-    sigbuf += REPORT_DATA_SIZE;
-    memcpy(sigbuf, off_chain_chain_account_id, chain_account_id_size);
-    sigbuf += chain_account_id_size;
-    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    sigbuf += sizeof(id_key_pair.pub_key);
-    memcpy(sigbuf, validator_chain_account_id, chain_account_id_size);
+    memcpy(sigbuf, certchain.c_str(), certchain.size());
+    sigbuf += certchain.size();
+    memcpy(sigbuf, ias_sig.c_str(), ias_sig.size());
+    sigbuf += ias_sig.size();
+    memcpy(sigbuf, isv_body.c_str(), isv_body.size());
+    sigbuf += isv_body.size();
+    memcpy(sigbuf, chain_account_id, chain_account_id_size);
 
-    sgx_status = sgx_ecdsa_sign(p_sig, (uint32_t)context_size,
+    sgx_status = sgx_ecdsa_sign(p_sig, (uint32_t)siglen,
             &id_key_pair.pri_key, &ecc_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
@@ -562,9 +554,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, entry_network_
         goto cleanup;
     }
 
-    memcpy(&p_ensig->pub_key, p_offchain_pubkey, REPORT_DATA_SIZE);
-    memcpy(&p_ensig->validator_pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
-    memcpy(&p_ensig->signature, &ecc_signature, sizeof(sgx_ec256_signature_t));
+    memcpy(p_ensig, &ecc_signature, sizeof(sgx_ec256_signature_t));
 
 
 cleanup:
@@ -578,6 +568,8 @@ cleanup:
     {
         X509_free(certvec[i]);
     }
+
+    free(chain_account_id);
     free(sig);
     free(iasQuote);
     if (ecc_state != NULL)
@@ -585,10 +577,6 @@ cleanup:
         sgx_ecc256_close_context(ecc_state);
     }
 
-    accid_pubkey_map.erase(off_chain_accid_v);
-
-    free(off_chain_chain_account_id);
-    free(validator_chain_account_id);
     if (p_sig != NULL)
         free(p_sig);
 
@@ -765,7 +753,7 @@ crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_da
             return CRUST_MALLOC_FAILED;
         }
         vector<uint8_t> account_id_v(p_account_id_u, p_account_id_u + account_id_sz / 2);
-        vector<uint8_t> off_chain_pub_key_v(p_offchain_pubkey, p_offchain_pubkey + REPORT_DATA_SIZE);
+        vector<uint8_t> off_chain_pub_key_v(p_offchain_pubkey, p_offchain_pubkey + ENCLAVE_PUB_KEY_SIZE);
         accid_pubkey_map[account_id_v] = off_chain_pub_key_v;
     }
 
@@ -872,6 +860,8 @@ cleanup:
 
 /**
  * @description: Store metadata periodically
+ * Just store all metadata except meaningful files. Meaningfule files can be added through 
+ * 'id_metadata_set_or_append' function
  * @return: Store status
  * */
 crust_status_t id_store_metadata()
@@ -919,7 +909,7 @@ cleanup:
 }
 
 /**
- * @description: Restore enclave data from file
+ * @description: Restore enclave all metadata
  * @return: Restore status
  * */
 crust_status_t id_restore_metadata()
@@ -944,10 +934,14 @@ crust_status_t id_restore_metadata()
         return CRUST_BAD_SEAL_DATA;
     }
     // Restore meaningful files
-    wl->files_json = json::Array();
+    wl->checked_files.clear();
     if (meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
     {
-        wl->files_json = meta_json[MEANINGFUL_FILE_DB_TAG];
+        json::JSON m_files = meta_json[MEANINGFUL_FILE_DB_TAG];
+        for (int i = 0; i < m_files.size(); i++)
+        {
+            wl->checked_files.push_back(make_pair(m_files[i]["hash"].ToString(), m_files[i]["size"].ToInt()));
+        }
     }
     // Restore id key pair
     std::string id_key_pair_str = meta_json["id_key_pair"].ToString();

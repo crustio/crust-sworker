@@ -3,6 +3,8 @@
 #include "EJson.h"
 
 extern sgx_thread_mutex_t g_workload_mutex;
+extern sgx_thread_mutex_t g_checked_files_mutex;
+extern sgx_thread_mutex_t g_new_files_mutex;
 
 // For timeout
 long long g_validate_timeout = 0;
@@ -168,20 +170,44 @@ void validate_meaningful_file()
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
+    // Lock wl->checked_files
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+
+    // Add new file to validate
+    sgx_thread_mutex_lock(&g_new_files_mutex);
+    if (wl->new_files.size() > 0)
+    {
+        auto new_it = wl->new_files.begin();
+        if (wl->checked_files.size() > 0)
+        {
+            // If the first new file has been added, pointer moves forward
+            if (new_it->first.compare(wl->checked_files.back().first) == 0)
+            {
+                new_it++;
+            }
+        }
+        // Insert new files to checked files
+        wl->checked_files.insert(wl->checked_files.end(), new_it, wl->new_files.end());
+        // Clear new files
+        wl->new_files.clear();
+    }
+    sgx_thread_mutex_unlock(&g_new_files_mutex);
+
     // Initialize validatioin
     ocall_validate_init(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
-        wl->files_json = json::Array();
+        wl->checked_files.clear();
         ocall_validate_close();
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return;
     }
 
     // Get to be checked files indexes
-    size_t check_file_num = wl->files_json.length();
-    if (wl->files_json.length() > MIN_VALIDATE_FILE_NUM)
+    size_t check_file_num = wl->checked_files.size();
+    if (wl->checked_files.size() > MIN_VALIDATE_FILE_NUM)
     {
-        check_file_num = wl->files_json.length() * MEANINGFUL_FILE_VALIDATE_RATE;
+        check_file_num = wl->checked_files.size() * MEANINGFUL_FILE_VALIDATE_RATE;
     }
     std::set<uint32_t> file_idx_s;
     uint32_t rand_val;
@@ -192,26 +218,24 @@ void validate_meaningful_file()
         do
         {
             sgx_read_rand((uint8_t *)&rand_val, 1);
-            rand_index = rand_val % wl->files_json.length();
+            rand_index = rand_val % wl->checked_files.size();
         } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
     }
 
     // ----- Randomly check file block ----- //
     // TODO: Do we allow store duplicated files?
-    std::vector<int> exist_indexes(wl->files_json.size(), 1);
-    int exist_acc = wl->files_json.size();
+    std::vector<int> none_exist_indexes;
     for (auto file_idx : file_idx_s)
     {
-        std::string root_hash = wl->files_json[file_idx]["hash"].ToString();
+        std::string root_hash = wl->checked_files[file_idx].first;
         log_debug("Validating file root hash:%s\n", root_hash.c_str());
         // Get file total block number
         crust_status = persist_get((root_hash + "_meta").c_str(), &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
-            exist_indexes[file_idx] = 0;
-            exist_acc--;
+            none_exist_indexes.push_back(file_idx);
             continue;
         }
         json::JSON tree_meta_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_data), data_len));
@@ -222,8 +246,7 @@ void validate_meaningful_file()
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
-            exist_indexes[file_idx] = 0;
-            exist_acc--;
+            none_exist_indexes.push_back(file_idx);
             continue;
         }
         std::string tree_str(reinterpret_cast<char *>(p_data), data_len);
@@ -265,8 +288,7 @@ void validate_meaningful_file()
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
                 log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
-                exist_indexes[file_idx] = 0;
-                exist_acc--;
+                none_exist_indexes.push_back(file_idx);
                 break;
             }
             // Get block data
@@ -280,8 +302,7 @@ void validate_meaningful_file()
             if (CRUST_SUCCESS != crust_status)
             {
                 log_err("Get file block:%ld failed!\n", check_block_idx);
-                exist_indexes[file_idx] = 0;
-                exist_acc--;
+                none_exist_indexes.push_back(file_idx);
                 break;
             }
             // Validate hash
@@ -298,8 +319,7 @@ void validate_meaningful_file()
                 log_err("Index:%ld block hash is not expected!\n", check_block_idx);
                 log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                 log_err("Org hash : %s\n", leaf_hash.c_str());
-                exist_indexes[file_idx] = 0;
-                exist_acc--;
+                none_exist_indexes.push_back(file_idx);
                 free(leaf_hash_u);
                 break;
             }
@@ -309,19 +329,22 @@ void validate_meaningful_file()
     }
 
     // Delete not exists json
-    if (exist_acc != wl->files_json.size())
+    if (none_exist_indexes.size() != 0)
     {
-        json::JSON new_files_json = json::Array();
-        for (size_t i = 0, j = 0; i < exist_indexes.size(); i++)
+        int del_index = none_exist_indexes.size() - 1;
+        int cur_index = wl->checked_files.size() - 1;
+        for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend() && del_index >= 0; it++, cur_index--)
         {
-            if (exist_indexes[i] == 1)
+            if (cur_index == none_exist_indexes[del_index])
             {
-                new_files_json[j] = wl->files_json[i];
-                j++;
+                wl->checked_files.erase((++it).base());
+                del_index--;
             }
         }
-        wl->files_json = new_files_json;
     }
 
     ocall_validate_close();
+
+    // Unlock wl->checked_files
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 }

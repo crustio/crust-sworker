@@ -17,11 +17,16 @@
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
 #define ENC_MAX_THREAD_NUM  10
-#define ENC_RESERVED_THREAD_NUM  2
-#define ENC_TASK_TIMEOUT  30
+// Reserved enclave resource for highest priority task
+#define ENC_RESERVED_THREAD_NUM  1
 // Threshold to trigger timeout mechanism
-#define ENC_PRIO_TIMEOUT_THRESHOLD 2
-#define ENC_HIGHEST_PRIORITY 1
+#define ENC_PRIO_TIMEOUT_THRESHOLD 1
+// Number of running in enclave permanently
+#define ENC_PERMANENT_TASK_NUM 1
+// Highest priority
+#define ENC_HIGHEST_PRIORITY 0
+// Task timeout number
+#define ENC_TASK_TIMEOUT  30
 
 
 #if defined(__cplusplus)
@@ -52,7 +57,7 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
 sgx_status_t Ecall_store_quote(sgx_enclave_id_t eid, crust_status_t *status, const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
         sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz);
 
-sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len, entry_network_signature *p_ensig);
+sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len, sgx_ec256_signature_t *p_ensig);
 
 sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *p_tree, size_t tree_len, const char *path,
         char *p_new_path , size_t path_len);

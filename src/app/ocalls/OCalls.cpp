@@ -78,10 +78,17 @@ crust_status_t ocall_create_dir(const char *path)
     std::vector<std::string> entries;
     boost::split(entries, path, boost::is_any_of("/"));
     std::string cur_path = "";
-
-    for (size_t i = 0; i < entries.size(); i++)
+    if (path[0] == '/')
     {
-        cur_path.append("/").append(entries[i]);
+        cur_path = "/";
+    }
+
+    for (auto entry : entries)
+    {
+        if (entry.compare("") == 0)
+            continue;
+
+        cur_path.append(entry).append("/");
         if (access(cur_path.c_str(), 0) == -1)
         {
             if (mkdir(cur_path.c_str(), S_IRWXU) == -1)

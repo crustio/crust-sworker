@@ -10,6 +10,7 @@ sgx_thread_mutex_t g_file_buffer_mutex;
 
 // Current node public and private key pair
 extern ecc_key_pair id_key_pair;
+extern sgx_thread_mutex_t g_new_files_mutex;
 
 crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree, size_t &node_size, size_t &block_num);
 
@@ -42,6 +43,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     std::string old_path(path, path_len);
     std::string new_tree;
 
+    // ----- Physical operation ----- //
     // Do seal file
     size_t node_size = 0;
     size_t block_num = 0;
@@ -53,6 +55,19 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     new_tree.erase(new_tree.size() - 1, 1);
     std::string new_root_hash_str = tree_json["hash"].ToString();
 
+    // Rename old directory
+    std::string new_path = old_path.substr(0, old_path.find(org_root_hash_str)) + new_root_hash_str;
+    ocall_rename_dir(&crust_status, old_path.c_str(), new_path.c_str());
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return crust_status;
+    }
+    memcpy(p_new_path, new_path.c_str(), new_path.size());
+
+    // Pass new tree structure to APP
+    ocall_store_sealed_merkletree(org_root_hash_str.c_str(), new_tree.c_str(), new_tree.size());
+
+    // ----- Add corresponding metadata ----- //
     // Store Meaningful file entry to enclave metadata
     json::JSON file_entry_json;
     file_entry_json["hash"] = new_root_hash_str;
@@ -82,18 +97,12 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
         return crust_status;
     }
 
-    // Pass new tree structure to APP
-    ocall_store_sealed_merkletree(org_root_hash_str.c_str(), new_tree.c_str(), new_tree.size());
-
-    // Rename old directory
-    std::string new_path = old_path.substr(0, old_path.find(org_root_hash_str)) + new_root_hash_str;
-    ocall_rename_dir(&crust_status, old_path.c_str(), new_path.c_str());
-    memcpy(p_new_path, new_path.c_str(), new_path.size());
-
     // Add new meaningful file to workload
     // TODO: when tee finish sealing file, karst persisting this sealed file will take some time.
     // So adding new meaningful file to check queue should not happen here. This sentence just used to test
-    Workload::get_instance()->files_json.append(file_entry_json);
+    sgx_thread_mutex_lock(&g_new_files_mutex);
+    Workload::get_instance()->new_files.push_back(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
+    sgx_thread_mutex_unlock(&g_new_files_mutex);
 
 
     return crust_status;

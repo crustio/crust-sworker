@@ -140,6 +140,42 @@ function installBOOST()
     fi
 }
 
+function installONETBB()
+{
+    verbose INFO "Checking oneTBB..." h
+    if [ -d "$onetbbdir" ]; then
+        verbose INFO "yes" t
+        return
+    fi
+    verbose ERROR "no" t
+    mkdir -p $onetbbdir
+
+    verbose INFO "Installing oneTBB..." h
+    local tmponetbbdir=$rsrcdir/onetbb
+    mkdir $tmponetbbdir
+    cd $rsrcdir
+    tar -xvf $onetbbpkg -C $tmponetbbdir --strip-components=1 &>$ERRFILE
+    if [ $? -ne 0 ]; then
+        verbose "failed" t
+        exit 1
+    fi
+    cd - &>/dev/null
+
+    cd $tmponetbbdir
+    make &>/dev/null
+    checkRes $? "quit" "success"
+    cp -r include $onetbbdir/include
+    cp -r `ls -d build/*/ | grep linux` $onetbbdir/lib
+    ln -s $onetbbdir/include/tbb /usr/local/include/tbb
+    echo "$onetbbdir/lib" >> $crustldfile
+    ldconfig
+    cd - &>/dev/null
+
+    if [ x"$tmponetbbdir" != x"/" ]; then
+        rm -rf $tmponetbbdir
+    fi
+}
+
 function hasInstalledSGXSDK()
 {
     local installed=true
@@ -256,6 +292,7 @@ crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 sgxssldir=$inteldir/sgxssl
 boostdir=$crusttooldir/boost
+onetbbdir=$crusttooldir/onetbb
 sgxssltmpdir=""
 selfPID=$$
 OSID=$(cat /etc/os-release | grep '^ID\b' | grep -Po "(?<==).*")
@@ -290,6 +327,7 @@ opensslpkg=$rsrcdir/$(basename $OPENSSLURL)
 openssldir=$rsrcdir/$(basename $OPENSSLURL | grep -Po ".*(?=\.tar)")
 sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
 boostpkg=$rsrcdir/boost_1_70_0.tar.gz
+onetbbpkg=$rsrcdir/onetbb.tar
 # SGX prerequisites
 basicsprereq=(expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
@@ -325,3 +363,6 @@ installSGXSSL
 
 # Installing BOOST
 installBOOST
+
+# Installing ONETBB
+installONETBB
