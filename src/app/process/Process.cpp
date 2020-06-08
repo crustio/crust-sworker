@@ -221,14 +221,6 @@ int process_run()
             goto cleanup;
         }
 
-        // Srd empty disk
-        if (pthread_create(&srd_empty_disk_thread, NULL, do_srd_empty_disk, NULL) != 0)
-        {
-            p_log->err("Create srd empty disk thread failed!\n");
-            return_status = -1;
-            goto cleanup;
-        }
-
         // Send identity to chain and send work report
         if (!offline_chain_mode)
         {
@@ -255,6 +247,14 @@ int process_run()
                 goto cleanup;
             }
             p_log->info("Send identity to crust chain successfully!\n");
+        }
+
+        // Srd empty disk
+        if (pthread_create(&srd_empty_disk_thread, NULL, do_srd_empty_disk, NULL) != 0)
+        {
+            p_log->err("Create srd empty disk thread failed!\n");
+            return_status = -1;
+            goto cleanup;
         }
     }
     else

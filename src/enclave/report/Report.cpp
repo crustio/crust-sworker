@@ -6,6 +6,8 @@ std::string work_report;
 size_t empty_workload;
 sgx_sha256_hash_t empty_root;
 
+extern sgx_thread_mutex_t g_checked_files_mutex;
+
 /**
  * @description: generate work report
  * @param report_len (out) -> report's length
@@ -26,13 +28,15 @@ crust_status_t generate_work_report(size_t *report_len)
     // Get old hash and size
     Workload *wl = Workload::get_instance();
     json::JSON old_files_json = json::Array();
-    for (int i = 0; i < wl->files_json.size(); i++)
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (uint32_t i = 0; i < wl->checked_files.size(); i++)
     {
         uint8_t *p_meta = NULL;
         size_t meta_len = 0;
-        crust_status = persist_get((wl->files_json[i]["hash"].ToString()+"_meta").c_str(), &p_meta, &meta_len);
+        crust_status = persist_get((wl->checked_files[i].first+"_meta").c_str(), &p_meta, &meta_len);
         if (CRUST_SUCCESS != crust_status || p_meta == NULL)
         {
+            sgx_thread_mutex_unlock(&g_checked_files_mutex);
             return CRUST_STORAGE_UNSEAL_FILE_FAILED;
         }
         std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
@@ -40,6 +44,7 @@ crust_status_t generate_work_report(size_t *report_len)
         old_files_json[i]["hash"] = meta_json["old_hash"].ToString();
         old_files_json[i]["size"] = meta_json["size"].ToInt();
     }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
     json::JSON report_json;
     char *p_hex_pub_key = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));

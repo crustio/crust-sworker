@@ -2,6 +2,8 @@
 
 extern ecc_key_pair id_key_pair;
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_new_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 Workload *Workload::workload = NULL;
 
@@ -50,10 +52,10 @@ void Workload::show(void)
     log_debug("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
 
     log_debug("Meaningful work details is: \n");
-    for (int i = 0; i < this->files_json.size(); i++)
+    for (uint32_t i = 0; i < this->checked_files.size(); i++)
     {
         log_debug("Meaningful root hash:%s -> size:%ld\n",
-                  this->files_json[i]["hash"].ToString().c_str(), this->files_json[i]["size"].ToInt());
+                  this->checked_files[i].first.c_str(), this->checked_files[i].second);
     }
 }
 
@@ -179,6 +181,8 @@ crust_status_t Workload::restore_workload(json::JSON g_hashs)
 
 bool Workload::reset_meaningful_data()
 {
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+
     // Get metadata
     json::JSON meta_json;
     id_get_metadata(meta_json);
@@ -186,20 +190,27 @@ bool Workload::reset_meaningful_data()
     // Reset meaningful files
     if (!meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
     {
-        this->files_json = json::Array();
+        this->checked_files.clear();
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return true;
     }
 
     json::JSON meaningful_files = meta_json[MEANINGFUL_FILE_DB_TAG];
     if (meaningful_files.JSONType() == json::JSON::Class::Array)
     {
-        this->files_json = meaningful_files;
+        for (int i = 0; i < meaningful_files.size(); i++)
+        {
+            this->checked_files.push_back(make_pair(meaningful_files[i]["hash"].ToString(), meaningful_files[i]["size"].ToInt()));
+        }
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return true;
     }
 
     log_warn("Workload: invalid meaningful roots! Set meaningful files to empty.\n");
 
-    this->files_json = json::Array();
+    this->checked_files.clear();
+
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
     return true;
 }

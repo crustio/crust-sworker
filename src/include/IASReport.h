@@ -1,7 +1,7 @@
 #ifndef _CRUST_IASREPORTE_H_
 #define _CRUST_IASREPORTE_H_
 
-#define REPORT_DATA_SIZE	    64
+#define ENCLAVE_PUB_KEY_SIZE	    64
 #define ACCOUNT_SIZE	        48
 #define SIGNER_ID_SIZE          (SGX_ECP256_KEY_SIZE*2)
 
@@ -13,8 +13,8 @@
 
 typedef struct _entry_network_signature
 {
-    uint8_t pub_key[REPORT_DATA_SIZE];
-    uint8_t validator_pub_key[REPORT_DATA_SIZE];
+    uint8_t pub_key[ENCLAVE_PUB_KEY_SIZE];
+    uint8_t validator_pub_key[ENCLAVE_PUB_KEY_SIZE];
     sgx_ec256_signature_t signature;
 } entry_network_signature;
 

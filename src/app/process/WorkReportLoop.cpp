@@ -27,6 +27,12 @@ void *work_report_loop(void *)
     while (true)
     {
         crust::BlockHeader *block_header = p_chain->get_block_header();
+        if (block_header == NULL)
+        {
+            p_log->warn("Cannot get block header!\n");
+            sleep(1);
+            continue;
+        }
         if (block_header->number % REPORT_BLOCK_HEIGHT_BASE == 0)
         {
             size_t wait_time = get_random_wait_time();
