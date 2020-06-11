@@ -149,15 +149,4 @@ size_t srd_decrease_empty(const char *path, size_t change)
     }
 
     return change_num;
-    /*
-    Workload *p_workload = Workload::get_instance();
-    sgx_thread_mutex_lock(&g_workload_mutex);
-
-    for (auto it = p_workload->empty_g_hashs.begin(); it != p_workload->empty_g_hashs.end(); it++)
-    {
-        ocall_delete_folder_or_file(&crust_status, get_g_path_with_hash(path, *it).c_str());
-    }
-
-    sgx_thread_mutex_unlock(&g_workload_mutex);
-    */
 }
