@@ -7,11 +7,15 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <vector>
+#include <unordered_map>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <errno.h>
 #include <sys/types.h>
+#include "Config.h"
+#include "DataBase.h"
+#include "Json.hpp"
 
 std::vector<std::string> get_files_under_path(std::string path);
 std::vector<std::string> get_folders_under_path(std::string path);
@@ -20,5 +24,10 @@ int rm(std::string path);
 size_t get_free_space_under_directory(std::string path);
 bool create_directory(std::string path);
 std::vector<std::string> get_sub_folders_and_files(const char *path);
+size_t get_free_space_under_dir_k(std::string path);
+size_t get_free_space_under_dir_m(std::string path);
+size_t get_free_space_under_dir_g(std::string path);
+json::JSON get_increase_srd_info(size_t &true_srd_capacity);
+json::JSON get_decrease_srd_info(size_t &true_srd_capacity);
 
 #endif /* !_CRUST_FILE_UTILS_H_ */

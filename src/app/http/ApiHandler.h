@@ -23,6 +23,7 @@
 #include "sgx_tseal.h"
 #include "Config.h"
 #include "Common.h"
+#include "DataBase.h"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -69,7 +70,6 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
-extern std::map<std::string, std::string> sealed_tree_map;
 // Used to show validation status
 const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
 bool in_changing_empty = false;

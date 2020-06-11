@@ -29,6 +29,7 @@ std::unordered_map<std::string, int> g_task_priority_m = {
     {"Ecall_get_report", 0},
     {"Ecall_store_quote", 0},
     {"Ecall_verify_iasreport", 0},
+    {"Ecall_get_signed_order_report", 0},
     {"Ecall_srd_increase_empty", 1},
     {"Ecall_srd_decrease_empty", 1},
     {"Ecall_seal_file", 2},
@@ -214,7 +215,7 @@ sgx_status_t Ecall_srd_decrease_empty(sgx_enclave_id_t eid, size_t *size, const 
  * @description: A wrapper function, ecall main loop
  * @param empty_path -> the empty directory path
  */
-sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid, const char *empty_path)
+sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -222,7 +223,7 @@ sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid, const char *empty_path)
         return ret;
     }
 
-    ret = ecall_main_loop(eid, empty_path);
+    ret = ecall_main_loop(eid);
 
     free_enclave(__FUNCTION__);
 
@@ -555,4 +556,13 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
     free_enclave(__FUNCTION__);
 
     return ret;
+}
+
+/**
+ * @description: Get signed order report
+ * @return: Get status
+ * */
+sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status)
+{
+    return ecall_get_signed_order_report(eid, status);
 }

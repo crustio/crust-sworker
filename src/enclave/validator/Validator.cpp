@@ -11,9 +11,8 @@ long long g_validate_timeout = 0;
 
 /**
  * @description: validate empty disk
- * @param path -> the empty disk path
  */
-void validate_empty_disk(const char *path)
+void validate_empty_disk()
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
@@ -58,7 +57,21 @@ void validate_empty_disk(const char *path)
         }
         sgx_thread_mutex_unlock(&g_workload_mutex);
 
-        g_path = get_g_path_with_hash(path, g_hash);
+        // Get g_hash corresponding path
+        uint8_t *path = NULL;
+        size_t path_len = 0;
+        char *p_hex_hash = hexstring_safe(g_hash, HASH_LENGTH);
+        if (CRUST_SUCCESS != persist_get(std::string(p_hex_hash, HASH_LENGTH * 2), &path, &path_len))
+        {
+            log_err("Get g_hash:%s path failed!\n", hexstring(g_hash, HASH_LENGTH));
+            continue;
+        }
+        if (p_hex_hash != NULL)
+        {
+            free(p_hex_hash);
+        }
+        path[path_len] = 0;
+        g_path = get_g_path_with_hash(reinterpret_cast<const char *>(path), g_hash);
 
         // Get M hashs
         ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
@@ -177,17 +190,28 @@ void validate_meaningful_file()
     sgx_thread_mutex_lock(&g_new_files_mutex);
     if (wl->new_files.size() > 0)
     {
-        auto new_it = wl->new_files.begin();
         if (wl->checked_files.size() > 0)
         {
-            // If the first new file has been added, pointer moves forward
-            if (new_it->first.compare(wl->checked_files.back().first) == 0)
+            // If file has been existed in checked_files, don't insert it into checked_files
+            std::unordered_set<std::string> exist_s;
+            for (int i = wl->checked_files.size() - 1, j = 0; i >= 0 && j < ENC_MAX_THREAD_NUM; i--, j++)
             {
-                new_it++;
+                exist_s.insert(wl->checked_files[i].first);
+            }
+            // Judge if new file has been existed in checked_files
+            for (int i = wl->new_files.size() - 1, j = 0; i >= 0 && j < ENC_MAX_THREAD_NUM; i--, j++)
+            {
+                if (exist_s.find(wl->new_files[i].first) == exist_s.end())
+                {
+                    wl->checked_files.push_back(wl->new_files[i]);
+                }
             }
         }
-        // Insert new files to checked files
-        wl->checked_files.insert(wl->checked_files.end(), new_it, wl->new_files.end());
+        else
+        {
+            // Insert new files to checked files
+            wl->checked_files.insert(wl->checked_files.end(), wl->new_files.begin(), wl->new_files.end());
+        }
         // Clear new files
         wl->new_files.clear();
     }
@@ -231,7 +255,7 @@ void validate_meaningful_file()
         std::string root_hash = wl->checked_files[file_idx].first;
         log_debug("Validating file root hash:%s\n", root_hash.c_str());
         // Get file total block number
-        crust_status = persist_get((root_hash + "_meta").c_str(), &p_data, &data_len);
+        crust_status = persist_get((root_hash + "_meta"), &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
@@ -242,7 +266,7 @@ void validate_meaningful_file()
         size_t file_block_num = tree_meta_json["block_num"].ToInt();
         free(p_data);
         // Get tree string
-        crust_status = persist_get(root_hash.c_str(), &p_data, &data_len);
+        crust_status = persist_get(root_hash, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
@@ -261,7 +285,7 @@ void validate_meaningful_file()
         std::string etag = "\",\"size\"";
         // Get to be checked block index
         std::set<size_t> block_idx_s;
-        while (block_idx_s.size() < MAX_VALIDATE_BLOCK_NUM && block_idx_s.size() <= file_block_num)
+        while (block_idx_s.size() < MAX_VALIDATE_BLOCK_NUM && block_idx_s.size() < file_block_num)
         {
             size_t tmp_idx = 0;
             do
@@ -302,8 +326,10 @@ void validate_meaningful_file()
             if (CRUST_SUCCESS != crust_status)
             {
                 log_err("Get file block:%ld failed!\n", check_block_idx);
-                none_exist_indexes.push_back(file_idx);
-                break;
+                wl->checked_files.clear();
+                ocall_validate_close();
+                sgx_thread_mutex_unlock(&g_checked_files_mutex);
+                return;
             }
             // Validate hash
             sgx_sha256_hash_t got_hash;

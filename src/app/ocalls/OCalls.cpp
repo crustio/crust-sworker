@@ -3,6 +3,7 @@
 #include "FileUtils.h"
 #include "Config.h"
 #include "BufferPool.h"
+#include "tbb/concurrent_unordered_map.h"
 #include <exception>
 
 crust::Log *p_log = crust::Log::get_instance();
@@ -21,7 +22,9 @@ WebsocketClient *wssclient = NULL;
 // Buffer pool
 BufferPool *p_buf_pool = BufferPool::get_instance();
 // Used to temporarily store sealed serialized MerkleTree
-std::map<std::string, std::string> sealed_tree_map;
+tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
+// Store order report
+std::string g_order_report_str;
 
 
 /**
@@ -476,7 +479,7 @@ crust_status_t ocall_validate_init()
     backup_json["backup"] = p_config->chain_backup;
     if (! wssclient->websocket_request(backup_json.dump(), res))
     {
-        p_log->err("Validate failed! Send backup to server failed!\n");
+        p_log->err("Validate failed! Send backup to server failed! Error: %s\n", res.c_str());
         return CRUST_VALIDATE_WSS_REQUEST_FAILED;
     }
     json::JSON res_json = json::JSON::Load(res);
@@ -518,6 +521,7 @@ crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_h
     std::string res;
     if (! wssclient->websocket_request(req_json.dump(), res))
     {
+        p_log->err("Validate failed! Send backup to server failed! Error: %s\n", res.c_str());
         return CRUST_VALIDATE_WSS_REQUEST_FAILED;
     }
     size_t data_size = res.size();
@@ -557,4 +561,14 @@ void ocall_validate_close()
         _sealed_data_buf = NULL;
         _sealed_data_size = 0;
     }
+}
+
+/**
+ * @description: Store order report from enclave
+ * @param p_order -> Poniter to order buffer
+ * @param order_size -> Order buffer size
+ * */
+void ocall_store_order_report(const char *p_order, size_t order_size)
+{
+    g_order_report_str = std::string(p_order, order_size);
 }

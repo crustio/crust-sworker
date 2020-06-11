@@ -96,9 +96,9 @@ public:
     template <typename Container>
     class JSONWrapper
     {
-        Container *object;
 
     public:
+        Container *object;
         JSONWrapper(Container *val) : object(val) {}
         JSONWrapper(std::nullptr_t) : object(nullptr) {}
 
@@ -848,6 +848,7 @@ JSON parse_next(const string &str, size_t &offset)
 
 JSON JSON::Load(const string &str)
 {
+    if (str.size() == 0) return json::JSON();
     size_t offset = 0;
     return std::move(parse_next(str, offset));
 }

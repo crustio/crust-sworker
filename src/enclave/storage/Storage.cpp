@@ -79,7 +79,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     // Store new tree structure
-    crust_status = persist_set(new_root_hash_str.c_str(), (const uint8_t*)new_tree.c_str(), new_tree.size());
+    crust_status = persist_set(new_root_hash_str, (const uint8_t*)new_tree.c_str(), new_tree.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -91,7 +91,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     tree_meta_json["size"] = node_size;
     tree_meta_json["block_num"] = block_num;
     std::string tree_meta_str = tree_meta_json.dump();
-    crust_status = persist_set((new_root_hash_str+"_meta").c_str(), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
+    crust_status = persist_set((new_root_hash_str+"_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -100,9 +100,9 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     // Add new meaningful file to workload
     // TODO: when tee finish sealing file, karst persisting this sealed file will take some time.
     // So adding new meaningful file to check queue should not happen here. This sentence just used to test
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    Workload::get_instance()->new_files.push_back(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
+    Workload::get_instance()->add_new_file(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
+
+    Workload::get_instance()->add_order_file(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
 
 
     return crust_status;
@@ -275,7 +275,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
     std::string new_root_hash_str = dir.substr(dir.find_last_of("/") + 1, dir.size());
     uint8_t *p_meta = NULL;
     size_t meta_len;
-    crust_status = persist_get((new_root_hash_str+"_meta").c_str(), &p_meta, &meta_len);
+    crust_status = persist_get((new_root_hash_str+"_meta"), &p_meta, &meta_len);
     if (CRUST_SUCCESS != crust_status || p_meta == NULL)
     {
         return CRUST_STORAGE_UNSEAL_FILE_FAILED;

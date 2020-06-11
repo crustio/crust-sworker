@@ -1,6 +1,7 @@
 #include "Process.h"
 #include "DataBase.h"
 #include "WebServer.h"
+#include "tbb/concurrent_unordered_map.h"
 
 #define RECEIVE_PID_RETRY 30
 
@@ -98,8 +99,8 @@ bool initialize_enclave()
  */
 bool initialize_components(void)
 {
-    // Create base path
-    create_directory(p_config->empty_path);
+    // Create path
+    create_directory(p_config->base_path);
 
     // Init crust
     if (crust::Chain::get_instance() == NULL)
@@ -137,16 +138,42 @@ void *do_srd_empty_disk(void *)
     in_changing_empty = true;
     change_empty_mutex.unlock();
 
-    size_t free_space = get_free_space_under_directory(p_config->empty_path) / 1024;
-    p_log->info("Free space is %luG disk in '%s'\n", free_space, p_config->empty_path.c_str());
-    size_t true_srd_capacity = free_space <= 10 ? 0 : std::min(free_space - 10, p_config->empty_capacity);
-    p_log->info("Start sealing %luG empty files (thread number: %d) ...\n", true_srd_capacity, p_config->srd_thread_num);
-    // Use omp parallel to seal empty disk, the number of threads is equal to the number of CPU cores
-    #pragma omp parallel for num_threads(p_config->srd_thread_num)
-    for (size_t i = 0; i < true_srd_capacity; i++)
+    // Get disk info
+    size_t true_srd_capacity = p_config->empty_capacity;
+    json::JSON disk_info_json = get_increase_srd_info(true_srd_capacity);
+    // Print disk info
+    auto disk_range = disk_info_json.ObjectRange();
+    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
     {
-        Ecall_srd_increase_empty(global_eid, p_config->empty_path.c_str());
+        p_log->info("Available space is %luG disk in '%s'\n", 
+                it->second["available"].ToInt(), it->first.c_str());
     }
+    p_log->info("Start sealing %luG empty files (thread number: %d) ...\n", 
+            true_srd_capacity, p_config->srd_thread_num);
+    std::vector<std::string> srd_paths;
+    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
+    {
+        for (int i = 0; i < it->second["increased"].ToInt(); i++)
+        {
+            srd_paths.push_back(it->first);
+        }
+    }
+    // Use omp parallel to seal empty disk, the number of threads is equal to the number of CPU cores
+    tbb::concurrent_unordered_map<std::string, size_t> cal_m;
+    #pragma omp parallel for num_threads(p_config->srd_thread_num)
+    for (size_t i = 0; i < srd_paths.size(); i++)
+    {
+        std::string path = srd_paths[i];
+        Ecall_srd_increase_empty(global_eid, path.c_str());
+        cal_m[path] += 1;
+    }
+    json::JSON assigned_srd_json;
+    for (auto it : cal_m)
+    {
+        assigned_srd_json[it.first] = it.second;
+    }
+    crust::DataBase *db = crust::DataBase::get_instance();
+    db->set("srd_info", assigned_srd_json.dump());
 
     change_empty_mutex.lock();
     in_changing_empty = false;
@@ -283,7 +310,7 @@ int process_run()
     }
 
     // Main validate loop
-    Ecall_main_loop(global_eid, p_config->empty_path.c_str());
+    Ecall_main_loop(global_eid);
 
 cleanup:
     // End and release

@@ -41,6 +41,15 @@ Config::Config(std::string path)
 
     // Base configurations
     this->base_path = config_value["base_path"].ToString();
+    if (config_value.hasKey("srd_paths") 
+            && config_value["srd_paths"].JSONType() == json::JSON::Class::Array)
+    {
+        this->srd_paths = config_value["srd_paths"];
+    }
+    else
+    {
+        this->srd_paths = json::Array();
+    }
     this->empty_path = this->base_path + "/empty_path";
     this->db_path = this->base_path + "/db";
     this->empty_capacity = config_value["empty_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["empty_capacity"].ToInt();
@@ -86,6 +95,10 @@ void Config::show(void)
 {
     printf("Config:\n{\n");
     printf("    'base path' : '%s',\n", this->base_path.c_str());
+    for (int i = 0; i < this->srd_paths.size(); i++)
+    {
+        printf("    'srd path %d' : '%s',\n", i, this->srd_paths[i].ToString().c_str());
+    }
     printf("    'empty path' : '%s',\n", this->empty_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'empty capacity' : %lu,\n", this->empty_capacity);

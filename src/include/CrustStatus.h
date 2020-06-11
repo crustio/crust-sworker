@@ -82,6 +82,9 @@ typedef enum _crust_status_t
     // Validation related
     CRUST_VALIDATE_INIT_WSS_FAILED = CRUST_MK_ERROR(0x0901),
     CRUST_VALIDATE_WSS_REQUEST_FAILED = CRUST_MK_ERROR(0x0902),
+
+    // Report related
+    CRUST_REPORT_NO_ORDER_FILE = CRUST_MK_ERROR(0x1001),
 } crust_status_t;
 
 #endif /* !_CRUST_CRUST_STATUS_H_ */

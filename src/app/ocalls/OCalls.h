@@ -52,6 +52,8 @@ extern "C"
     crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash, uint8_t **p_sealed_data, size_t *sealed_data_size);
     void ocall_validate_close();
 
+    void ocall_store_order_report(const char *p_order, size_t order_size);
+
 #if defined(__cplusplus)
 }
 #endif

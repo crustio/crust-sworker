@@ -1,6 +1,7 @@
 #include "WorkReportLoop.h"
 
 extern sgx_enclave_id_t global_eid;
+extern std::string g_order_report_str;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
@@ -23,17 +24,38 @@ void *work_report_loop(void *)
     sgx_ec256_signature_t ecc_signature;
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
+    int order_report_interval = 0;
 
     while (true)
     {
+        // ----- Report order report ----- //
+        if (3 == order_report_interval)
+        {
+            if(SGX_SUCCESS != Ecall_get_signed_order_report(global_eid, &crust_status)
+                || CRUST_SUCCESS != crust_status)
+            {
+                if (CRUST_REPORT_NO_ORDER_FILE != crust_status)
+                {
+                    p_log->err("Get signed order report failed! Error code: %x\n", crust_status);
+                }
+            }
+            else
+            {
+                p_log->info("Get order report:%s\n", g_order_report_str.c_str());
+            }
+            g_order_report_str = "";
+            order_report_interval = 0;
+        }
+        order_report_interval++;
+
+        // ----- Report work report ----- //
         crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header == NULL)
         {
             p_log->warn("Cannot get block header!\n");
-            sleep(1);
-            continue;
+            goto loop;
         }
-        if (block_header->number % REPORT_BLOCK_HEIGHT_BASE == 0)
+        if (0 == block_header->number % REPORT_BLOCK_HEIGHT_BASE)
         {
             size_t wait_time = get_random_wait_time();
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
@@ -46,7 +68,7 @@ void *work_report_loop(void *)
             if (Ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
             {
                 p_log->err("Generate validation report failed! Error code: %x\n", crust_status);
-                continue;
+                goto loop;
             }
 
             // Get signed validation report
@@ -59,7 +81,7 @@ void *work_report_loop(void *)
             }
             else
             {
-                if (crust_status == CRUST_SUCCESS)
+                if (CRUST_SUCCESS == crust_status)
                 {
                     // Send signed validation report to crust chain
                     json::JSON work_json = json::JSON::Load(std::string(report));
@@ -97,10 +119,8 @@ void *work_report_loop(void *)
             }
             free(report);
         }
-        else
-        {
-            p_log->debug("Block height: %lu is not enough!\n", block_header->number);
-            sleep(BLOCK_INTERVAL / 2);
-        }
+
+    loop:
+        sleep(BLOCK_INTERVAL / 2);
     }
 }

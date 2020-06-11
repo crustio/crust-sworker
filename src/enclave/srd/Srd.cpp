@@ -43,6 +43,14 @@ void srd_increase_empty(const char *path)
     sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
     Workload *p_workload = Workload::get_instance();
+    std::string path_str(path);
+
+    // Get g_hashs under path
+    uint8_t *p_g_hashs = NULL;
+    size_t g_hashs_len = 0;
+    persist_get(path_str, &p_g_hashs, &g_hashs_len);
+    json::JSON path_2_g_hashs_j;
+    path_2_g_hashs_j = json::JSON::Load(std::string(reinterpret_cast<char*>(p_g_hashs), g_hashs_len));
 
     // Generate base random data
     sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
@@ -93,6 +101,23 @@ void srd_increase_empty(const char *path)
         p_hash[i] = g_out_hash256[i];
     }
     p_workload->empty_g_hashs.push_back(p_hash);
+    // Persist g_hash's corresponding path
+    char *p_hex_hash = hexstring_safe(p_hash, HASH_LENGTH);
+    std::string hex_hash_str(p_hex_hash, HASH_LENGTH * 2);
+    path_2_g_hashs_j[path_str].append(std::string(reinterpret_cast<char*>(p_hash), HASH_LENGTH));
+    std::string path_2_g_hashs_str = path_2_g_hashs_j.dump();
+    if (CRUST_SUCCESS != persist_set(path_str, reinterpret_cast<const uint8_t *>(path_2_g_hashs_str.c_str()), path_2_g_hashs_str.size()))
+    {
+        log_err("Store path:%s to g hashs:%s map failed!\n", path, p_hex_hash);
+    }
+    if (CRUST_SUCCESS != persist_add(hex_hash_str, reinterpret_cast<const uint8_t *>(path), strlen(path)))
+    {
+        log_err("Store g_hash:%s failed!\n", p_hex_hash);
+    }
+    if (p_hex_hash != NULL)
+    {
+        free(p_hex_hash);
+    }
     log_info("Seal random data -> %s, %luG success\n", unsigned_char_array_to_hex_string(g_out_hash256, HASH_LENGTH).c_str(), p_workload->empty_g_hashs.size());
     sgx_thread_mutex_unlock(&g_workload_mutex);
 }
@@ -105,17 +130,34 @@ void srd_increase_empty(const char *path)
 size_t srd_decrease_empty(const char *path, size_t change)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
+    size_t change_num = 0;
+    uint8_t *p_g_hashs = NULL;
+    size_t g_hashs_len = 0;
+    if (CRUST_SUCCESS != persist_get(std::string(path), &p_g_hashs, &g_hashs_len))
+    {
+        log_err("Get path:%s to g hashs map failed!\n", path);
+        return change_num;
+    }
+    json::JSON path_2_g_hashs_j = json::JSON::Load(std::string(reinterpret_cast<char*>(p_g_hashs), g_hashs_len));
+    change = std::min(change, (size_t)path_2_g_hashs_j.size());
+    change_num = change;
+    auto p_range = path_2_g_hashs_j.ArrayRange();
+    for (auto it = p_range.begin(); it != p_range.end() && change > 0; it++, change--)
+    {
+        p_range.object->erase(it);
+        ocall_delete_folder_or_file(&crust_status, get_g_path_with_hash(path, reinterpret_cast<const uint8_t *>(it->ToString().c_str())).c_str());
+    }
+
+    return change_num;
+    /*
     Workload *p_workload = Workload::get_instance();
     sgx_thread_mutex_lock(&g_workload_mutex);
-    size_t decrease_num = 0;
 
-    for (auto it = p_workload->empty_g_hashs.begin(); (decrease_num < change) && it != p_workload->empty_g_hashs.end(); it++)
+    for (auto it = p_workload->empty_g_hashs.begin(); it != p_workload->empty_g_hashs.end(); it++)
     {
         ocall_delete_folder_or_file(&crust_status, get_g_path_with_hash(path, *it).c_str());
-        decrease_num++;
     }
 
     sgx_thread_mutex_unlock(&g_workload_mutex);
-
-    return decrease_num;
+    */
 }
