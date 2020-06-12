@@ -22,6 +22,7 @@ public:
     std::list<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
     std::vector<std::pair<std::string, size_t>> checked_files;
     std::vector<std::pair<std::string, size_t>> new_files;
+    std::vector<std::pair<std::string, size_t>> order_files;
     
     static Workload *workload;
     static Workload *get_instance();
@@ -32,6 +33,9 @@ public:
     crust_status_t generate_empty_info(sgx_sha256_hash_t *empty_root_out, size_t *empty_workload_out);
     void clean_data();
     bool reset_meaningful_data();
+
+    void add_new_file(std::pair<std::string, size_t> file);
+    void add_order_file(std::pair<std::string, size_t> file);
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */

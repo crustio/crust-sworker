@@ -4,6 +4,7 @@ extern ecc_key_pair id_key_pair;
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_new_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_order_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 Workload *Workload::workload = NULL;
 
@@ -213,4 +214,26 @@ bool Workload::reset_meaningful_data()
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
     return true;
+}
+
+/**
+ * @description: Add new file to new_files
+ * @param file -> A pair of file's hash and file's size
+ * */
+void Workload::add_new_file(std::pair<std::string, size_t> file)
+{
+    sgx_thread_mutex_lock(&g_new_files_mutex);
+    this->new_files.push_back(file);
+    sgx_thread_mutex_unlock(&g_new_files_mutex);
+}
+
+/**
+ * @description: Add new order file to order_files
+ * @param file -> A pair of file's hash and file's size
+ * */
+void Workload::add_order_file(std::pair<std::string, size_t> file)
+{
+    sgx_thread_mutex_lock(&g_order_files_mutex);
+    this->order_files.push_back(file);
+    sgx_thread_mutex_unlock(&g_order_files_mutex);
 }

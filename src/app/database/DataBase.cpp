@@ -61,7 +61,7 @@ crust_status_t DataBase::add(std::string key, std::string value)
     s = this->db->Put(this->write_opt, key, value);
     if (!s.ok())
     {
-        p_log->warn("Insert record to DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->debug("Insert record to DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_ADD_FAILED;
     }
 
@@ -80,7 +80,7 @@ crust_status_t DataBase::del(std::string key)
     leveldb::Status s = this->db->Write(this->write_opt, &batch);
     if (!s.ok())
     {
-        p_log->warn("Delete record from DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->debug("Delete record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_DEL_FAILED;
     }
 
@@ -98,7 +98,7 @@ crust_status_t DataBase::set(std::string key, std::string value)
     leveldb::Status s = this->db->Put(this->write_opt, key, value);
     if (!s.ok())
     {
-        p_log->warn("Update record from DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->debug("Update record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_SET_FAILED;
     }
 
@@ -116,7 +116,7 @@ crust_status_t DataBase::get(std::string key, std::string &value)
     leveldb::Status s = this->db->Get(leveldb::ReadOptions(), key, &value);
     if (!s.ok())
     {
-        p_log->warn("Get record from DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->debug("Get record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_GET_FAILED;
     }
 

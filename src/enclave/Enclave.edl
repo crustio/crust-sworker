@@ -16,7 +16,7 @@ enclave {
         public void ecall_srd_increase_empty([in, string] const char* path);
         public size_t ecall_srd_decrease_empty([in, string] const char* path, size_t change);  
 
-        public void ecall_main_loop([in, string] const char* empty_path);
+        public void ecall_main_loop();
         public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
         public crust_status_t ecall_set_chain_account_id([in, size=len] const char *account_id, size_t len);
         public validation_status_t ecall_return_validation_status(void);
@@ -35,6 +35,8 @@ enclave {
 
         public crust_status_t ecall_seal_file([in, size=tree_len] const char *p_tree, size_t tree_len, [in, size=path_len] const char *path, [out, size=path_len] char *p_new_path , size_t path_len);
         public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
+
+        public crust_status_t ecall_get_signed_order_report();
     };
 
     untrusted {
@@ -65,5 +67,7 @@ enclave {
         crust_status_t ocall_validate_init();
         crust_status_t ocall_validate_get_file([in, string] const char *root_hash, [in, string] const char *leaf_hash, [out] uint8_t **p_sealed_data, [out] size_t *sealed_data_size);
         void ocall_validate_close();
+
+        void ocall_store_order_report([in, size=order_size] const char *p_order, size_t order_size);
     };
 };

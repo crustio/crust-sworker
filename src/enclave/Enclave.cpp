@@ -31,9 +31,8 @@ size_t ecall_srd_decrease_empty(const char* path, size_t change)
 
 /**
  * @description: ecall main loop
- * @param empty_path -> the empty directory path
  */
-void ecall_main_loop(const char *empty_path)
+void ecall_main_loop()
 {
     while (true)
     {
@@ -47,7 +46,7 @@ void ecall_main_loop(const char *empty_path)
         // ----- Empty ----- //
         log_debug("----- Empty Validation -----\n");
         validation_status = VALIDATE_EMPTY;
-        validate_empty_disk(empty_path);
+        validate_empty_disk();
 
         // ----- Show result ----- //
         log_debug("----- Validation Waiting -----\n");
@@ -242,4 +241,13 @@ crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *
 crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path, uint32_t /*path_len*/)
 {
     return storage_unseal_file(files, files_num, p_dir, p_new_path);
+}
+
+/**
+ * @description: Get signed order report
+ * @return: Get status
+ * */
+crust_status_t ecall_get_signed_order_report()
+{
+    return get_signed_order_report();
 }

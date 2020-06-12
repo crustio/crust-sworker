@@ -1,5 +1,6 @@
 {
     "base_path" : "/opt/crust/crust-tee/tee_base_path",
+    "srd_paths" : ["/opt/crust/crust-tee/tee_base_path/test1", "/opt/crust/crust-tee/tee_base_path/test2"],
     "empty_capacity" : 4,
     
     "api_base_url": "http://0.0.0.0:12222/api/v0",

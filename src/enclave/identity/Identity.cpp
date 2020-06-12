@@ -353,15 +353,9 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
     vector<string> response(IASReport, IASReport + size);
 
-    uint8_t *chain_account_id = hex_string_to_bytes(response[3].c_str(), response[3].length());
-    if(chain_account_id == NULL)
-    {
-        return CRUST_GET_ACCOUNT_ID_BYTE_FAILED;
-    }
-
-    size_t chain_account_id_size = response[3].length() / 2;
-    uint8_t *sigbuf, *p_sig = NULL;
-    size_t siglen = 0;
+    string chain_account_id = response[3];
+    uint8_t *org_data, *p_org_data = NULL;
+    size_t org_data_len = 0;
 
 
     // ----- Verify IAS signature ----- //
@@ -533,20 +527,20 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     }
 
     // Generate identity data for sig
-    siglen = certchain.size() + ias_sig.size() + isv_body.size() + chain_account_id_size;
-    sigbuf = (uint8_t *)malloc(siglen);
-    memset(sigbuf, 0, siglen);
-    p_sig = sigbuf;
+    org_data_len = certchain.size() + ias_sig.size() + isv_body.size() + chain_account_id.size();
+    org_data = (uint8_t *)malloc(org_data_len);
+    memset(org_data, 0, org_data_len);
+    p_org_data = org_data;
 
-    memcpy(sigbuf, certchain.c_str(), certchain.size());
-    sigbuf += certchain.size();
-    memcpy(sigbuf, ias_sig.c_str(), ias_sig.size());
-    sigbuf += ias_sig.size();
-    memcpy(sigbuf, isv_body.c_str(), isv_body.size());
-    sigbuf += isv_body.size();
-    memcpy(sigbuf, chain_account_id, chain_account_id_size);
+    memcpy(org_data, certchain.c_str(), certchain.size());
+    org_data += certchain.size();
+    memcpy(org_data, ias_sig.c_str(), ias_sig.size());
+    org_data += ias_sig.size();
+    memcpy(org_data, isv_body.c_str(), isv_body.size());
+    org_data += isv_body.size();
+    memcpy(org_data, chain_account_id.c_str(), chain_account_id.size());
 
-    sgx_status = sgx_ecdsa_sign(p_sig, (uint32_t)siglen,
+    sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
             &id_key_pair.pri_key, &ecc_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
@@ -569,7 +563,6 @@ cleanup:
         X509_free(certvec[i]);
     }
 
-    free(chain_account_id);
     free(sig);
     free(iasQuote);
     if (ecc_state != NULL)
@@ -577,8 +570,8 @@ cleanup:
         sgx_ecc256_close_context(ecc_state);
     }
 
-    if (p_sig != NULL)
-        free(p_sig);
+    if (p_org_data != NULL)
+        free(p_org_data);
 
     if (p_decode_quote_body != NULL)
         free(p_decode_quote_body);

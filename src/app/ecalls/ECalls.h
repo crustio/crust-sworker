@@ -36,7 +36,7 @@ extern "C"
 
 sgx_status_t Ecall_srd_increase_empty(sgx_enclave_id_t eid, const char* path);
 sgx_status_t Ecall_srd_decrease_empty(sgx_enclave_id_t eid, size_t *size, const char* path, size_t change);
-sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid, const char *empty_path);
+sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);
 sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status);
 sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len);
 sgx_status_t Ecall_set_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len);
@@ -64,6 +64,8 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
 
 sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, char **files, size_t files_num, const char *p_dir,
         char *p_new_path, uint32_t path_len);
+
+sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status);
 
 #if defined(__cplusplus)
 }

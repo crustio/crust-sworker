@@ -258,7 +258,6 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
             identity_json["account_id"] = p_config->chain_account_id;
             identity_json["sig"] = std::string(p_hex_sig, sizeof(sgx_ec256_signature_t) * 2);
             std::string jsonstr = identity_json.dump();
-            p_log->info("Entry identity:%s\n", jsonstr.c_str());
             // Free temp buffer
             if (p_hex_sig != NULL)
             {
