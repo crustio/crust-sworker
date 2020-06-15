@@ -69,8 +69,8 @@ crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_da
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len);
 crust_status_t id_set_chain_account_id(const char *account_id, size_t len);
 ecc_key_pair id_get_key_pair();
-size_t id_get_cwr_block_height();
-void id_set_cwr_block_height(size_t block_height);
+size_t id_get_report_slot();
+void id_set_report_slot(size_t new_report_slot);
 
 void id_get_metadata(json::JSON &meta_json, bool locked = true);
 /**

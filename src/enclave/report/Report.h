@@ -16,6 +16,8 @@
 #include "Identity.h"
 #include "EUtils.h"
 
+# define ERA_LENGTH 300
+
 crust_status_t generate_work_report(size_t *report_len);
 crust_status_t get_work_report(char *report, size_t report_len);
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height,

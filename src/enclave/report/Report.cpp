@@ -88,11 +88,11 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         sgx_ec256_signature_t *p_signature, char *report, size_t /*report_len*/)
 {
     // Judge whether block height is expired
-    if (block_height <= id_get_cwr_block_height())
+    if (block_height == 0 || (block_height - 1)/ERA_LENGTH < id_get_report_slot())
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
-    id_set_cwr_block_height(block_height);
+    id_set_report_slot((block_height - 1)/ERA_LENGTH + 1);
 
     // ----- Create signature data ----- //
     crust_status_t crust_status = CRUST_SUCCESS;
