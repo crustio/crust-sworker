@@ -9,9 +9,9 @@ using namespace std;
 string g_chain_account_id;
 // Current node public and private key pair
 ecc_key_pair id_key_pair;
-// Can only se crust account id once
+// Can only set crust account id once
 bool g_is_set_account_id = false;
-// Can only se crust account id once
+// Can only set crust account id once
 bool g_is_set_id_key_pair = false;
 // TODO:Indicate if entry network successful
 bool g_is_entry_network = false;
@@ -19,6 +19,8 @@ bool g_is_entry_network = false;
 sgx_measurement_t current_mr_enclave;
 // Used to check current block head out-of-date
 size_t report_slot = 0;
+// Used to indicate whether it is the first report after restart
+bool just_after_restart = 0;
 // Map used to store off-chain request
 map<vector<uint8_t>, vector<uint8_t>> accid_pubkey_map;
 // Protect metadata 
@@ -953,6 +955,7 @@ crust_status_t id_restore_metadata()
 
     g_is_set_id_key_pair = true;
     g_is_set_account_id = true;
+    just_after_restart = true; 
 
     return CRUST_SUCCESS;
 }
@@ -1024,4 +1027,22 @@ void id_set_report_slot(size_t new_report_slot)
 {
     report_slot = new_report_slot;
     id_metadata_set_or_append("report_slot", std::to_string(report_slot));
+}
+
+/**
+ * @description: Determine if it just restarted 
+ * @return: true or false
+ * */
+bool id_just_after_restart()
+{
+    return just_after_restart;
+}
+
+/**
+ * @description: set just_after_restart
+ * @param: true or false
+ * */
+void id_set_just_after_restart(bool in)
+{
+    just_after_restart = in;
 }

@@ -134,7 +134,8 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         sgx_ec256_signature_t *p_signature, char *report, size_t /*report_len*/)
 {
     // Judge whether the current data is validated 
-    if (!report_has_validated_proof()) {
+    if (!report_has_validated_proof())
+    {
         return CRUST_WORK_REPORT_NOT_VALIDATED;
     }
 
@@ -144,6 +145,13 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
     id_set_report_slot((block_height - 1)/ERA_LENGTH + 1);
+
+    // The first report after restart will not be processed
+    if (id_just_after_restart())
+    {
+        id_set_just_after_restart(false);
+        return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
+    }
 
     // ----- Create signature data ----- //
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -219,6 +227,7 @@ cleanup:
     free(p_sigbuf);
 
     report_reduce_validated_proof();
+    id_set_just_after_restart(false);
     return crust_status;
 }
 
