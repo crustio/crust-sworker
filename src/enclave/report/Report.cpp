@@ -6,9 +6,55 @@ std::string work_report;
 size_t empty_workload;
 sgx_sha256_hash_t empty_root;
 
+/* Indicates whether the current work report is validated */
+sgx_thread_mutex_t g_validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+int validated_proof = 0;
+
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_order_files_mutex;
 extern ecc_key_pair id_key_pair;
+
+/**
+ * @description: add validated proof
+ */
+void report_add_validated_proof()
+{
+    sgx_thread_mutex_lock(&g_validated_mutex);
+    if (validated_proof >= 2)
+    {
+        validated_proof = 2;
+    }
+    else
+    {
+        validated_proof++;
+    }
+    sgx_thread_mutex_unlock(&g_validated_mutex);
+}
+
+/**
+ * @description: reduce validated proof
+ */
+void report_reduce_validated_proof()
+{
+    sgx_thread_mutex_lock(&g_validated_mutex);
+    if (validated_proof <= 0)
+    {
+        validated_proof = 0;
+    }
+    else
+    {
+        validated_proof--;
+    }
+    sgx_thread_mutex_unlock(&g_validated_mutex);
+}
+
+/**
+ * @description: Has validated proof
+ * @return: true or false
+ */
+bool report_has_validated_proof() {
+    return validated_proof > 0;
+}
 
 /**
  * @description: generate work report
@@ -87,12 +133,17 @@ crust_status_t get_work_report(char *report, size_t /*report_len*/)
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height,
         sgx_ec256_signature_t *p_signature, char *report, size_t /*report_len*/)
 {
+    // Judge whether the current data is validated 
+    if (!report_has_validated_proof()) {
+        return CRUST_WORK_REPORT_NOT_VALIDATED;
+    }
+
     // Judge whether block height is expired
-    if (block_height <= id_get_cwr_block_height())
+    if (block_height == 0 || (block_height - 1)/ERA_LENGTH < id_get_report_slot())
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
-    id_set_cwr_block_height(block_height);
+    id_set_report_slot((block_height - 1)/ERA_LENGTH + 1);
 
     // ----- Create signature data ----- //
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -167,6 +218,7 @@ cleanup:
 
     free(p_sigbuf);
 
+    report_reduce_validated_proof();
     return crust_status;
 }
 

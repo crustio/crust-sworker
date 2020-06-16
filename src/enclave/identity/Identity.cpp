@@ -18,7 +18,7 @@ bool g_is_entry_network = false;
 // Current code measurement
 sgx_measurement_t current_mr_enclave;
 // Used to check current block head out-of-date
-size_t now_work_report_block_height = 0;
+size_t report_slot = 0;
 // Map used to store off-chain request
 map<vector<uint8_t>, vector<uint8_t>> accid_pubkey_map;
 // Protect metadata 
@@ -870,7 +870,7 @@ crust_status_t id_store_metadata()
     id_get_metadata(meta_json, false);
     meta_json["workload"] = Workload::get_instance()->serialize_workload();
     meta_json["id_key_pair"] = std::string(p_hex_id_key, sizeof(id_key_pair) * 2);
-    meta_json["block_height"] = now_work_report_block_height;
+    meta_json["report_slot"] = report_slot;
     meta_json["chain_account_id"] = g_chain_account_id;
     std::string meta_str = meta_json.dump();
 
@@ -946,8 +946,8 @@ crust_status_t id_restore_metadata()
     }
     memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
     free(p_id_key);
-    // Restore block height
-    now_work_report_block_height = meta_json["block_height"].ToInt();
+    // Restore report slot
+    report_slot = meta_json["report_slot"].ToInt();
     // Restore chain account id
     g_chain_account_id = meta_json["chain_account_id"].ToString();
 
@@ -1008,19 +1008,20 @@ ecc_key_pair id_get_key_pair()
 }
 
 /**
- * @description: Get current work report block height
- * @return: current work report block height
+ * @description: Get current work report slot
+ * @return: current work report slot
  * */
-size_t id_get_cwr_block_height()
+size_t id_get_report_slot()
 {
-    return now_work_report_block_height;
+    return report_slot;
 }
 
 /**
- * @description: Set current work report block height
- * @param block_height -> new block height
+ * @description: Set current work report slot
+ * @param new_report_slot -> new report slot
  * */
-void id_set_cwr_block_height(size_t block_height)
+void id_set_report_slot(size_t new_report_slot)
 {
-    now_work_report_block_height = block_height;
+    report_slot = new_report_slot;
+    id_metadata_set_or_append("report_slot", std::to_string(report_slot));
 }

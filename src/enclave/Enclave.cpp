@@ -62,6 +62,9 @@ void ecall_main_loop()
             log_debug("Store enclave data successfully!\n");
         }
 
+        // Add validated proof
+        report_add_validated_proof();
+
         validation_status = VALIDATE_WAITING;
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
