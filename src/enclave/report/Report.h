@@ -24,7 +24,8 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         sgx_ec256_signature_t *p_signature, char *report, size_t report_len);
 crust_status_t get_signed_order_report();
 
-void report_change_validated_proof(bool in);
+void report_add_validated_proof();
+void report_reduce_validated_proof();
 bool report_has_validated_proof();
 
 #endif /* !_CRUST_REPORT_H_ */

@@ -63,7 +63,7 @@ void ecall_main_loop()
         }
 
         // Add validated proof
-        report_change_validated_proof(true);
+        report_add_validated_proof();
 
         validation_status = VALIDATE_WAITING;
         ocall_usleep(MAIN_LOOP_WAIT_TIME);

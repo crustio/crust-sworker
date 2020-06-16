@@ -15,32 +15,35 @@ extern sgx_thread_mutex_t g_order_files_mutex;
 extern ecc_key_pair id_key_pair;
 
 /**
- * @description: Set validated
- * @param in -> true add, false reduce
+ * @description: add validated proof
  */
-void report_change_validated_proof(bool in) {
+void report_add_validated_proof()
+{
     sgx_thread_mutex_lock(&g_validated_mutex);
-    if (in)
+    if (validated_proof >= 2)
     {
-        if (validated_proof >= 2)
-        {
-            validated_proof = 2;
-        }
-        else
-        {
-            validated_proof++;
-        }
+        validated_proof = 2;
     }
     else
     {
-        if (validated_proof <= 0)
-        {
-            validated_proof = 0;
-        }
-        else
-        {
-            validated_proof--;
-        }
+        validated_proof++;
+    }
+    sgx_thread_mutex_unlock(&g_validated_mutex);
+}
+
+/**
+ * @description: reduce validated proof
+ */
+void report_reduce_validated_proof()
+{
+    sgx_thread_mutex_lock(&g_validated_mutex);
+    if (validated_proof <= 0)
+    {
+        validated_proof = 0;
+    }
+    else
+    {
+        validated_proof--;
     }
     sgx_thread_mutex_unlock(&g_validated_mutex);
 }
@@ -215,7 +218,7 @@ cleanup:
 
     free(p_sigbuf);
 
-    report_change_validated_proof(false);
+    report_reduce_validated_proof();
     return crust_status;
 }
 

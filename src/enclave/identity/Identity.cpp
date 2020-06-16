@@ -1023,5 +1023,5 @@ size_t id_get_report_slot()
 void id_set_report_slot(size_t new_report_slot)
 {
     report_slot = new_report_slot;
-    id_metadata_set_or_append("report_slot", report_slot);
+    id_metadata_set_or_append("report_slot", std::to_string(report_slot));
 }
