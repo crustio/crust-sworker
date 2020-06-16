@@ -71,6 +71,8 @@ crust_status_t id_set_chain_account_id(const char *account_id, size_t len);
 ecc_key_pair id_get_key_pair();
 size_t id_get_report_slot();
 void id_set_report_slot(size_t new_report_slot);
+bool id_just_after_restart();
+void id_set_just_after_restart(bool in);
 
 void id_get_metadata(json::JSON &meta_json, bool locked = true);
 /**
