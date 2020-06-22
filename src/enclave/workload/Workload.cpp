@@ -202,6 +202,8 @@ bool Workload::reset_meaningful_data()
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
 
+    this->checked_files.clear();
+
     // Get metadata
     json::JSON meta_json;
     id_get_metadata(meta_json);
@@ -209,7 +211,6 @@ bool Workload::reset_meaningful_data()
     // Reset meaningful files
     if (!meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
     {
-        this->checked_files.clear();
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return true;
     }
@@ -226,8 +227,6 @@ bool Workload::reset_meaningful_data()
     }
 
     log_warn("Workload: invalid meaningful roots! Set meaningful files to empty.\n");
-
-    this->checked_files.clear();
 
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
