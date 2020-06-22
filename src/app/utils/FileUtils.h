@@ -24,10 +24,8 @@ int rm(std::string path);
 size_t get_free_space_under_directory(std::string path);
 bool create_directory(std::string path);
 std::vector<std::string> get_sub_folders_and_files(const char *path);
-size_t get_free_space_under_dir_k(std::string path);
-size_t get_free_space_under_dir_m(std::string path);
-size_t get_free_space_under_dir_g(std::string path);
-json::JSON get_increase_srd_info(size_t &true_srd_capacity);
-json::JSON get_decrease_srd_info(size_t &true_srd_capacity);
+size_t get_avail_space_under_dir_k(std::string path);
+size_t get_avail_space_under_dir_m(std::string path);
+size_t get_avail_space_under_dir_g(std::string path);
 
 #endif /* !_CRUST_FILE_UTILS_H_ */

@@ -359,6 +359,11 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     uint8_t *org_data, *p_org_data = NULL;
     size_t org_data_len = 0;
 
+    // For debug
+    int len = 0;
+    uint8_t *pkey_buf = NULL;
+    uint8_t *p_pkey_buf = NULL;
+
 
     // ----- Verify IAS signature ----- //
 
@@ -473,6 +478,13 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
         status = CRUST_IAS_GETPUBKEY_FAILED;
         goto cleanup;
     }
+
+    // Print pkey for debug
+    len = i2d_PublicKey(pkey, NULL);
+    pkey_buf = (uint8_t*)malloc(len);
+    p_pkey_buf = pkey_buf;
+    i2d_PublicKey(pkey, &p_pkey_buf);
+    log_debug("======= Get IAS pub key:%s\n", hexstring_safe(pkey_buf, len).c_str());
 
     isv_body = response[2];
 
@@ -868,10 +880,10 @@ crust_status_t id_store_metadata()
     json::JSON meta_json;
     size_t meta_len = 0;
     uint8_t *p_meta = NULL;
-    char *p_hex_id_key = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
+    std::string hex_id_key_str = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
     id_get_metadata(meta_json, false);
     meta_json["workload"] = Workload::get_instance()->serialize_workload();
-    meta_json["id_key_pair"] = std::string(p_hex_id_key, sizeof(id_key_pair) * 2);
+    meta_json["id_key_pair"] = hex_id_key_str;
     meta_json["report_slot"] = report_slot;
     meta_json["chain_account_id"] = g_chain_account_id;
     std::string meta_str = meta_json.dump();
@@ -891,9 +903,6 @@ crust_status_t id_store_metadata()
 
 
 cleanup:
-
-    if (p_hex_id_key != NULL)
-        free(p_hex_id_key);
 
     if (p_meta != NULL)
         free(p_meta);
@@ -928,6 +937,20 @@ crust_status_t id_restore_metadata()
     {
         return CRUST_BAD_SEAL_DATA;
     }
+    // Restore srd info
+    ocall_srd_info_lock();
+    json::JSON srd_info_json;
+    for (auto it : wl->srd_path2hashs_m)
+    {
+        srd_info_json[it.first]["assigned"] = it.second.size();
+    }
+    std::string srd_info_str = srd_info_json.dump();
+    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe("srd_info", 
+                    reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
+    {
+        log_warn("Restore srd info failed! Error code:%lx\n", crust_status);
+    }
+    ocall_srd_info_unlock();
     // Restore meaningful files
     wl->checked_files.clear();
     if (meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))

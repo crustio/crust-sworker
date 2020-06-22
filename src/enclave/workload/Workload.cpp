@@ -32,12 +32,15 @@ Workload *Workload::get_instance()
  */
 Workload::~Workload()
 {
-    for (auto g_hash : this->empty_g_hashs)
+    for (auto it : this->srd_path2hashs_m)
     {
-        if (g_hash != NULL)
-            free(g_hash);
+        for (auto g_hash : it.second)
+        {
+            if (g_hash != NULL)
+                free(g_hash);
+        }
     }
-    this->empty_g_hashs.clear();
+    this->srd_path2hashs_m.clear();
 }
 
 /**
@@ -65,13 +68,16 @@ void Workload::show(void)
  * */
 void Workload::clean_data()
 {
-    // Clean empty_g_hashs
-    for (auto g_hash : this->empty_g_hashs)
+    // Clean srd_path2hashs_m
+    for (auto it : this->srd_path2hashs_m)
     {
-        if (g_hash != NULL)
-            free(g_hash);
+        for (auto g_hash : it.second)
+        {
+            if (g_hash != NULL)
+                free(g_hash);
+        }
     }
-    this->empty_g_hashs.clear();
+    this->srd_path2hashs_m.clear();
 }
 
 /**
@@ -85,31 +91,33 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
     sgx_thread_mutex_lock(&g_workload_mutex);
 
     // Get hashs for hashing
-    unsigned char *hashs = (unsigned char *)malloc(this->empty_g_hashs.size() * HASH_LENGTH);
-    size_t hashs_length = 0;
-
-    for (auto g_hash : this->empty_g_hashs)
+    size_t g_hashs_num = 0;
+    for (auto it : this->srd_path2hashs_m)
     {
-        for (size_t j = 0; j < HASH_LENGTH; j++)
+        g_hashs_num += it.second.size();
+    }
+    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
+    size_t hashs_len = 0;
+
+    for (auto it : this->srd_path2hashs_m)
+    {
+        for (auto g_hash : it.second)
         {
-            hashs[hashs_length + j] = g_hash[j];
+            memcpy(hashs + hashs_len, g_hash, HASH_LENGTH);
+            hashs_len += HASH_LENGTH;
         }
-        hashs_length += HASH_LENGTH;
     }
 
     // generate empty information
-    if (hashs_length == 0)
+    if (hashs_len == 0)
     {
         *empty_workload_out = 0;
-        for (size_t i = 0; i < HASH_LENGTH; i++)
-        {
-            (*empty_root_out)[i] = 0;
-        }
+        memset(empty_root_out, 0, HASH_LENGTH);
     }
     else
     {
-        *empty_workload_out = (hashs_length / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)hashs_length, empty_root_out);
+        *empty_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, empty_root_out);
     }
 
     free(hashs);
@@ -122,26 +130,30 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
  * @description: serialize workload for sealing
  * @return: serialized workload
  * */
-std::string Workload::serialize_workload()
+std::string Workload::serialize_workload(bool locked /*=true*/)
 {
-    sgx_thread_mutex_lock(&g_workload_mutex);
-
-    // Store empty_g_hashs
-    json::JSON g_hashs;
-    int i = 0;
-    for (auto it = this->empty_g_hashs.begin(); it != this->empty_g_hashs.end(); it++, i++)
+    if (locked)
     {
-        char *p_hexstr = hexstring_safe(*it, HASH_LENGTH);
-        g_hashs[i] = std::string(p_hexstr, HASH_LENGTH * 2);
-        if (p_hexstr != NULL)
+        sgx_thread_mutex_lock(&g_workload_mutex);
+    }
+
+    // Store srd_path2hashs_m
+    json::JSON g_hashs_json;
+    int i = 0;
+    for (auto it : this->srd_path2hashs_m)
+    {
+        for (auto g_hash : it.second)
         {
-            free(p_hexstr);
+            g_hashs_json[it.first][i++] = hexstring_safe(g_hash, HASH_LENGTH);
         }
     }
 
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    if (locked)
+    {
+        sgx_thread_mutex_unlock(&g_workload_mutex);
+    }
 
-    std::string g_hashs_str = g_hashs.dump();
+    std::string g_hashs_str = g_hashs_json.dump();
     remove_char(g_hashs_str, '\\');
     remove_char(g_hashs_str, '\n');
     remove_char(g_hashs_str, ' ');
@@ -157,24 +169,30 @@ crust_status_t Workload::restore_workload(json::JSON g_hashs)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    // Get empty_g_hashs
-    for (auto it : this->empty_g_hashs)
+    // Get srd_path2hashs_m
+    for (auto it : this->srd_path2hashs_m)
     {
-        if (it != NULL)
-            free(it);
-    }
-    this->empty_g_hashs.clear(); // Clear current empty_g_hashs
-    // Restore g_hashs
-    for (int i = 0; i < g_hashs.size(); i++)
-    {
-        std::string g_hash_str = g_hashs[i].ToString();
-        uint8_t *g_hash = hex_string_to_bytes(g_hash_str.c_str(), g_hash_str.size());
-        if (g_hash == NULL)
+        for (auto g_hash : it.second)
         {
-            clean_data();
-            return CRUST_UNEXPECTED_ERROR;
+            if (g_hash != NULL)
+                free(g_hash);
         }
-        this->empty_g_hashs.push_back(g_hash);
+    }
+    this->srd_path2hashs_m.clear(); // Clear current srd_path2hashs_m
+    // Restore g_hashs
+    auto p_obj = g_hashs.ObjectRange();
+    for (auto it = p_obj.begin(); it != p_obj.end(); it++)
+    {
+        for (int i = 0; i < it->second.size(); i++)
+        {
+            uint8_t *g_hash = hex_string_to_bytes(it->second[i].ToString().c_str(), it->second[i].ToString().size());
+            if (g_hash == NULL)
+            {
+                clean_data();
+                return CRUST_UNEXPECTED_ERROR;
+            }
+            this->srd_path2hashs_m[it->first].push_back(g_hash);
+        }
     }
 
     return crust_status;
@@ -184,6 +202,8 @@ bool Workload::reset_meaningful_data()
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
 
+    this->checked_files.clear();
+
     // Get metadata
     json::JSON meta_json;
     id_get_metadata(meta_json);
@@ -191,7 +211,6 @@ bool Workload::reset_meaningful_data()
     // Reset meaningful files
     if (!meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
     {
-        this->checked_files.clear();
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return true;
     }
@@ -208,8 +227,6 @@ bool Workload::reset_meaningful_data()
     }
 
     log_warn("Workload: invalid meaningful roots! Set meaningful files to empty.\n");
-
-    this->checked_files.clear();
 
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
 

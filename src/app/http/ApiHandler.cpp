@@ -310,71 +310,8 @@ cleanup:
     return res.dump();
 }
 
-void *ApiHandler::change_empty(void *)
+void ApiHandler::change_srd(long change)
 {
-    Config *p_config = Config::get_instance();
-    crust::DataBase *db = crust::DataBase::get_instance();
-    int change = change_empty_num;
-
-    if (change > 0)
-    {
-        size_t true_increase = change;
-        json::JSON disk_info_json = get_increase_srd_info(true_increase);
-        // Print disk info
-        auto disk_range = disk_info_json.ObjectRange();
-        for (auto it = disk_range.begin(); it != disk_range.end(); it++)
-        {
-            p_log->info("Available space is %luG disk in '%s'\n", 
-                    it->second["available"].ToInt(), it->first.c_str());
-        }
-        p_log->info("Start sealing %luG empty files (thread number: %d) ...\n", 
-                true_increase, p_config->srd_thread_num);
-        std::vector<std::string> srd_paths;
-        for (auto it = disk_range.begin(); it != disk_range.end(); it++)
-        {
-            for (int i = 0; i < it->second["increased"].ToInt(); i++)
-            {
-                srd_paths.push_back(it->first);
-            }
-        }
-        // Use omp parallel to seal empty disk, the number of threads is equal to the number of CPU cores
-        tbb::concurrent_unordered_map<std::string, size_t> cal_m;
-        #pragma omp parallel for num_threads(p_config->srd_thread_num)
-        for (size_t i = 0; i < srd_paths.size(); i++)
-        {
-            std::string path = srd_paths[i];
-            Ecall_srd_increase_empty(global_eid, path.c_str());
-            cal_m[path] += 1;
-        }
-        json::JSON assigned_srd_json;
-        for (auto it : cal_m)
-        {
-            assigned_srd_json[it.first] = it.second;
-        }
-        db->set("srd_info", assigned_srd_json.dump());
-
-        p_config->change_empty_capacity(true_increase);
-        p_log->info("Increase %dG empty files success, the empty workload will change gradually in next validation loops\n", true_increase);
-    }
-    else if (change < 0)
-    {
-        size_t true_decrease = -change;
-        size_t ret_size = 0;
-        size_t total_decrease_size = 0;
-        json::JSON disk_decrease = get_decrease_srd_info(true_decrease);
-        p_log->info("True decreased space is:%d\n", true_decrease);
-        for (auto it : disk_decrease.ObjectRange())
-        {
-            Ecall_srd_decrease_empty(global_eid, &ret_size, it.first.c_str(), (size_t)it.second["decreased"].ToInt());
-            total_decrease_size += ret_size;
-        }
-        p_config->change_empty_capacity(total_decrease_size);
-        p_log->info("Decrease %luG empty files success, the empty workload will change in next validation loop\n", total_decrease_size);
-    }
-
-    change_empty_mutex.lock();
-    in_changing_empty = false;
-    change_empty_mutex.unlock();
-
-    return NULL;
+    Ecall_srd_set_change(global_eid, change);
+    p_log->info("Change task:%ldG has been added, will be executed next srd.\n", change);
 }

@@ -3,13 +3,19 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include "sgx_trts.h"
 #include "sgx_thread.h"
 #include "Workload.h"
 #include "EUtils.h"
 #include "PathHelper.h"
 
-void srd_increase_empty(const char *path);
-size_t srd_decrease_empty(const char *path, size_t change);
+#define SRD_MAX_PER_TURN 128
+
+void srd_change();
+void srd_increase(const char *path);
+size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_del_index_m = NULL);
+void srd_update_metadata(const char *hashs, size_t hashs_len);
 
 #endif /* !_CRUST_SRD_H_ */

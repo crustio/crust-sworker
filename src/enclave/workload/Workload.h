@@ -6,6 +6,7 @@
 #include <list>
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include "sgx_trts.h"
 #include "EUtils.h"
@@ -19,7 +20,7 @@
 class Workload
 {
 public:
-    std::list<unsigned char *> empty_g_hashs;         /* used to store all G empty file collection' hashs */
+    std::map<std::string, std::vector<uint8_t*>> srd_path2hashs_m;         /* used to store all G empty file collection' hashs */
     std::vector<std::pair<std::string, size_t>> checked_files;
     std::vector<std::pair<std::string, size_t>> new_files;
     std::vector<std::pair<std::string, size_t>> order_files;
@@ -28,7 +29,7 @@ public:
     static Workload *get_instance();
     ~Workload();
     void show(void);
-    std::string serialize_workload();
+    std::string serialize_workload(bool locked = true);
     crust_status_t restore_workload(json::JSON g_hashs);
     crust_status_t generate_empty_info(sgx_sha256_hash_t *empty_root_out, size_t *empty_workload_out);
     void clean_data();

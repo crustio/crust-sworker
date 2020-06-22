@@ -65,7 +65,7 @@ bool test_hexstring_safe()
     }
     memset(tmp_buffer, 0, tmp_len);
     
-    char *hex_tmp_buffer = hexstring_safe(tmp_buffer, tmp_len);
+    std::string hex_tmp_buffer = hexstring_safe(tmp_buffer, tmp_len);
     for (size_t i = 0; i < tmp_len; i++)
     {
         if (!(hex_tmp_buffer[i] >= '0' && hex_tmp_buffer[i] <= '9') &&
