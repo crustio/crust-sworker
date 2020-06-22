@@ -140,7 +140,7 @@ char *hexstring(const void *vsrc, size_t len)
  * @param len -> Srouce byte array length
  * @return: Hexstringed data
  * */
-char *hexstring_safe(const void *vsrc, size_t len)
+std::string hexstring_safe(const void *vsrc, size_t len)
 {
     size_t i;
     const unsigned char *src = (const unsigned char *)vsrc;
@@ -160,7 +160,11 @@ char *hexstring_safe(const void *vsrc, size_t len)
         ++bp;
     }
 
-    return hex_buffer;
+    std::string ans(hex_buffer, len * 2);
+
+    free(hex_buffer);
+
+    return ans;
 }
 
 /**
@@ -428,18 +432,11 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
 
     uint32_t hash_len = strlen(root->hash);
     string node;
-    char *p_hex_hash = hexstring_safe(root->hash, hash_len);
-    if (p_hex_hash == NULL)
-    {
-        log_err("Internal error: Allocate buffer failed!\n");
-        return "";
-    }
+    std::string hex_hash_str = hexstring_safe(root->hash, hash_len);
     node.append("{\"size\":").append(to_string(root->size)).append(",")
         .append("\"links_num\":").append(to_string(root->links_num)).append(",")
-        .append("\"hash\":\"").append(p_hex_hash, hash_len * 2).append("\",")
+        .append("\"hash\":\"").append(hex_hash_str).append("\",")
         .append("\"links\":[");
-
-    free(p_hex_hash);
 
     for (size_t i = 0; i < root->links_num; i++)
     {

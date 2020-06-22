@@ -1,4 +1,5 @@
 #include "OCalls.h"
+#include "Srd.h"
 #include "DataBase.h"
 #include "FileUtils.h"
 #include "Config.h"
@@ -25,6 +26,8 @@ BufferPool *p_buf_pool = BufferPool::get_instance();
 tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 // Store order report
 std::string g_order_report_str;
+
+extern std::mutex srd_info_mutex;
 
 
 /**
@@ -391,6 +394,39 @@ crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t v
 }
 
 /**
+ * @description: Add keys to indicate key, the value got by key must be a json object
+ * @param key -> Pointer to key
+ * @param keys -> To be added keys array
+ * @param keys_len -> Keys array length
+ * @return: Add status
+ * */
+crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t keys_len)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    crust::DataBase *db = crust::DataBase::get_instance();
+    std::string json_str;
+    if (CRUST_SUCCESS != (crust_status = db->get(std::string(key), json_str)))
+    {
+        p_log->warn("Add key:%s failed! Error code:%lx\n", key, crust_status);
+    }
+    json::JSON det_json = json::JSON::Load(json_str);
+
+    json::JSON add_keys_json = json::JSON::Load(std::string(keys, keys_len));
+    for (auto it : add_keys_json.ArrayRange())
+    {
+        det_json[it.ToString()] = true;
+    }
+
+    if (CRUST_SUCCESS != (crust_status = db->set(key, det_json.dump())))
+    {
+        p_log->err("Add key:%s failed! Error code:%lx\n", key, crust_status);
+        return crust_status;
+    }
+
+    return crust_status;
+}
+
+/**
  * @description: Delete record from DB
  * @param key -> Pointer to key
  * @return: Delete status
@@ -398,6 +434,34 @@ crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t v
 crust_status_t ocall_persist_del(const char *key)
 {
     return crust::DataBase::get_instance()->del(std::string(key));
+}
+
+crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t keys_len)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    crust::DataBase *db = crust::DataBase::get_instance();
+    std::string json_str;
+    if (CRUST_SUCCESS != (crust_status = db->get(std::string(key), json_str)))
+    {
+        p_log->warn("Get key:%s failed! Error code:%lx\n", key, crust_status);
+    }
+
+    json::JSON det_json = json::JSON::Load(json_str);
+    auto p_obj = det_json.ObjectRange();
+    json::JSON del_keys_json = json::JSON::Load(std::string(keys, keys_len));
+    for (auto it : del_keys_json.ArrayRange())
+    {
+        p_obj.object->erase(it.ToString());
+    }
+
+    std::string det_str = det_json.dump();
+    if (CRUST_SUCCESS != (crust_status = db->set(key, det_str)))
+    {
+        p_log->err("Update key:%s failed! Error code:%lx\n", key, crust_status);
+        return crust_status;
+    }
+
+    return crust_status;
 }
 
 /**
@@ -571,4 +635,29 @@ void ocall_validate_close()
 void ocall_store_order_report(const char *p_order, size_t order_size)
 {
     g_order_report_str = std::string(p_order, order_size);
+}
+
+/**
+ * @description: Lock srd info
+ * */
+void ocall_srd_info_lock()
+{
+    srd_info_mutex.lock();
+}
+
+/**
+ * @description: Unlock srd info
+ * */
+void ocall_srd_info_unlock()
+{
+    srd_info_mutex.unlock();
+}
+
+/**
+ * @description: Do srd in this function
+ * @param change -> The change number will be committed this turn
+ * */
+void ocall_srd_change(long change)
+{
+    srd_change(change);
 }

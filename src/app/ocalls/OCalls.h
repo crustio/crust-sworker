@@ -44,7 +44,9 @@ extern "C"
     crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count);
 
     crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len);
+    crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t keys_len);
     crust_status_t ocall_persist_del(const char *key);
+    crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t keys_len);
     crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len);
     crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len);
 
@@ -53,6 +55,11 @@ extern "C"
     void ocall_validate_close();
 
     void ocall_store_order_report(const char *p_order, size_t order_size);
+
+    void ocall_srd_info_lock();
+    void ocall_srd_info_unlock();
+
+    void ocall_srd_change(long change);
 
 #if defined(__cplusplus)
 }

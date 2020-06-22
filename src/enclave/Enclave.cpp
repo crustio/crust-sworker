@@ -7,26 +7,38 @@ using namespace std;
 
 /* Used to store validation status */
 validation_status_t validation_status = VALIDATE_STOP;
+extern long g_srd_change;
+extern sgx_thread_mutex_t g_srd_change_mutex;
 
 //------------------Srd ecalls-----------------//
 
 /**
- * @description: seal one G empty files under directory, can be called from multiple threads
+ * @description: seal one G srd files under directory, can be called from multiple threads
  * @param path -> the directory path
  */
-void ecall_srd_increase_empty(const char* path)
+void ecall_srd_increase(const char* path)
 {
-    srd_increase_empty(path);
+    srd_increase(path);
 }
 
 /**
- * @description: decrease empty files under directory
+ * @description: decrease srd files under directory
  * @param path -> the directory path
  * @param change -> reduction
  */
-size_t ecall_srd_decrease_empty(const char* path, size_t change)
+size_t ecall_srd_decrease(long change)
 {
-    return srd_decrease_empty(path, change);
+    return srd_decrease(change);
+}
+
+/**
+ * @description: Update srd_path2hashs_m
+ * @param hashs -> Pointer to the address of to be deleted hashs array
+ * @param hashs_len -> Hashs array length
+ * */
+void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
+{
+    return srd_update_metadata(hashs, hashs_len);
 }
 
 /**
@@ -42,11 +54,18 @@ void ecall_main_loop()
         log_debug("----- Meaningful Validation -----\n");
         validation_status = VALIDATE_MEANINGFUL;
         validate_meaningful_file();
+        log_debug("----- Meaningful Validation End -----\n");
 
-        // ----- Empty ----- //
-        log_debug("----- Empty Validation -----\n");
+        // ----- SRD ----- //
+        log_debug("----- SRD Validation -----\n");
         validation_status = VALIDATE_EMPTY;
-        validate_empty_disk();
+        validate_srd();
+        log_debug("----- SRD Validation End -----\n");
+
+        // ----- SRD ----- //
+        log_debug("----- SRD -----\n");
+        srd_change();
+        log_debug("----- SRD End -----\n");
 
         // ----- Show result ----- //
         log_debug("----- Validation Waiting -----\n");
@@ -253,4 +272,15 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
 crust_status_t ecall_get_signed_order_report()
 {
     return get_signed_order_report();
+}
+
+/**
+ * @description: Change srd number
+ * @param change -> Will be changed srd number
+ * */
+void ecall_srd_set_change(long change)
+{
+    sgx_thread_mutex_lock(&g_srd_change_mutex);
+    g_srd_change += change;
+    sgx_thread_mutex_unlock(&g_srd_change_mutex);
 }

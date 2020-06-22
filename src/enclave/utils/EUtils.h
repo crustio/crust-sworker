@@ -18,10 +18,10 @@ namespace json
 // Data tag to enclave only data
 #define TEE_PRIVATE_TAG  "&+CRUSTTEEPRIVATE+&"
 
-/* The size of a empty disk leaf file */
+/* The size of a srd disk leaf file */
 #define SRD_RAND_DATA_LENGTH 1048576
 //#define SRD_RAND_DATA_LENGTH 2097152
-/* The number of empty disk leaf files under a G path */
+/* The number of srd disk leaf files under a G path */
 #define SRD_RAND_DATA_NUM 1024
 /* Used to store all M hashs under G path */
 #define SRD_M_HASHS "m-hashs.bin"
@@ -45,7 +45,7 @@ int log_err(const char* fmt, ...);
 int log_debug(const char* fmt, ...);
 int char_to_int(char input);
 char *hexstring(const void *vsrc, size_t len);
-char *hexstring_safe(const void *vsrc, size_t len);
+std::string hexstring_safe(const void *vsrc, size_t len);
 uint8_t *hex_string_to_bytes(const void *src, size_t len);
 std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size);
 std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size);

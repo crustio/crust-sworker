@@ -1,6 +1,8 @@
 #include "Validator.h"
 #include "Identity.h"
+#include "Srd.h"
 #include "EJson.h"
+#include <algorithm>
 
 extern sgx_thread_mutex_t g_workload_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
@@ -10,167 +12,196 @@ extern sgx_thread_mutex_t g_new_files_mutex;
 long long g_validate_timeout = 0;
 
 /**
- * @description: validate empty disk
+ * @description: Randomly delete punish number of srd
+ * @param punish_num -> To be deleted srd number
+ * */
+void srd_random_delete(long punish_num, std::map<std::string, std::set<size_t>> *del_indexes)
+{
+    if (punish_num <= 0 && del_indexes->size() == 0)
+    {
+        return;
+    }
+
+    srd_decrease(punish_num, del_indexes);
+}
+
+/**
+ * @description: validate srd disk
  */
-void validate_empty_disk()
+void validate_srd()
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    Workload *p_workload = Workload::get_instance();
+    Workload *wl = Workload::get_instance();
 
     sgx_thread_mutex_lock(&g_workload_mutex);
-    auto it_g_hash = p_workload->empty_g_hashs.begin();
-    sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    while (true)
+    size_t srd_num_threshold = 1 / SRD_VALIDATE_RATE * SRD_VALIDATE_MIN_NUM;
+    size_t srd_total_num = 0;
+    for (auto it : wl->srd_path2hashs_m)
     {
-        sgx_thread_mutex_lock(&g_workload_mutex);
-        if (it_g_hash == p_workload->empty_g_hashs.end())
+        srd_total_num += it.second.size();
+    }
+    size_t srd_validate_num = 0;
+    size_t srd_punish_num = 0;
+    size_t srd_validate_failed_num = 0;
+    
+    // Caculate srd validated variable
+    if (srd_total_num >= srd_num_threshold)
+    {
+        srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
+        srd_punish_num = 1 / SRD_VALIDATE_RATE;
+    }
+    else
+    {
+        if (srd_total_num < SRD_VALIDATE_MIN_NUM)
         {
-            sgx_thread_mutex_unlock(&g_workload_mutex);
-            break;
+            srd_validate_num = srd_total_num;
+            srd_punish_num = 1;
         }
-        sgx_thread_mutex_unlock(&g_workload_mutex);
-        // Base info
-        unsigned char *g_hash = (unsigned char *)malloc(HASH_LENGTH);
-        std::string g_path;
-
-        // For checking M hashs
-        unsigned char *m_hashs_o = NULL;
-        size_t m_hashs_size = 0;
-        unsigned char *m_hashs = NULL;
-        sgx_sha256_hash_t m_hashs_hash256;
-
-        // For checking leaf
-        unsigned int rand_val_m;
-        size_t select = 0;
-        std::string leaf_path;
-        unsigned char *leaf_data = NULL;
-        size_t leaf_data_len = 0;
-        sgx_sha256_hash_t leaf_data_hash256;
-
-        sgx_thread_mutex_lock(&g_workload_mutex);
-        // Get g hash
-        for (size_t j = 0; j < HASH_LENGTH; j++)
+        else
         {
-            g_hash[j] = (*it_g_hash)[j];
-        }
-        sgx_thread_mutex_unlock(&g_workload_mutex);
-
-        // Get g_hash corresponding path
-        uint8_t *path = NULL;
-        size_t path_len = 0;
-        char *p_hex_hash = hexstring_safe(g_hash, HASH_LENGTH);
-        if (CRUST_SUCCESS != persist_get(std::string(p_hex_hash, HASH_LENGTH * 2), &path, &path_len))
-        {
-            log_err("Get g_hash:%s path failed!\n", hexstring(g_hash, HASH_LENGTH));
-            continue;
-        }
-        if (p_hex_hash != NULL)
-        {
-            free(p_hex_hash);
-        }
-        path[path_len] = 0;
-        g_path = get_g_path_with_hash(reinterpret_cast<const char *>(path), g_hash);
-
-        // Get M hashs
-        ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_o, &m_hashs_size);
-        if (m_hashs_o == NULL)
-        {
-            log_warn("Get m hashs file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
-            goto end_validate_one_g_empty_failed;
-        }
-
-        m_hashs = new unsigned char[m_hashs_size];
-        for (size_t j = 0; j < m_hashs_size; j++)
-        {
-            m_hashs[j] = m_hashs_o[j];
-        }
-
-        /* Compare M hashs */
-        sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_hash256);
-        for (size_t j = 0; j < HASH_LENGTH; j++)
-        {
-            if (g_hash[j] != m_hashs_hash256[j])
+            srd_validate_num = SRD_VALIDATE_MIN_NUM;
+            double tmp = (double)srd_total_num / (double)SRD_VALIDATE_MIN_NUM;
+            srd_punish_num = tmp;
+            if (tmp - (double)srd_punish_num > 0.0)
             {
-                log_warn("Wrong m hashs file in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
-                goto end_validate_one_g_empty_failed;
+                srd_punish_num++;
             }
         }
+    }
 
-        /* Get leaf data */
-        sgx_read_rand((unsigned char *)&rand_val_m, 4);
-        select = rand_val_m % SRD_RAND_DATA_NUM;
-        leaf_path = get_leaf_path(g_path.c_str(), select, m_hashs + select * 32);
+    // Randomly choose validate srd files
+    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_us;
+    std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
+    if (srd_validate_num > SRD_VALIDATE_MIN_NUM)
+    {
+        uint32_t rand_val;
+        uint32_t rand_idx = 0;
+        std::pair<uint32_t, uint32_t> p_chose;
+        while (validate_srd_idx_us.size() < srd_validate_num)
+        {
+            do
+            {
+                sgx_read_rand((uint8_t *)&rand_val, 4);
+                uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
+                for (uint32_t i = 0; i < path_idx; i++)
+                {
+                    chose_entry++;
+                }
+                rand_idx = rand_val % chose_entry->second.size();
+                p_chose = std::make_pair(path_idx, rand_idx);
+            } while (validate_srd_idx_us.find(p_chose) != validate_srd_idx_us.end());
+            validate_srd_idx_us.insert(p_chose);
+        }
+    }
+    else
+    {
+        int i = 0;
+        for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end(); it++, i++)
+        {
+            for (size_t j = 0; j < it->second.size(); j++)
+            {
+                validate_srd_idx_us.insert(make_pair(i, j));
+            }
+        }
+    }
+
+    log_debug("Validating %ldG srd space...\n", srd_validate_num);
+
+    // ----- Validate SRD ----- //
+    std::map<std::string, std::set<size_t>> del_path2idx_m;
+    for (auto srd_idx : validate_srd_idx_us)
+    {
+        uint8_t *m_hashs_org = NULL;
+        uint8_t *m_hashs = NULL;
+        size_t m_hashs_size = 0;
+        sgx_sha256_hash_t m_hashs_sha256;
+        size_t srd_block_index = 0;
+        std::string leaf_path;
+        uint8_t *leaf_data = NULL;
+        size_t leaf_data_len = 0;
+        sgx_sha256_hash_t leaf_hash;
+        std::string hex_g_hash;
+        std::string dir_path;
+        std::string g_path;
+
+        std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
+        for (size_t i = 0; i < srd_idx.first; i++)
+        {
+            chose_entry++;
+        }
+        dir_path = chose_entry->first;
+        uint8_t *p_g_hash = chose_entry->second[srd_idx.second];
+
+        // Choose validate block
+        uint32_t rand_val;
+        sgx_read_rand((uint8_t *)&rand_val, 4);
+
+        // Get g_hash corresponding path
+        hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
+        g_path = std::string(dir_path).append("/").append(unsigned_char_array_to_hex_string(p_g_hash, HASH_LENGTH));
+
+        // Get M hashs
+        ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
+        if (m_hashs_org == NULL)
+        {
+            log_err("Get m hashs file failed in '%s'.\n", hex_g_hash.c_str());
+            srd_validate_failed_num++;
+            del_path2idx_m[dir_path].insert(srd_idx.second);
+            goto nextloop;
+        }
+
+        m_hashs = (uint8_t*)enc_malloc(m_hashs_size);
+        memset(m_hashs, 0, m_hashs_size);
+        memcpy(m_hashs, m_hashs_org, m_hashs_size);
+
+        // Compare M hashs
+        sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
+        if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
+        {
+            log_err("Wrong m hashs file in '%s'.\n", hex_g_hash.c_str());
+            srd_validate_failed_num++;
+            del_path2idx_m[dir_path].insert(srd_idx.second);
+            goto nextloop;
+        }
+
+        // Get leaf data
+        sgx_read_rand((uint8_t*)&rand_val, 4);
+        srd_block_index = rand_val % SRD_RAND_DATA_NUM;
+        leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
         ocall_get_file(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
 
         if (leaf_data == NULL)
         {
-            log_warn("Get leaf file failed in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
-            goto end_validate_one_g_empty_failed;
+            log_err("Get leaf file failed in '%s'.\n", unsigned_char_array_to_hex_string(p_g_hash, HASH_LENGTH).c_str());
+            srd_validate_failed_num++;
+            del_path2idx_m[dir_path].insert(srd_idx.second);
+            goto nextloop;
         }
 
-        /* Compare leaf data */
-        sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_data_hash256);
-
-        for (size_t j = 0; j < HASH_LENGTH; j++)
+        // Compare leaf data
+        sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
+        if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
         {
-            if (m_hashs[select * 32 + j] != leaf_data_hash256[j])
-            {
-                log_warn("Wrong leaf data hash in '%s'.\n", unsigned_char_array_to_hex_string(g_hash, HASH_LENGTH).c_str());
-                goto end_validate_one_g_empty_failed;
-            }
+            log_err("Wrong leaf data hash in '%s'.\n", hex_g_hash.c_str());
+            srd_validate_failed_num++;
+            del_path2idx_m[dir_path].insert(srd_idx.second);
+            goto nextloop;
         }
 
-        goto end_validate_one_g_empty;
-    end_validate_one_g_empty_failed:
-        ocall_delete_folder_or_file(&crust_status, g_path.c_str());
-        sgx_thread_mutex_lock(&g_workload_mutex);
-        free(*it_g_hash);
-        p_workload->empty_g_hashs.erase(it_g_hash);
-        sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    end_validate_one_g_empty:
-        if (g_hash != NULL)
-        {
-            free(g_hash);
-        }
+    nextloop:
         if (m_hashs != NULL)
         {
-            delete[] m_hashs;
+            free(m_hashs);
         }
-
-        sgx_thread_mutex_lock(&g_workload_mutex);
-        it_g_hash++;
-        sgx_thread_mutex_unlock(&g_workload_mutex);  
-    }
-}
-
-/**
- * @description: get all links' hash from block
- * @param block_data -> the block data
- * @param block_size -> the size of block data
- */
-std::vector<std::string> get_hashs_from_block(unsigned char *block_data, size_t block_size)
-{
-    std::vector<std::string> hashs;
-    if (block_data == NULL)
-    {
-        return hashs;
     }
 
-    std::string block_data_str = unsigned_char_array_to_hex_string(block_data, block_size);
+    // Delete indicated punished files
+    srd_random_delete(srd_punish_num * srd_validate_failed_num, &del_path2idx_m);
 
-    std::string flag = "0a221220";
-    size_t position = 0;
-
-    while ((position = block_data_str.find(flag, position)) != std::string::npos)
-    {
-        hashs.push_back(block_data_str.substr(position + flag.length(), HASH_LENGTH * 2));
-        position += flag.length() + HASH_LENGTH * 2;
-    }
-
-    return hashs;
+    sgx_thread_mutex_unlock(&g_workload_mutex);
 }
 
 /**
@@ -241,14 +272,14 @@ void validate_meaningful_file()
     {
         do
         {
-            sgx_read_rand((uint8_t *)&rand_val, 1);
+            sgx_read_rand((uint8_t *)&rand_val, 4);
             rand_index = rand_val % wl->checked_files.size();
         } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
     }
 
     // ----- Randomly check file block ----- //
-    // TODO: Do we allow store duplicated files?
+    // TODO: Do we allow to store duplicated files?
     std::vector<int> none_exist_indexes;
     for (auto file_idx : file_idx_s)
     {

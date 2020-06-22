@@ -3,6 +3,6 @@
 
 #define LEAF_SEPARATOR  "+leaf+"
 #define MEANINGFUL_FILE_DB_TAG  "meaningful_files"
-#define ENC_MAX_THREAD_NUM  10
+#define ENC_MAX_THREAD_NUM  20
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

@@ -30,8 +30,10 @@ std::unordered_map<std::string, int> g_task_priority_m = {
     {"Ecall_store_quote", 0},
     {"Ecall_verify_iasreport", 0},
     {"Ecall_get_signed_order_report", 0},
-    {"Ecall_srd_increase_empty", 1},
-    {"Ecall_srd_decrease_empty", 1},
+    {"Ecall_srd_increase", 1},
+    {"Ecall_srd_decrease", 1},
+    {"Ecall_srd_update_metadata", 1},
+    {"Ecall_srd_set_change", 1},
     {"Ecall_seal_file", 2},
     {"Ecall_unseal_file", 2},
     {"Ecall_get_work_report", 3},
@@ -176,7 +178,7 @@ void free_enclave(const char *name)
  * @description: A wrapper function, seal one G empty files under directory, can be called from multiple threads
  * @param path -> the directory path
  */
-sgx_status_t Ecall_srd_increase_empty(sgx_enclave_id_t eid, const char* path)
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, const char* path)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -184,7 +186,7 @@ sgx_status_t Ecall_srd_increase_empty(sgx_enclave_id_t eid, const char* path)
         return ret;
     }
 
-    ret = ecall_srd_increase_empty(eid, path);
+    ret = ecall_srd_increase(eid, path);
 
     free_enclave(__FUNCTION__);
 
@@ -196,7 +198,7 @@ sgx_status_t Ecall_srd_increase_empty(sgx_enclave_id_t eid, const char* path)
  * @param path -> the directory path
  * @param change -> reduction
  */
-sgx_status_t Ecall_srd_decrease_empty(sgx_enclave_id_t eid, size_t *size, const char* path, size_t change)
+sgx_status_t Ecall_srd_decrease(sgx_enclave_id_t eid, size_t *size, size_t change)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -204,7 +206,7 @@ sgx_status_t Ecall_srd_decrease_empty(sgx_enclave_id_t eid, size_t *size, const 
         return ret;
     }
 
-    ret = ecall_srd_decrease_empty(eid, size, path, change);
+    ret = ecall_srd_decrease(eid, size, change);
 
     free_enclave(__FUNCTION__);
 
@@ -564,5 +566,54 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
  * */
 sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status)
 {
-    return ecall_get_signed_order_report(eid, status);
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_get_signed_order_report(eid, status);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Change srd number
+ * @param change -> Will be changed srd number
+ * */
+sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, long change)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_srd_set_change(eid, change);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Update srd_g_hashs
+ * @param hashs -> Pointer to the address of to be deleted hashs array
+ * @param hashs_len -> Hashs array length
+ * */
+sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, size_t hashs_len)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_srd_update_metadata(eid, hashs, hashs_len);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
 }

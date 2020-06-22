@@ -164,43 +164,42 @@ int rm(std::string path)
  * @param path -> the directory path
  * @return: free space size (M)
  */
-size_t get_free_space_under_dir_r(std::string path, uint32_t unit)
+size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
     {
         return 0;
     }
-    size_t total_blocks = disk_info.f_bsize;
-    size_t free_disk = (size_t)disk_info.f_bfree * total_blocks;
-    return free_disk >> unit;
+    size_t avail_disk = (size_t)disk_info.f_bavail * (size_t)disk_info.f_bsize;
+    return avail_disk >> unit;
 }
 
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as KB
  * */
-size_t get_free_space_under_dir_k(std::string path)
+size_t get_avail_space_under_dir_k(std::string path)
 {
-    return get_free_space_under_dir_r(path, 10);
+    return get_avail_space_under_dir_r(path, 10);
 }
 
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as MB
  * */
-size_t get_free_space_under_dir_m(std::string path)
+size_t get_avail_space_under_dir_m(std::string path)
 {
-    return get_free_space_under_dir_r(path, 20);
+    return get_avail_space_under_dir_r(path, 20);
 }
 
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as GB
  * */
-size_t get_free_space_under_dir_g(std::string path)
+size_t get_avail_space_under_dir_g(std::string path)
 {
-    return get_free_space_under_dir_r(path, 30);
+    return get_avail_space_under_dir_r(path, 30);
 }
 
 /**
@@ -279,7 +278,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
             // Create path
             create_directory(path);
             // Calculate free disk
-            disk_info_json[path]["available"] = get_free_space_under_dir_g(path);
+            disk_info_json[path]["available"] = get_avail_space_under_dir_g(path);
             if (disk_info_json[path]["available"].ToInt() <= 10)
             {
                 disk_info_json[path]["available"] = 0;
@@ -296,7 +295,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
         // Create path
         create_directory(p_config->empty_path);
         // Calculate free disk
-        disk_info_json[p_config->empty_path]["available"] = get_free_space_under_dir_g(p_config->empty_path);
+        disk_info_json[p_config->empty_path]["available"] = get_avail_space_under_dir_g(p_config->empty_path);
         if (disk_info_json[p_config->empty_path]["available"].ToInt() <= 10)
         {
             disk_info_json[p_config->empty_path]["available"] = 0;
@@ -377,7 +376,7 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
         }
         json::JSON tmp;
         tmp["path"] = it->first;
-        tmp["available"] = get_free_space_under_dir_g(it->first);
+        tmp["available"] = get_avail_space_under_dir_g(it->first);
         tmp["assigned"] = it->second["assigned"];
         disk_info_v.push_back(tmp);
 

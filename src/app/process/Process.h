@@ -32,6 +32,7 @@
 #include "Log.h"
 #include "EntryNetwork.h"
 #include "WorkReportLoop.h"
+#include "Srd.h"
 
 int process_run();
 

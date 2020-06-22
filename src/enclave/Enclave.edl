@@ -12,9 +12,11 @@ enclave {
     from "sgx_tsgxssl.edl" import *;
 
     trusted {
-        // Srd ecalls for empty files
-        public void ecall_srd_increase_empty([in, string] const char* path);
-        public size_t ecall_srd_decrease_empty([in, string] const char* path, size_t change);  
+        // Srd ecalls for srd files
+        public void ecall_srd_increase([in, string] const char* path);
+        public size_t ecall_srd_decrease(long change);  
+        public void ecall_srd_update_metadata([in, size=hashs_len] const char *hashs, size_t hashs_len);
+        public void ecall_srd_set_change(long change);
 
         public void ecall_main_loop();
         public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
@@ -60,7 +62,9 @@ enclave {
         crust_status_t ocall_get_file_block_by_path([in, size=hash_len] char *root_hash, [in, size=hash_len] char *cur_hash, uint32_t hash_len, [in, count=path_count] uint32_t *path, uint32_t path_count);
 
         crust_status_t ocall_persist_add([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
+        crust_status_t ocall_persist_add_keys([in, string] const char *key, [in, size=keys_len] const char *keys, size_t keys_len);
         crust_status_t ocall_persist_del([in, string] const char *key);
+        crust_status_t ocall_persist_del_keys([in, string] const char *key, [in, size=keys_len] const char *keys, size_t keys_len);
         crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
         crust_status_t ocall_persist_get([in, string] const char *key, [out] uint8_t **value, [out] size_t *value_len);
 
@@ -69,5 +73,11 @@ enclave {
         void ocall_validate_close();
 
         void ocall_store_order_report([in, size=order_size] const char *p_order, size_t order_size);
+
+        void ocall_srd_info_lock();
+        void ocall_srd_info_unlock();
+
+        void ocall_srd_change(long change)
+            allow(ecall_srd_increase, ecall_srd_decrease);
     };
 };

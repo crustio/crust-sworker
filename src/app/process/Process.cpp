@@ -1,6 +1,7 @@
 #include "Process.h"
 #include "DataBase.h"
 #include "WebServer.h"
+#include <thread>
 #include "tbb/concurrent_unordered_map.h"
 
 #define RECEIVE_PID_RETRY 30
@@ -14,8 +15,6 @@ ApiHandler *p_api_handler = NULL;
 
 crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
-extern bool in_changing_empty;
-extern std::mutex change_empty_mutex;
 
 /**
  * @description: Init configuration
@@ -129,61 +128,6 @@ bool initialize_components(void)
 }
 
 /**
- * @description: seal random data to fill disk
- * @return: successed or failed
- */
-void *do_srd_empty_disk(void *)
-{
-    change_empty_mutex.lock();
-    in_changing_empty = true;
-    change_empty_mutex.unlock();
-
-    // Get disk info
-    size_t true_srd_capacity = p_config->empty_capacity;
-    json::JSON disk_info_json = get_increase_srd_info(true_srd_capacity);
-    // Print disk info
-    auto disk_range = disk_info_json.ObjectRange();
-    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
-    {
-        p_log->info("Available space is %luG disk in '%s'\n", 
-                it->second["available"].ToInt(), it->first.c_str());
-    }
-    p_log->info("Start sealing %luG empty files (thread number: %d) ...\n", 
-            true_srd_capacity, p_config->srd_thread_num);
-    std::vector<std::string> srd_paths;
-    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
-    {
-        for (int i = 0; i < it->second["increased"].ToInt(); i++)
-        {
-            srd_paths.push_back(it->first);
-        }
-    }
-    // Use omp parallel to seal empty disk, the number of threads is equal to the number of CPU cores
-    tbb::concurrent_unordered_map<std::string, size_t> cal_m;
-    #pragma omp parallel for num_threads(p_config->srd_thread_num)
-    for (size_t i = 0; i < srd_paths.size(); i++)
-    {
-        std::string path = srd_paths[i];
-        Ecall_srd_increase_empty(global_eid, path.c_str());
-        cal_m[path] += 1;
-    }
-    json::JSON assigned_srd_json;
-    for (auto it : cal_m)
-    {
-        assigned_srd_json[it.first] = it.second;
-    }
-    crust::DataBase *db = crust::DataBase::get_instance();
-    db->set("srd_info", assigned_srd_json.dump());
-
-    change_empty_mutex.lock();
-    in_changing_empty = false;
-    change_empty_mutex.unlock();
-
-    p_log->info("Seal %luG random data successed.\n", true_srd_capacity);
-    return NULL;
-}
-
-/**
  * @desination: Main function to start application
  * @return: Start status
  * */
@@ -191,7 +135,7 @@ int process_run()
 {
     pid_t worker_pid = getpid();
     pthread_t wthread;
-    pthread_t srd_empty_disk_thread;
+    pthread_t srd_check_thread;
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string tee_identity_result = "";
@@ -277,12 +221,7 @@ int process_run()
         }
 
         // Srd empty disk
-        if (pthread_create(&srd_empty_disk_thread, NULL, do_srd_empty_disk, NULL) != 0)
-        {
-            p_log->err("Create srd empty disk thread failed!\n");
-            return_status = -1;
-            goto cleanup;
-        }
+        Ecall_srd_set_change(global_eid, p_config->empty_capacity);
     }
     else
     {
@@ -307,6 +246,14 @@ int process_run()
             return_status = -1;
             goto cleanup;
         }
+    }
+
+    // Start thread to check if do srd reduction
+    if (pthread_create(&srd_check_thread, NULL, srd_check_reserved, NULL) != 0)
+    {
+        p_log->err("Create checking srd reserved space thread failed!\n");
+        return_status = -1;
+        goto cleanup;
     }
 
     // Main validate loop

@@ -16,7 +16,7 @@
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
-#define ENC_MAX_THREAD_NUM  10
+#define ENC_MAX_THREAD_NUM  20
 // Reserved enclave resource for highest priority task
 #define ENC_RESERVED_THREAD_NUM  1
 // Threshold to trigger timeout mechanism
@@ -34,8 +34,11 @@ extern "C"
 {
 #endif
 
-sgx_status_t Ecall_srd_increase_empty(sgx_enclave_id_t eid, const char* path);
-sgx_status_t Ecall_srd_decrease_empty(sgx_enclave_id_t eid, size_t *size, const char* path, size_t change);
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, const char* path);
+sgx_status_t Ecall_srd_decrease(sgx_enclave_id_t eid, size_t *size, size_t change);
+sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, size_t hashs_len);
+sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, long change);
+
 sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);
 sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status);
 sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len);

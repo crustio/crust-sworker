@@ -24,6 +24,7 @@
 #include "Config.h"
 #include "Common.h"
 #include "DataBase.h"
+#include "Srd.h"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -57,7 +58,7 @@ public:
     //    http::request<http::basic_fields<http::string_body>>&& req, Queue&& send, bool is_ssl)
 
 private:
-    static void *change_empty(void *);
+    void change_srd(long change);
     std::shared_ptr<WebServer> server = NULL;
     std::vector<uint8_t> root_hash_v;
     long block_left_num;
@@ -72,8 +73,6 @@ std::map<std::string, std::string> get_params(std::string &url);
 extern sgx_enclave_id_t global_eid;
 // Used to show validation status
 const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
-bool in_changing_empty = false;
-std::mutex change_empty_mutex;
 int change_empty_num = 0;
 
 // TODO: Should limit thread number in enclave
@@ -200,6 +199,21 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
+        cur_path = urlendpoint->base + "/srd/info";
+        if (path.compare(cur_path) == 0)
+        {
+            crust_status_t crust_status = CRUST_SUCCESS;
+            crust::DataBase *db = crust::DataBase::get_instance();
+            std::string srd_info;
+            if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_info)))
+            {
+                p_log->err("Get srd info failed! Error code:%lx\n", crust_status);
+                goto getcleanup;
+            }
+            res.body() = srd_info;
+            goto getcleanup;
+        }
+
 
     getcleanup:
 
@@ -222,7 +236,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
 
         // Inner APIs
-        cur_path = urlendpoint->base + "/change/empty";
+        cur_path = urlendpoint->base + "/srd/change";
         if (path.compare(cur_path) == 0)
         {
             res.result(200);
@@ -244,18 +258,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = error_info;
                 goto postcleanup;
             }
-            // Guaranteed that only one service is running
-            change_empty_mutex.lock();
-            if (in_changing_empty)
-            {
-                p_log->info("Change empty service busy\n");
-                res.body() = "Change empty service busy";
-                res.result(500);
-                change_empty_mutex.unlock();
-                goto postcleanup;
-            }
-            in_changing_empty = true;
-            change_empty_mutex.unlock();
 
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req.body());
@@ -270,43 +272,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                // Check TEE has already launched
-                validation_status_t validation_status = VALIDATE_STOP;
-
-                if (Ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
-                {
-                    p_log->info("Get validation status failed.\n");
-                    res.body() = "Get validation status failed";
-                    res.result(500);
-                    goto end_change_empty;
-                }
-                else if (validation_status == VALIDATE_STOP)
-                {
-                    p_log->info("TEE has not been fully launched.\n");
-                    res.body() = "TEE has not been fully launched";
-                    res.result(500);
-                    goto end_change_empty;
-                }
-
                 // Start changing empty
-                pthread_t wthread;
-                if (pthread_create(&wthread, NULL, ApiHandler::change_empty, NULL) != 0)
-                {
-                    p_log->err("Create change empty thread error.\n");
-                    res.body() = "Create change empty thread error";
-                    res.result(500);
-                    goto end_change_empty;
-                }
-                else
-                {
-                    res.body() = "Change empty file success, the empty workload will change in next validation loop";
-                    goto postcleanup;
-                }
+                change_srd(change_empty_num);
+                res.body() = "SRD change has been added!";
             }
         end_change_empty:
-            change_empty_mutex.lock();
-            in_changing_empty = false;
-            change_empty_mutex.unlock();
             goto postcleanup;
         }
 

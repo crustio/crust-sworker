@@ -137,7 +137,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         sgx_sha256_hash_t new_hash;
         uint8_t *file_data = NULL;
         size_t file_data_len = 0;
-        char *hex_new_hash;
+        std::string hex_new_hash_str;
         string new_path;
 
         // Get file data
@@ -164,17 +164,17 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
         // Get new hash
         sgx_sha256_msg(p_sealed_data, sealed_data_size, &new_hash);
-        hex_new_hash = hexstring_safe(new_hash, HASH_LENGTH);
+        hex_new_hash_str = hexstring_safe(new_hash, HASH_LENGTH);
         new_path.append(path)
             .append("/").append(to_string(block_num))
-            .append("_").append(hex_new_hash, HASH_LENGTH * 2);
+            .append("_").append(hex_new_hash_str);
         // Replace old file with new file
         ocall_replace_file(&crust_status, old_path.c_str(), new_path.c_str(), p_sealed_data, sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
             goto sealend;
         }
-        tree_json["hash"] = std::string(hex_new_hash, HASH_LENGTH * 2);
+        tree_json["hash"] = hex_new_hash_str;
         node_size += sealed_data_size;
         block_num++;
 
@@ -185,9 +185,6 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         tree.append("\"size\":").append(to_string(sealed_data_size)).append("},");
 
     sealend:
-
-        if (hex_new_hash != NULL)
-            free(hex_new_hash);
 
         if (file_data_r != NULL)
             free(file_data_r);
@@ -205,7 +202,6 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     size_t sub_hashs_len = tree_json["links_num"].ToInt() * HASH_LENGTH;
     uint8_t *sub_hashs = (uint8_t*)enc_malloc(sub_hashs_len);
     memset(sub_hashs, 0, sub_hashs_len);
-    char *hex_new_hash = NULL;
     size_t cur_size = 0;
     for (int i = 0; i < tree_json["links_num"].ToInt(); i++)
     {
@@ -226,8 +222,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     // Get new hash
     sgx_sha256_hash_t new_hash;
     sgx_sha256_msg(sub_hashs, sub_hashs_len, &new_hash);
-    hex_new_hash = hexstring_safe(new_hash, HASH_LENGTH);
-    tree_json["hash"] = std::string(hex_new_hash, HASH_LENGTH * 2);
+    tree_json["hash"] = hexstring_safe(new_hash, HASH_LENGTH);
 
     // Construct tree string
     tree.erase(tree.size() - 1, 1);
@@ -239,9 +234,6 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
 
 cleanup:
-
-    if (hex_new_hash != NULL)
-        free(hex_new_hash);
 
     if (sub_hashs != NULL)
         free(sub_hashs);
@@ -347,15 +339,9 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
         sgx_sha256_hash_t new_hash;
         sgx_sha256_msg(p_decrypted_data, decrypted_data_len_r, &new_hash);
         std::string new_path;
-        char *p_hex_new_hash = hexstring_safe(new_hash, HASH_LENGTH);
-        if (p_hex_new_hash == NULL)
-        {
-            crust_status = CRUST_MALLOC_FAILED;
-            goto cleanup;
-        }
+        std::string hex_new_hash_str = hexstring_safe(new_hash, HASH_LENGTH);
         new_path.append(dir).append("/").append(tag).append("_")
-            .append(p_hex_new_hash, HASH_LENGTH * 2);
-        free(p_hex_new_hash);
+            .append(hex_new_hash_str);
         ocall_replace_file(&crust_status, path.c_str(), new_path.c_str(), p_decrypted_data, decrypted_data_len_r);
         if (CRUST_SUCCESS != crust_status)
         {
