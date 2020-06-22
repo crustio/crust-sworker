@@ -1,7 +1,6 @@
 #include "Process.h"
 #include "DataBase.h"
 #include "WebServer.h"
-#include <thread>
 #include "tbb/concurrent_unordered_map.h"
 
 #define RECEIVE_PID_RETRY 30
