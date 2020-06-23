@@ -60,7 +60,7 @@ int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
 X509_STORE * cert_init_ca(X509 *cert);
 char *base64_decode(const char *msg, size_t *sz);
 
-crust_status_t id_verify_iasreport(char ** IASReport, size_t size, sgx_ec256_signature_t *p_ensig);
+crust_status_t id_verify_iasreport(char ** IASReport, size_t size);
 crust_status_t id_sign_network_entry(const char *p_partial_data, uint32_t data_size, sgx_ec256_signature_t *p_signature);
 sgx_status_t id_gen_key_pair();
 sgx_status_t id_get_report(sgx_report_t *report, sgx_target_info_t *target_info);
@@ -83,9 +83,13 @@ void id_get_metadata(json::JSON &meta_json, bool locked = true);
  * @return: Set or append status
  * */
 template<class T>
-crust_status_t id_metadata_set_or_append(const char *key, T val, metadata_op_e op = ID_UPDATE)
+crust_status_t id_metadata_set_or_append(const char *key, T val, 
+        metadata_op_e op = ID_UPDATE, bool locked = true)
 {
-    sgx_thread_mutex_lock(&g_metadata_mutex);
+    if (locked)
+    {
+        sgx_thread_mutex_lock(&g_metadata_mutex);
+    }
 
     std::string key_str(key);
     std::string meta_str;
@@ -139,7 +143,10 @@ crust_status_t id_metadata_set_or_append(const char *key, T val, metadata_op_e o
 
 cleanup:
 
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
+    if (locked)
+    {
+        sgx_thread_mutex_unlock(&g_metadata_mutex);
+    }
 
     return crust_status;
 }

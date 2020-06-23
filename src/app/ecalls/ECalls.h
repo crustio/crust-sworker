@@ -60,7 +60,7 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
 sgx_status_t Ecall_store_quote(sgx_enclave_id_t eid, crust_status_t *status, const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
         sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz);
 
-sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len, sgx_ec256_signature_t *p_ensig);
+sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
 
 sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *p_tree, size_t tree_len, const char *path,
         char *p_new_path , size_t path_len);

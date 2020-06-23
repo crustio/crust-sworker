@@ -298,7 +298,7 @@ void *srd_check_reserved(void *)
         srd_info_mutex.lock();
         if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_info_str)))
         {
-            p_log->err("Get srd info failed! Error code:%lx\n", crust_status);
+            p_log->debug("Get srd info failed! Error code:%lx\n", crust_status);
             // Unlock srd_info
             srd_info_mutex.unlock();
             sleep(15);

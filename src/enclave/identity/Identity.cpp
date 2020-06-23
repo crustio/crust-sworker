@@ -321,11 +321,14 @@ char *base64_decode(const char *msg, size_t *sz)
 
 /**
  * @description: Verify IAS report
+ * @param IASReport -> Pointer to vector address
+ * @param size -> Vector size
  * @return: Verify status
  * */
-crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_signature_t *p_ensig)
+crust_status_t id_verify_iasreport(char **IASReport, size_t size)
 {
     string certchain;
+    string certchain_1;
     size_t cstart, cend, count, i;
     X509 **certar;
     STACK_OF(X509) * stack;
@@ -349,6 +352,9 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     sgx_status_t sgx_status;
     sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_ec256_signature_t ecc_signature;
+
+    json::JSON id_json;
+    std::string id_str;
 
     BIO *bio_mem = BIO_new(BIO_s_mem());
     BIO_puts(bio_mem, INTELSGXATTROOTCA);
@@ -409,6 +415,11 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
         cend = certchain.find("-----BEGIN", cstart + 1);
         len = ((cend == string::npos) ? certchain.length() : cend) - cstart;
 
+        if (certchain_1.size() == 0)
+        {
+            certchain_1 = certchain.substr(cstart, len);
+        }
+
         if (!cert_load(&cert, certchain.substr(cstart, len).c_str()))
         {
             return CRUST_IAS_BAD_CERTIFICATE;
@@ -421,7 +432,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     count = certvec.size();
 
     certar = (X509 **)malloc(sizeof(X509 *) * (count + 1));
-    if (certar == 0)
+    if (certar == NULL)
     {
         return CRUST_IAS_INTERNAL_ERROR;
     }
@@ -484,7 +495,6 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     pkey_buf = (uint8_t*)malloc(len);
     p_pkey_buf = pkey_buf;
     i2d_PublicKey(pkey, &p_pkey_buf);
-    log_debug("======= Get IAS pub key:%s\n", hexstring_safe(pkey_buf, len).c_str());
 
     isv_body = response[2];
 
@@ -541,13 +551,13 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
     }
 
     // Generate identity data for sig
-    org_data_len = certchain.size() + ias_sig.size() + isv_body.size() + chain_account_id.size();
+    org_data_len = certchain_1.size() + ias_sig.size() + isv_body.size() + chain_account_id.size();
     org_data = (uint8_t *)malloc(org_data_len);
     memset(org_data, 0, org_data_len);
     p_org_data = org_data;
 
-    memcpy(org_data, certchain.c_str(), certchain.size());
-    org_data += certchain.size();
+    memcpy(org_data, certchain_1.c_str(), certchain_1.size());
+    org_data += certchain_1.size();
     memcpy(org_data, ias_sig.c_str(), ias_sig.size());
     org_data += ias_sig.size();
     memcpy(org_data, isv_body.c_str(), isv_body.size());
@@ -561,8 +571,16 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size, sgx_ec256_sign
         status = CRUST_SIGN_PUBKEY_FAILED;
         goto cleanup;
     }
+    
+    // Get tee identity and store it outside of tee
+    id_json["X-IASReport-Signing-Certificate"] = certchain_1;
+    id_json["X-IASReport-Signature"] = ias_sig;
+    id_json["isvBody"] = isv_body;
+    id_json["account_id"] = chain_account_id;
+    id_json["sig"] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
+    id_str = id_json.dump();
 
-    memcpy(p_ensig, &ecc_signature, sizeof(sgx_ec256_signature_t));
+    ocall_store_identity(id_str.c_str());
 
 
 cleanup:
@@ -958,7 +976,7 @@ crust_status_t id_restore_metadata()
         json::JSON m_files = meta_json[MEANINGFUL_FILE_DB_TAG];
         for (int i = 0; i < m_files.size(); i++)
         {
-            wl->checked_files.push_back(make_pair(m_files[i]["hash"].ToString(), m_files[i]["size"].ToInt()));
+            wl->checked_files.push_back(m_files[i]);
         }
     }
     // Restore id key pair

@@ -28,6 +28,7 @@ tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 std::string g_order_report_str;
 
 extern std::mutex srd_info_mutex;
+extern std::string g_tee_identity;
 
 
 /**
@@ -543,7 +544,7 @@ crust_status_t ocall_validate_init()
     backup_json["backup"] = p_config->chain_backup;
     if (! wssclient->websocket_request(backup_json.dump(), res))
     {
-        p_log->err("Validate failed! Send backup to server failed! Error: %s\n", res.c_str());
+        p_log->err("Validate meaningful failed! Send backup to server failed! Error: %s\n", res.c_str());
         return CRUST_VALIDATE_WSS_REQUEST_FAILED;
     }
     json::JSON res_json = json::JSON::Load(res);
@@ -585,7 +586,7 @@ crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_h
     std::string res;
     if (! wssclient->websocket_request(req_json.dump(), res))
     {
-        p_log->err("Validate failed! Send backup to server failed! Error: %s\n", res.c_str());
+        p_log->err("Validate meaningful failed! Send request to server failed! Error: %s\n", res.c_str());
         return CRUST_VALIDATE_WSS_REQUEST_FAILED;
     }
     size_t data_size = res.size();
@@ -660,4 +661,13 @@ void ocall_srd_info_unlock()
 void ocall_srd_change(long change)
 {
     srd_change(change);
+}
+
+/**
+ * @description: Store tee identity
+ * @param id -> Pointer to identity
+ * */
+void ocall_store_identity(const char *id)
+{
+    g_tee_identity = std::string(id);
 }

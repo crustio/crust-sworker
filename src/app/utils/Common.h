@@ -33,6 +33,7 @@ extern "C"
     MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json);
     json::JSON serialize_merkletree_to_json(MerkleTree *root);
     void free_merkletree(MerkleTree *root);
+    std::string flat_urlformat(std::string &url);
 
 #if defined(__cplusplus)
 }

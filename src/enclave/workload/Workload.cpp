@@ -58,8 +58,10 @@ void Workload::show(void)
     log_debug("Meaningful work details is: \n");
     for (uint32_t i = 0; i < this->checked_files.size(); i++)
     {
-        log_debug("Meaningful root hash:%s -> size:%ld\n",
-                  this->checked_files[i].first.c_str(), this->checked_files[i].second);
+        log_debug("Meaningful root hash:%s -> size: %ld status: %s\n",
+                  this->checked_files[i]["hash"].ToString().c_str(), 
+                  this->checked_files[i]["size"].ToInt(),
+                  this->checked_files[i]["lost"].ToInt() == 1 ? "lost" : "valid");
     }
 }
 
@@ -220,7 +222,7 @@ bool Workload::reset_meaningful_data()
     {
         for (int i = 0; i < meaningful_files.size(); i++)
         {
-            this->checked_files.push_back(make_pair(meaningful_files[i]["hash"].ToString(), meaningful_files[i]["size"].ToInt()));
+            this->checked_files.push_back(meaningful_files[i]);
         }
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return true;
@@ -237,7 +239,7 @@ bool Workload::reset_meaningful_data()
  * @description: Add new file to new_files
  * @param file -> A pair of file's hash and file's size
  * */
-void Workload::add_new_file(std::pair<std::string, size_t> file)
+void Workload::add_new_file(json::JSON file)
 {
     sgx_thread_mutex_lock(&g_new_files_mutex);
     this->new_files.push_back(file);

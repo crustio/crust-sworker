@@ -61,6 +61,8 @@ extern "C"
 
     void ocall_srd_change(long change);
 
+    void ocall_store_identity(const char *id);
+
 #if defined(__cplusplus)
 }
 #endif

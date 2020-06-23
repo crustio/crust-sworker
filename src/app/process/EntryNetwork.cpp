@@ -5,6 +5,7 @@ namespace http = boost::beast::http;   // from <boost/beast/http.hpp>
 
 extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
+std::string g_tee_identity;
 
 /**
  * @description: entry network off-chain node sends quote to onchain node to verify identity
@@ -201,34 +202,34 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     ias_report.push_back(p_config->chain_account_id.c_str()); //[3]
 
     p_log->debug("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
+    json::JSON ias_body_json = json::JSON::Load(ias_res.body());
     int version = IAS_API_DEF_VERSION;
     if (version >= 3)
     {
-        p_log->debug("version               = %ld\n",
-                    ias_res["version"]);
+        p_log->debug("version                     = %ld\n",
+                    ias_body_json["version"].ToInt());
     }
-    p_log->debug("id:                   = %s\n",
-                std::string(ias_res["id"]).c_str());
-    p_log->debug("timestamp             = %s\n",
-                std::string(ias_res["timestamp"]).c_str());
-    p_log->debug("isvEnclaveQuoteStatus = %s\n",
-                std::string(ias_res["isvEnclaveQuoteStatus"]).c_str());
-    p_log->debug("isvEnclaveQuoteBody   = %s\n",
-                std::string(ias_res["isvEnclaveQuoteBody"]).c_str());
-    std::string iasQuoteStr(ias_res["isvEnclaveQuoteBody"]);
+    p_log->debug("id:                         = %s\n",
+                ias_body_json["id"].ToString().c_str());
+    p_log->debug("timestamp                   = %s\n",
+                ias_body_json["timestamp"].ToString().c_str());
+    p_log->debug("isvEnclaveQuoteStatus       = %s\n",
+                ias_body_json["isvEnclaveQuoteStatus"].ToString().c_str());
+    p_log->debug("isvEnclaveQuoteBody         = %s\n",
+                ias_body_json["isvEnclaveQuoteBody"].ToString().c_str());
+    std::string iasQuoteStr(ias_body_json["isvEnclaveQuoteBody"].ToString());
     size_t qs;
     char *ppp = base64_decode(iasQuoteStr.c_str(), &qs);
     sgx_quote_t *ias_quote = (sgx_quote_t *)malloc(qs);
     memset(ias_quote, 0, qs);
     memcpy(ias_quote, ppp, qs);
-    p_log->debug("========== ias quote report data:%s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
-    p_log->debug("ias quote report version:%d\n", ias_quote->version);
-    p_log->debug("ias quote report signtype:%d\n", ias_quote->sign_type);
-    p_log->debug("ias quote report basename:%s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
-    p_log->debug("ias quote report mr_enclave:%s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
+    p_log->debug("ias quote report data       = %s\n", hexstring(ias_quote->report_body.report_data.d, sizeof(ias_quote->report_body.report_data.d)));
+    p_log->debug("ias quote report version    = %d\n", ias_quote->version);
+    p_log->debug("ias quote report signtype   = %d\n", ias_quote->sign_type);
+    p_log->debug("ias quote report basename   = %s\n", hexstring(&ias_quote->basename, sizeof(sgx_basename_t)));
+    p_log->debug("ias quote report mr_enclave = %s\n", hexstring(&ias_quote->report_body.mr_enclave, sizeof(sgx_measurement_t)));
 
     p_log->debug("\n\n----------IAS Report - JSON - Optional Fields----------\n\n");
-
     p_log->debug("platformInfoBlob  = %s\n",
                 std::string(ias_res["platformInfoBlob"]).c_str());
     p_log->debug("revocationReason  = %s\n",
@@ -239,34 +240,19 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
                 std::string(ias_res["pseManifestHash"]).c_str());
     p_log->debug("nonce             = %s\n",
                 std::string(ias_res["nonce"]).c_str());
-    p_log->debug("epidPseudonym     = %s\n",
+    p_log->debug("epidPseudonym     = %s\n\n",
                 std::string(ias_res["epidPseudonym"]).c_str());
 
     // Verify IAS report in enclave
-    sgx_ec256_signature_t ensig;
     crust_status_t crust_status;
-    sgx_status_t status_ret = Ecall_verify_iasreport(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size(), &ensig);
+    // Ecall_verify_iasreport will store tee identity to g_tee_identity by ocall
+    // You can get this identity by accessing g_tee_identity
+    sgx_status_t status_ret = Ecall_verify_iasreport(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
     if (SGX_SUCCESS == status_ret)
     {
         if (CRUST_SUCCESS == crust_status)
         {
-            json::JSON identity_json;
-            char *p_hex_sig = hexstring_safe((const char *)&ensig, sizeof(sgx_ec256_signature_t));
-            identity_json["X-IASReport-Signing-Certificate"] = ias_cer;
-            identity_json["X-IASReport-Signature"] = ias_sig;
-            identity_json["isvBody"] = ias_quote_body;
-            identity_json["account_id"] = p_config->chain_account_id;
-            identity_json["sig"] = std::string(p_hex_sig, sizeof(sgx_ec256_signature_t) * 2);
-            std::string jsonstr = identity_json.dump();
-            // Free temp buffer
-            if (p_hex_sig != NULL)
-            {
-                free(p_hex_sig);
-            }
-            remove_char(jsonstr, ' ');
-            remove_char(jsonstr, '\n');
-            remove_char(jsonstr, '\\');
-            tee_identity_out = jsonstr;
+            tee_identity_out = g_tee_identity;
             entry_status = true;
             p_log->info("Verify IAS report in enclave successfully!\n");
         }

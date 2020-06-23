@@ -149,3 +149,60 @@ void free_merkletree(MerkleTree *root)
         free(root->links);
     }
 }
+
+static inline int htoi(char *s)
+{
+    int value;
+    int c;
+
+    c = ((unsigned char *)s)[0];
+    if (isupper(c))
+        c = tolower(c);
+    value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
+
+    c = ((unsigned char *)s)[1];
+    if (isupper(c))
+        c = tolower(c);
+    value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
+
+    return (value);
+}
+
+/**
+ * @description: Decode url to flat string
+ * @param url -> Reference to url
+ * @return: Decoded url
+ * */
+std::string flat_urlformat(std::string &url)
+{
+    int len = url.size();
+    char *dest = (char*)malloc(url.size());
+    memset(dest, 0, url.size());
+    char *org = dest;
+
+    int i = 0;
+    while (len-- >= 0)
+    {
+        if (url[i] == '+')
+        {
+            *dest = ' ';
+        }
+        else if (url[i] == '%' && len >= 2 
+                && isxdigit((int) url[i + 1])
+                && isxdigit((int) url[i + 2])) 
+        {
+            *dest = (char) htoi(&url[i + 1]);
+            i += 2;
+            len -= 2;
+        }
+        else
+        {
+            *dest = url[i];
+        }
+        i++;
+        dest++;
+    }
+    *dest = '\0';
+
+    return std::string(org, dest - org);
+}

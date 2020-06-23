@@ -21,8 +21,9 @@ class Workload
 {
 public:
     std::map<std::string, std::vector<uint8_t*>> srd_path2hashs_m;         /* used to store all G empty file collection' hashs */
-    std::vector<std::pair<std::string, size_t>> checked_files;
-    std::vector<std::pair<std::string, size_t>> new_files;
+
+    std::vector<json::JSON> checked_files;
+    std::vector<json::JSON> new_files;
     std::vector<std::pair<std::string, size_t>> order_files;
     
     static Workload *workload;
@@ -35,7 +36,7 @@ public:
     void clean_data();
     bool reset_meaningful_data();
 
-    void add_new_file(std::pair<std::string, size_t> file);
+    void add_new_file(json::JSON file);
     void add_order_file(std::pair<std::string, size_t> file);
 };
 
