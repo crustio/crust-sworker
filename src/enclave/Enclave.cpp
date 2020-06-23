@@ -54,7 +54,6 @@ void ecall_main_loop()
         eprintf("\n\n---------- Meaningful Validation ----------\n\n");
         validation_status = VALIDATE_MEANINGFUL;
         validate_meaningful_file();
-        log_debug("----- Meaningful Validation End -----\n");
 
         // ----- SRD validate ----- //
         eprintf("\n\n---------- SRD Validation ----------\n\n");

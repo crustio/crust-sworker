@@ -362,6 +362,8 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     vector<string> response(IASReport, IASReport + size);
 
     string chain_account_id = response[3];
+    uint8_t *p_account_id_u = hex_string_to_bytes(chain_account_id.c_str(), chain_account_id.size());
+    size_t account_id_u_len = chain_account_id.size() / 2;
     uint8_t *org_data, *p_org_data = NULL;
     size_t org_data_len = 0;
 
@@ -551,7 +553,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     }
 
     // Generate identity data for sig
-    org_data_len = certchain_1.size() + ias_sig.size() + isv_body.size() + chain_account_id.size();
+    org_data_len = certchain_1.size() + ias_sig.size() + isv_body.size() + account_id_u_len;
     org_data = (uint8_t *)malloc(org_data_len);
     memset(org_data, 0, org_data_len);
     p_org_data = org_data;
@@ -562,7 +564,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     org_data += ias_sig.size();
     memcpy(org_data, isv_body.c_str(), isv_body.size());
     org_data += isv_body.size();
-    memcpy(org_data, chain_account_id.c_str(), chain_account_id.size());
+    memcpy(org_data, p_account_id_u, account_id_u_len);
 
     sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
             &id_key_pair.pri_key, &ecc_signature, ecc_state);

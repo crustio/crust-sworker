@@ -141,9 +141,9 @@ std::string Workload::serialize_workload(bool locked /*=true*/)
 
     // Store srd_path2hashs_m
     json::JSON g_hashs_json;
-    int i = 0;
     for (auto it : this->srd_path2hashs_m)
     {
+        int i = 0;
         for (auto g_hash : it.second)
         {
             g_hashs_json[it.first][i++] = hexstring_safe(g_hash, HASH_LENGTH);

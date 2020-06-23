@@ -105,40 +105,20 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
 
     // Assigned srd space to disk
     size_t increase_size = 0;
+    size_t increase_acc = true_srd_capacity;
     auto disk_range = disk_info_json.ObjectRange();
-    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
+    for (auto it = disk_range.begin(); increase_acc > 0; )
     {
         std::string path = it->first;
-        // According to the available space to assign increased size
-        // Larger the available space is, larger the increased size is. 
-        double cur_increase_size = (double)(it->second["available"].ToInt()) / (double)total_avail * (double)true_srd_capacity;
-        // If assigned size larger than true_srd_capacity
-        if (increase_size + cur_increase_size > true_srd_capacity)
+        if (it->second["available"].ToInt() > 0)
         {
-            cur_increase_size = true_srd_capacity - increase_size;
+            it->second["increased"] = it->second["increased"].ToInt() + 1;
+            it->second["available"] = it->second["available"].ToInt() - 1;
+            increase_acc--;
         }
-        // Judge if assigned size larger than current disk available space
-        if (cur_increase_size > it->second["available"].ToInt())
+        if (++it == disk_range.end())
         {
-            it->second["increased"] = it->second["available"].ToInt();
-        }
-        else
-        {
-            it->second["increased"] = (long)cur_increase_size;
-            if (cur_increase_size - (double)(it->second["increased"].ToInt()) > 0.0)
-            {
-                if (increase_size + cur_increase_size < true_srd_capacity
-                        && it->second["available"].ToInt() > it->second["increased"].ToInt())
-                {
-                    it->second["increased"] = it->second["increased"].ToInt() + 1;
-                }
-            }
-        }
-        increase_size += it->second["increased"].ToInt();
-
-        if (increase_size >= true_srd_capacity)
-        {
-            break;
+            it = disk_range.begin();
         }
     }
 
@@ -248,12 +228,19 @@ void srd_change(long change)
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
+        size_t increase_acc = true_increase;
         std::vector<std::string> srd_paths;
-        for (auto it = disk_range.begin(); it != disk_range.end(); it++)
+        for (auto it = disk_range.begin(); increase_acc > 0; )
         {
-            for (int i = 0; i < it->second["increased"].ToInt(); i++)
+            if (it->second["increased"].ToInt() > 0)
             {
                 srd_paths.push_back(it->first);
+                it->second["increased"] = it->second["increased"].ToInt() - 1;
+                increase_acc--;
+            }
+            if (++it == disk_range.end())
+            {
+                it = disk_range.begin();
             }
         }
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
