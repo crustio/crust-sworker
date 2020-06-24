@@ -51,21 +51,21 @@ void ecall_main_loop()
         crust_status_t crust_status = CRUST_SUCCESS;
 
         // ----- Meaningful validate ----- //
-        eprintf("\n\n---------- Meaningful Validation ----------\n\n");
+        log_debug("\n\n---------- Meaningful Validation ----------\n\n");
         validation_status = VALIDATE_MEANINGFUL;
         validate_meaningful_file();
 
         // ----- SRD validate ----- //
-        eprintf("\n\n---------- SRD Validation ----------\n\n");
+        log_debug("\n\n---------- SRD Validation ----------\n\n");
         validation_status = VALIDATE_EMPTY;
         validate_srd();
 
         // ----- SRD ----- //
-        eprintf("\n\n---------- SRD ----------\n\n");
+        log_debug("\n\n---------- SRD ----------\n\n");
         srd_change();
 
         // ----- Show result ----- //
-        eprintf("\n\n---------- Validation Waiting ----------\n\n");
+        log_debug("\n\n---------- Validation Waiting ----------\n\n");
         Workload::get_instance()->show();
 
         // Store metadata periodically

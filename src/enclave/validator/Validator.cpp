@@ -74,7 +74,7 @@ void validate_srd()
     // Randomly choose validate srd files
     std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_us;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
-    if (srd_validate_num > SRD_VALIDATE_MIN_NUM)
+    if (srd_validate_num < srd_total_num)
     {
         uint32_t rand_val;
         uint32_t rand_idx = 0;
@@ -84,6 +84,7 @@ void validate_srd()
             do
             {
                 sgx_read_rand((uint8_t *)&rand_val, 4);
+                chose_entry = wl->srd_path2hashs_m.begin();
                 uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
                 for (uint32_t i = 0; i < path_idx; i++)
                 {
@@ -147,7 +148,6 @@ void validate_srd()
         if (m_hashs_org == NULL)
         {
             log_err("Get m hashs file failed in '%s'.\n", hex_g_hash.c_str());
-            srd_validate_failed_num++;
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -161,7 +161,6 @@ void validate_srd()
         if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
         {
             log_err("Wrong m hashs file in '%s'.\n", hex_g_hash.c_str());
-            srd_validate_failed_num++;
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -175,7 +174,6 @@ void validate_srd()
         if (leaf_data == NULL)
         {
             log_err("Get leaf file failed in '%s'.\n", unsigned_char_array_to_hex_string(p_g_hash, HASH_LENGTH).c_str());
-            srd_validate_failed_num++;
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -185,7 +183,6 @@ void validate_srd()
         if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
         {
             log_err("Wrong leaf data hash in '%s'.\n", hex_g_hash.c_str());
-            srd_validate_failed_num++;
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -199,6 +196,10 @@ void validate_srd()
     }
 
     // Delete indicated punished files
+    for (auto it : del_path2idx_m)
+    {
+        srd_validate_failed_num += it.second.size();
+    }
     srd_random_delete(srd_punish_num * srd_validate_failed_num, &del_path2idx_m);
 
     sgx_thread_mutex_unlock(&g_workload_mutex);

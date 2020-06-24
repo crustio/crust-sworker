@@ -1,5 +1,6 @@
 #include "Srd.h"
 #include "ECalls.h"
+#include "Ctpl.h"
 
 std::mutex srd_info_mutex;
 crust::Log *p_log = crust::Log::get_instance();
@@ -104,7 +105,6 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     true_srd_capacity = std::min(total_avail, true_srd_capacity);
 
     // Assigned srd space to disk
-    size_t increase_size = 0;
     size_t increase_acc = true_srd_capacity;
     auto disk_range = disk_info_json.ObjectRange();
     for (auto it = disk_range.begin(); increase_acc > 0; )
@@ -243,12 +243,29 @@ void srd_change(long change)
                 it = disk_range.begin();
             }
         }
+
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
-        #pragma omp parallel for num_threads(p_config->srd_thread_num)
+        ctpl::thread_pool pool(std::max(p_config->srd_thread_num / 2, 2));
+        std::vector<std::shared_ptr<std::future<void>>> tasks_v;
         for (size_t i = 0; i < srd_paths.size(); i++)
         {
             std::string path = srd_paths[i];
-            Ecall_srd_increase(global_eid, path.c_str());
+            sgx_enclave_id_t eid = global_eid;
+            tasks_v.push_back(std::make_shared<std::future<void>>(pool.push([eid, path](int /*id*/){
+                Ecall_srd_increase(eid, path.c_str());
+            })));
+        }
+        for (auto it : tasks_v)
+        {
+            try 
+            {
+                it.get();
+            }
+            catch (std::exception &e)
+            {
+                p_log->err("Catch exception:");
+                std::cout << e.what() << std::endl;
+            }
         }
 
         p_config->change_empty_capacity(true_increase);

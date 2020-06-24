@@ -58,7 +58,7 @@ Config::Config(std::string path)
     this->websocket_url = config_value["websocket_url"].ToString();
     this->websocket_thread_num = config_value["websocket_thread_num"].ToInt();
     this->validator_api_base_url = config_value["validator_api_base_url"].ToString();
-    this->srd_thread_num = std::min(omp_get_num_procs()*2, 8);
+    this->srd_thread_num = std::min(omp_get_num_procs() * 2, 8);
 
     // storage configurations
     this->karst_url = config_value["karst_url"].ToString();
@@ -97,9 +97,8 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     for (int i = 0; i < this->srd_paths.size(); i++)
     {
-        printf("    'srd path %d' : '%s',\n", i, this->srd_paths[i].ToString().c_str());
+        printf("    'srd path %d' : '%s',\n", i + 1, this->srd_paths[i].ToString().c_str());
     }
-    printf("    'srd path' : '%s',\n", this->empty_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'srd capacity' : %lu,\n", this->empty_capacity);
 

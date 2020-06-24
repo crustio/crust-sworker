@@ -42,7 +42,7 @@ Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<
 
 ### Install crust TEE
 1. Run '**tar -xvf crust-\<version\>.tar**' to extract package.
-1. Cd to the extract folder, run '**scripts/install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
+1. Cd to the extract folder, run '**install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
 
 ### Configure your crust TEE
 In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE application.

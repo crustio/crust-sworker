@@ -177,8 +177,7 @@ bool Chain::post_tee_identity(std::string identity)
         std::string path = this->url_end_point->base + "/tee/identity";
         httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        json::JSON obj;
-        obj["identity"] = identity;
+        json::JSON obj = json::JSON::Load(identity);
         obj["backup"] = this->backup;
         auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
 
@@ -209,8 +208,7 @@ bool Chain::post_tee_work_report(std::string work_report)
         std::string path = this->url_end_point->base + "/tee/workreport";
         httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        json::JSON obj;
-        obj["workreport"] = work_report;
+        json::JSON obj = json::JSON::Load(work_report);
         obj["backup"] = this->backup;
         auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
 

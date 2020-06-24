@@ -575,9 +575,9 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     }
     
     // Get tee identity and store it outside of tee
-    id_json["X-IASReport-Signing-Certificate"] = certchain_1;
-    id_json["X-IASReport-Signature"] = ias_sig;
-    id_json["isvBody"] = isv_body;
+    id_json["ias_cert"] = certchain_1;
+    id_json["ias_sig"] = ias_sig;
+    id_json["isv_body"] = isv_body;
     id_json["account_id"] = chain_account_id;
     id_json["sig"] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
     id_str = id_json.dump();
@@ -609,6 +609,9 @@ cleanup:
 
     if (p_decode_quote_body != NULL)
         free(p_decode_quote_body);
+
+    if (p_account_id_u != NULL)
+        free(p_account_id_u);
 
     return status;
 }
