@@ -108,7 +108,7 @@ void validate_srd()
         }
     }
 
-    log_debug("Validating %ldG srd space...\n", srd_validate_num);
+    log_debug("Validating %ldG srd space...\n", validate_srd_idx_us.size());
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::set<size_t>> del_path2idx_m;

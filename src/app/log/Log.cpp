@@ -117,26 +117,19 @@ void Log::debug(const char *format, ...)
 void Log::base_log(std::string log_str, std::string tag)
 {
     // Get timestamp
-    time_t ts;
-    struct tm time_tm, *time_tmp;
-    char time_str[64];
-    time(&ts);
+    struct timeval cur_time;
+    gettimeofday(&cur_time, NULL);
 
-    time_tmp = localtime(&ts);
-    if (time_tmp == NULL)
-    {
-        perror("localtime");
-        return;
-    }
-    time_tm = *time_tmp;
+    int milli_sec = cur_time.tv_usec / 1000;
+    char time_str[64];
 
     // If you change this format, you may need to change the size of time_str
-    if (strftime(time_str, 64, "%b %e %Y %T", &time_tm) == 0)
+    if (strftime(time_str, 64,  "%b %e %Y %T", localtime(&cur_time.tv_sec)) == 0)
     {
         time_str[0] = 0;
     }
     
-     printf("[%s] [%s] %s", time_str, tag.c_str(), log_str.c_str());
+     printf("[%s.%03d] [%s] %s", time_str, milli_sec, tag.c_str(), log_str.c_str());
 
      fflush(stdout);
 }

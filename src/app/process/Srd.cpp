@@ -245,7 +245,7 @@ void srd_change(long change)
         }
 
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
-        ctpl::thread_pool pool(std::max(p_config->srd_thread_num / 2, 2));
+        ctpl::thread_pool pool(p_config->srd_thread_num);
         std::vector<std::shared_ptr<std::future<void>>> tasks_v;
         for (size_t i = 0; i < srd_paths.size(); i++)
         {

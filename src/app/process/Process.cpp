@@ -183,7 +183,7 @@ int process_run()
         // Store crust info in enclave
         crust_status_t crust_status = CRUST_SUCCESS;
         if (SGX_SUCCESS != Ecall_set_chain_account_id(global_eid, &crust_status,
-                p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
+                p_config->chain_address.c_str(), p_config->chain_address.size()) ||
             CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store backup information to enclave failed!Error code:%lx\n", crust_status);
@@ -226,7 +226,7 @@ int process_run()
     {
         // Compare crust account it in configure file and recovered file
         if (SGX_SUCCESS != Ecall_cmp_chain_account_id(global_eid, &crust_status,
-                p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) ||
+                p_config->chain_address.c_str(), p_config->chain_address.size()) ||
             CRUST_SUCCESS != crust_status)
         {
             p_log->err("Configure chain account id doesn't equal to recovered one!\n");
