@@ -207,7 +207,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string srd_info;
             if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_info)))
             {
-                p_log->err("Get srd info failed! Error code:%lx\n", crust_status);
+                p_log->debug("Get srd info failed! Error code:%lx\n", crust_status);
                 goto getcleanup;
             }
             res.body() = srd_info;

@@ -11,7 +11,7 @@
 #include "EUtils.h"
 #include "PathHelper.h"
 
-#define SRD_MAX_PER_TURN 128
+#define SRD_MAX_PER_TURN 64
 
 void srd_change();
 void srd_increase(const char *path);

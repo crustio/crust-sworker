@@ -50,25 +50,22 @@ void ecall_main_loop()
     {
         crust_status_t crust_status = CRUST_SUCCESS;
 
-        // ----- Meaningful ----- //
-        log_debug("----- Meaningful Validation -----\n");
+        // ----- Meaningful validate ----- //
+        log_debug("\n\n---------- Meaningful Validation ----------\n\n");
         validation_status = VALIDATE_MEANINGFUL;
         validate_meaningful_file();
-        log_debug("----- Meaningful Validation End -----\n");
 
-        // ----- SRD ----- //
-        log_debug("----- SRD Validation -----\n");
+        // ----- SRD validate ----- //
+        log_debug("\n\n---------- SRD Validation ----------\n\n");
         validation_status = VALIDATE_EMPTY;
         validate_srd();
-        log_debug("----- SRD Validation End -----\n");
 
         // ----- SRD ----- //
-        log_debug("----- SRD -----\n");
+        log_debug("\n\n---------- SRD ----------\n\n");
         srd_change();
-        log_debug("----- SRD End -----\n");
 
         // ----- Show result ----- //
-        log_debug("----- Validation Waiting -----\n");
+        log_debug("\n\n---------- Validation Waiting ----------\n\n");
         Workload::get_instance()->show();
 
         // Store metadata periodically
@@ -229,12 +226,11 @@ crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p
  * @description: verify IAS report
  * @param IASReport (in) -> Vector first address
  * @param len -> Count of Vector IASReport
- * @param p_ensig (out) -> Pointer to entry network report signature
  * @return: verify status
  * */
-crust_status_t ecall_verify_iasreport(char **IASReport, size_t len, sgx_ec256_signature_t *p_ensig)
+crust_status_t ecall_verify_iasreport(char **IASReport, size_t len)
 {
-    return id_verify_iasreport(IASReport, len, p_ensig);
+    return id_verify_iasreport(IASReport, len);
 }
 
 /**

@@ -72,6 +72,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     json::JSON file_entry_json;
     file_entry_json["hash"] = new_root_hash_str;
     file_entry_json["size"] = node_size;
+    file_entry_json["lost"] = 0;
     crust_status = id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, file_entry_json, ID_APPEND);
     if (CRUST_SUCCESS != crust_status)
     {
@@ -100,7 +101,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     // Add new meaningful file to workload
     // TODO: when tee finish sealing file, karst persisting this sealed file will take some time.
     // So adding new meaningful file to check queue should not happen here. This sentence just used to test
-    Workload::get_instance()->add_new_file(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
+    Workload::get_instance()->add_new_file(file_entry_json);
 
     Workload::get_instance()->add_order_file(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
 

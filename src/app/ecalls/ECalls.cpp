@@ -492,10 +492,9 @@ sgx_status_t Ecall_store_quote(sgx_enclave_id_t eid, crust_status_t *status, con
  * @description: A wrapper function, verify IAS report
  * @param IASReport (in) -> Vector first address
  * @param len -> Count of Vector IASReport
- * @param p_ensig (out) -> Pointer to entry network report signature
  * @return: verify status
  * */
-sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len, sgx_ec256_signature_t *p_ensig)
+sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -503,7 +502,7 @@ sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status
         return ret;
     }
 
-    ret = ecall_verify_iasreport(eid, status, IASReport, len, p_ensig);
+    ret = ecall_verify_iasreport(eid, status, IASReport, len);
 
     free_enclave(__FUNCTION__);
 

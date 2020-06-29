@@ -79,9 +79,14 @@ crust_status_t generate_work_report(size_t *report_len)
     sgx_thread_mutex_lock(&g_checked_files_mutex);
     for (uint32_t i = 0; i < wl->checked_files.size(); i++)
     {
+        if (wl->checked_files[i]["lost"].ToInt() == 1)
+        {
+            continue;
+        }
+
         uint8_t *p_meta = NULL;
         size_t meta_len = 0;
-        crust_status = persist_get((wl->checked_files[i].first+"_meta").c_str(), &p_meta, &meta_len);
+        crust_status = persist_get((wl->checked_files[i]["hash"].ToString()+"_meta").c_str(), &p_meta, &meta_len);
         if (CRUST_SUCCESS != crust_status || p_meta == NULL)
         {
             sgx_thread_mutex_unlock(&g_checked_files_mutex);

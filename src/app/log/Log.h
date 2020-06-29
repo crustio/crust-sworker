@@ -2,6 +2,7 @@
 #define _CRUST_LOG_H_
 
 #include <stdio.h>
+#include <sys/time.h>
 
 #include <stdlib.h>
 #include <time.h>
