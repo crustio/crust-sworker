@@ -737,7 +737,7 @@ sgx_status_t id_gen_sgx_measurement()
     memset(&current_mr_enclave, 0, sizeof(sgx_measurement_t));
     memcpy(&current_mr_enclave, &verify_report.body.mr_enclave, sizeof(sgx_measurement_t));
 
-    log_info("The mrenclave is '0x%s'.\n", hexstring_safe(current_mr_enclave, sizeof(sgx_measurement_t)).c_str());
+    log_info("The mrenclave is '0x%s'.\n", hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t)).c_str());
     return status;
 }
 
