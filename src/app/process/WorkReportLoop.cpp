@@ -8,9 +8,14 @@ crust::Log *p_log = crust::Log::get_instance();
  * @description: used to generate random waiting time to ensure that the reporting workload is not concentrated
  * @return: wait time
  */
-size_t get_random_wait_time(void)
+size_t get_random_wait_time(std::string seed)
 {
-    srand(time(NULL));
+    unsigned int seed_number = 0;
+    for(size i = 0; i < chain_address.size(); i++)
+    {
+        seed_number += chain_address[i];
+    }
+    srand(time(NULL)+seed_number);
     //[9  199]
     return (rand() % (REPORT_INTERVAL_BLCOK_NUMBER_UPPER_LIMIT - REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT + 1) + REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT - 1) * BLOCK_INTERVAL;
 }
@@ -57,7 +62,7 @@ void *work_report_loop(void *)
         }
         if (0 == block_header->number % REPORT_BLOCK_HEIGHT_BASE)
         {
-            size_t wait_time = get_random_wait_time();
+            size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address);
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
             sleep(wait_time);
 
