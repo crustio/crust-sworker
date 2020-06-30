@@ -84,6 +84,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
                 disk_info_json[path]["available"] = disk_info_json[path]["available"].ToInt() - SRD_RESERVED_SPACE;
             }
             total_avail += disk_info_json[path]["available"].ToInt();
+            disk_info_json[path]["left"] = disk_info_json[path]["available"].ToInt();
         }
     }
     else
@@ -101,6 +102,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
             disk_info_json[p_config->empty_path]["available"] = disk_info_json[p_config->empty_path]["available"].ToInt() - SRD_RESERVED_SPACE;
         }
         total_avail = disk_info_json[p_config->empty_path]["available"].ToInt();
+        disk_info_json[p_config->empty_path]["left"] = disk_info_json[p_config->empty_path]["available"].ToInt();
     }
     true_srd_capacity = std::min(total_avail, true_srd_capacity);
 
@@ -110,10 +112,10 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     for (auto it = disk_range.begin(); increase_acc > 0; )
     {
         std::string path = it->first;
-        if (it->second["available"].ToInt() > 0)
+        if (it->second["left"].ToInt() > 0)
         {
             it->second["increased"] = it->second["increased"].ToInt() + 1;
-            it->second["available"] = it->second["available"].ToInt() - 1;
+            it->second["left"] = it->second["left"].ToInt() - 1;
             increase_acc--;
         }
         if (++it == disk_range.end())
@@ -223,8 +225,10 @@ void srd_change(long change)
         auto disk_range = disk_info_json.ObjectRange();
         for (auto it = disk_range.begin(); it != disk_range.end(); it++)
         {
-            p_log->info("Available space is %luG disk in '%s'\n", 
-                    it->second["available"].ToInt(), it->first.c_str());
+            p_log->info("Available space is %ldG disk in '%s', will use %ldG space\n", 
+                    it->second["available"].ToInt(),
+                    it->first.c_str(),
+                    it->second["increased"].ToInt());
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);

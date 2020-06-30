@@ -616,3 +616,20 @@ sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, 
 
     return ret;
 }
+
+/**
+ * @description: Show enclave thread info
+ * */
+std::string show_enclave_thread_info()
+{
+    json::JSON task_info_json;
+    for (auto it : g_running_task_m)
+    {
+        for (auto iter : it.second.task_info)
+        {
+            task_info_json[iter.first] = iter.second;
+        }
+    }
+
+    return task_info_json.dump();
+}
