@@ -21,8 +21,6 @@ sgx_measurement_t current_mr_enclave;
 size_t report_slot = 0;
 // Used to indicate whether it is the first report after restart
 bool just_after_restart = 0;
-// Map used to store off-chain request
-map<vector<uint8_t>, vector<uint8_t>> accid_pubkey_map;
 // Protect metadata 
 sgx_thread_mutex_t g_metadata_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
@@ -367,11 +365,6 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     uint8_t *org_data, *p_org_data = NULL;
     size_t org_data_len = 0;
 
-    // For debug
-    int len = 0;
-    uint8_t *pkey_buf = NULL;
-    uint8_t *p_pkey_buf = NULL;
-
 
     // ----- Verify IAS signature ----- //
 
@@ -491,12 +484,6 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
         status = CRUST_IAS_GETPUBKEY_FAILED;
         goto cleanup;
     }
-
-    // Print pkey for debug
-    len = i2d_PublicKey(pkey, NULL);
-    pkey_buf = (uint8_t*)malloc(len);
-    p_pkey_buf = pkey_buf;
-    i2d_PublicKey(pkey, &p_pkey_buf);
 
     isv_body = response[2];
 
@@ -785,7 +772,6 @@ crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_da
         }
         vector<uint8_t> account_id_v(p_account_id_u, p_account_id_u + account_id_sz / 2);
         vector<uint8_t> off_chain_pub_key_v(p_offchain_pubkey, p_offchain_pubkey + ENCLAVE_PUB_KEY_SIZE);
-        accid_pubkey_map[account_id_v] = off_chain_pub_key_v;
     }
 
     sgx_ecc256_close_context(ecc_state);

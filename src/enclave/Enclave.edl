@@ -42,7 +42,8 @@ enclave {
     };
 
     untrusted {
-        void ocall_print_string([in, string] const char *str);
+        void ocall_print_info([in, string] const char *str);
+        void ocall_print_debug([in, string] const char *str);
         void ocall_log_info([in, string] const char *str);
         void ocall_log_warn([in, string] const char *str);
         void ocall_log_err([in, string] const char *str);

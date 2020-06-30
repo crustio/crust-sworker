@@ -38,7 +38,8 @@ extern "C"
 {
 #endif
 
-int eprintf(const char* fmt, ...);
+int eprint_info(const char* fmt, ...);
+int eprint_debug(const char* fmt, ...);
 int log_info(const char* fmt, ...);
 int log_warn(const char* fmt, ...);
 int log_err(const char* fmt, ...);

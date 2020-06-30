@@ -215,6 +215,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
 
+        cur_path = urlendpoint->base + "/enclave/thread_info";
+        if (path.compare(cur_path) == 0)
+        {
+            res.body() = show_enclave_thread_info();
+            goto getcleanup;
+        }
+
+
     getcleanup:
 
         res.content_length(res.body().size());

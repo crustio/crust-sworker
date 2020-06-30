@@ -35,9 +35,21 @@ extern std::string g_tee_identity;
  * @description: ocall for printing string
  * @param str -> string for printing
  */
-void ocall_print_string(const char *str)
+void ocall_print_info(const char *str)
 {
     printf("%s", str);
+}
+
+/**
+ * @description: ocall for printing string
+ * @param str -> string for printing
+ */
+void ocall_print_debug(const char *str)
+{
+    if (p_log->get_debug_flag())
+    {
+        printf("%s", str);
+    }
 }
 
 /**

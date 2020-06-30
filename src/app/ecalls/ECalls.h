@@ -13,6 +13,7 @@
 #include "Enclave_u.h"
 #include "Log.h"
 #include "CrustStatus.h"
+#include "Json.hpp"
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
@@ -69,6 +70,8 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
         char *p_new_path, uint32_t path_len);
 
 sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status);
+
+std::string show_enclave_thread_info();
 
 #if defined(__cplusplus)
 }

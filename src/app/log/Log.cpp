@@ -134,4 +134,13 @@ void Log::base_log(std::string log_str, std::string tag)
      fflush(stdout);
 }
 
+/**
+ * @description: Return debug flag
+ * @return: Debug flag
+ * */
+bool Log::get_debug_flag()
+{
+    return this->debug_flag;
+}
+
 } // namespace crust

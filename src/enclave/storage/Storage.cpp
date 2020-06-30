@@ -118,7 +118,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
  * @param block_num -> Current block index
  * @return: Seal status
  * */
-crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree, size_t &node_size, size_t &block_num)
+crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree,
+        size_t &node_size, size_t &block_num)
 {
     if (tree_json.size() == 0)
         return CRUST_SUCCESS;
@@ -140,6 +141,8 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         size_t file_data_len = 0;
         std::string hex_new_hash_str;
         string new_path;
+        sgx_sha256_hash_t got_org_hash;
+        uint8_t *p_org_hash = NULL;
 
         // Get file data
         sgx_thread_mutex_lock(&g_file_buffer_mutex);
@@ -151,10 +154,19 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
             goto sealend;
         }
 
-        // Seal file data
-        file_data_r = (uint8_t*)malloc(file_data_len);
+        // --- Seal file data --- //
+        file_data_r = (uint8_t*)enc_malloc(file_data_len);
         memset(file_data_r, 0, file_data_len);
         memcpy(file_data_r, file_data, file_data_len);
+        // Check file hash
+        sgx_sha256_msg(file_data_r, file_data_len, &got_org_hash);
+        p_org_hash = hex_string_to_bytes(old_hash_str.c_str(), old_hash_str.size());
+        if (memcmp(p_org_hash, &got_org_hash, HASH_LENGTH) != 0)
+        {
+            crust_status = CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
+            goto sealend;
+        }
+        // Do seal
         sgx_thread_mutex_unlock(&g_file_buffer_mutex);
         crust_status = seal_data_mrenclave(file_data_r, file_data_len, 
                 (sgx_sealed_data_t**)&p_sealed_data, &sealed_data_size);
@@ -192,6 +204,9 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
         if (p_sealed_data != NULL)
             free(p_sealed_data);
+
+        if (p_org_hash != NULL)
+            free(p_org_hash);
 
         return crust_status;
     }

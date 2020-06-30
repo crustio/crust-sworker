@@ -164,14 +164,14 @@ void print_err(const char *info)
 {
     std::string HRED = "\033[1;31m";
     std::string NC = "\033[0m";
-    eprintf("%s%s%s", HRED.c_str(), info, NC.c_str());
+    eprint_info("%s%s%s", HRED.c_str(), info, NC.c_str());
 }
 
 void print_success(const char *info)
 {
     std::string HGREEN = "\033[1;32m";
     std::string NC = "\033[0m";
-    eprintf("%s%s%s", HGREEN.c_str(), info, NC.c_str());
+    eprint_info("%s%s%s", HGREEN.c_str(), info, NC.c_str());
 }
 
 bool test_utils()
