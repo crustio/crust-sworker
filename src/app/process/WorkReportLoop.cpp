@@ -11,9 +11,9 @@ crust::Log *p_log = crust::Log::get_instance();
 size_t get_random_wait_time(std::string seed)
 {
     unsigned int seed_number = 0;
-    for(size i = 0; i < chain_address.size(); i++)
+    for(size i = 0; i < seed.size(); i++)
     {
-        seed_number += chain_address[i];
+        seed_number += seed[i];
     }
     srand(time(NULL)+seed_number);
     //[9  199]
