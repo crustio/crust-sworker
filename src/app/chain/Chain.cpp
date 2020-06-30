@@ -172,25 +172,28 @@ bool Chain::wait_for_running(void)
  * */
 bool Chain::post_tee_identity(std::string identity)
 {
-    try
+    for(int i = 0; i < 3; i++)
     {
-        std::string path = this->url_end_point->base + "/tee/identity";
-        httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
-
-        json::JSON obj = json::JSON::Load(identity);
-        obj["backup"] = this->backup;
-        auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
-
-        if (res && res->status == 200)
+        try
         {
-            return true;
-        }
+            std::string path = this->url_end_point->base + "/tee/identity";
+            httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        return false;
-    }
-    catch (const std::exception &e)
-    {
-        p_log->err("HTTP throw: %s\n", e.what());
+            json::JSON obj = json::JSON::Load(identity);
+            obj["backup"] = this->backup;
+            auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
+
+            if (res && res->status == 200)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (const std::exception &e)
+        {
+            p_log->err("HTTP throw: %s\n", e.what());
+        }
     }
 
     return false;
@@ -203,25 +206,28 @@ bool Chain::post_tee_identity(std::string identity)
  * */
 bool Chain::post_tee_work_report(std::string work_report)
 {
-    try
+    for(int i = 0; i < 3; i++)
     {
-        std::string path = this->url_end_point->base + "/tee/workreport";
-        httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
-
-        json::JSON obj = json::JSON::Load(work_report);
-        obj["backup"] = this->backup;
-        auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
-
-        if (res && res->status == 200)
+        try
         {
-            return true;
-        }
+            std::string path = this->url_end_point->base + "/tee/workreport";
+            httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        return false;
-    }
-    catch (const std::exception &e)
-    {
-        p_log->err("HTTP throw: %s\n", e.what());
+            json::JSON obj = json::JSON::Load(work_report);
+            obj["backup"] = this->backup;
+            auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
+
+            if (res && res->status == 200)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (const std::exception &e)
+        {
+            p_log->err("HTTP throw: %s\n", e.what());
+        }
     }
 
     return false;
