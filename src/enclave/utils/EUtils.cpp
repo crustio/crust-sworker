@@ -7,18 +7,53 @@ static char *_hex_buffer = NULL;
 static size_t _hex_buffer_size = 0;
 const char _hextable[] = "0123456789abcdef";
 
+int eprint_base(char buf[], int flag);
+
 /**
- * @description: use ocall_print_string to print format string
+ * @description: Print flat normal info
  * @return: the length of printed string
  */
-int eprintf(const char *fmt, ...)
+int eprint_info(const char* fmt, ...)
 {
     char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
-    ocall_print_string(buf);
+    return eprint_base(buf, 0);
+}
+
+/**
+ * @description: Print flat debug info
+ * @return: the length of printed string
+ */
+int eprint_debug(const char *fmt, ...)
+{
+    char buf[LOG_BUF_SIZE] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
+    va_end(ap);
+    return eprint_base(buf, 1);
+}
+
+/**
+ * @description: Flat printf base function
+ * @param buf -> Print content
+ * @param flag -> 0 for info, 1 for debug
+ * @return: Print content length
+ * */
+int eprint_base(char buf[], int flag)
+{
+    switch (flag)
+    {
+        case 0: 
+            ocall_print_info(buf); 
+            break;
+        case 1: 
+            ocall_print_debug(buf); 
+            break;
+    }
     return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
 
@@ -283,7 +318,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     crust_status_t crust_status = CRUST_SUCCESS;
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
-    *p_sealed_data = (sgx_sealed_data_t *)malloc(sealed_data_sz);
+    *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(sealed_data_sz);
     memset(*p_sealed_data, 0, sealed_data_sz);
     sgx_attributes_t sgx_attr;
     sgx_attr.flags = 0xFF0000000000000B;

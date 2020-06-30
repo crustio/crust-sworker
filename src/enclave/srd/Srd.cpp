@@ -4,6 +4,8 @@ extern sgx_thread_mutex_t g_workload_mutex;
 std::unordered_set<std::string> g_srd_decreased_g_hashs_s;
 long g_srd_change = 0;
 sgx_thread_mutex_t g_srd_change_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+uint8_t *g_base_rand_buffer = NULL;
+sgx_thread_mutex_t g_base_rand_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 /**
  * @description: call ocall_save_file to save file
@@ -64,14 +66,28 @@ void srd_change()
 void srd_increase(const char *path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    unsigned char base_rand_data[SRD_RAND_DATA_LENGTH];
     sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
     Workload *wl = Workload::get_instance();
     std::string path_str(path);
 
     // Generate base random data
-    sgx_read_rand(reinterpret_cast<unsigned char *>(&base_rand_data), sizeof(base_rand_data));
+    do
+    {
+        if (g_base_rand_buffer == NULL)
+        {
+            sgx_thread_mutex_lock(&g_base_rand_buffer_mutex);
+            if (g_base_rand_buffer != NULL)
+            {
+                sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
+                break;
+            }
+            g_base_rand_buffer = (uint8_t *)enc_malloc(SRD_RAND_DATA_LENGTH);
+            memset(g_base_rand_buffer, 0, SRD_RAND_DATA_LENGTH);
+            sgx_read_rand(g_base_rand_buffer, sizeof(g_base_rand_buffer));
+            sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
+        }
+    } while (0);
 
     // New and get now G hash index
     size_t now_index = 0;
@@ -86,7 +102,7 @@ void srd_increase(const char *path)
     unsigned char *hashs = new unsigned char[SRD_RAND_DATA_NUM * HASH_LENGTH];
     for (size_t i = 0; i < SRD_RAND_DATA_NUM; i++)
     {
-        seal_data_mrenclave(base_rand_data, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
+        seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
 
         sgx_sha256_hash_t out_hash256;
         sgx_sha256_msg((unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH, &out_hash256);

@@ -24,7 +24,8 @@ extern "C"
 {
 #endif
 
-    void ocall_print_string(const char *str);
+    void ocall_print_info(const char *str);
+    void ocall_print_debug(const char *str);
     void ocall_log_info(const char *str);
     void ocall_log_warn(const char *str);
     void ocall_log_err(const char *str);
