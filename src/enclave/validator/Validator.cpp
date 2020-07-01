@@ -277,7 +277,7 @@ void validate_meaningful_file()
             rand_index = rand_val % wl->checked_files.size();
         } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
-        if (wl->checked_files[rand_index]["confirmed"].ToInt() == 1)
+        if (wl->checked_files[rand_index]["status"].ToString().compare("valid") == 0)
         {
             check_file_num_real++;
         }
@@ -291,7 +291,7 @@ void validate_meaningful_file()
     for (auto file_idx : file_idx_s)
     {
         // If new file hasn't been confirmed, skip this validation
-        if (wl->checked_files[file_idx]["confirmed"].ToInt() == 0)
+        if (wl->checked_files[file_idx]["status"].ToString().compare("unconfirmed") == 0)
         {
             continue;
         }
@@ -303,7 +303,7 @@ void validate_meaningful_file()
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
-            wl->checked_files[file_idx]["lost"] = 1;
+            wl->checked_files[file_idx]["status"] = "lost";
             changed_idx2lost_um[file_idx] = true;
             continue;
         }
@@ -315,7 +315,7 @@ void validate_meaningful_file()
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
-            wl->checked_files[file_idx]["lost"] = 1;
+            wl->checked_files[file_idx]["status"] = "lost";
             changed_idx2lost_um[file_idx] = true;
             continue;
         }
@@ -360,7 +360,7 @@ void validate_meaningful_file()
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
                 log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
-                wl->checked_files[file_idx]["lost"] = 1;
+                wl->checked_files[file_idx]["status"] = "lost";
                 changed_idx2lost_um[file_idx] = true;
                 checked_ret = false;
                 break;
@@ -395,7 +395,7 @@ void validate_meaningful_file()
                 log_err("Index:%ld block hash is not expected!\n", check_block_idx);
                 log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                 log_err("Org hash : %s\n", leaf_hash.c_str());
-                wl->checked_files[file_idx]["lost"] = 1;
+                wl->checked_files[file_idx]["status"] = "lost";
                 changed_idx2lost_um[file_idx] = true;
                 checked_ret = false;
                 free(leaf_hash_u);
@@ -405,9 +405,9 @@ void validate_meaningful_file()
             spos = epos;
         }
         // Set lost file back
-        if (wl->checked_files[file_idx]["lost"].ToInt() == 1 && checked_ret)
+        if (wl->checked_files[file_idx]["status"].ToString().compare("lost") == 0 && checked_ret)
         {
-            wl->checked_files[file_idx]["lost"] = 0;
+            wl->checked_files[file_idx]["status"] = "valid";
             changed_idx2lost_um[file_idx] = false;
         }
     }
@@ -423,7 +423,7 @@ void validate_meaningful_file()
         {
             if ((int)it.first < meaningful_files_json.size())
             {
-                meaningful_files_json[it.first]["lost"] = it.second ? 1 : 0;
+                meaningful_files_json[it.first]["status"] = it.second ? "lost" : "valid";
             }
         }
         id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, meaningful_files_json, ID_UPDATE, false);

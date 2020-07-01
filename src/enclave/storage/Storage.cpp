@@ -73,8 +73,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     json::JSON file_entry_json;
     file_entry_json["hash"] = new_root_hash_str;
     file_entry_json["size"] = node_size;
-    file_entry_json["lost"] = 0;
-    file_entry_json["confirmed"] = 0;
+    // status indicates current new file's status, which must be one of valid, lost and unconfirmed
+    file_entry_json["status"] = "unconfirmed";
     crust_status = id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, file_entry_json, ID_APPEND);
     if (CRUST_SUCCESS != crust_status)
     {
@@ -417,7 +417,7 @@ crust_status_t storage_confirm_file(const char *hash)
     {
         if (memcmp((*it)["hash"].ToString().c_str(), hash, HASH_LENGTH) == 0)
         {
-            (*it)["confirmed"] = 1;
+            (*it)["status"] = "valid";
             file_json = *it;
             break;
         }
@@ -430,7 +430,7 @@ crust_status_t storage_confirm_file(const char *hash)
     {
         if (memcmp((*it)["hash"].ToString().c_str(), hash, HASH_LENGTH) == 0)
         {
-            (*it)["confirmed"] = 1;
+            (*it)["status"] = "valid";
             confirmed = true;
             break;
         }
@@ -444,7 +444,7 @@ crust_status_t storage_confirm_file(const char *hash)
         {
             if (memcmp((*it)["hash"].ToString().c_str(), hash, HASH_LENGTH) == 0)
             {
-                (*it)["confirmed"] = 1;
+                (*it)["status"] = "valid";
                 break;
             }
         }

@@ -79,8 +79,7 @@ crust_status_t generate_work_report(size_t *report_len)
     sgx_thread_mutex_lock(&g_checked_files_mutex);
     for (uint32_t i = 0, j = 0; i < wl->checked_files.size(); i++)
     {
-        if (wl->checked_files[i]["lost"].ToInt() == 1 
-                || wl->checked_files[i]["confirmed"].ToInt() == 0)
+        if (wl->checked_files[i]["status"].ToString().compare("valid") != 0)
         {
             continue;
         }

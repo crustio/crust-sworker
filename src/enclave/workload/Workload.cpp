@@ -61,8 +61,7 @@ void Workload::show(void)
         log_debug("Meaningful root hash:%s -> size: %-11ld status: %s\n",
                   this->checked_files[i]["hash"].ToString().c_str(), 
                   this->checked_files[i]["size"].ToInt(),
-                  this->checked_files[i]["lost"].ToInt() == 1 ? "lost" : 
-                  (this->checked_files[i]["confirmed"].ToInt() == 1 ? "valid" : "unconfirmed"));
+                  this->checked_files[i]["status"].ToString().c_str());
     }
 }
 
