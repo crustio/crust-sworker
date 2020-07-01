@@ -37,6 +37,8 @@ enclave {
 
         public crust_status_t ecall_seal_file([in, size=tree_len] const char *p_tree, size_t tree_len, [in, size=path_len] const char *path, [out, size=path_len] char *p_new_path , size_t path_len);
         public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
+        public void ecall_confirm_file([in, string] const char *hash);
+        public crust_status_t ecall_confirm_file_real([in, string] const char *hash);
 
         public crust_status_t ecall_get_signed_order_report();
     };
@@ -82,5 +84,8 @@ enclave {
             allow(ecall_srd_increase, ecall_srd_decrease);
 
         void ocall_store_identity([in, string] const char *id);
+
+        void ocall_confirm_file([in, string] const char *hash)
+            allow(ecall_confirm_file_real);
     };
 };

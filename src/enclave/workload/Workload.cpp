@@ -58,10 +58,11 @@ void Workload::show(void)
     log_debug("Meaningful work details is: \n");
     for (uint32_t i = 0; i < this->checked_files.size(); i++)
     {
-        log_debug("Meaningful root hash:%s -> size: %ld status: %s\n",
+        log_debug("Meaningful root hash:%s -> size: %-11ld status: %s\n",
                   this->checked_files[i]["hash"].ToString().c_str(), 
                   this->checked_files[i]["size"].ToInt(),
-                  this->checked_files[i]["lost"].ToInt() == 1 ? "lost" : "valid");
+                  this->checked_files[i]["lost"].ToInt() == 1 ? "lost" : 
+                  (this->checked_files[i]["confirmed"].ToInt() == 1 ? "valid" : "unconfirmed"));
     }
 }
 

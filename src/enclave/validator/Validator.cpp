@@ -268,7 +268,7 @@ void validate_meaningful_file()
     std::set<uint32_t> file_idx_s;
     uint32_t rand_val;
     size_t rand_index = 0;
-    log_debug("check file num:%ld\n", check_file_num);
+    size_t check_file_num_real = 0;
     while (file_idx_s.size() < check_file_num)
     {
         do
@@ -277,7 +277,12 @@ void validate_meaningful_file()
             rand_index = rand_val % wl->checked_files.size();
         } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
+        if (wl->checked_files[rand_index]["confirmed"].ToInt() == 1)
+        {
+            check_file_num_real++;
+        }
     }
+    log_debug("Checking %ld file...\n", check_file_num_real);
 
     // ----- Randomly check file block ----- //
     // TODO: Do we allow to store duplicated files?
@@ -285,6 +290,12 @@ void validate_meaningful_file()
     std::unordered_map<size_t, bool> changed_idx2lost_um;
     for (auto file_idx : file_idx_s)
     {
+        // If new file hasn't been confirmed, skip this validation
+        if (wl->checked_files[file_idx]["confirmed"].ToInt() == 0)
+        {
+            continue;
+        }
+
         std::string root_hash = wl->checked_files[file_idx]["hash"].ToString();
         log_debug("Validating file root hash:%s\n", root_hash.c_str());
         // Get file total block number

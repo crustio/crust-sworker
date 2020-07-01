@@ -262,6 +262,26 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
 }
 
 /**
+ * @description: Confirm new file
+ * @param hash -> New file hash
+ * @return: Confirm status
+ * */
+void ecall_confirm_file(const char *hash)
+{
+    ocall_confirm_file(hash);
+}
+
+/**
+ * @description: Confirm new file
+ * @param hash -> New file hash
+ * @return: Confirm status
+ * */
+crust_status_t ecall_confirm_file_real(const char *hash)
+{
+    return storage_confirm_file(hash);
+}
+
+/**
  * @description: Get signed order report
  * @return: Get status
  * */

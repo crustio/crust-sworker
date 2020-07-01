@@ -17,7 +17,7 @@
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
-#define ENC_MAX_THREAD_NUM  20
+#define ENC_MAX_THREAD_NUM  15
 // Reserved enclave resource for highest priority task
 #define ENC_RESERVED_THREAD_NUM  1
 // Threshold to trigger timeout mechanism
@@ -68,6 +68,10 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
 
 sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, char **files, size_t files_num, const char *p_dir,
         char *p_new_path, uint32_t path_len);
+
+sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, const char *hash);
+
+sgx_status_t Ecall_confirm_file_real(sgx_enclave_id_t eid, crust_status_t *status, const char *hash);
 
 sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status);
 

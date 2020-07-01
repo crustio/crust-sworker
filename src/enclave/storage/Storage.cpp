@@ -11,6 +11,7 @@ sgx_thread_mutex_t g_file_buffer_mutex;
 // Current node public and private key pair
 extern ecc_key_pair id_key_pair;
 extern sgx_thread_mutex_t g_new_files_mutex;
+extern sgx_thread_mutex_t g_checked_files_mutex;
 
 crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree, size_t &node_size, size_t &block_num);
 
@@ -73,6 +74,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     file_entry_json["hash"] = new_root_hash_str;
     file_entry_json["size"] = node_size;
     file_entry_json["lost"] = 0;
+    file_entry_json["confirmed"] = 0;
     crust_status = id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, file_entry_json, ID_APPEND);
     if (CRUST_SUCCESS != crust_status)
     {
@@ -98,13 +100,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
         return crust_status;
     }
 
-    // Add new meaningful file to workload
-    // TODO: when tee finish sealing file, karst persisting this sealed file will take some time.
-    // So adding new meaningful file to check queue should not happen here. This sentence just used to test
+    // Add new file to buffer
     Workload::get_instance()->add_new_file(file_entry_json);
-
-    Workload::get_instance()->add_order_file(make_pair(file_entry_json["hash"].ToString(), file_entry_json["size"].ToInt()));
-
 
     return crust_status;
 }
@@ -155,10 +152,16 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         }
 
         // --- Seal file data --- //
+        // Check file size
+        if (tree_json["size"].ToInt() != (long long)file_data_len)
+        {
+            crust_status = CRUST_STORAGE_NEW_FILE_SIZE_ERROR;
+            goto sealend;
+        }
+        // Check file hash
         file_data_r = (uint8_t*)enc_malloc(file_data_len);
         memset(file_data_r, 0, file_data_len);
         memcpy(file_data_r, file_data, file_data_len);
-        // Check file hash
         sgx_sha256_msg(file_data_r, file_data_len, &got_org_hash);
         p_org_hash = hex_string_to_bytes(old_hash_str.c_str(), old_hash_str.size());
         if (memcmp(p_org_hash, &got_org_hash, HASH_LENGTH) != 0)
@@ -192,7 +195,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         block_num++;
 
         // Construct tree string
-        // note: Cannot change append sequence!
+        // Note: Cannot change append sequence!
         tree.append("{\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
         tree.append("\"hash\":\"").append(tree_json["hash"].ToString()).append("\",");
         tree.append("\"size\":").append(to_string(sealed_data_size)).append("},");
@@ -382,6 +385,78 @@ cleanup:
 
     if (p_decrypted_data != NULL)
         free(p_decrypted_data);
+
+    return crust_status;
+}
+
+/**
+ * @description: Confirm new file
+ * @param hash -> Pointer to new file hash
+ * @return: Confirm status
+ * */
+crust_status_t storage_confirm_file(const char *hash)
+{
+    sgx_thread_mutex_lock(&g_metadata_mutex);
+
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON file_json;
+    Workload *wl = Workload::get_instance();
+
+    // ----- Find file entry by hash ----- //
+    // Get metadata
+    json::JSON meta_json_org;
+    id_get_metadata(meta_json_org, false);
+    if (!meta_json_org.hasKey(MEANINGFUL_FILE_DB_TAG))
+    {
+        sgx_thread_mutex_unlock(&g_metadata_mutex);
+        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
+    }
+    // Update metadata
+    for (auto it = meta_json_org[MEANINGFUL_FILE_DB_TAG].ArrayRange().object->rbegin(); 
+            it != meta_json_org[MEANINGFUL_FILE_DB_TAG].ArrayRange().object->rend(); it++)
+    {
+        if (memcmp((*it)["hash"].ToString().c_str(), hash, HASH_LENGTH) == 0)
+        {
+            (*it)["confirmed"] = 1;
+            file_json = *it;
+            break;
+        }
+    }
+    sgx_thread_mutex_unlock(&g_metadata_mutex);
+    // Update new_files
+    sgx_thread_mutex_lock(&g_new_files_mutex);
+    bool confirmed = false;
+    for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
+    {
+        if (memcmp((*it)["hash"].ToString().c_str(), hash, HASH_LENGTH) == 0)
+        {
+            (*it)["confirmed"] = 1;
+            confirmed = true;
+            break;
+        }
+    }
+    sgx_thread_mutex_unlock(&g_new_files_mutex);
+    // Update checked_files
+    if (!confirmed)
+    {
+        sgx_thread_mutex_lock(&g_checked_files_mutex);
+        for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
+        {
+            if (memcmp((*it)["hash"].ToString().c_str(), hash, HASH_LENGTH) == 0)
+            {
+                (*it)["confirmed"] = 1;
+                break;
+            }
+        }
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    }
+
+    // Report real-time order file
+    if (file_json.hasKey("hash"))
+    {
+        wl->add_order_file(make_pair(file_json["hash"].ToString(), file_json["size"].ToInt()));
+    }
+
 
     return crust_status;
 }

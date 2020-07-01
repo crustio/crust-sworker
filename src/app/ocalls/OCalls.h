@@ -64,6 +64,8 @@ extern "C"
 
     void ocall_store_identity(const char *id);
 
+    void ocall_confirm_file(const char *hash);
+
 #if defined(__cplusplus)
 }
 #endif

@@ -77,9 +77,10 @@ crust_status_t generate_work_report(size_t *report_len)
     Workload *wl = Workload::get_instance();
     json::JSON old_files_json = json::Array();
     sgx_thread_mutex_lock(&g_checked_files_mutex);
-    for (uint32_t i = 0; i < wl->checked_files.size(); i++)
+    for (uint32_t i = 0, j = 0; i < wl->checked_files.size(); i++)
     {
-        if (wl->checked_files[i]["lost"].ToInt() == 1)
+        if (wl->checked_files[i]["lost"].ToInt() == 1 
+                || wl->checked_files[i]["confirmed"].ToInt() == 0)
         {
             continue;
         }
@@ -94,8 +95,9 @@ crust_status_t generate_work_report(size_t *report_len)
         }
         std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
         json::JSON meta_json = json::JSON::Load(tree_meta);
-        old_files_json[i]["hash"] = meta_json["old_hash"].ToString();
-        old_files_json[i]["size"] = meta_json["size"].ToInt();
+        old_files_json[j]["hash"] = meta_json["old_hash"].ToString();
+        old_files_json[j]["size"] = meta_json["size"].ToInt();
+        j++;
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
