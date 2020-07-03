@@ -36,6 +36,7 @@ void *work_report_loop(void *)
         // ----- Report order report ----- //
         if (3 == order_report_interval)
         {
+            // Ecall_get_signed_order_report will store order report in g_order_report_str
             if(SGX_SUCCESS != Ecall_get_signed_order_report(global_eid, &crust_status)
                 || CRUST_SUCCESS != crust_status)
             {

@@ -150,6 +150,11 @@ void free_merkletree(MerkleTree *root)
     }
 }
 
+/**
+ * @description: Hex string to int
+ * @param s -> Pointer to hex char array
+ * @return: Int
+ * */
 static inline int htoi(char *s)
 {
     int value;
@@ -205,4 +210,22 @@ std::string flat_urlformat(std::string &url)
     *dest = '\0';
 
     return std::string(org, dest - org);
+}
+
+/**
+ * @description: Judge if a string is a number
+ * @param s -> Const reference to string
+ * @return: Number or not
+ * */
+bool is_number(const std::string &s)
+{
+    for (auto c : s)
+    {
+        if (!isxdigit(c))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }

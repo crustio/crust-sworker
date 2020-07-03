@@ -151,6 +151,8 @@ cleanup:
     return crust_status;
 }
 
+json::JSON id_metadata_get_by_key(std::string key);
+crust_status_t id_metadata_del_by_key(std::string key);
 crust_status_t id_metadata_set_by_new(json::JSON meta_json);
 crust_status_t id_store_metadata();
 crust_status_t id_restore_metadata();
