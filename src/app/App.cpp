@@ -38,6 +38,27 @@ int SGX_CDECL main(int argc, char *argv[])
             p_log->open_debug();
             p_log->debug("Debug log is opened.\n");
         }
+        else if (strcmp(argv[i], "--update") == 0)
+        {
+            if (i + 1 < argc)
+            {
+                if (!is_number(argv[i+1]))
+                {
+                    p_log->err("--update option should be followd by a number!\n");
+                    return 1;
+                }
+                set_reserved_space(get_reserved_space() - 10);
+                long srd_space = atoi(argv[i+1]);
+                srd_change(srd_space);
+                p_log->info("Update is performed! %dG srd space will be performed.\n", srd_space);
+                i++;
+            }
+            else
+            {
+                p_log->err("--update option needs srd space as argument!\n");
+                return 1;
+            }
+        }
         else
         {
             if (run_type.compare("") != 0)
@@ -72,6 +93,7 @@ int SGX_CDECL main(int argc, char *argv[])
         printf("               If no file provided, default path is etc/Config.json. \n");
         printf("           --offline: add this flag, program will not interact with the chain. \n");
         printf("           --debug: add this flag, program will output debug logs. \n");
+        printf("           --update: used to update, followed by srd space(should not exceed old one). \n");
         printf("           status: show validate status. \n");
         printf("           report: show work report. \n");
         printf("           daemon: run as daemon process. \n");

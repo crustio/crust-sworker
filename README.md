@@ -135,7 +135,7 @@ Curl shell:
 ```shell
 curl --location --request POST 'http://<url:port>/api/v0/srd/change' \
 --header 'Content-Type: application/json' \
---header 'backup: {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}' \
+--header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
 --data-raw '{
 	"change": 2
 }'
@@ -170,7 +170,6 @@ Output (500, TEE has not been fully launched , this API does not support concurr
 ```shell
 'TEE has not been fully launched' or 'Get validation status failed'
 ```
-
 
 ### Use 'storage/seal' to start storage related work, 
 This API is a websocket API.
@@ -275,6 +274,85 @@ Output status:
 1. 401: Unseal file failed!Error invalid backup 
 1. 402: Unseal file failed!Error empty file directory
 1. 403: Unseal file failed!Error Invoke ECALL failed
+
+### Use 'api/v0/storage/confirm' to confirm new file, 
+
+Parameter 'hash' in body represents the new file hash you want to confirm. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/storage/confirm' \
+--header 'Content-Type: application/json' \
+--header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
+--data-raw '{
+	"hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}'
+```
+
+Output (200, success):
+```shell
+Confirming new file task has beening added
+```
+
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, invalid hash):
+```shell
+Confirm new file failed!Invalid hash!
+```
+
+Output (403, invoke SGX API failed):
+```shell
+Confirm new file failed!Invoke SGX API failed!
+```
+
+### Use 'api/v0/storage/delete' to delete file, 
+
+Parameter 'hash' in body represents the file hash you want to delete. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
+
+Curl shell:
+```shell
+curl --location --request POST 'http://<url:port>/api/v0/storage/delete' \
+--header 'Content-Type: application/json' \
+--header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
+--data-raw '{
+	"hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}'
+```
+
+Output (200, success):
+```shell
+Deleting file task has beening added
+```
+
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, invalid hash):
+```shell
+Delete file failed!Invalid hash!
+```
+
+Output (403, invoke SGX API failed):
+```shell
+Delete file failed!Invoke SGX API failed!
+```
+
 
 
 ## Contribution

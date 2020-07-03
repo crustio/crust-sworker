@@ -80,5 +80,5 @@ mv scripts/install.sh ./
 cd - &>/dev/null
 
 cd $instdir
-tar -cvf crust-tee-$VERSION.tar $(basename $pkgdir)
+tar -cvf crust-tee.tar $(basename $pkgdir)
 cd - &>/dev/null

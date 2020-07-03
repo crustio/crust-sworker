@@ -32,6 +32,17 @@ size_t ecall_srd_decrease(long change)
 }
 
 /**
+ * @description: Change srd number
+ * @param change -> Will be changed srd number
+ * */
+void ecall_srd_set_change(long change)
+{
+    sgx_thread_mutex_lock(&g_srd_change_mutex);
+    g_srd_change += change;
+    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+}
+
+/**
  * @description: Update srd_path2hashs_m
  * @param hashs -> Pointer to the address of to be deleted hashs array
  * @param hashs_len -> Hashs array length
@@ -49,6 +60,12 @@ void ecall_main_loop()
     while (true)
     {
         crust_status_t crust_status = CRUST_SUCCESS;
+
+        // ----- Delete meaningful file ----- //
+        storage_delete_file_real();
+
+        // ----- Confirm meaningful file ----- //
+        storage_confirm_file_real();
 
         // ----- Meaningful validate ----- //
         eprint_debug("\n\n---------- Meaningful Validation ----------\n\n");
@@ -262,21 +279,29 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
 }
 
 /**
+ * @description: Confirm new file
+ * @param hash -> New file hash
+ * @return: Confirm status
+ * */
+void ecall_confirm_file(const char *hash)
+{
+    storage_confirm_file(hash);
+}
+
+/**
+ * @description: Add to be deleted file hash to buffer
+ * @param hash -> File root hash
+ * */
+void ecall_delete_file(const char *hash)
+{
+    return storage_delete_file(hash);
+}
+
+/**
  * @description: Get signed order report
  * @return: Get status
  * */
 crust_status_t ecall_get_signed_order_report()
 {
     return get_signed_order_report();
-}
-
-/**
- * @description: Change srd number
- * @param change -> Will be changed srd number
- * */
-void ecall_srd_set_change(long change)
-{
-    sgx_thread_mutex_lock(&g_srd_change_mutex);
-    g_srd_change += change;
-    sgx_thread_mutex_unlock(&g_srd_change_mutex);
 }

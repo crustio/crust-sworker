@@ -876,6 +876,56 @@ cleanup:
 }
 
 /**
+ * @description: Get metadata by key
+ * @param key -> Key
+ * @return: Value
+ * */
+json::JSON id_metadata_get_by_key(std::string key)
+{
+    sgx_thread_mutex_lock(&g_metadata_mutex);
+
+    json::JSON meta_json_org;
+    json::JSON val_json;
+    id_get_metadata(meta_json_org, false);
+    if (!meta_json_org.hasKey(key))
+    {
+        goto cleanup;
+    }
+
+    val_json = meta_json_org[key];
+
+cleanup:
+    sgx_thread_mutex_unlock(&g_metadata_mutex);
+
+    return val_json;
+}
+
+/**
+ * @description: Delete new file by file hash
+ * @param file_hash -> To be deleted file hash
+ * @return: Delete status
+ * */
+crust_status_t id_metadata_del_by_key(std::string key)
+{
+    sgx_thread_mutex_lock(&g_metadata_mutex);
+
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON meta_json_org;
+    id_get_metadata(meta_json_org, false);
+    auto p_obj = meta_json_org.ObjectRange();
+    if (!meta_json_org.hasKey(key))
+    {
+        goto cleanup;
+    }
+    p_obj.object->erase(key);
+
+cleanup:
+    sgx_thread_mutex_unlock(&g_metadata_mutex);
+
+    return crust_status;
+}
+
+/**
  * @description: Store metadata periodically
  * Just store all metadata except meaningful files. Meaningfule files can be added through 
  * 'id_metadata_set_or_append' function

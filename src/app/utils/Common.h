@@ -34,6 +34,7 @@ extern "C"
     json::JSON serialize_merkletree_to_json(MerkleTree *root);
     void free_merkletree(MerkleTree *root);
     std::string flat_urlformat(std::string &url);
+    bool is_number(const std::string &s);
 
 #if defined(__cplusplus)
 }

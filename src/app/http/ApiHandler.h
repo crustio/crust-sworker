@@ -75,7 +75,6 @@ extern sgx_enclave_id_t global_eid;
 const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
 int change_empty_num = 0;
 
-// TODO: Should limit thread number in enclave
 /**
  * @desination: Start rest service
  * @return: Start status
@@ -125,7 +124,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     }
 
 
-    // Respond to HEAD request
+    // ----- Respond to HEAD request ----- //
     if(req.method() == http::verb::head)
     {
         http::response<http::empty_body> res{http::status::ok, req.version()};
@@ -136,7 +135,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     }
 
 
-    // Respond to GET request
+    // ----- Respond to GET request ----- //
     if(req.method() == http::verb::get)
     {
         http::response<http::string_body> res{
@@ -231,7 +230,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     }
 
 
-    // Respond to POST request
+    // ----- Respond to POST request ----- //
     if(req.method() == http::verb::post)
     {
         http::response<http::string_body> res{
@@ -243,27 +242,27 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         json::JSON res_json;
 
 
-        // Inner APIs
+        // --- Srd change API --- //
         cur_path = urlendpoint->base + "/srd/change";
         if (path.compare(cur_path) == 0)
         {
             res.result(200);
-            std::string error_info;
+            std::string ret_info;
             // Get backup info
             if (req.find("backup") == req.end())
             {
-                error_info = "Validate MerkleTree failed!Error: Empty backup!";
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
                 res.result(400);
             }
             else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
             {
-                error_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
                 res.result(401);
             }
             if (int(res.result()) != 200)
             {
-                p_log->err("%s\n", error_info.c_str());
-                res.body() = error_info;
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
                 goto postcleanup;
             }
 
@@ -282,11 +281,118 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 // Start changing empty
                 change_srd(change_empty_num);
-                res.body() = "SRD change has been added!";
+                res.body() = "Change srd file success, the srd workload will change in next validation loop!";
             }
         end_change_empty:
             goto postcleanup;
         }
+
+        // --- Confirm new file --- //
+        cur_path = urlendpoint->base + "/storage/confirm";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            // Confirm new file
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            json::JSON req_json = json::JSON::Load(req.body());
+            std::string hash = req_json["hash"].ToString();
+            // Check hash
+            if (hash.size() != HASH_LENGTH * 2)
+            {
+                ret_info = "Confirm new file failed!Invalid hash!";
+                p_log->err("%s\n", ret_info.c_str());
+                res.result(402);
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+            if (SGX_SUCCESS != (sgx_status = Ecall_confirm_file(global_eid, hash.c_str())))
+            {
+                ret_info = "Confirm new file failed!Invoke SGX API failed!";
+                p_log->err("%sError code:%lx\n", ret_info.c_str(), sgx_status);
+                res.body() = ret_info;
+                res.result(403);
+            }
+            else
+            {
+                ret_info = "Confirming new file task has beening added!";
+                res.body() = ret_info;
+            }
+
+            goto postcleanup;
+        }
+
+        // --- Delete meaningful file --- //
+        cur_path = urlendpoint->base + "/storage/delete";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            // Delete file
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            json::JSON req_json = json::JSON::Load(req.body());
+            std::string hash = req_json["hash"].ToString();
+            // Check hash
+            if (hash.size() != HASH_LENGTH * 2)
+            {
+                ret_info = "Delete file failed!Invalid hash!";
+                p_log->err("%s\n", ret_info.c_str());
+                res.result(402);
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+            if (SGX_SUCCESS != (sgx_status = Ecall_delete_file(global_eid, hash.c_str())))
+            {
+                ret_info = "Delete file failed!Invoke SGX API failed!";
+                p_log->err("%sError code:%lx\n", ret_info.c_str(), sgx_status);
+                res.body() = ret_info;
+                res.result(403);
+            }
+            else
+            {
+                ret_info = "Deleting file task has beening added!";
+                res.body() = ret_info;
+            }
+
+            goto postcleanup;
+        }
+
 
     postcleanup:
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);

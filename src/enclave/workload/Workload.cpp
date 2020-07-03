@@ -55,14 +55,16 @@ void Workload::show(void)
     log_debug("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
     log_debug("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
 
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
     log_debug("Meaningful work details is: \n");
     for (uint32_t i = 0; i < this->checked_files.size(); i++)
     {
-        log_debug("Meaningful root hash:%s -> size: %ld status: %s\n",
+        log_debug("Meaningful root hash:%s -> size: %-11ld status: %s\n",
                   this->checked_files[i]["hash"].ToString().c_str(), 
                   this->checked_files[i]["size"].ToInt(),
-                  this->checked_files[i]["lost"].ToInt() == 1 ? "lost" : "valid");
+                  this->checked_files[i]["status"].ToString().c_str());
     }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 }
 
 /**

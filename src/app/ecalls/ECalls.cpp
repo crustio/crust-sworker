@@ -36,6 +36,8 @@ std::unordered_map<std::string, int> g_task_priority_m = {
     {"Ecall_srd_set_change", 1},
     {"Ecall_seal_file", 2},
     {"Ecall_unseal_file", 2},
+    {"Ecall_confirm_file", 2},
+    {"Ecall_delete_file", 2},
     {"Ecall_get_work_report", 3},
     {"Ecall_return_validation_status", 3},
 };
@@ -172,6 +174,24 @@ void free_enclave(const char *name)
         }
     }
     g_task_mutex.unlock();
+}
+
+/**
+ * @description: Show enclave thread info
+ * @return: Task information
+ * */
+std::string show_enclave_thread_info()
+{
+    json::JSON task_info_json;
+    for (auto it : g_running_task_m)
+    {
+        for (auto iter : it.second.task_info)
+        {
+            task_info_json[iter.first] = iter.second;
+        }
+    }
+
+    return task_info_json.dump();
 }
 
 /**
@@ -618,18 +638,40 @@ sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, 
 }
 
 /**
- * @description: Show enclave thread info
+ * @description: Confirm new file
+ * @param hash -> New file hash
+ * @return: Confirm status
  * */
-std::string show_enclave_thread_info()
+sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, const char *hash)
 {
-    json::JSON task_info_json;
-    for (auto it : g_running_task_m)
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
     {
-        for (auto iter : it.second.task_info)
-        {
-            task_info_json[iter.first] = iter.second;
-        }
+        return ret;
     }
 
-    return task_info_json.dump();
+    ret = ecall_confirm_file(eid, hash);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Delete file
+ * @param hash -> File root hash
+ * */
+sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, const char *hash)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_delete_file(eid, hash);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
 }

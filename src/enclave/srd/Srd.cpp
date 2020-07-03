@@ -42,6 +42,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
  * */
 void srd_change()
 {
+    // Get real srd space
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     long srd_change_num = 0;
     if (g_srd_change > SRD_MAX_PER_TURN)
@@ -56,7 +57,11 @@ void srd_change()
     }
     sgx_thread_mutex_unlock(&g_srd_change_mutex);
 
-    ocall_srd_change(srd_change_num);
+    // Do srd
+    if (srd_change_num != 0)
+    {
+        ocall_srd_change(srd_change_num);
+    }
 }
 
 /**

@@ -2,8 +2,11 @@
 #include "ECalls.h"
 #include "Ctpl.h"
 
-std::mutex srd_info_mutex;
 crust::Log *p_log = crust::Log::get_instance();
+
+size_t g_srd_reserved_space = 50;
+std::mutex srd_info_mutex;
+
 extern sgx_enclave_id_t global_eid;
 
 /**
@@ -67,6 +70,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     Config *p_config = Config::get_instance();
     json::JSON disk_info_json;
     size_t total_avail = 0;
+    long srd_reserved_space = get_reserved_space();
     if (p_config->srd_paths.size() != 0)
     {
         json::JSON srd_paths = get_valid_srd_path(p_config->srd_paths);
@@ -75,13 +79,13 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
             std::string path = srd_paths[i].ToString();
             // Calculate free disk
             disk_info_json[path]["available"] = get_avail_space_under_dir_g(path);
-            if (disk_info_json[path]["available"].ToInt() <= SRD_RESERVED_SPACE)
+            if (disk_info_json[path]["available"].ToInt() <= srd_reserved_space)
             {
                 disk_info_json[path]["available"] = 0;
             }
             else
             {
-                disk_info_json[path]["available"] = disk_info_json[path]["available"].ToInt() - SRD_RESERVED_SPACE;
+                disk_info_json[path]["available"] = disk_info_json[path]["available"].ToInt() - srd_reserved_space;
             }
             total_avail += disk_info_json[path]["available"].ToInt();
             disk_info_json[path]["left"] = disk_info_json[path]["available"].ToInt();
@@ -93,13 +97,13 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
         create_directory(p_config->empty_path);
         // Calculate free disk
         disk_info_json[p_config->empty_path]["available"] = get_avail_space_under_dir_g(p_config->empty_path);
-        if (disk_info_json[p_config->empty_path]["available"].ToInt() <= SRD_RESERVED_SPACE)
+        if (disk_info_json[p_config->empty_path]["available"].ToInt() <= srd_reserved_space)
         {
             disk_info_json[p_config->empty_path]["available"] = 0;
         }
         else
         {
-            disk_info_json[p_config->empty_path]["available"] = disk_info_json[p_config->empty_path]["available"].ToInt() - SRD_RESERVED_SPACE;
+            disk_info_json[p_config->empty_path]["available"] = disk_info_json[p_config->empty_path]["available"].ToInt() - srd_reserved_space;
         }
         total_avail = disk_info_json[p_config->empty_path]["available"].ToInt();
         disk_info_json[p_config->empty_path]["left"] = disk_info_json[p_config->empty_path]["available"].ToInt();
@@ -166,43 +170,20 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
     }
     true_srd_capacity = std::min(total_assigned, true_srd_capacity);
 
-    std::sort(disk_info_v.begin(), disk_info_v.end(), cmp_available);
-    size_t decrease_size = 0;
-    for (int i = 0, j = disk_info_v.size() - 1; i < (int)disk_info_v.size() && j >= 0; i++, j--)
+    // Get decreased info
+    size_t decrease_size = true_srd_capacity;
+    for (auto it = disk_info_v.begin(); decrease_size > 0; )
     {
-        std::string path = disk_info_v[i]["path"].ToString();
-        // According to the available space to assign decreased size
-        // Smaller the available space is, larger the decreased size is. 
-        double cur_decrease_size = (double)(disk_info_v[j]["available"].ToInt()) / (double)total_avail * (double)true_srd_capacity;
-        // If decreased size larger than true_srd_capacity, set true decrease size to the left
-        if (decrease_size + cur_decrease_size > true_srd_capacity)
+        std::string path = (*it)["path"].ToString();
+        if ((*it)["assigned"].ToInt() > 0)
         {
-            cur_decrease_size = true_srd_capacity - decrease_size;
+            ans[path]["decreased"] = ans[path]["decreased"].ToInt() + 1;
+            (*it)["assigned"] = (*it)["assigned"].ToInt() - 1;
+            decrease_size--;
         }
-        // Judge if decreased size larger than current disk assigned size
-        if (cur_decrease_size > disk_info_v[i]["assigned"].ToInt())
+        if (++it == disk_info_v.end())
         {
-            // If larger, set decrease_size to assigned size
-            ans[path]["decreased"] = disk_info_v[i]["assigned"];
-        }
-        else
-        {
-            // If smaller, set decrease_size according to situation
-            ans[path]["decreased"] = (long)cur_decrease_size;
-            if (cur_decrease_size - (double)(ans[path]["decreased"].ToInt()) > 0.0)
-            {
-                if (decrease_size + cur_decrease_size < true_srd_capacity
-                        && disk_info_v[i]["assigned"].ToInt() > ans[path]["decreased"].ToInt())
-                {
-                    ans[path]["decreased"] = ans[path]["decreased"].ToInt() + 1;
-                }
-            }
-        }
-        decrease_size += ans[path]["decreased"].ToInt();
-
-        if (decrease_size + cur_decrease_size >= true_srd_capacity)
-        {
-            break;
+            it = disk_info_v.begin();
         }
     }
 
@@ -221,6 +202,12 @@ void srd_change(long change)
     {
         size_t true_increase = change;
         json::JSON disk_info_json = get_increase_srd_info(true_increase);
+        // Add left change to next srd, if have
+        if (change > true_increase)
+        {
+            Ecall_srd_set_change(global_eid, change - true_increase);
+            p_log->info("%ldG srd task left, add it to next srd.\n", change - true_increase);
+        }
         // Print disk info
         auto disk_range = disk_info_json.ObjectRange();
         for (auto it = disk_range.begin(); it != disk_range.end(); it++)
@@ -299,6 +286,7 @@ void *srd_check_reserved(void *)
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     std::string srd_info_str;
+    long srd_reserved_space = get_reserved_space();
 
     while (true)
     {
@@ -320,10 +308,10 @@ void *srd_check_reserved(void *)
         {
             size_t avail_space = get_avail_space_under_dir_g(sit->first);
             long del_space = 0;
-            if (avail_space < SRD_RESERVED_SPACE)
+            if ((long)avail_space < srd_reserved_space)
             {
                 is_changed = true;
-                del_space = SRD_RESERVED_SPACE - avail_space;
+                del_space = srd_reserved_space - avail_space;
                 if (del_space > sit->second["assigned"].ToInt())
                 {
                     del_space = sit->second["assigned"].ToInt();
@@ -348,4 +336,22 @@ void *srd_check_reserved(void *)
         sleep(15);
     }
     return NULL;
+}
+
+/**
+ * @description: Get reserved space
+ * @return: srd reserved space
+ * */
+size_t get_reserved_space()
+{
+    return g_srd_reserved_space;
+}
+
+/**
+ * @description: Set reserved space
+ * @param reserved -> Reserved space
+ * */
+void set_reserved_space(size_t reserved)
+{
+    g_srd_reserved_space = reserved;
 }
