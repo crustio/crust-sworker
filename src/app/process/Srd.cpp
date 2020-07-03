@@ -10,17 +10,6 @@ std::mutex srd_info_mutex;
 extern sgx_enclave_id_t global_eid;
 
 /**
- * @description: Compare disk available space
- * @param j1 -> disk 1
- * @param j2 -> disk 2
- * @return: Decrease order sort
- * */
-static bool cmp_available(json::JSON j1, json::JSON j2)
-{
-    return j1["available"].ToInt() < j2["available"].ToInt();
-}
-
-/**
  * @description: If the given paths have same disk, just choose one of the same
  * @param srd_paths -> Input srd paths
  * @return: Final chosen srd paths
@@ -203,7 +192,7 @@ void srd_change(long change)
         size_t true_increase = change;
         json::JSON disk_info_json = get_increase_srd_info(true_increase);
         // Add left change to next srd, if have
-        if (change > true_increase)
+        if (change > (long)true_increase)
         {
             Ecall_srd_set_change(global_eid, change - true_increase);
             p_log->info("%ldG srd task left, add it to next srd.\n", change - true_increase);
