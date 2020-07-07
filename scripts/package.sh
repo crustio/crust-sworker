@@ -1,4 +1,9 @@
 #!/bin/bash
+SUDO=''
+if (( $EUID != 0 )); then
+  SUDO='sudo'
+fi
+
 function success_exit()
 {
     rm -f $SYNCFILE &>/dev/null
@@ -37,7 +42,7 @@ mkdir -p $pkgdir
 
 # Check if resource exsited
 cd $instdir
-if [ ! -e "$instdir/resource" ]; then
+if [ ! -e "$instdir/vendor" ]; then
     verbose ERROR "Need resource to install environment, please go to https://github.com/crustio/crust-tee/releases to download the latest crust-tee.tar and find resource in it"
     exit 1
 fi
@@ -48,7 +53,7 @@ mkdir $instdir/etc
 mkdir $instdir/bin
 if [ x"$1" != x"debug" ]; then
     # Install dependencies
-    bash $basedir/install_deps.sh
+    $SUDO bash $basedir/install_deps.sh
     if [ $? -ne 0 ]; then
         verbose ERROR "Install dependencies failed!"
         exit 1
