@@ -45,6 +45,7 @@ void srd_change()
     // Get real srd space
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     long srd_change_num = 0;
+    long org_change_num = g_srd_change;
     if (g_srd_change > SRD_MAX_PER_TURN)
     {
         srd_change_num = SRD_MAX_PER_TURN;
@@ -55,6 +56,7 @@ void srd_change()
         srd_change_num = g_srd_change;
         g_srd_change = 0;
     }
+    log_debug("Total srd task is:%ld, will srd %ldG this turn.\n", org_change_num, srd_change_num);
     sgx_thread_mutex_unlock(&g_srd_change_mutex);
 
     // Do srd

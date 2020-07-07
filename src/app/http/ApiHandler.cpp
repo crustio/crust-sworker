@@ -16,8 +16,13 @@ extern tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
 crust::Log *p_log = crust::Log::get_instance();
 
-// Append an HTTP rel-path to a local filesystem path.
-// The returned path is normalized for the platform.
+/**
+ * @description: Append an HTTP rel-path to a local filesystem path.
+ *  The returned path is normalized for the platform.
+ * @param base -> Url base path
+ * @param path -> Url specific path
+ * @return: Analyzed path
+ * */
 std::string path_cat(beast::string_view base, beast::string_view path)
 {
     if(base.empty())
@@ -178,18 +183,20 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
             p_log->err("Seal data failed!Error code:%lx(%s)\n", crust_status, error_info.c_str());
             res["body"] = error_info;
             res["status"] = 403;
-            goto cleanup;
         }
-        p_log->info("Seal file successfully!\n");
+        else
+        {
+            p_log->info("Seal file successfully!\n");
 
-        std::string new_tree_str = sealed_tree_map[org_root_hash_str];
-        remove_char(new_tree_str, ' ');
-        remove_char(new_tree_str, '\n');
-        remove_char(new_tree_str, '\\');
-        res["body"] = new_tree_str;
-        res["path"] = std::string(p_new_path, dir_path.size());
-        res["status"] = 200;
-        sealed_tree_map.unsafe_erase(org_root_hash_str);
+            std::string new_tree_str = sealed_tree_map[org_root_hash_str];
+            remove_char(new_tree_str, ' ');
+            remove_char(new_tree_str, '\n');
+            remove_char(new_tree_str, '\\');
+            res["body"] = new_tree_str;
+            res["path"] = std::string(p_new_path, dir_path.size());
+            res["status"] = 200;
+            sealed_tree_map.unsafe_erase(org_root_hash_str);
+        }
 
         close_connection = true;
 
@@ -251,7 +258,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
             goto cleanup;
         }
 
-        // Unseal file
+        // ----- Unseal file ----- //
         crust_status_t crust_status = CRUST_SUCCESS;
         char *p_new_path = (char*)malloc(dir_path.size());
         memset(p_new_path, 0, dir_path.size());
@@ -308,10 +315,4 @@ cleanup:
     }
 
     return res.dump();
-}
-
-void ApiHandler::change_srd(long change)
-{
-    Ecall_srd_set_change(global_eid, change);
-    p_log->info("Change task:%ldG has been added, will be executed next srd.\n", change);
 }
