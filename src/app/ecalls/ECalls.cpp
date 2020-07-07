@@ -4,19 +4,19 @@
 
 // Enclave task structure
 typedef struct _enclave_task_t {
-    std::thread::id tid;
+    // Task id to task running number mapping
     std::unordered_map<std::string, uint32_t> task_info;
     uint32_t timeout = 0;
 } enclave_task_t;
 
-// Task info
-tbb::concurrent_unordered_map<std::string, enclave_task_t> g_running_task_m;
+// Task info, invoked enclave function to enclave task_info mapping
+tbb::concurrent_unordered_map<std::string, enclave_task_t> g_running_task_um;
 // Record running task number
 int g_running_task_num;
 // Lock to ensure mutex
 std::mutex g_task_mutex;
 // Task priority map, lower number represents higher priority
-std::unordered_map<std::string, int> g_task_priority_m = {
+std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_restore_metadata", 0},
     {"Ecall_gen_key_pair", 0},
     {"Ecall_set_chain_account_id", 0},
@@ -43,6 +43,8 @@ std::unordered_map<std::string, int> g_task_priority_m = {
 };
 // Indicate number of each priority task, higher index represents lower priority
 tbb::concurrent_vector<int> g_waiting_task_sum_v(4, 0);
+// Ecall function name to invoked number mapping
+tbb::concurrent_unordered_map<std::string, int> g_invoked_ecalls_um;
 // Waiting time(million seconds) for different priority task
 std::vector<uint32_t> g_task_wait_time_v = {0, 10000, 100000, 1000000};
 
@@ -86,15 +88,26 @@ sgx_status_t try_get_enclave(const char *name)
     ss << tid;
     std::string this_id = ss.str();
     uint32_t timeout = 0;
+    sgx_status_t sgx_status = SGX_SUCCESS;
 
     // Get current task priority
-    int cur_task_prio = g_task_priority_m[tname];
+    int cur_task_prio = g_task_priority_um[tname];
     // Increase corresponding task queue
     g_waiting_task_sum_v[cur_task_prio]++;
+    // Increase corresponding invoked ecall
+    g_invoked_ecalls_um[tname]++;
 
     // ----- Task scheduling ----- //
     while (true)
     {
+        // Sealing task races to ignore srd task
+        if (tname.compare("Ecall_srd_increase") == 0 
+                && (g_invoked_ecalls_um["Ecall_seal_file"] > 0 || g_invoked_ecalls_um["Ecall_unseal_file"] > 0))
+        {
+            sgx_status = SGX_ERROR_DEVICE_BUSY;
+            break;
+        }
+
         if (g_running_task_num < ENC_MAX_THREAD_NUM)
         {
             // Try to get lock
@@ -117,19 +130,18 @@ sgx_status_t try_get_enclave(const char *name)
                 goto loop;
             }
             // Get enclave resource
-            if (g_running_task_m[this_id].task_info.size() == 0)
+            if (g_running_task_um.count(this_id) == 0)
             {
                 // This situation happens when an ecall invokes an ocall
                 // and the ocall invokes an ecall again.
-                (g_running_task_m[this_id].task_info)[tname]++;
+                (g_running_task_um[this_id].task_info)[tname]++;
                 g_running_task_num++;
             }
             else
             {
                 // This thread is running, this situation happens when a ocall invokes ecall function
-                (g_running_task_m[this_id].task_info)[tname]++;
+                (g_running_task_um[this_id].task_info)[tname]++;
             }
-            g_waiting_task_sum_v[cur_task_prio]--;
             g_task_mutex.unlock();
             break;
         }
@@ -141,15 +153,25 @@ sgx_status_t try_get_enclave(const char *name)
             timeout++;
             if (timeout >= ENC_TASK_TIMEOUT)
             {
-                g_running_task_m.unsafe_erase(this_id);
+                g_running_task_um.unsafe_erase(this_id);
                 p_log->warn("task:%s(thread id:%s) timeout!\n", name, this_id.c_str());
-                return SGX_ERROR_SERVICE_TIMEOUT;
+                sgx_status = SGX_ERROR_SERVICE_TIMEOUT;
+                break;
             }
         }
         task_sleep(cur_task_prio);
     }
 
-    return SGX_SUCCESS;
+    // Decrease waiting task queue
+    g_waiting_task_sum_v[cur_task_prio]--;
+
+    // If invoked failed, decrease invoke ecall queue
+    if (SGX_SUCCESS != sgx_status)
+    {
+        g_invoked_ecalls_um[tname]--;
+    }
+
+    return sgx_status;
 }
 
 /**
@@ -164,16 +186,19 @@ void free_enclave(const char *name)
     std::stringstream ss;
     ss << tid;
     std::string this_id = ss.str();
-    if (--(g_running_task_m[this_id].task_info)[tname] <= 0)
+    if (--(g_running_task_um[this_id].task_info)[tname] <= 0)
     {
-        g_running_task_m[this_id].task_info.erase(tname);
-        if (g_running_task_m[this_id].task_info.size() == 0)
+        g_running_task_um[this_id].task_info.erase(tname);
+        if (g_running_task_um[this_id].task_info.size() == 0)
         {
-            g_running_task_m.unsafe_erase(this_id);
+            g_running_task_um.unsafe_erase(this_id);
             g_running_task_num--;
         }
     }
     g_task_mutex.unlock();
+
+    // Decrease corresponding invoked ecall
+    g_invoked_ecalls_um[tname]--;
 }
 
 /**
@@ -183,11 +208,11 @@ void free_enclave(const char *name)
 std::string show_enclave_thread_info()
 {
     json::JSON task_info_json;
-    for (auto it : g_running_task_m)
+    for (auto it : g_running_task_um)
     {
         for (auto iter : it.second.task_info)
         {
-            task_info_json[iter.first] = iter.second;
+            task_info_json[iter.first] = task_info_json[iter.first].ToInt() + iter.second;
         }
     }
 

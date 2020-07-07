@@ -16,6 +16,7 @@ function uninstallOldCrustTee()
         ret=$?
     fi
     cd - &>/dev/null
+    rm -rf $crustdir/crust-tee*
     checkRes $ret "quit" "success"
 }
 
@@ -112,7 +113,7 @@ instdir=$basedir
 TMPFILE=$appdir/tmp.$$
 ERRFILE=$basedir/err.log
 crustdir=/opt/crust
-crustteedir=$crustdir/crust-tee
+crustteedir=$crustdir/crust-tee_$(cat $instdir/VERSION)
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 selfName=$(basename $0)
@@ -171,6 +172,12 @@ mkdir -p $crustteedir
 res=$(($?|$res))
 mkdir -p $inteldir
 res=$(($?|$res))
+# Create soft link {{{
+cd $crustdir
+ln -s $(basename $crustteedir) crust-tee
+res=$(($?|$res))
+cd - &>/dev/null
+# }}} Create soft link end
 checkRes $res "quit" "success"
 
 # Install Dependencies
