@@ -34,3 +34,5 @@
 # User
 .vscode/
 resource/
+crust-tee.tar
+scripts/err.log
