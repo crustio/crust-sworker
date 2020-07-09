@@ -7,3 +7,4 @@ docker/tee-build/vendor/onetbb.tar filter=lfs diff=lfs merge=lfs -text
 docker/tee-build/vendor/openssl-1.1.1d.tar.gz filter=lfs diff=lfs merge=lfs -text
 docker/tee-build/vendor/sgx_linux_x64_driver_2.6.0_4f5bb63.bin filter=lfs diff=lfs merge=lfs -text
 docker/tee-build/vendor/sgx_linux_x64_sdk_2.7.101.3.bin filter=lfs diff=lfs merge=lfs -text
+docker/tee-runner/vendor/* filter=lfs diff=lfs merge=lfs -text
