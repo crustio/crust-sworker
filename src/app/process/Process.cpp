@@ -3,6 +3,9 @@
 #include "WebServer.h"
 #include "tbb/concurrent_unordered_map.h"
 
+#include <future>
+#include <chrono>
+
 #define RECEIVE_PID_RETRY 30
 
 /* Global EID shared by multiple threads */
@@ -11,6 +14,8 @@ sgx_enclave_id_t global_eid;
 Config *p_config = NULL;
 // Pointer to http handler instance
 ApiHandler *p_api_handler = NULL;
+// Map to record specific task
+std::vector<std::pair<std::shared_ptr<std::future<void>>, task_func_t>> g_tasks_v;
 
 crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
@@ -41,7 +46,7 @@ bool initialize_enclave()
     int sgx_support;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    /* Can we run SGX? */
+    // ----- Can we run SGX? ----- //
     p_log->info("Initial enclave...\n");
     sgx_support = get_sgx_support();
     if (sgx_support & SGX_SUPPORT_NO)
@@ -69,7 +74,7 @@ bool initialize_enclave()
         }
     }
 
-    /* Launch the enclave */
+    // ----- Launch the enclave ----- //
     ret = sgx_create_enclave(ENCLAVE_FILE_PATH, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
@@ -77,7 +82,7 @@ bool initialize_enclave()
         return false;
     }
 
-    /* Generate code measurement */
+    // ----- Generate code measurement ----- //
     if (SGX_SUCCESS != Ecall_gen_sgx_measurement(global_eid, &ret))
     {
         p_log->err("Generate code measurement failed!error code:%08x\n", ret);
@@ -108,11 +113,8 @@ bool initialize_components(void)
     }
 
     // Start http service
-    pthread_t wthread;
-    if (pthread_create(&wthread, NULL, start_webservice, NULL) != 0)
-    {
-        return false;
-    }
+    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
+            std::async(std::launch::async, &start_webservice)), &start_webservice));
 
     // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)
@@ -127,14 +129,20 @@ bool initialize_components(void)
 }
 
 /**
+ * @description: Wrapper for main loop
+ * */
+void main_loop(void)
+{
+    Ecall_main_loop(global_eid);
+}
+
+/**
  * @desination: Main function to start application
  * @return: Start status
  * */
 int process_run()
 {
     pid_t worker_pid = getpid();
-    pthread_t wthread;
-    pthread_t srd_check_thread;
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string tee_identity_result = "";
@@ -170,7 +178,7 @@ int process_run()
     if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
         // Restore data failed
-        p_log->warn("Restore enclave data failed!Failed code:%lx\n", crust_status);
+        p_log->info("Restore enclave data failed!Failed code:%lx.Starting a new enclave...\n", crust_status);
         // Generate ecc key pair
         if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
         {
@@ -239,24 +247,33 @@ int process_run()
     if (!offline_chain_mode)
     {
         // Check block height and post report to chain
-        if (pthread_create(&wthread, NULL, work_report_loop, NULL) != 0)
-        {
-            p_log->err("Create checking block info thread failed!\n");
-            return_status = -1;
-            goto cleanup;
-        }
+        g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
+                std::async(std::launch::async, &work_report_loop)), &work_report_loop));
     }
 
-    // Start thread to check if do srd reduction
-    if (pthread_create(&srd_check_thread, NULL, srd_check_reserved, NULL) != 0)
-    {
-        p_log->err("Create checking srd reserved space thread failed!\n");
-        return_status = -1;
-        goto cleanup;
-    }
+    // Start thread to check srd reserved
+    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
+            std::async(std::launch::async, &srd_check_reserved)), &srd_check_reserved));
 
     // Main validate loop
-    Ecall_main_loop(global_eid);
+    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
+            std::async(std::launch::async, &main_loop)), &main_loop));
+
+    // Check loop
+    while (true)
+    {
+        std::future_status f_status;
+        for (auto task : g_tasks_v)
+        {
+            f_status = task.first->wait_for(std::chrono::seconds(0));
+            if (f_status == std::future_status::ready)
+            {
+                task.first = std::make_shared<std::future<void>>(std::async(
+                        std::launch::async, task.second));
+            }
+        }
+        sleep(30);
+    }
 
 cleanup:
     // End and release

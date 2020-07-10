@@ -13,21 +13,33 @@ crust::Log *p_log = crust::Log::get_instance();
 int SGX_CDECL main(int argc, char *argv[])
 {
     // Get configure file path if exists
+    bool is_set_config = false;
     std::string run_type;
     for (int i = 1; i < argc; i++)
     {
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
+        {
+            goto show_help;
+        }
         if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0)
         {
             if (i + 1 < argc)
             {
                 config_file_path = std::string(argv[i + 1]);
                 i++;
+                is_set_config = true;
             }
             else
             {
                 p_log->err("-c option needs configure file path as argument!\n");
-                return 1;
+                goto show_help;
             }
+        }
+        else if (strcmp(argv[i], "-v") == 0)
+        {
+            printf("Release version: %s\
+                  \nTEE     version: %s\n", VERSION, TEE_VERSION);
+            return 0;
         }
         else if (strcmp(argv[i], "--offline") == 0)
         {
@@ -42,21 +54,37 @@ int SGX_CDECL main(int argc, char *argv[])
         {
             if (i + 1 < argc)
             {
+                // Get srd reserved space
+                long srd_reserved_space = 0;
                 if (!is_number(argv[i+1]))
                 {
-                    p_log->err("--update option should be followd by a number!\n");
+                    // If old TEE url is provided, get srd reserved space from it
+                    srd_reserved_space = get_old_reserved_space(argv[i+1]) - 10;
+                }
+                else
+                {
+                    srd_reserved_space = atoi(argv[i+1]);
+                }
+                // Check if srd reserved is valid
+                if (srd_reserved_space == -1)
+                {
+                    p_log->err("Get old srd reserved space failed!\n");
                     return 1;
                 }
-                set_reserved_space(get_reserved_space() - 10);
-                long srd_space = atoi(argv[i+1]);
-                srd_change(srd_space);
-                p_log->info("Update is performed! %dG srd space will be performed.\n", srd_space);
+                else if (srd_reserved_space < 10)
+                {
+                    p_log->err("Old srd reserved:%ld is less than 10!\n", srd_reserved_space);
+                    return 1;
+                }
+                set_reserved_space(srd_reserved_space);
+                p_log->info("Update is performed!Srd reserved space has been set to %ld.\
+                        Make sure you have set srd space in your config file!\n", srd_reserved_space);
                 i++;
             }
             else
             {
                 p_log->err("--update option needs srd space as argument!\n");
-                return 1;
+                goto show_help;
             }
         }
         else
@@ -68,6 +96,13 @@ int SGX_CDECL main(int argc, char *argv[])
             }
             run_type = argv[i];
         }
+    }
+
+    // Check if configure path has been indicated
+    if (!is_set_config)
+    {
+        p_log->err("Please indicate configure file path!\n");
+        goto show_help;
     }
 
     // Main branch
@@ -83,21 +118,25 @@ int SGX_CDECL main(int argc, char *argv[])
     {
         return main_daemon();
     }
-    else
-    {
-        printf("    Usage: \n");
-        printf("        %s <option> <argument>\n", argv[0]);
-        printf("          option: \n");
-        printf("           --help: help information. \n");
-        printf("           --config: indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
-        printf("               If no file provided, default path is etc/Config.json. \n");
-        printf("           --offline: add this flag, program will not interact with the chain. \n");
-        printf("           --debug: add this flag, program will output debug logs. \n");
-        printf("           --update: used to update, followed by srd space(should not exceed old one). \n");
-        printf("           status: show validate status. \n");
-        printf("           report: show work report. \n");
-        printf("           daemon: run as daemon process. \n");
-    }
+
+
+show_help:
+
+    printf("    Usage: \n");
+    printf("        %s <option> <argument>\n", argv[0]);
+    printf("          option: \n");
+    printf("           -h, --help: help information. \n");
+    printf("           -c, --config: indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
+    printf("               If no file provided, default path is etc/Config.json. \n");
+    printf("           --offline: add this flag, program will not interact with the chain. \n");
+    printf("           --debug: add this flag, program will output debug logs. \n");
+    printf("           --update: used to update, parameter can be:\n");
+    printf("               1.Srd space(should not exceed old TEE), like 40,\n");
+    printf("               2.Old TEE url, like 'http://localhost:12222/api/v0', it can be used to get old TEE srd_reserved_space.\n");
+    printf("                 And new TEE's srd_reserved_space will be set to (old_srd_reserved_space - 10).\n");
+    printf("           status: show validate status. \n");
+    printf("           report: show work report. \n");
+    printf("           daemon: run as daemon process(this mode is the default one). \n");
 
     return 0;
 }

@@ -724,7 +724,6 @@ sgx_status_t id_gen_sgx_measurement()
     memset(&current_mr_enclave, 0, sizeof(sgx_measurement_t));
     memcpy(&current_mr_enclave, &verify_report.body.mr_enclave, sizeof(sgx_measurement_t));
 
-    log_info("The mrenclave is '0x%s'.\n", hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t)).c_str());
     return status;
 }
 
@@ -794,7 +793,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
     size_t data_len = 0;
     uint8_t *p_id_key = NULL;
     std::string id_key_pair_str;
-    crust_status_t crust_status = persist_get("metadata", &p_data, &data_len);
+    crust_status_t crust_status = persist_get(ID_METADATA, &p_data, &data_len);
     if (CRUST_SUCCESS != crust_status || data_len == 0)
     {
         meta_json =  json::JSON();
@@ -806,7 +805,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
         goto cleanup;
     }
     // Verify meta data
-    id_key_pair_str = meta_json["id_key_pair"].ToString();
+    id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();
     p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
     if (p_id_key == NULL)
     {
@@ -866,7 +865,7 @@ crust_status_t id_metadata_set_by_new(json::JSON meta_json)
     memset(p_meta, 0, meta_len);
     memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
     memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set("metadata", p_meta, meta_len);
+    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
     free(p_meta);
 
 cleanup:
@@ -942,10 +941,10 @@ crust_status_t id_store_metadata()
     uint8_t *p_meta = NULL;
     std::string hex_id_key_str = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
     id_get_metadata(meta_json, false);
-    meta_json["workload"] = Workload::get_instance()->serialize_workload();
-    meta_json["id_key_pair"] = hex_id_key_str;
-    meta_json["report_slot"] = report_slot;
-    meta_json["chain_account_id"] = g_chain_account_id;
+    meta_json[ID_WORKLOAD] = Workload::get_instance()->serialize_workload();
+    meta_json[ID_KEY_PAIR] = hex_id_key_str;
+    meta_json[ID_REPORT_SLOG] = report_slot;
+    meta_json[ID_CHAIN_ACCOUNT_ID] = g_chain_account_id;
     std::string meta_str = meta_json.dump();
 
     // Seal workload string
@@ -959,7 +958,7 @@ crust_status_t id_store_metadata()
     memset(p_meta, 0, meta_len);
     memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
     memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set("metadata", p_meta, meta_len);
+    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
 
 
 cleanup:
@@ -990,7 +989,7 @@ crust_status_t id_restore_metadata()
 
     // Restore workload
     Workload *wl = Workload::get_instance();
-    std::string workload_str = meta_json["workload"].ToString();
+    std::string workload_str = meta_json[ID_WORKLOAD].ToString();
     remove_char(workload_str, '\\');
     crust_status = wl->restore_workload(json::JSON::Load(workload_str));
     if (CRUST_SUCCESS != crust_status)
@@ -1013,16 +1012,16 @@ crust_status_t id_restore_metadata()
     ocall_srd_info_unlock();
     // Restore meaningful files
     wl->checked_files.clear();
-    if (meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
+    if (meta_json.hasKey(ID_FILE))
     {
-        json::JSON m_files = meta_json[MEANINGFUL_FILE_DB_TAG];
+        json::JSON m_files = meta_json[ID_FILE];
         for (int i = 0; i < m_files.size(); i++)
         {
             wl->checked_files.push_back(m_files[i]);
         }
     }
     // Restore id key pair
-    std::string id_key_pair_str = meta_json["id_key_pair"].ToString();
+    std::string id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();
     uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
     if (p_id_key == NULL)
     {
@@ -1032,13 +1031,20 @@ crust_status_t id_restore_metadata()
     memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
     free(p_id_key);
     // Restore report slot
-    report_slot = meta_json["report_slot"].ToInt();
+    report_slot = meta_json[ID_REPORT_SLOG].ToInt();
     // Restore chain account id
-    g_chain_account_id = meta_json["chain_account_id"].ToString();
+    g_chain_account_id = meta_json[ID_CHAIN_ACCOUNT_ID].ToString();
 
     g_is_set_id_key_pair = true;
     g_is_set_account_id = true;
     just_after_restart = true; 
+
+    // Show workload
+    std::string wl_str = wl->get_workload();
+    replace(wl_str, "\"{", "{");
+    replace(wl_str, "}\"", "  }");
+    remove_char(wl_str, '\\');
+    log_info("Workload:\n%s\n", wl_str.c_str());
 
     return CRUST_SUCCESS;
 }
@@ -1109,7 +1115,7 @@ size_t id_get_report_slot()
 void id_set_report_slot(size_t new_report_slot)
 {
     report_slot = new_report_slot;
-    id_metadata_set_or_append("report_slot", std::to_string(report_slot));
+    id_metadata_set_or_append(ID_REPORT_SLOG, std::to_string(report_slot));
 }
 
 /**
@@ -1128,4 +1134,17 @@ bool id_just_after_restart()
 void id_set_just_after_restart(bool in)
 {
     just_after_restart = in;
+}
+
+/**
+ * @description: Show enclave id information
+ * */
+void id_get_info()
+{
+    json::JSON id_info;
+    id_info["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    id_info["mrenclave"] = hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t));
+    id_info["version"] = TEE_VERSION;
+    std::string id_str = id_info.dump();
+    ocall_store_enclave_id_info(id_str.c_str());
 }

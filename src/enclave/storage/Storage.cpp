@@ -46,7 +46,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
         return crust_status;
     }
 
-    std::string org_root_hash_str = tree_json["hash"].ToString();
+    std::string org_root_hash_str = tree_json[FILE_HASH].ToString();
     std::string old_path(path, path_len);
     std::string new_tree;
 
@@ -60,7 +60,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
         return crust_status;
     }
     new_tree.erase(new_tree.size() - 1, 1);
-    std::string new_root_hash_str = tree_json["hash"].ToString();
+    std::string new_root_hash_str = tree_json[FILE_HASH].ToString();
 
     // Rename old directory
     std::string new_path = old_path.substr(0, old_path.find(org_root_hash_str)) + new_root_hash_str;
@@ -77,11 +77,11 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     // ----- Add corresponding metadata ----- //
     // Store Meaningful file entry to enclave metadata
     json::JSON file_entry_json;
-    file_entry_json["hash"] = new_root_hash_str;
-    file_entry_json["size"] = node_size;
-    // status indicates current new file's status, which must be one of valid, lost and unconfirmed
-    file_entry_json["status"] = "unconfirmed";
-    crust_status = id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, file_entry_json, ID_APPEND);
+    file_entry_json[FILE_HASH] = new_root_hash_str;
+    file_entry_json[FILE_SIZE] = node_size;
+    // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
+    file_entry_json[FILE_STATUS] = FILE_STATUS_UNCONFIRMED;
+    crust_status = id_metadata_set_or_append(ID_FILE, file_entry_json, ID_APPEND);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -96,15 +96,18 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
 
     // Store new tree meta data
     json::JSON tree_meta_json;
-    tree_meta_json["old_hash"] = org_root_hash_str;
-    tree_meta_json["size"] = node_size;
-    tree_meta_json["block_num"] = block_num;
+    tree_meta_json[FILE_OLD_HASH] = org_root_hash_str;
+    tree_meta_json[FILE_SIZE] = node_size;
+    tree_meta_json[FILE_BLOCK_NUM] = block_num;
     std::string tree_meta_str = tree_meta_json.dump();
     crust_status = persist_set((new_root_hash_str+"_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
     }
+
+    // Print sealed file information
+    log_info("Seal complete,please confirm this file for validation,file info:\n%s\n", file_entry_json.dump().c_str());
 
     // Add new file to buffer
     Workload::get_instance()->add_new_file(file_entry_json);
@@ -133,7 +136,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     if (tree_json["links_num"].ToInt() == 0)
     {
         std::string old_path;
-        std::string old_hash_str = tree_json["hash"].ToString();
+        std::string old_hash_str = tree_json[FILE_HASH].ToString();
         old_path.append(path).append("/").append(to_string(block_num)).append("_").append(old_hash_str);
 
         uint8_t *p_sealed_data = NULL;
@@ -159,7 +162,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
         // --- Seal file data --- //
         // Check file size
-        if (tree_json["size"].ToInt() != (long long)file_data_len)
+        if (tree_json[FILE_SIZE].ToInt() != (long long)file_data_len)
         {
             crust_status = CRUST_STORAGE_NEW_FILE_SIZE_ERROR;
             goto sealend;
@@ -196,14 +199,14 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         {
             goto sealend;
         }
-        tree_json["hash"] = hex_new_hash_str;
+        tree_json[FILE_HASH] = hex_new_hash_str;
         node_size += sealed_data_size;
         block_num++;
 
         // Construct tree string
         // Note: Cannot change append sequence!
         tree.append("{\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
-        tree.append("\"hash\":\"").append(tree_json["hash"].ToString()).append("\",");
+        tree.append("\"hash\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
         tree.append("\"size\":").append(to_string(sealed_data_size)).append("},");
 
     sealend:
@@ -235,7 +238,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         {
             goto cleanup;
         }
-        uint8_t *p_new_hash = hex_string_to_bytes(tree_json["links"][i]["hash"].ToString().c_str(), HASH_LENGTH * 2);
+        uint8_t *p_new_hash = hex_string_to_bytes(tree_json["links"][i][FILE_HASH].ToString().c_str(), HASH_LENGTH * 2);
         if (p_new_hash == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
@@ -247,12 +250,12 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     // Get new hash
     sgx_sha256_hash_t new_hash;
     sgx_sha256_msg(sub_hashs, sub_hashs_len, &new_hash);
-    tree_json["hash"] = hexstring_safe(new_hash, HASH_LENGTH);
+    tree_json[FILE_HASH] = hexstring_safe(new_hash, HASH_LENGTH);
 
     // Construct tree string
     tree.erase(tree.size() - 1, 1);
     tree.append("],\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
-    tree.append("\"hash\":\"").append(tree_json["hash"].ToString()).append("\",");
+    tree.append("\"hash\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
     tree.append("\"size\":").append(to_string(cur_size)).append("},");
 
     node_size += cur_size;
@@ -300,7 +303,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
     std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
     json::JSON meta_json = json::JSON::Load(tree_meta);
     std::string new_dir(up_dir);
-    new_dir.append("/").append(meta_json["old_hash"].ToString());
+    new_dir.append("/").append(meta_json[FILE_OLD_HASH].ToString());
     free(p_meta);
     
     // Do unseal file
@@ -420,7 +423,7 @@ crust_status_t storage_confirm_file_real()
     sgx_thread_mutex_lock(&g_metadata_mutex);
 
     crust_status_t crust_status = CRUST_SUCCESS;
-    json::JSON file_json;
+    std::vector<json::JSON> confirmed_files_v;
     Workload *wl = Workload::get_instance();
 
     // ----- Find file entry by hash ----- //
@@ -432,21 +435,24 @@ crust_status_t storage_confirm_file_real()
     // Get metadata
     json::JSON meta_json_org;
     id_get_metadata(meta_json_org, false);
-    if (!meta_json_org.hasKey(MEANINGFUL_FILE_DB_TAG))
+    if (!meta_json_org.hasKey(ID_FILE))
     {
         sgx_thread_mutex_unlock(&g_metadata_mutex);
         return CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
     std::set<std::string> confirm_success_s;
     size_t confirm_acc = 0;
-    for (auto it = meta_json_org[MEANINGFUL_FILE_DB_TAG].ArrayRange().object->rbegin(); 
-            it != meta_json_org[MEANINGFUL_FILE_DB_TAG].ArrayRange().object->rend(); it++)
+    for (auto it = meta_json_org[ID_FILE].ArrayRange().object->rbegin(); 
+            it != meta_json_org[ID_FILE].ArrayRange().object->rend(); it++)
     {
-        if (confirm_files_s.find((*it)["hash"].ToString()) != confirm_files_s.end())
+        if (confirm_files_s.find((*it)[FILE_HASH].ToString()) != confirm_files_s.end())
         {
-            (*it)["status"] = "valid";
-            file_json = *it;
-            confirm_success_s.insert((*it)["hash"].ToString());
+            if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
+            {
+                (*it)[FILE_STATUS] = FILE_STATUS_VALID;
+                confirmed_files_v.push_back(*it);
+                confirm_success_s.insert((*it)[FILE_HASH].ToString());
+            }
             if (++confirm_acc == confirm_files_s.size())
             {
                 break;
@@ -454,8 +460,8 @@ crust_status_t storage_confirm_file_real()
         }
     }
     // Update metadata
-    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, 
-                    meta_json_org[MEANINGFUL_FILE_DB_TAG], ID_UPDATE, false)))
+    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_FILE, 
+                    meta_json_org[ID_FILE], ID_UPDATE, false)))
     {
         log_err("Conirm file failed!Update metadata failed!Error code:%lx\n", crust_status);
         sgx_thread_mutex_unlock(&g_metadata_mutex);
@@ -465,7 +471,7 @@ crust_status_t storage_confirm_file_real()
     // Print confirmed info
     for (auto chash : confirm_success_s)
     {
-        log_info("Confirm file:%s successfully!\n", chash.c_str());
+        log_info("Confirm file:%s successfully! Will be validated.\n", chash.c_str());
     }
     if (confirm_acc != confirm_files_s.size())
     {
@@ -483,9 +489,12 @@ crust_status_t storage_confirm_file_real()
     confirm_acc = 0;
     for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
     {
-        if (confirm_files_s.find((*it)["hash"].ToString()) != confirm_files_s.end())
+        if (confirm_files_s.find((*it)[FILE_HASH].ToString()) != confirm_files_s.end())
         {
-            (*it)["status"] = "valid";
+            if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
+            {
+                (*it)[FILE_STATUS] = FILE_STATUS_VALID;
+            }
             if (++confirm_acc == confirm_files_s.size())
             {
                 break;
@@ -500,9 +509,12 @@ crust_status_t storage_confirm_file_real()
         sgx_thread_mutex_lock(&g_checked_files_mutex);
         for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
         {
-            if (confirm_files_s.find((*it)["hash"].ToString()) != confirm_files_s.end())
+            if (confirm_files_s.find((*it)[FILE_HASH].ToString()) != confirm_files_s.end())
             {
-                (*it)["status"] = "valid";
+                if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
+                {
+                    (*it)[FILE_STATUS] = FILE_STATUS_VALID;
+                }
                 if (++confirm_acc == confirm_files_s.size())
                 {
                     break;
@@ -513,9 +525,9 @@ crust_status_t storage_confirm_file_real()
     }
 
     // Report real-time order file
-    if (file_json.hasKey("hash"))
+    for (auto file_json : confirmed_files_v)
     {
-        wl->add_order_file(make_pair(file_json["hash"].ToString(), file_json["size"].ToInt()));
+        wl->add_order_file(make_pair(file_json[FILE_HASH].ToString(), file_json[FILE_SIZE].ToInt()));
     }
 
 
@@ -560,19 +572,19 @@ crust_status_t storage_delete_file_real()
     // Get meaningful file
     json::JSON meta_json_org;
     id_get_metadata(meta_json_org, false);
-    if (!meta_json_org.hasKey(MEANINGFUL_FILE_DB_TAG))
+    if (!meta_json_org.hasKey(ID_FILE))
     {
         sgx_thread_mutex_unlock(&g_metadata_mutex);
         return CRUST_STORAGE_FILE_NOTFOUND;
     }
     // Do delete
-    auto p_arry = meta_json_org[MEANINGFUL_FILE_DB_TAG].ArrayRange();
+    auto p_arry = meta_json_org[ID_FILE].ArrayRange();
     uint32_t del_acc = 0;
     for (auto it = p_arry.object->rbegin(); it != p_arry.object->rend(); it++)
     {
-        if (del_hashs_s.find((*it)["hash"].ToString()) != del_hashs_s.end())
+        if (del_hashs_s.find((*it)[FILE_HASH].ToString()) != del_hashs_s.end())
         {
-            del_success_s.insert((*it)["hash"].ToString());
+            del_success_s.insert((*it)[FILE_HASH].ToString());
             p_arry.object->erase((++it).base());
             if (++del_acc == del_hashs_s.size())
             {
@@ -582,8 +594,8 @@ crust_status_t storage_delete_file_real()
     }
     // Update metadata
     crust_status_t crust_status = CRUST_SUCCESS;
-    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, 
-                    meta_json_org[MEANINGFUL_FILE_DB_TAG], ID_UPDATE, false)))
+    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_FILE, 
+                    meta_json_org[ID_FILE], ID_UPDATE, false)))
     {
         log_err("Delete file failed!Update metadata failed!Error code:%lx\n", crust_status);
         sgx_thread_mutex_unlock(&g_metadata_mutex);
@@ -593,7 +605,7 @@ crust_status_t storage_delete_file_real()
     // Print deleted info
     for (auto dhash : del_success_s)
     {
-        log_info("Dlete file:%s successfully!\n", dhash.c_str());
+        log_info("Delete file:%s successfully!\n", dhash.c_str());
     }
     if (del_acc != del_hashs_s.size())
     {
@@ -612,7 +624,7 @@ crust_status_t storage_delete_file_real()
     del_acc = 0;
     for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
     {
-        if (del_hashs_s.find((*it)["hash"].ToString()) != del_hashs_s.end())
+        if (del_hashs_s.find((*it)[FILE_HASH].ToString()) != del_hashs_s.end())
         {
             wl->checked_files.erase((++it).base());
             if (++del_acc == del_hashs_s.size())
@@ -629,7 +641,7 @@ crust_status_t storage_delete_file_real()
         sgx_thread_mutex_lock(&g_new_files_mutex);
         for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
         {
-            if (del_hashs_s.find((*it)["hash"].ToString()) != del_hashs_s.end())
+            if (del_hashs_s.find((*it)[FILE_HASH].ToString()) != del_hashs_s.end())
             {
                 wl->new_files.erase((++it).base());
                 if (++del_acc == del_hashs_s.size())
@@ -639,6 +651,15 @@ crust_status_t storage_delete_file_real()
             }
         }
         sgx_thread_mutex_unlock(&g_new_files_mutex);
+    }
+
+    // ----- Delete file related data ----- //
+    for (auto dhash : del_hashs_s)
+    {
+        // Delete file tree structure
+        persist_del(dhash);
+        // Delete file metadata
+        persist_del(dhash+"_meta");
     }
 
     return crust_status;

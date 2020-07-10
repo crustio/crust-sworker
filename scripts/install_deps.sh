@@ -283,11 +283,13 @@ function success_exit()
 ############## MAIN BODY ###############
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
 TMPFILE=$basedir/tmp.$$
 ERRFILE=$basedir/err.log
 rsrcdir=$basedir/../resource
 crustdir=/opt/crust
 crustteedir=$crustdir/crust-tee
+realteedir=$crustteedir/$(cat $instdir/VERSION | head -n 1)
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 sgxssldir=$inteldir/sgxssl
@@ -337,7 +339,7 @@ othersprereq=(libboost-all-dev libleveldb-dev openssl)
 delOrder=(libsgx-enclave-common-dev libsgx-enclave-common sgxdriver sgxsdk)
 declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 # Crust related
-crust_env_file=$crustteedir/etc/environment
+crust_env_file=$realteedir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
 
 

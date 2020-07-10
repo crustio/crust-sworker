@@ -41,6 +41,8 @@ enclave {
         public void ecall_delete_file([in, string] const char *hash);
 
         public crust_status_t ecall_get_signed_order_report();
+        public void ecall_id_get_info();
+        public void ecall_get_workload();
     };
 
     untrusted {
@@ -84,5 +86,9 @@ enclave {
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_srd_set_change);
 
         void ocall_store_identity([in, string] const char *id);
+
+        void ocall_store_enclave_id_info([in, string] const char *info);
+
+        void ocall_store_workload([in, string] const char *wl);
     };
 };

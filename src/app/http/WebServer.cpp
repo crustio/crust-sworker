@@ -816,7 +816,7 @@ void WebServer::set_api_handler(ApiHandler *api_handler)
     this->api_handler = api_handler;
 }
 
-void *start_webservice(void*)
+void start_webservice(void)
 {
     // Check command line arguments.
     Config *p_config = Config::get_instance();
@@ -866,5 +866,4 @@ void *start_webservice(void*)
     for(auto& t : v)
         t.join();
 
-    return NULL;
 }

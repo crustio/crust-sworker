@@ -127,6 +127,58 @@ Output:
 }
 ```
 
+### Use 'api/v0/workload' to get workload information
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/workload
+```
+
+Output:
+```json
+{
+  "files" : {
+    "3ba1f6629cd14e4a6899d5e5339ecddc0fd6f438c6e459ffce5e180cc9f39ae4" : {  "size" : 268578816,  "status" : "valid"  },
+    "52cf9651a202532e34e138a0ea36a4b4fc1fe39f24611fb1419ee31c2241f515" : {  "size" : 3147408,  "status" : "lost"  },
+    "9a4c4bdd204f9a32607ad52aaca9ee5fcf0338a00b3dc620ca49f51f782f3d6c" : {  "size" : 2098272,  "status" : "unconfirmed"  }
+  },
+  "srd" : {
+    "detail" : {
+      "/opt/crust/crust-tee/tee_base_path/test1" : {
+        "assigned" : 4
+      }
+    },
+    "root_hash" : "8f5ec17c51235d30d5f153fa7ac6a85ac218a3fd162c38080e33af9f414abdd4",
+    "space" : 4,
+    "srd_reserved_space" : 50
+  }
+}
+```
+Output:
+1. files: Give meaningful files' hash, size and status
+1. srd: Give srd information
+1. srd_path_x: Indicates your srd path.
+1. assigned: Indicates how many space has been used for srd in the path.
+1. root_hash: Indicates all srd hash
+1. space: Space has been taken by srd
+1. srd_reserved_space: Indicates disk reserved space, default value is 50 which means TEE will remain 50GB space for your stuff and the other will be used for srd.
+
+### Use 'api/v0/enclave/id_info' to get enclave mrenclave and pub_key
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/enclave/id_info
+```
+
+Output:
+```json
+{
+  "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
+  "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
+  "version" : "0.4.0"
+}
+```
+
 ### Use 'api/v0/srd/change' to change SRD capacity, 
 
 Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.

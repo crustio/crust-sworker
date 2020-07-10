@@ -3,20 +3,22 @@ function uninstallOldCrustTee()
 {
     verbose INFO "Removing old crust tee..." h
     local ret=0
-    if [ ! -e "$crustteedir" ]; then
+    if [ ! -e "$crustdir/crust-tee" ]; then
         verbose INFO "SUCCESS" t
         return
     fi
     cd $crustteedir
-    if [ -e "scripts/uninstall.sh" ]; then
-        ./scripts/uninstall.sh &>$ERRFILE
-        ret=$?
-    else
-        rm -rf *
-        ret=$?
-    fi
+    # Check version
+    for dir in $(ls -d */ 2>/dev/null); do
+        if [ -e $dir/VERSION ]; then
+            if [ x"$(cat $dir/VERSION| head -n 1)" = x"$new_version" ]; then
+                verbose ERROR "FAILED" t
+                verbose ERROR "Same version has been installed!"
+                exit 1
+            fi
+        fi
+    done
     cd - &>/dev/null
-    rm -rf $crustdir/crust-tee*
     checkRes $ret "quit" "success"
 }
 
@@ -38,11 +40,10 @@ function installAPP()
     cd - &>/dev/null
 
     # Copy related files to install directory
-    cp -r $instdir/bin $crustteedir
-    cp -r $instdir/etc $crustteedir
-    cp -r $instdir/scripts $crustteedir
-    cp -r $instdir/VERSION $crustteedir
-    mkdir -p $crustteedir/log
+    cp -r $instdir/bin $realteedir
+    cp -r $instdir/etc $realteedir
+    cp -r $instdir/scripts $realteedir
+    cp -r $instdir/VERSION $realteedir
 
     # Set environment
     setEnv
@@ -113,7 +114,9 @@ instdir=$basedir
 TMPFILE=$appdir/tmp.$$
 ERRFILE=$basedir/err.log
 crustdir=/opt/crust
-crustteedir=$crustdir/crust-tee_$(cat $instdir/VERSION)
+crustteedir=$crustdir/crust-tee
+new_version=$(cat $instdir/VERSION | head -n 1)
+realteedir=$crustteedir/$new_version
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 selfName=$(basename $0)
@@ -131,7 +134,7 @@ appname="crust-tee"
 enclaveso="enclave.signed.so"
 configfile="Config.json"
 # Crust related
-crust_env_file=$crustteedir/etc/environment
+crust_env_file=$realteedir/etc/environment
 
 
 . $basedir/scripts/utils.sh
@@ -170,14 +173,10 @@ mkdir -p $crusttooldir
 res=$(($?|$res))
 mkdir -p $crustteedir
 res=$(($?|$res))
+mkdir -p $realteedir
+res=$(($?|$res))
 mkdir -p $inteldir
 res=$(($?|$res))
-# Create soft link {{{
-cd $crustdir
-ln -s $(basename $crustteedir) crust-tee
-res=$(($?|$res))
-cd - &>/dev/null
-# }}} Create soft link end
 checkRes $res "quit" "success"
 
 # Install Dependencies
