@@ -58,7 +58,6 @@ public:
     //    http::request<http::basic_fields<http::string_body>>&& req, Queue&& send, bool is_ssl)
 
 private:
-    void change_srd(long change);
     std::shared_ptr<WebServer> server = NULL;
     std::vector<uint8_t> root_hash_v;
     long block_left_num;
@@ -280,7 +279,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             else
             {
                 // Start changing empty
-                change_srd(change_empty_num);
+                Ecall_srd_set_change(global_eid, change_empty_num);
+                p_log->info("Change task:%ldG has been added, will be executed next srd.\n", change_empty_num);
                 res.body() = "Change srd file success, the srd workload will change in next validation loop!";
             }
         end_change_empty:

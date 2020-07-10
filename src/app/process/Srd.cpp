@@ -194,8 +194,14 @@ void srd_change(long change)
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
-            Ecall_srd_set_change(global_eid, change - true_increase);
-            p_log->info("%ldG srd task left, add it to next srd.\n", change - true_increase);
+            long left_srd_num = change - true_increase;
+            Ecall_srd_set_change(global_eid, left_srd_num);
+            p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
+        }
+        if (true_increase == 0)
+        {
+            p_log->warn("No available space for srd!\n");
+            return;
         }
         // Print disk info
         auto disk_range = disk_info_json.ObjectRange();
@@ -224,6 +230,7 @@ void srd_change(long change)
             }
         }
 
+        // ----- Do srd ----- //
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
         ctpl::thread_pool pool(p_config->srd_thread_num);
         std::vector<std::shared_ptr<std::future<void>>> tasks_v;
@@ -232,9 +239,14 @@ void srd_change(long change)
             std::string path = srd_paths[i];
             sgx_enclave_id_t eid = global_eid;
             tasks_v.push_back(std::make_shared<std::future<void>>(pool.push([eid, path](int /*id*/){
-                Ecall_srd_increase(eid, path.c_str());
+                if (SGX_SUCCESS != Ecall_srd_increase(eid, path.c_str()))
+                {
+                    // If failed, add current task to next turn
+                    Ecall_srd_set_change(global_eid, 1);
+                }
             })));
         }
+        // Wait for srd task
         for (auto it : tasks_v)
         {
             try 
@@ -257,6 +269,11 @@ void srd_change(long change)
         size_t ret_size = 0;
         size_t total_decrease_size = 0;
         json::JSON disk_decrease = get_decrease_srd_info(true_decrease);
+        if (true_decrease == 0)
+        {
+            p_log->warn("No srd space to delete!\n");
+            return;
+        }
         p_log->info("True decreased space is:%d\n", true_decrease);
         Ecall_srd_decrease(global_eid, &ret_size, true_decrease);
         total_decrease_size = ret_size;

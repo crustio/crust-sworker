@@ -81,7 +81,7 @@ enclave {
         void ocall_srd_info_unlock();
 
         void ocall_srd_change(long change)
-            allow(ecall_srd_increase, ecall_srd_decrease);
+            allow(ecall_srd_increase, ecall_srd_decrease, ecall_srd_set_change);
 
         void ocall_store_identity([in, string] const char *id);
     };
