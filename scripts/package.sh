@@ -17,7 +17,6 @@ function success_exit()
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 appdir=$instdir/src
-VERSION=$(cat $instdir/VERSION)
 pkgdir=$instdir/crust-tee
 enclavefile="enclave.signed.so"
 SYNCFILE=$instdir/.syncfile
@@ -31,6 +30,11 @@ true > $SYNCFILE
 
 trap "success_exit" INT
 trap "success_exit" EXIT
+
+
+cat $instdir/src/include/CrustStatus.h | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' > $instdir/VERSION
+tee_version=$(cat $instdir/src/include/CrustStatus.h | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g') 
+echo "TEE=$tee_version" >> $instdir/VERSION
 
 rm -rf $pkgdir &>/dev/null
 mkdir -p $pkgdir

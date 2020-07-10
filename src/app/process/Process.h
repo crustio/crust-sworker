@@ -31,8 +31,10 @@
 #include "FileUtils.h"
 #include "Log.h"
 #include "EntryNetwork.h"
-#include "WorkReportLoop.h"
+#include "WorkReport.h"
 #include "Srd.h"
+
+typedef void (*task_func_t)(void);
 
 int process_run();
 

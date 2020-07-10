@@ -56,12 +56,12 @@ void srd_change()
         srd_change_num = g_srd_change;
         g_srd_change = 0;
     }
-    log_debug("Total srd task is:%ld, will srd %ldG this turn.\n", org_change_num, srd_change_num);
     sgx_thread_mutex_unlock(&g_srd_change_mutex);
 
     // Do srd
     if (srd_change_num != 0)
     {
+        log_info("Total srd task is:%ld, will srd %ldG this turn.\n", org_change_num, srd_change_num);
         ocall_srd_change(srd_change_num);
     }
 }
@@ -291,7 +291,7 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
     }
 
     // Update workload in metadata
-    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append("workload", wl->serialize_workload(false))))
+    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_WORKLOAD, wl->serialize_workload(false))))
     {
         log_err("Store metadata failed! Error code:%lx\n", crust_status);
     }

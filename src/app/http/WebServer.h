@@ -61,7 +61,7 @@ private:
     ApiHandler *api_handler;
 };
 
-void *start_webservice(void*);
+void start_webservice(void);
 
 /*  Load a signed certificate into the ssl context, and configure
     the context for use with a WebServer.

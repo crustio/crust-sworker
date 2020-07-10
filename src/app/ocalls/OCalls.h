@@ -18,6 +18,7 @@
 #include "Log.h"
 #include "CrustStatus.h"
 #include "WebsocketClient.h"
+#include "Data.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -63,6 +64,10 @@ extern "C"
     void ocall_srd_change(long change);
 
     void ocall_store_identity(const char *id);
+
+    void ocall_store_enclave_id_info(const char *info);
+
+    void ocall_store_workload(const char *wl);
 
 #if defined(__cplusplus)
 }

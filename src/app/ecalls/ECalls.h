@@ -75,6 +75,10 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, const char *hash);
 
 sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status);
 
+sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid);
+
+sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid);
+
 std::string show_enclave_thread_info();
 
 #if defined(__cplusplus)

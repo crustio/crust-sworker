@@ -35,6 +35,7 @@ extern "C"
     void free_merkletree(MerkleTree *root);
     std::string flat_urlformat(std::string &url);
     bool is_number(const std::string &s);
+    void replace(std::string &data, std::string org_str, std::string det_str);
 
 #if defined(__cplusplus)
 }

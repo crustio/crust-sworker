@@ -22,6 +22,8 @@ void srd_random_delete(long punish_num, std::map<std::string, std::set<size_t>> 
         return;
     }
 
+    log_info("Check srd failed! %ldG space will be deleted for punishment!\n", punish_num);
+
     srd_decrease(punish_num, del_indexes);
 }
 
@@ -107,8 +109,6 @@ void validate_srd()
             }
         }
     }
-
-    log_debug("Validating %ldG srd space...\n", validate_srd_idx_us.size());
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::set<size_t>> del_path2idx_m;
@@ -228,12 +228,12 @@ void validate_meaningful_file()
             std::unordered_set<std::string> exist_s;
             for (int i = wl->checked_files.size() - 1, j = 0; i >= 0 && j < ENC_MAX_THREAD_NUM; i--, j++)
             {
-                exist_s.insert(wl->checked_files[i]["hash"].ToString());
+                exist_s.insert(wl->checked_files[i][FILE_HASH].ToString());
             }
             // Judge if new file has been existed in checked_files
             for (int i = wl->new_files.size() - 1, j = 0; i >= 0 && j < ENC_MAX_THREAD_NUM; i--, j++)
             {
-                if (exist_s.find(wl->new_files[i]["hash"].ToString()) == exist_s.end())
+                if (exist_s.find(wl->new_files[i][FILE_HASH].ToString()) == exist_s.end())
                 {
                     wl->checked_files.push_back(wl->new_files[i]);
                 }
@@ -277,12 +277,11 @@ void validate_meaningful_file()
             rand_index = rand_val % wl->checked_files.size();
         } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
-        if (wl->checked_files[rand_index]["status"].ToString().compare("valid") == 0)
+        if (wl->checked_files[rand_index][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
         {
             check_file_num_real++;
         }
     }
-    log_debug("Checking %ld file...\n", check_file_num_real);
 
     // ----- Randomly check file block ----- //
     // TODO: Do we allow to store duplicated files?
@@ -291,32 +290,37 @@ void validate_meaningful_file()
     for (auto file_idx : file_idx_s)
     {
         // If new file hasn't been confirmed, skip this validation
-        if (wl->checked_files[file_idx]["status"].ToString().compare("unconfirmed") == 0)
+        if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
         {
             continue;
         }
 
-        std::string root_hash = wl->checked_files[file_idx]["hash"].ToString();
-        log_debug("Validating file root hash:%s\n", root_hash.c_str());
+        std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
         // Get file total block number
         crust_status = persist_get((root_hash + "_meta"), &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             //log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
-            wl->checked_files[file_idx]["status"] = "lost";
-            changed_idx2lost_um[file_idx] = true;
+            if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+            {
+                wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                changed_idx2lost_um[file_idx] = true;
+            }
             continue;
         }
         json::JSON tree_meta_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_data), data_len));
-        size_t file_block_num = tree_meta_json["block_num"].ToInt();
+        size_t file_block_num = tree_meta_json[FILE_BLOCK_NUM].ToInt();
         free(p_data);
         // Get tree string
         crust_status = persist_get(root_hash, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             //log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
-            wl->checked_files[file_idx]["status"] = "lost";
-            changed_idx2lost_um[file_idx] = true;
+            if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+            {
+                wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                changed_idx2lost_um[file_idx] = true;
+            }
             continue;
         }
         std::string tree_str(reinterpret_cast<char *>(p_data), data_len);
@@ -360,8 +364,11 @@ void validate_meaningful_file()
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
                 //log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
-                wl->checked_files[file_idx]["status"] = "lost";
-                changed_idx2lost_um[file_idx] = true;
+                if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+                {
+                    wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                    changed_idx2lost_um[file_idx] = true;
+                }
                 checked_ret = false;
                 break;
             }
@@ -370,7 +377,6 @@ void validate_meaningful_file()
             std::string block_str = std::to_string(check_block_idx).append("_").append(leaf_hash);
             uint8_t *p_sealed_data = NULL;
             size_t sealed_data_size = 0;
-            //log_debug("Checking block hash:%ld_%s\n", check_block_idx, leaf_hash.c_str());
             ocall_validate_get_file(&crust_status, root_hash.c_str(), block_str.c_str(),
                                     &p_sealed_data, &sealed_data_size);
             if (CRUST_SUCCESS != crust_status)
@@ -395,8 +401,11 @@ void validate_meaningful_file()
                 //log_err("Index:%ld block hash is not expected!\n", check_block_idx);
                 //log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                 //log_err("Org hash : %s\n", leaf_hash.c_str());
-                wl->checked_files[file_idx]["status"] = "lost";
-                changed_idx2lost_um[file_idx] = true;
+                if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+                {
+                    wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                    changed_idx2lost_um[file_idx] = true;
+                }
                 checked_ret = false;
                 free(leaf_hash_u);
                 break;
@@ -405,9 +414,9 @@ void validate_meaningful_file()
             spos = epos;
         }
         // Set lost file back
-        if (wl->checked_files[file_idx]["status"].ToString().compare("lost") == 0 && checked_ret)
+        if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_LOST) == 0 && checked_ret)
         {
-            wl->checked_files[file_idx]["status"] = "valid";
+            wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_VALID;
             changed_idx2lost_um[file_idx] = false;
         }
     }
@@ -418,15 +427,20 @@ void validate_meaningful_file()
         sgx_thread_mutex_lock(&g_metadata_mutex);
         json::JSON metadata_json;
         id_get_metadata(metadata_json, false);
-        json::JSON meaningful_files_json = metadata_json[MEANINGFUL_FILE_DB_TAG];
+        json::JSON meaningful_files_json = metadata_json[ID_FILE];
         for (auto it : changed_idx2lost_um)
         {
             if ((int)it.first < meaningful_files_json.size())
             {
-                meaningful_files_json[it.first]["status"] = it.second ? "lost" : "valid";
+                std::string org_status = meaningful_files_json[it.first][FILE_STATUS].ToString();
+                meaningful_files_json[it.first][FILE_STATUS] = it.second ? FILE_STATUS_LOST : FILE_STATUS_VALID;
+                log_info("File status changed, hash: %s status: %s -> %s\n",
+                        meaningful_files_json[it.first][FILE_HASH].ToString().c_str(),
+                        org_status.c_str(),
+                        meaningful_files_json[it.first][FILE_STATUS].ToString().c_str());
             }
         }
-        id_metadata_set_or_append(MEANINGFUL_FILE_DB_TAG, meaningful_files_json, ID_UPDATE, false);
+        id_metadata_set_or_append(ID_FILE, meaningful_files_json, ID_UPDATE, false);
         sgx_thread_mutex_unlock(&g_metadata_mutex);
     }
 

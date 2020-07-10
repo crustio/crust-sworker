@@ -1,6 +1,9 @@
 #ifndef _CRUST_CRUST_STATUS_H_
 #define _CRUST_CRUST_STATUS_H_
 
+#define VERSION "0.4.0"
+#define TEE_VERSION "0.4.0"
+
 #define CRUST_SEPARATOR "$crust_separator$"
 
 #define CRUST_MK_ERROR(x) (0x00000000 | (x))

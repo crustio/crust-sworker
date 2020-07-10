@@ -14,6 +14,7 @@
 #include "SgxSupport.h"
 #include "FormatUtils.h"
 #include "CrustStatus.h"
+#include "Data.h"
 
 #define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })

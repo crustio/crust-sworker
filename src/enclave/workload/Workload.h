@@ -29,7 +29,7 @@ public:
     static Workload *workload;
     static Workload *get_instance();
     ~Workload();
-    void show(void);
+    std::string get_workload(void);
     std::string serialize_workload(bool locked = true);
     crust_status_t restore_workload(json::JSON g_hashs);
     crust_status_t generate_empty_info(sgx_sha256_hash_t *empty_root_out, size_t *empty_workload_out);
