@@ -42,7 +42,7 @@ mkdir -p $pkgdir
 
 # Check if resource exsited
 cd $instdir
-if [ ! -e "$instdir/vendor" ]; then
+if [ ! -e "$instdir/resource" ]; then
     verbose ERROR "Need resource to install environment, please go to https://github.com/crustio/crust-tee/releases to download the latest crust-tee.tar and find resource in it"
     exit 1
 fi

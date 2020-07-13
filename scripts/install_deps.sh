@@ -285,7 +285,7 @@ function success_exit()
 basedir=$(cd `dirname $0`;pwd)
 TMPFILE=$basedir/tmp.$$
 ERRFILE=$basedir/err.log
-rsrcdir=$basedir/../vendor
+rsrcdir=$basedir/../resource
 crustdir=/opt/crust
 crustteedir=$crustdir/crust-tee
 crusttooldir=$crustdir/tools

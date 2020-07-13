@@ -2,7 +2,7 @@
 # crust builder using docker
 
 BUILD_DIR="`pwd`"
-VENDOR_DIR="$BUILD_DIR/vendor"
+VENDOR_DIR="$BUILD_DIR/resource"
 CRUST_TEE_VER=`cat VERSION`
 DIST_FILE="$BUILD_DIR/crust-tee.tar"
 
@@ -35,13 +35,6 @@ function pre_check {
         log_success "secure device: /dev/dal0 exists - passed"
         exit 1
     fi
-
-    if [ -f $VENDOR_DIR/files.tar ]; then
-        log_success "$VENDOR_DIR/files.tar exists - passed"
-    else
-        log_err "files.tar doesn't exist! Please download files.tar and put it it under $VENDOR_DIR"
-        exit 1
-    fi
 }
 
 function build_crust {
@@ -54,16 +47,16 @@ function build_crust {
     exit 1
   fi
 
-  if [ ! -d "$BUILD_DIR/resource" ]; then
-    echo "extract resource directory from files.tar"
-    mkdir -p .tmp
-    tar -xf $VENDOR_DIR/files.tar -C .tmp files/resource
-    mv .tmp/files/resource $BUILD_DIR
-  else
-    echo "resource file exists"
-  fi
-
-  cp -f onetbb.tar $BUILD_DIR/resource/
+#  if [ ! -d "$BUILD_DIR/resource" ]; then
+#    echo "extract resource directory from files.tar"
+#    mkdir -p .tmp
+#    tar -xf $VENDOR_DIR/files.tar -C .tmp files/resource
+#    mv .tmp/files/resource $BUILD_DIR
+#  else
+#    echo "resource file exists"
+#  fi
+#
+#  cp -f onetbb.tar $BUILD_DIR/resource/
 
   RUN_OPTS="--device /dev/isgx"
   if [ -e /dev/mei0 ]; then
