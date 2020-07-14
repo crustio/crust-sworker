@@ -36,6 +36,7 @@ if [ "$PUBLISH" -eq "1" ]; then
     echo "will publish after build"
 fi
 
+make clean
 docker build -f docker/runner/Dockerfile -t $IMAGEID .
 
 if [ "$?" -ne "0" ]; then

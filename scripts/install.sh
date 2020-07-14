@@ -43,11 +43,13 @@ function installAPP()
 
     # Install tee-app dependencies
     res=0
+    cd $basedir
     make clean &>/dev/null
     setTimeWait "$(verbose INFO "Building and installing tee application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
     make -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
+    cd - &>/dev/null
 
     # Copy related files to install directory
     cp $srcdir/$appname $realteedir/bin
@@ -127,7 +129,7 @@ usage() {
 		echo "    $0 -h                      Display this help message."
 		echo "    $0 [options]"
     echo "Options:"
-    echo "     -n not install denpendencies"
+    echo "     -d for docker"
 
 	exit 1;
 }
@@ -135,7 +137,7 @@ usage() {
 ############## MAIN BODY ###############
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
-basedir=$basedir/..
+basedir=$(cd $basedir/..;pwd)
 srcdir=$basedir/src
 TMPFILE=$srcdir/tmp.$$
 ERRFILE=$basedir/err.log
@@ -168,14 +170,14 @@ crust_env_file=$realteedir/etc/environment
 trap "success_exit" EXIT
 
 # Cmds
-NODENPENDENCIES=0
-while getopts ":hn" opt; do
+DOCKERMODLE=0
+while getopts ":hd" opt; do
   case ${opt} in
     h )
 		usage
       ;;
-    n )
-       NODENPENDENCIES=1
+    d )
+       DOCKERMODLE=1
       ;;
     \? )
       echo "Invalid Option: -$OPTARG" 1>&2
@@ -205,7 +207,7 @@ verbose INFO "Version -----------------$newversion-------------------"
 checkOldCrustTee
 
 # Install Dependencies
-if [ "$NODENPENDENCIES" == "0" ]; then
+if [ "$DOCKERMODLE" == "0" ]; then
     # Create denpendencies directory
     verbose INFO "Creating dependencies diretory related..." h
     res=0
@@ -225,6 +227,7 @@ fi
 # Install Application
 installAPP
 
+if [ "$DOCKERMODLE" == "0" ]; then
 verbose INFO "Changing diretory owner..." h
 res=0
 chown -R $uid:$uid $crustteedir
@@ -232,6 +235,7 @@ res=$(($?|$res))
 chown -R $uid:$uid $crusttooldir
 res=$(($?|$res))
 checkRes $res "quit" "success"
+fi
 
 verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee/$newversion!"
 instSuccess=true

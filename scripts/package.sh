@@ -20,7 +20,7 @@ function success_exit()
 
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
-basedir=$basedir/..
+basedir=$(cd $basedir/..;pwd)
 srcdir=$basedir/src
 pkgdir=$basedir/crust-tee
 enclavefile="enclave.signed.so"
@@ -45,7 +45,6 @@ verbose INFO "Start packaging tee, version is $newversion..."
 rm -rf $pkgdir &>/dev/null
 mkdir -p $pkgdir
 mkdir -p $pkgdir/etc
-
 
 # Install dependencies
 $SUDO bash $basedir/scripts/install_deps.sh
