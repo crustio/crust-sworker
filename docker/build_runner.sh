@@ -28,16 +28,15 @@ while getopts ":hp" opt; do
     esac
 done
 
+VER=$(cat VERSION | head -n 1)
+IMAGEID="crustio/crust-tee-runner:$VER"
 
-echo "building crust tee runner image"
-
+echo "building crust tee runner image $IMAGEID"
 if [ "$PUBLISH" -eq "1" ]; then
     echo "will publish after build"
 fi
 
-VER=`cat VERSION`
-IMAGEID="crustio/crust-tee-runner:$VER"
-docker build -f docker/runner/Dockerfile -t $IMAGEID
+docker build -f docker/runner/Dockerfile -t $IMAGEID .
 
 if [ "$?" -ne "0" ]; then
     echo "crust-tee-runner build failed!"
@@ -49,4 +48,3 @@ if [ "$PUBLISH" -eq "1" ]; then
     echo "will publish image to $IMAGEID"
     docker push $IMAGEID
 fi
-

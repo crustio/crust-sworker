@@ -35,3 +35,4 @@
 .vscode/
 crust-tee.tar
 scripts/err.log
+err.log

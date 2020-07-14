@@ -18,7 +18,7 @@ while getopts ":hp" opt; do
     h )
 			usage
       ;;
-     p )
+    p )
        PUBLISH=1
       ;;
     \? )
@@ -28,7 +28,7 @@ while getopts ":hp" opt; do
   esac
 done
 
-VER=`cat VERSION`
+VER=$(cat VERSION | head -n 1)
 echo "building docker base image, version: $VER"
 if [ "$PUBLISH" -eq "1" ]; then
   echo "will publish after build"

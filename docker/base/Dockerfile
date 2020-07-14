@@ -9,5 +9,6 @@ RUN apt-get install -y kmod unzip linux-headers-`uname -r`
 
 ADD resource /crust-tee-base/resource
 ADD scripts/*.sh /crust-tee-base/scripts/
+ADD VERSION /crust-tee-base/
 RUN /crust-tee-base/scripts/install_deps.sh -u
 RUN rm -rf /crust-tee-base

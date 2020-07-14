@@ -10,84 +10,64 @@ function success_exit()
 
     # Kill alive useless sub process
     for el in ${toKillPID[@]}; do
-        if ps -ef | grep -v grep | grep $el &>/dev/null; then
+        if [ x"$(ps -ef | grep -v grep | grep $el | awk '{print $2}')" = x"$el" ]; then
             kill -9 $el
         fi
     done
 
-    rm -rf $pkgdir
+    rm -rf $pkgdir &>/dev/null
 }
 
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
-instdir=$(cd $basedir/..;pwd)
-appdir=$instdir/src
-pkgdir=$instdir/crust-tee
+basedir=$basedir/..
+srcdir=$basedir/src
+pkgdir=$basedir/crust-tee
 enclavefile="enclave.signed.so"
-SYNCFILE=$instdir/.syncfile
-sgxsdkdir="/opt/intel/sgxsdk"
-sgxssldir="/opt/intel/sgxssl"
+SYNCFILE=$basedir/.syncfile
 
-
-. $basedir/utils.sh
+. $basedir/scripts/utils.sh
 
 true > $SYNCFILE
 
 trap "success_exit" INT
 trap "success_exit" EXIT
 
+# Write version
+cat $basedir/src/include/CrustStatus.h | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' > $basedir/VERSION
+tee_version=$(cat $basedir/src/include/CrustStatus.h | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g') 
+echo "TEE=$tee_version" >> $basedir/VERSION
 
-cat $instdir/src/include/CrustStatus.h | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' > $instdir/VERSION
-tee_version=$(cat $instdir/src/include/CrustStatus.h | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g') 
-echo "TEE=$tee_version" >> $instdir/VERSION
+newversion=$(cat $basedir/VERSION | head -n 1)
+verbose INFO "Start packaging tee, version is $newversion..."
 
+# Create directory
 rm -rf $pkgdir &>/dev/null
 mkdir -p $pkgdir
+mkdir -p $pkgdir/etc
 
-# Check if resource exsited
-cd $instdir
-if [ ! -e "$instdir/resource" ]; then
-    verbose ERROR "Need resource to install environment, please go to https://github.com/crustio/crust-tee/releases to download the latest crust-tee.tar and find resource in it"
+
+# Install dependencies
+$SUDO bash $basedir/scripts/install_deps.sh
+if [ $? -ne 0 ]; then
+    verbose ERROR "Install dependencies failed!"
     exit 1
 fi
-cd - &>/dev/null
 
 # Generate mrenclave file
-mkdir $instdir/etc
-mkdir $instdir/bin
-if [ x"$1" != x"debug" ]; then
-    # Install dependencies
-    $SUDO bash $basedir/install_deps.sh
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Install dependencies failed!"
-        exit 1
-    fi
+setTimeWait "$(verbose INFO "Building enclave.signed.so file..." h)" $SYNCFILE &
+toKillPID[${#toKillPID[*]}]=$!
+make clean && make -j4 &>/dev/null
+checkRes $? "quit" "success" "$SYNCFILE"
+cp $srcdir/$enclavefile $pkgdir/etc
+make clean
 
-    cd $appdir
-    setTimeWait "$(verbose INFO "Building enclave.signed.so file..." h)" $SYNCFILE &
-    toKillPID[${#toKillPID[*]}]=$!
-    make clean && make -j4 &>/dev/null
-    checkRes $? "quit" "$SYNCFILE"
-    cp $enclavefile $instdir/etc
-    make clean
-    cd - &>/dev/null
-else
-    cd $appdir
-    make clean
-    cd - &>/dev/null
-fi
+cp -r src resource scripts test $pkgdir
+cp Makefile VERSION buildenv.mk $pkgdir
 
-cd $instdir
-cp -r bin etc src resource scripts $pkgdir
-cp LICENSE README.md VERSION buildenv.mk $pkgdir
-rm -rf etc bin
-cd - &>/dev/null
-
-cd $pkgdir
-rm scripts/package.sh
-mv scripts/install.sh ./
-cd - &>/dev/null
-
-cd $instdir
-tar -cvf crust-tee.tar $(basename $pkgdir)
-cd - &>/dev/null
+# Tar
+verbose INFO "Tar tee..." h
+res=0
+tar -cvf crust-tee.tar $(basename $pkgdir) &> /dev/null
+res=$(($?|$res))
+checkRes $res "quit" "success"
