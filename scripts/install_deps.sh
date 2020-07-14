@@ -79,7 +79,12 @@ function installSGXSSL()
     # build SGX SSL
     cd $sgxssltmpdir/Linux
     cp $opensslpkg $sgxssl_openssl_source_dir
-    make all test &>$ERRFILE && make install &>$ERRFILE
+    if [ "$1" == "0" ]; then
+        make all test &>$ERRFILE && make install &>$ERRFILE
+    else
+        make all &>$ERRFILE && make install &>$ERRFILE
+        echo "11111"
+    fi
     checkRes $? "quit" "success" "$SYNCFILE"
     cd - &>/dev/null
 
@@ -280,6 +285,17 @@ function success_exit()
     #kill -- -$selfPID
 }
 
+
+usage() {
+    echo "Usage:"
+		echo "    $0 -h                      Display this help message."
+		echo "    $0 [options]"
+    echo "Options:"
+    echo "     -u no test"
+
+	exit 1;
+}
+
 ############## MAIN BODY ###############
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
@@ -351,6 +367,23 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
+UNTEST=0
+
+while getopts ":hu" opt; do
+  case ${opt} in
+    h )
+			usage
+      ;;
+     u )
+       UNTEST=1
+      ;;
+    \? )
+      echo "Invalid Option: -$OPTARG" 1>&2
+      exit 1
+      ;;
+  esac
+done
+
 
 # Installing Prerequisites
 installPrerequisites
@@ -359,7 +392,7 @@ installPrerequisites
 installSGXSDK
 
 # Installing SGX SSL
-installSGXSSL
+installSGXSSL $UNTEST
 
 # Installing BOOST
 installBOOST

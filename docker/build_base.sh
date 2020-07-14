@@ -34,13 +34,8 @@ if [ "$PUBLISH" -eq "1" ]; then
   echo "will publish after build"
 fi
 
-#mkdir -p .tmp
-#tar -xf vendor/files.tar -C .tmp files/resource
-#mv .tmp/files/resource/* docker/tee-build/
-#cp vendor/onetbb.tar docker/tee-build/
-
-IMAGEID="crustio/tee-build:$VER"
-docker build docker/tee-build -t $IMAGEID
+IMAGEID="crustio/crust-tee-base:$VER"
+docker build docker/base -t $IMAGEID
 
 if [ "$?" -ne "0" ]; then
   echo "build failed!"
