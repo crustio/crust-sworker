@@ -14,15 +14,14 @@ export LD_LIBRARY_PATH=LD_LIBRARY_PATH:$inteldir/libsgx-enclave-common/aesm
 # otherwise enclave will not be initialized
 if pgrep -x "aesm_service" > /dev/null
 then
-    echo "aesm service running"
+    echo "Aesm service running"
 else
-    echo "aesm service not running, starting it"
+    echo "Aesm service not running, starting it"
     $inteldir/libsgx-enclave-common/aesm/aesm_service &
-    echo "wait 5 seconds for aesm service fully start"
+    echo "Wait 5 seconds for aesm service fully start"
     sleep 5
 fi
 
-APP_ARGS=${TEE_ARGS:-""}
+echo "Run tee with arguments: $ARGS"
+/opt/crust/crust-tee/$version/bin/crust-tee $ARGS
 
-echo "Run tee with arguments: $APP_ARGS"
-/opt/crust/crust-tee//bin/crust-tee $APP_ARGS

@@ -108,7 +108,7 @@ function success_exit()
 
     # Kill alive useless sub process
     for el in ${toKillPID[@]}; do
-        if ps -ef | grep -v grep | grep $el &>/dev/null; then
+        if [ x"$(ps -ef | grep -v grep | grep $el | awk '{print $2}')" = x"$el" ]; then
             kill -9 $el &>/dev/null
         fi
     done
@@ -121,7 +121,7 @@ function success_exit()
         printEnd_failed
     fi
 
-    kill -- -$selfPID
+    kill -- -$selfPID &>/dev/null
 }
 
 usage() {
