@@ -8,6 +8,6 @@ RUN apt-get install -y expect libcurl3 libssl-dev libcurl4-openssl-dev libprotob
 RUN apt-get install -y kmod unzip linux-headers-`uname -r`
 
 ADD resource /crust-tee-base/resource
-COPY scripts/*.sh /crust-tee-base/scripts/
+ADD scripts/*.sh /crust-tee-base/scripts/
 RUN /crust-tee-base/scripts/install_deps.sh -u
 RUN rm -rf /crust-tee-base

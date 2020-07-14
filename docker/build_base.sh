@@ -35,10 +35,10 @@ if [ "$PUBLISH" -eq "1" ]; then
 fi
 
 IMAGEID="crustio/crust-tee-base:$VER"
-docker build docker/base -t $IMAGEID
+docker build -f docker/base/Dockerfile -t $IMAGEID .
 
 if [ "$?" -ne "0" ]; then
-  echo "build failed!"
+  echo "crust-tee-base build failed!"
   exit 1
 fi
 
@@ -47,4 +47,3 @@ if [ "$PUBLISH" -eq "1" ]; then
   echo "will publish image to $IMAGEID"
   docker push $IMAGEID
 fi
-

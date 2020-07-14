@@ -29,27 +29,18 @@ while getopts ":hp" opt; do
 done
 
 
-echo "building crust runner image"
+echo "building crust tee runner image"
 
 if [ "$PUBLISH" -eq "1" ]; then
     echo "will publish after build"
 fi
 
-DIST_FILE="crust-tee.tar"
 VER=`cat VERSION`
-IMAGEID="crustio/tee-runner:$VER"
-
-if [ ! -f "$DIST_FILE" ]; then
-    echo "$DIST_FILE doesn't exsit!"
-    exit 1
-fi
-
-cp $DIST_FILE docker/tee-runner/
-
-docker build docker/tee-runner -t $IMAGEID
+IMAGEID="crustio/crust-tee-runner:$VER"
+docker build -f docker/runner/Dockerfile -t $IMAGEID
 
 if [ "$?" -ne "0" ]; then
-    echo "tee-runner build failed!"
+    echo "crust-tee-runner build failed!"
     exit 1
 fi
 
