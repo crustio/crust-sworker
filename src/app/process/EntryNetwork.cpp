@@ -5,7 +5,6 @@ namespace http = boost::beast::http;   // from <boost/beast/http.hpp>
 
 extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
-std::string g_tee_identity;
 
 /**
  * @description: entry network off-chain node sends quote to onchain node to verify identity
@@ -252,7 +251,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     {
         if (CRUST_SUCCESS == crust_status)
         {
-            json::JSON tmp_json = json::JSON::Load(g_tee_identity);
+            json::JSON tmp_json = json::JSON::Load(get_g_tee_identity());
             tmp_json["account_id"] = p_config->chain_address;
             tee_identity_out = tmp_json.dump();
             entry_status = true;

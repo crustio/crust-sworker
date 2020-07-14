@@ -46,34 +46,39 @@ Workload::~Workload()
 /**
  * @description: print work report
  */
-void Workload::show(void)
+std::string Workload::get_workload(void)
 {
     sgx_sha256_hash_t empty_root;
     size_t empty_workload = 0;
     this->generate_empty_info(&empty_root, &empty_workload);
+    json::JSON wl_json;
 
-    // Print srd info
-    log_debug("Empty root hash: %s\n", unsigned_char_array_to_hex_string(empty_root, HASH_LENGTH).c_str());
-    log_debug("Empty workload: %luG\n", empty_workload / 1024 / 1024 / 1024);
-
-    // Print meaningful file info
+    // ----- Get workload ----- //
+    // Srd info
+    wl_json["srd"]["root_hash"] = hexstring_safe(empty_root, HASH_LENGTH);
+    wl_json["srd"]["space"] = empty_workload / 1024 / 1024 / 1024;
+    // file info
     sgx_thread_mutex_lock(&g_checked_files_mutex);
-    if (this->checked_files.size() == 0)
+    wl_json["files"] = json::Array();
+    if (this->checked_files.size() != 0)
     {
-        log_debug("No meaningful file.\n");
-    }
-    else
-    {
-        log_debug("Meaningful work details is: \n");
         for (uint32_t i = 0; i < this->checked_files.size(); i++)
         {
-            log_debug("Meaningful root hash:%s -> size: %-11ld status: %s\n",
-                      this->checked_files[i]["hash"].ToString().c_str(), 
-                      this->checked_files[i]["size"].ToInt(),
-                      this->checked_files[i]["status"].ToString().c_str());
+            json::JSON tmp_json;
+            tmp_json["size"] = this->checked_files[i][FILE_SIZE];
+            tmp_json["status"] = this->checked_files[i][FILE_STATUS];
+            std::string tmp_str = tmp_json.dump();
+            remove_char(tmp_str, '\n');
+            wl_json["files"][this->checked_files[i][FILE_HASH].ToString()] = tmp_str;
         }
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+    // Store workload
+    std::string wl_str = wl_json.dump();
+    ocall_store_workload(wl_str.c_str());
+
+    return wl_str;
 }
 
 /**
@@ -222,13 +227,13 @@ bool Workload::reset_meaningful_data()
     id_get_metadata(meta_json);
 
     // Reset meaningful files
-    if (!meta_json.hasKey(MEANINGFUL_FILE_DB_TAG))
+    if (!meta_json.hasKey(ID_FILE))
     {
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return true;
     }
 
-    json::JSON meaningful_files = meta_json[MEANINGFUL_FILE_DB_TAG];
+    json::JSON meaningful_files = meta_json[ID_FILE];
     if (meaningful_files.JSONType() == json::JSON::Class::Array)
     {
         for (int i = 0; i < meaningful_files.size(); i++)

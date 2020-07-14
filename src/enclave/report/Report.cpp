@@ -79,14 +79,14 @@ crust_status_t generate_work_report(size_t *report_len)
     sgx_thread_mutex_lock(&g_checked_files_mutex);
     for (uint32_t i = 0, j = 0; i < wl->checked_files.size(); i++)
     {
-        if (wl->checked_files[i]["status"].ToString().compare("valid") != 0)
+        if (wl->checked_files[i][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) != 0)
         {
             continue;
         }
 
         uint8_t *p_meta = NULL;
         size_t meta_len = 0;
-        crust_status = persist_get((wl->checked_files[i]["hash"].ToString()+"_meta").c_str(), &p_meta, &meta_len);
+        crust_status = persist_get((wl->checked_files[i][FILE_HASH].ToString()+"_meta").c_str(), &p_meta, &meta_len);
         if (CRUST_SUCCESS != crust_status || p_meta == NULL)
         {
             sgx_thread_mutex_unlock(&g_checked_files_mutex);
@@ -94,8 +94,8 @@ crust_status_t generate_work_report(size_t *report_len)
         }
         std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
         json::JSON meta_json = json::JSON::Load(tree_meta);
-        old_files_json[j]["hash"] = meta_json["old_hash"].ToString();
-        old_files_json[j]["size"] = meta_json["size"].ToInt();
+        old_files_json[j][FILE_HASH] = meta_json[FILE_OLD_HASH].ToString();
+        old_files_json[j][FILE_SIZE] = meta_json[FILE_SIZE].ToInt();
         j++;
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
@@ -259,8 +259,8 @@ crust_status_t get_signed_order_report()
     order_json["files"] = json::Array();
     for (size_t i = 0; i < wl->order_files.size(); i++)
     {
-        order_json["files"][i]["hash"] = wl->order_files[i].first;
-        order_json["files"][i]["size"] = wl->order_files[i].second;
+        order_json["files"][i][FILE_HASH] = wl->order_files[i].first;
+        order_json["files"][i][FILE_SIZE] = wl->order_files[i].second;
     }
     wl->order_files.clear();
     sgx_thread_mutex_unlock(&g_order_files_mutex);

@@ -73,6 +73,7 @@ size_t id_get_report_slot();
 void id_set_report_slot(size_t new_report_slot);
 bool id_just_after_restart();
 void id_set_just_after_restart(bool in);
+void id_get_info();
 
 void id_get_metadata(json::JSON &meta_json, bool locked = true);
 /**
@@ -138,7 +139,7 @@ crust_status_t id_metadata_set_or_append(const char *key, T val,
     memset(p_meta, 0, meta_len);
     memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
     memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set("metadata", p_meta, meta_len);
+    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
     free(p_meta);
 
 cleanup:

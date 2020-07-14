@@ -63,6 +63,10 @@ BlockHeader *Chain::get_block_header(void)
             block_header->number = block_header_json["number"].ToInt();
             return block_header;
         }
+        else if (res)
+        {
+            p_log->err("%s\n", res->body.c_str());
+        }
 
         return NULL;
     }
@@ -90,15 +94,19 @@ std::string Chain::get_block_hash(size_t block_number)
         {
             return res->body.substr(3, 64);
         }
+        else if (res)
+        {
+            p_log->err("%s\n", res->body.c_str());
+        }
 
-        return NULL;
+        return "";
     }
     catch (const std::exception &e)
     {
         p_log->err("HTTP throw: %s\n", e.what());
     }
 
-    return NULL;
+    return "";
 }
 
 
@@ -115,6 +123,10 @@ bool Chain::is_online(void)
         if (res && res->status == 200)
         {
             return true;
+        }
+        else if (res)
+        {
+            p_log->err("%s\n", res->body.c_str());
         }
 
         return false;
@@ -187,6 +199,10 @@ bool Chain::post_tee_identity(std::string identity)
             {
                 return true;
             }
+            else if (res)
+            {
+                p_log->err("%s\n", res->body.c_str());
+            }
 
             return false;
         }
@@ -220,6 +236,10 @@ bool Chain::post_tee_work_report(std::string work_report)
             if (res && res->status == 200)
             {
                 return true;
+            }
+            else if (res)
+            {
+                p_log->err("%s\n", res->body.c_str());
             }
 
             return false;

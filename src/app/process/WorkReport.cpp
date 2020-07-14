@@ -1,7 +1,6 @@
-#include "WorkReportLoop.h"
+#include "WorkReport.h"
 
 extern sgx_enclave_id_t global_eid;
-extern std::string g_order_report_str;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
@@ -23,7 +22,7 @@ size_t get_random_wait_time(std::string seed)
 /**
  * @description: Check if there is enough height, send signed work report to chain
  * */
-void *work_report_loop(void *)
+void work_report_loop(void)
 {
     size_t report_len = 0;
     sgx_ec256_signature_t ecc_signature;
@@ -36,7 +35,7 @@ void *work_report_loop(void *)
         // ----- Report order report ----- //
         if (3 == order_report_interval)
         {
-            // Ecall_get_signed_order_report will store order report in g_order_report_str
+            // Ecall_get_signed_order_report will store order report in g_order_report
             if(SGX_SUCCESS != Ecall_get_signed_order_report(global_eid, &crust_status)
                 || CRUST_SUCCESS != crust_status)
             {
@@ -47,9 +46,9 @@ void *work_report_loop(void *)
             }
             else
             {
-                p_log->info("Get order report:%s\n", g_order_report_str.c_str());
+                p_log->info("Get order report:%s\n", get_g_order_report().c_str());
             }
-            g_order_report_str = "";
+            set_g_order_report("");
             order_report_interval = 0;
         }
         order_report_interval++;
@@ -69,6 +68,10 @@ void *work_report_loop(void *)
 
             // Get confirmed block hash
             block_header->hash = p_chain->get_block_hash(block_header->number);
+            if (block_header->hash == "")
+            {
+                goto loop;
+            }
 
             // Generate validation report and get report size
             if (Ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)

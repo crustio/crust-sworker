@@ -1,6 +1,7 @@
 #include "Srd.h"
 #include "ECalls.h"
 #include "Ctpl.h"
+#include "HttpClient.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -286,7 +287,7 @@ void srd_change(long change)
  * @description: Check if disk's available space is smaller than minimal reserved space,
  * if it is, delete srd space
  * */
-void *srd_check_reserved(void *)
+void srd_check_reserved(void)
 {
     crust::DataBase *db = crust::DataBase::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -341,7 +342,6 @@ void *srd_check_reserved(void *)
 
         sleep(15);
     }
-    return NULL;
 }
 
 /**
@@ -360,4 +360,29 @@ size_t get_reserved_space()
 void set_reserved_space(size_t reserved)
 {
     g_srd_reserved_space = reserved;
+}
+
+/**
+ * @description: Get old TEE's reserved space from url
+ * @param url -> Indicates old TEE url
+ * @return: Old TEE srd reserved space
+ * */
+long get_old_reserved_space(std::string url)
+{
+    long srd_reserved_space = 0;
+    HttpClient *client = new HttpClient();
+    http::response<http::string_body> res = client->Get(url);
+    json::JSON res_json = json::JSON::Load(res.body());
+    if (!res_json.hasKey("srd_reserved_space"))
+    {
+        srd_reserved_space = -1;
+    }
+    else
+    {
+        srd_reserved_space = res_json["srd_reserved_space"].ToInt();
+    }
+
+    delete client;
+
+    return srd_reserved_space;
 }

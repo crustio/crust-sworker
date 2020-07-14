@@ -229,3 +229,26 @@ bool is_number(const std::string &s)
 
     return true;
 }
+
+/**
+ * @description: Replace org_str to det_str in data
+ * @param data -> Reference to origin data
+ * @param org_str -> Replaced string
+ * @param det_str -> Replaced to string
+ * */
+void replace(std::string &data, std::string org_str, std::string det_str)
+{
+    size_t spos, epos;
+    spos = epos = 0;
+
+    while (true)
+    {
+        spos = data.find(org_str, epos);
+        if (spos == data.npos)
+        {
+            break;
+        }
+        data.replace(spos, org_str.size(), det_str);
+        epos = spos;
+    }
+}

@@ -2,6 +2,7 @@
 #include "Storage.h"
 #include "Persistence.h"
 #include "Identity.h"
+#include "Workload.h"
 
 using namespace std;
 
@@ -68,31 +69,20 @@ void ecall_main_loop()
         storage_confirm_file_real();
 
         // ----- Meaningful validate ----- //
-        eprint_debug("\n\n---------- Meaningful Validation ----------\n\n");
         validation_status = VALIDATE_MEANINGFUL;
         validate_meaningful_file();
 
         // ----- SRD validate ----- //
-        eprint_debug("\n\n---------- SRD Validation ----------\n\n");
         validation_status = VALIDATE_EMPTY;
         validate_srd();
 
         // ----- SRD ----- //
-        eprint_debug("\n\n---------- SRD ----------\n\n");
         srd_change();
-
-        // ----- Show result ----- //
-        eprint_debug("\n\n---------- Validation Waiting ----------\n\n");
-        Workload::get_instance()->show();
 
         // Store metadata periodically
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
         {
             log_err("Store enclave data failed!Error code:%lx\n", crust_status);
-        }
-        else
-        {
-            log_debug("Store enclave data successfully!\n");
         }
 
         // Add validated proof
@@ -177,6 +167,15 @@ crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block
         sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
 {
     return get_signed_work_report(block_hash, block_height, p_signature, report, report_len);
+}
+
+/**
+ * @description: Get signed order report
+ * @return: Get status
+ * */
+crust_status_t ecall_get_signed_order_report()
+{
+    return get_signed_order_report();
 }
 
 /**
@@ -298,10 +297,17 @@ void ecall_delete_file(const char *hash)
 }
 
 /**
- * @description: Get signed order report
- * @return: Get status
+ * @description: Get enclave id information
  * */
-crust_status_t ecall_get_signed_order_report()
+void ecall_id_get_info()
 {
-    return get_signed_order_report();
+    id_get_info();
+}
+
+/**
+ * @description: Get workload
+ * */
+void ecall_get_workload()
+{
+    Workload::get_instance()->get_workload();
 }

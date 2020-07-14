@@ -13,6 +13,7 @@
 #include "Chain.h"
 #include "CrustStatus.h"
 #include "FormatUtils.h"
+#include "Data.h"
 
 #define REPORT_BLOCK_HEIGHT_BASE 300
 #define BLOCK_INTERVAL 6
@@ -24,6 +25,6 @@
 // REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT > 0
 #define REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT 10
 
-void *work_report_loop(void *);
+void work_report_loop(void);
 
 #endif /* !_CRUST_WORK_REPORT_H_ */

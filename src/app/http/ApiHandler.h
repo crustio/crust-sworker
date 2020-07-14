@@ -25,6 +25,7 @@
 #include "Common.h"
 #include "DataBase.h"
 #include "Srd.h"
+#include "Data.h"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -72,7 +73,7 @@ std::map<std::string, std::string> get_params(std::string &url);
 extern sgx_enclave_id_t global_eid;
 // Used to show validation status
 const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
-int change_empty_num = 0;
+long change_empty_num = 0;
 
 /**
  * @desination: Start rest service
@@ -162,6 +163,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
+        // Get report
         cur_path = urlendpoint->base + "/report";
         if (path.compare(cur_path) == 0)
         {
@@ -197,26 +199,47 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
-        cur_path = urlendpoint->base + "/srd/info";
+        // Get workload
+        cur_path = urlendpoint->base + "/workload";
         if (path.compare(cur_path) == 0)
         {
+            sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
             crust::DataBase *db = crust::DataBase::get_instance();
-            std::string srd_info;
-            if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_info)))
+            std::string srd_detail;
+            if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_detail)))
             {
-                p_log->debug("Get srd info failed! Error code:%lx\n", crust_status);
-                goto getcleanup;
+                p_log->warn("Get srd info failed! Error code:%lx\n", crust_status);
             }
-            res.body() = srd_info;
+            if (SGX_SUCCESS != Ecall_get_workload(global_eid))
+            {
+                p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
+            }
+            json::JSON wl_json = json::JSON::Load(get_g_enclave_workload());
+            wl_json["srd"]["srd_reserved_space"] = get_reserved_space();
+            wl_json["srd"]["detail"] = json::JSON::Load(srd_detail);
+            std::string wl_str = wl_json.dump();
+            replace(wl_str, "\"{", "{");
+            replace(wl_str, "}\"", "  }");
+            remove_char(wl_str, '\\');
+            res.body() = wl_str;
             goto getcleanup;
         }
 
-
+        // Get enclave thread information
         cur_path = urlendpoint->base + "/enclave/thread_info";
         if (path.compare(cur_path) == 0)
         {
             res.body() = show_enclave_thread_info();
+            goto getcleanup;
+        }
+
+        // Get enclave id information
+        cur_path = urlendpoint->base + "/enclave/id_info";
+        if (path.compare(cur_path) == 0)
+        {
+            Ecall_id_get_info(global_eid);
+            res.body() = get_g_enclave_id_info();
             goto getcleanup;
         }
 

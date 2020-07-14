@@ -24,11 +24,8 @@ WebsocketClient *wssclient = NULL;
 BufferPool *p_buf_pool = BufferPool::get_instance();
 // Used to temporarily store sealed serialized MerkleTree
 tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
-// Store order report
-std::string g_order_report_str;
 
 extern std::mutex srd_info_mutex;
-extern std::string g_tee_identity;
 
 
 /**
@@ -554,6 +551,7 @@ crust_status_t ocall_validate_init()
     std::string res;
     json::JSON backup_json;
     backup_json["backup"] = p_config->chain_backup;
+    backup_json["password"] = p_config->chain_password;
     if (! wssclient->websocket_request(backup_json.dump(), res))
     {
         p_log->err("Validate meaningful failed! Send backup to server failed! Error: %s\n", res.c_str());
@@ -647,7 +645,7 @@ void ocall_validate_close()
  * */
 void ocall_store_order_report(const char *p_order, size_t order_size)
 {
-    g_order_report_str = std::string(p_order, order_size);
+    set_g_order_report(std::string(p_order, order_size));
 }
 
 /**
@@ -681,5 +679,23 @@ void ocall_srd_change(long change)
  * */
 void ocall_store_identity(const char *id)
 {
-    g_tee_identity = std::string(id);
+    set_g_tee_identity(id);
+}
+
+/**
+ * @description: Store enclave id information
+ * @param info -> Pointer to enclave id information
+ * */
+void ocall_store_enclave_id_info(const char *info)
+{
+    set_g_enclave_id_info(info);
+}
+
+/**
+ * @description: Store enclave workload
+ * @param wl -> Workload information
+ * */
+void ocall_store_workload(const char *wl)
+{
+    set_g_enclave_workload(wl);
 }

@@ -40,13 +40,15 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_delete_file", 2},
     {"Ecall_get_work_report", 3},
     {"Ecall_return_validation_status", 3},
+    {"Ecall_id_get_info", 3},
+    {"Ecall_get_workload", 3},
 };
 // Indicate number of each priority task, higher index represents lower priority
 tbb::concurrent_vector<int> g_waiting_task_sum_v(4, 0);
 // Ecall function name to invoked number mapping
 tbb::concurrent_unordered_map<std::string, int> g_invoked_ecalls_um;
 // Waiting time(million seconds) for different priority task
-std::vector<uint32_t> g_task_wait_time_v = {0, 10000, 100000, 1000000};
+std::vector<uint32_t> g_task_wait_time_v = {100, 10000, 100000, 1000000};
 
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -695,6 +697,42 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, const char *hash)
     }
 
     ret = ecall_delete_file(eid, hash);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Get enclave id information
+ * */
+sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_id_get_info(eid);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Get workload
+ * */
+sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_get_workload(eid);
 
     free_enclave(__FUNCTION__);
 
