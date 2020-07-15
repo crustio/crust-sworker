@@ -136,8 +136,8 @@ usage() {
 
 ############## MAIN BODY ###############
 # basic variable
-basedir=$(cd `dirname $0`;pwd)
-basedir=$(cd $basedir/..;pwd)
+scriptdir=$(cd `dirname $0`;pwd)
+basedir=$(cd $scriptdir/..;pwd)
 srcdir=$basedir/src
 TMPFILE=$srcdir/tmp.$$
 ERRFILE=$basedir/err.log
