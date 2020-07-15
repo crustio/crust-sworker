@@ -30,12 +30,12 @@ curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 
 #### Pull crust tee runner image
 ```shell
-sudo docker pull crustio/crust-tee-runner:0.4.1
+sudo docker pull crustio/crust-tee:0.5.0
 ```
 
 #### Run
 ```shell
-sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.4.1/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee-runner:0.4.1
+sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee:0.5.0
 ```
 
 ### Docker model (for developers)
@@ -46,20 +46,20 @@ sudo apt-get update
 curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 ```
 
-#### Build docker base
+#### Build docker env
 If dependencies don't be changed, you don't need to execute this shell to generate new crust-tee-base docker
 ```shell
-sudo ./docker/build_base.sh
+sudo ./docker/build_env.sh
 ```
 
-#### Build docker runner 
+#### Build crust tee docker
 ```shell
-sudo ./docker/build_runner.sh
+sudo ./docker/build.sh
 ```
 
 #### Run
 ```shell
-sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.4.1/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee-runner:0.4.1
+sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee:0.5.0
 ```
 
 ### Local device model (for developers)
@@ -81,7 +81,7 @@ sudo ./stripts/install.sh
 
 #### Run
 ```shell
-/opt/crust/crust-tee/0.4.1/bin/crust-tee -c /opt/crust/crust-tee/0.4.1/etc/Config.json
+/opt/crust/crust-tee/0.5.0/bin/crust-tee -c /opt/crust/crust-tee/0.5.0/etc/Config.json
 ```
 
 ### Local device package model (for developers)
@@ -105,7 +105,7 @@ sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev 
 
 #### Run
 ```shell
-/opt/crust/crust-tee/0.4.1/bin/crust-tee -c /opt/crust/crust-tee/0.4.1/etc/Config.json
+/opt/crust/crust-tee/0.5.0/bin/crust-tee -c /opt/crust/crust-tee/0.5.0/etc/Config.json
 ```
 
 ## Configure crust tee
@@ -220,7 +220,7 @@ Output:
 {
   "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
   "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
-  "version" : "0.4.1"
+  "version" : "0.5.0"
 }
 ```
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-# build crust runner docker image
+# build crust tee docker image
 
 usage() {
     echo "Usage:"
@@ -29,7 +29,7 @@ while getopts ":hp" opt; do
 done
 
 VER=$(cat VERSION | head -n 1)
-IMAGEID="crustio/crust-tee-runner:$VER"
+IMAGEID="crustio/crust-tee:$VER"
 
 echo "building crust tee runner image $IMAGEID"
 if [ "$PUBLISH" -eq "1" ]; then
@@ -40,11 +40,11 @@ make clean
 docker build -f docker/runner/Dockerfile -t $IMAGEID .
 
 if [ "$?" -ne "0" ]; then
-    echo "crust-tee-runner build failed!"
+    echo "crust-tee build failed!"
     exit 1
 fi
 
-echo "tee-runner build success"
+echo "crustio/crust-tee build success"
 if [ "$PUBLISH" -eq "1" ]; then
     echo "will publish image to $IMAGEID"
     docker push $IMAGEID

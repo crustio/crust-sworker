@@ -29,21 +29,22 @@ while getopts ":hp" opt; do
 done
 
 VER=$(cat VERSION | head -n 1)
-echo "building docker base image, version: $VER"
+IMAGEID="crustio/crust-tee-env:$VER"
+echo "building $IMAGEID image"
 if [ "$PUBLISH" -eq "1" ]; then
   echo "will publish after build"
 fi
 
-IMAGEID="crustio/crust-tee-base:$VER"
-docker build -f docker/base/Dockerfile -t $IMAGEID .
+
+docker build -f docker/env/Dockerfile -t $IMAGEID .
 
 if [ "$?" -ne "0" ]; then
-  echo "crust-tee-base build failed!"
+  echo "crust-tee-env build failed!"
   exit 1
 fi
 
 echo "build success"
 if [ "$PUBLISH" -eq "1" ]; then
-  echo "will publish image to $IMAGEID"
+  echo "will publish $IMAGEID image"
   docker push $IMAGEID
 fi
