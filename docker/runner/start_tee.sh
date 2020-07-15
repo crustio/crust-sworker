@@ -24,4 +24,3 @@ fi
 
 echo "Run tee with arguments: $ARGS"
 /opt/crust/crust-tee/$version/bin/crust-tee $ARGS
-
