@@ -19,8 +19,25 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 - [Crust](https://github.com/crustio/crust)
 - [Crust API](https://github.com/crustio/crust-api)
 
+## Download project
+### Install git lfs
+```shell
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+sudo apt-get install git-lfs
+git lfs install
+```
+
+### Git clone
+```shell
+git clone https://github.com/crustio/crust-tee.git
+```
+
 ## Install and run
 ### Docker model
+#### Install sgx driver
+```shell
+sudo ./scripts/install_sgx_driver.sh
+```
 
 #### Install docker
 ```shell
@@ -39,6 +56,10 @@ sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.5.0/etc/Config.json --off
 ```
 
 ### Docker model (for developers)
+#### Install sgx driver
+```shell
+sudo ./scripts/install_sgx_driver.sh
+```
 
 #### Install docker
 ```shell
