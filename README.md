@@ -7,10 +7,6 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 - Hardware requirements: 
 
   CPU must contain **SGX module**, and make sure the SGX function is turned on in the bios, please click [this page](https://github.com/crustio/crust/wiki/Check-TEE-supportive) to check if your machine supports SGX
-
-- Operating system requirements:
-
-  Ubuntu 16.04
   
 - Other configurations
 
@@ -23,38 +19,106 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 - [Crust](https://github.com/crustio/crust)
 - [Crust API](https://github.com/crustio/crust-api)
 
-## Development launch
-### Install dependent libs
-Install gcc, git, openssl, boost, curl, elf, boost beast
+## Install and run
+### Docker model
+
+#### Install docker
 ```shell
-sudo apt install build-essential
-sudo apt install git
-sudo apt install libboost-all-dev
-sudo apt install openssl
-sudo apt install libssl-dev
-sudo apt install curl
-sudo apt install libelf-dev
-sudo apt install libleveldb-dev
+sudo apt-get update
+curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 ```
 
-### Package resources
-Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.
+#### Pull crust tee runner image
+```shell
+sudo docker pull crustio/crust-tee-runner:0.4.1
+```
 
-### Install crust TEE
-1. Run '**tar -xvf crust-\<version\>.tar**' to extract package.
-1. Cd to the extract folder, run '**install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
+#### Run
+```shell
+sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.4.1/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee-runner:0.4.1
+```
 
-### Configure your crust TEE
+### Docker model (for developers)
+
+#### Install docker
+```shell
+sudo apt-get update
+curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+```
+
+#### Build docker base
+If dependencies don't be changed, you don't need to execute this shell to generate new crust-tee-base docker
+```shell
+sudo ./docker/build_base.sh
+```
+
+#### Build docker runner 
+```shell
+sudo ./docker/build_runner.sh
+```
+
+#### Run
+```shell
+sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.4.1/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee-runner:0.4.1
+```
+
+### Local device model (for developers)
+
+#### Operating system requirements
+
+- Ubuntu 16.04
+
+#### Install dependent libs
+```shell
+sudo apt-get update
+sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
+```
+
+#### Install
+```shell
+sudo ./stripts/install.sh
+```
+
+#### Run
+```shell
+/opt/crust/crust-tee/0.4.1/bin/crust-tee -c /opt/crust/crust-tee/0.4.1/etc/Config.json
+```
+
+### Local device package model (for developers)
+
+#### Operating system requirements
+
+- Ubuntu 16.04
+
+#### Install dependent libs
+```shell
+sudo apt-get update
+sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
+```
+
+#### Package
+- Run '**sudo ./scripts/package.sh**' to package whole project, you will get a **crust-tee.tar** package.
+
+#### Install
+1. Run '**tar -xvf crust-tee.tar**' to extract package.
+1. Cd to the extract folder, run '**sudo ./scripts/install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
+
+#### Run
+```shell
+/opt/crust/crust-tee/0.4.1/bin/crust-tee -c /opt/crust/crust-tee/0.4.1/etc/Config.json
+```
+
+## Configure crust tee
 In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE application.
 ```shell
 {
-    "base_path" : "/opt/crust/crust-tee/tee_base_path",                  # All files will be stored in this directory, must be absolute path
+    "base_path" : "/opt/crust/crust-tee/tee_base_path",                  # TEE key information location, must be absolute path
+    "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
     "empty_capacity" : 4,                                                # empty disk storage in Gb
     
     "api_base_url": "http://127.0.0.1:12222/api/v0",                     # your tee node api address
     "validator_api_base_url": "http://127.0.0.1:12222/api/v0",           # the tee validator address (**if you are genesis node, this url must equal to 'api_base_url'**)
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
-    "websocket_url" : "wss://0.0.0.0:19002",
     "websocket_thread_num" : 3,
 
     "chain_api_base_url" : "http://127.0.0.1:56666/api/v1",              # the address of crust api
@@ -66,26 +130,7 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
 }
 ```
 
-### Start
-Crust TEE apllication is installed in /opt/crust/crust-tee.
-
-#### Lanuch crust TEE
-```shell
-cd /opt/crust/crust-tee
-./bin/crust-tee --offline # if you want to run crust TEE with crust chain, please remove '--offline' flag
-```
-
-## Launch crust chain and API
-Crust TEE will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole TEE flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
-
-## Client launch
-### Package resources
-Run '**scripts/package.sh**' to package whole project, you will get a **crust-\<version\>.tar** package.
-
-### Launch by using crust client
-Please follow [crust client](https://github.com/crustio/crust-client) to launch.
-
-## Crust tee executable file
+## Command line
 1. Run '**bin/crust-tee --help**' to show how to use **crust-tee**.
 1. Run '**bin/crust-tee \<argument\>**' to run crust-tee in different mode, argument can be daemon/server/status/report.
    1. **daemon** option lets tee run in daemon mode.
@@ -175,7 +220,7 @@ Output:
 {
   "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
   "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
-  "version" : "0.4.0"
+  "version" : "0.4.1"
 }
 ```
 
@@ -404,8 +449,6 @@ Output (403, invoke SGX API failed):
 ```shell
 Delete file failed!Invoke SGX API failed!
 ```
-
-
 
 ## Contribution
 

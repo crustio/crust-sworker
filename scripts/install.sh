@@ -1,7 +1,7 @@
 #!/bin/bash
-function uninstallOldCrustTee()
+function checkOldCrustTee()
 {
-    verbose INFO "Removing old crust tee..." h
+    verbose INFO "Checking old crust tee..." h
     local ret=0
     if [ ! -e "$crustdir/crust-tee" ]; then
         verbose INFO "SUCCESS" t
@@ -11,9 +11,9 @@ function uninstallOldCrustTee()
     # Check version
     for dir in $(ls -d */ 2>/dev/null); do
         if [ -e $dir/VERSION ]; then
-            if [ x"$(cat $dir/VERSION| head -n 1)" = x"$new_version" ]; then
+            if [ x"$(cat $dir/VERSION| head -n 1)" = x"$newversion" ]; then
                 verbose ERROR "FAILED" t
-                verbose ERROR "Same version has been installed!"
+                verbose ERROR "Same version $newversion has been installed!"
                 exit 1
             fi
         fi
@@ -24,26 +24,44 @@ function uninstallOldCrustTee()
 
 function installAPP()
 {
-    # Install tee-app dependencies
+    # Create tee directory
+    verbose INFO "Creating tee diretory related..." h
     local res=0
-    cd $appdir
+    mkdir -p $crustdir
+    res=$(($?|$res))
+    mkdir -p $crustteedir
+    res=$(($?|$res))
+    mkdir -p $realteedir
+    res=$(($?|$res))
+    mkdir -p $realteedir/bin
+    res=$(($?|$res))
+    mkdir -p $realteedir/etc
+    res=$(($?|$res))
+    mkdir -p $realteedir/scripts
+    res=$(($?|$res))
+    checkRes $res "quit" "success"
+
+    # Install tee-app dependencies
+    res=0
+    cd $basedir
     make clean &>/dev/null
-    setTimeWait "$(verbose INFO "Installing application..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Building and installing tee application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
     make -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
-    cp $appname ../bin
-    if [ ! -e "../etc/$enclaveso" ]; then
-        cp $enclaveso ../etc
-    fi
-    cp $configfile ../etc
     cd - &>/dev/null
 
     # Copy related files to install directory
-    cp -r $instdir/bin $realteedir
-    cp -r $instdir/etc $realteedir
-    cp -r $instdir/scripts $realteedir
-    cp -r $instdir/VERSION $realteedir
+    cp $srcdir/$appname $realteedir/bin
+    if [ ! -e "$basedir/etc/$enclaveso" ]; then
+        cp $srcdir/$enclaveso $realteedir/etc
+    else
+        cp $basedir/etc/$enclaveso $realteedir/etc
+    fi
+    cp $srcdir/$configfile $realteedir/etc
+    cp -r $basedir/scripts/uninstall.sh $realteedir/scripts
+    cp -r $basedir/scripts/utils.sh $realteedir/scripts
+    cp -r $basedir/VERSION $realteedir
 
     # Set environment
     setEnv
@@ -90,7 +108,7 @@ function success_exit()
 
     # Kill alive useless sub process
     for el in ${toKillPID[@]}; do
-        if ps -ef | grep -v grep | grep $el &>/dev/null; then
+        if [ x"$(ps -ef | grep -v grep | grep $el | awk '{print $2}')" = x"$el" ]; then
             kill -9 $el &>/dev/null
         fi
     done
@@ -103,25 +121,35 @@ function success_exit()
         printEnd_failed
     fi
 
-    kill -- -$selfPID
+    kill -- -$selfPID &>/dev/null
+}
+
+usage() {
+    echo "Usage:"
+		echo "    $0 -h                      Display this help message."
+		echo "    $0 [options]"
+    echo "Options:"
+    echo "     -d for docker"
+
+	exit 1;
 }
 
 ############## MAIN BODY ###############
 # basic variable
-basedir=$(cd `dirname $0`;pwd)
-appdir=$basedir/src
-instdir=$basedir
-TMPFILE=$appdir/tmp.$$
+scriptdir=$(cd `dirname $0`;pwd)
+basedir=$(cd $scriptdir/..;pwd)
+srcdir=$basedir/src
+TMPFILE=$srcdir/tmp.$$
 ERRFILE=$basedir/err.log
 crustdir=/opt/crust
 crustteedir=$crustdir/crust-tee
-new_version=$(cat $instdir/VERSION | head -n 1)
-realteedir=$crustteedir/$new_version
+newversion=$(cat $basedir/VERSION | head -n 1)
+realteedir=$crustteedir/$newversion
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 selfName=$(basename $0)
 selfPID=$$
-SYNCFILE=$instdir/.syncfile
+SYNCFILE=$basedir/.syncfile
 res=0
 uid=$(stat -c '%U' $basedir)
 pad="$(printf '%0.1s' ' '{1..10})"
@@ -136,12 +164,27 @@ configfile="Config.json"
 # Crust related
 crust_env_file=$realteedir/etc/environment
 
-
 . $basedir/scripts/utils.sh
 
 #trap "success_exit" INT
 trap "success_exit" EXIT
 
+# Cmds
+DOCKERMODLE=0
+while getopts ":hd" opt; do
+  case ${opt} in
+    h )
+		usage
+      ;;
+    d )
+       DOCKERMODLE=1
+      ;;
+    \? )
+      echo "Invalid Option: -$OPTARG" 1>&2
+      exit 1
+      ;;
+  esac
+done
 
 if ps -ef | grep -v grep | grep $PPID | grep $selfName &>/dev/null; then
     selfPID=$PPID
@@ -152,42 +195,39 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-
-
 printf "%s%s\n"   "$pad" '                        __     __               _            __        ____'
 printf "%s%s\n"   "$pad" '  ____________  _______/ /_   / /____  ___     (_)___  _____/ /_____ _/ / /'
 printf "%s%s\n"   "$pad" ' / ___/ ___/ / / / ___/ __/  / __/ _ \/ _ \   / / __ \/ ___/ __/ __ `/ / / '
 printf "%s%s\n"   "$pad" '/ /__/ /  / /_/ (__  ) /_   / /_/  __/  __/  / / / / (__  ) /_/ /_/ / / /  '
 printf "%s%s\n\n" "$pad" '\___/_/   \__,_/____/\__/   \__/\___/\___/  /_/_/ /_/____/\__/\__,_/_/_/   '
 
+verbose INFO "Version -----------------$newversion-------------------"
 
-# Uninstall previous crust-tee
-uninstallOldCrustTee
-
-# Create directory
-verbose INFO "Creating and setting diretory related..." h
-res=0
-mkdir -p $crustdir
-res=$(($?|$res))
-mkdir -p $crusttooldir
-res=$(($?|$res))
-mkdir -p $crustteedir
-res=$(($?|$res))
-mkdir -p $realteedir
-res=$(($?|$res))
-mkdir -p $inteldir
-res=$(($?|$res))
-checkRes $res "quit" "success"
+# check previous crust-tee
+checkOldCrustTee
 
 # Install Dependencies
-bash $basedir/scripts/install_deps.sh
-if [ $? -ne 0 ]; then
-    exit 1
+if [ "$DOCKERMODLE" == "0" ]; then
+    # Create denpendencies directory
+    verbose INFO "Creating dependencies diretory related..." h
+    res=0
+    mkdir -p $crusttooldir
+    res=$(($?|$res))
+    mkdir -p $inteldir
+    res=$(($?|$res))
+    checkRes $res "quit" "success"
+
+    # Install denpendencies
+    bash $basedir/scripts/install_deps.sh
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
 fi
 
 # Install Application
 installAPP
 
+if [ "$DOCKERMODLE" == "0" ]; then
 verbose INFO "Changing diretory owner..." h
 res=0
 chown -R $uid:$uid $crustteedir
@@ -195,7 +235,7 @@ res=$(($?|$res))
 chown -R $uid:$uid $crusttooldir
 res=$(($?|$res))
 checkRes $res "quit" "success"
+fi
 
-verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee! Go to /opt/crust/crust-tee and follow README to start crust."
-
+verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee/$newversion!"
 instSuccess=true
