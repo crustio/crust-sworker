@@ -1,5 +1,5 @@
-# crust tee runner image
-FROM crustio/crust-tee-base:0.4.1
+# crust tee image
+FROM crustio/crust-tee-env:0.5.0
 
 ADD scripts /crust-tee/scripts
 ADD src /crust-tee/src

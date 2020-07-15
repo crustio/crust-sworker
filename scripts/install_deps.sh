@@ -299,13 +299,12 @@ usage() {
 ############## MAIN BODY ###############
 # basic variable
 scriptdir=$(cd `dirname $0`;pwd)
-instdir=$(cd $scriptdir/..;pwd)
-TMPFILE=$basedir/tmp.$$
-ERRFILE=$basedir/err.log
-rsrcdir=$basedir/../resource
+TMPFILE=$scriptdir/tmp.$$
+ERRFILE=$scriptdir/err.log
+rsrcdir=$scriptdir/../resource
 crustdir=/opt/crust
 crustteedir=$crustdir/crust-tee
-realteedir=$crustteedir/$(cat $instdir/VERSION | head -n 1)
+realteedir=$crustteedir/$(cat $scriptdir/../VERSION | head -n 1)
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 sgxssldir=$inteldir/sgxssl
@@ -316,11 +315,11 @@ selfPID=$$
 OSID=$(cat /etc/os-release | grep '^ID\b' | grep -Po "(?<==).*")
 OSVERSION=$(cat /etc/os-release | grep 'VERSION_ID' | grep -Po "(?<==\").*(?=\")")
 tmo=180
-SYNCFILE=$basedir/.syncfile
+SYNCFILE=$scriptdir/.syncfile
 res=0
 # Environment related
 crustldfile="/etc/ld.so.conf.d/crust.conf"
-uid=$(stat -c '%U' $basedir)
+uid=$(stat -c '%U' $scriptdir)
 coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
 # Control configuration
 instTimeout=30
@@ -359,7 +358,7 @@ crust_env_file=$realteedir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
 
 
-. $basedir/utils.sh
+. $scriptdir/utils.sh
 
 #trap "success_exit" INT
 trap "success_exit" EXIT
