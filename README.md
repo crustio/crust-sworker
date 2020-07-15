@@ -22,88 +22,88 @@ Implement the trusted layer based on TEE technology, functionally connect  the c
 ## Install and run
 ### Docker model
 
-### Install docker
+#### Install docker
 ```shell
 sudo apt-get update
 curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 ```
 
-### Pull crust tee runner image
+#### Pull crust tee runner image
 ```shell
 sudo docker pull crustio/crust-tee-runner:0.4.0
 ```
 
-### Run
+#### Run
 ```shell
 sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.4.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee-runner:0.4.0
 ```
 
 ### Docker model (for developers)
 
-### Install docker
+#### Install docker
 ```shell
 sudo apt-get update
 curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 ```
 
-### Build docker base
+#### Build docker base
 If dependencies don't be changed, you don't need to execute this shell to generate new crust-tee-base docker
 ```shell
 sudo ./docker/build_base.sh
 ```
 
-### Build docker runner 
+#### Build docker runner 
 ```shell
 sudo ./docker/build_runner.sh
 ```
 
-### Run
+#### Run
 ```shell
 sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.4.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee-runner:0.4.0
 ```
 
 ### Local device model (for developers)
 
-### Operating system requirements
+#### Operating system requirements
 
 - Ubuntu 16.04
 
-### Install dependent libs
+#### Install dependent libs
 ```shell
 sudo apt-get update
 sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
 ```
 
-### Install
+#### Install
 ```shell
 sudo ./stripts/install.sh
 ```
 
-### Run
+#### Run
 ```shell
 /opt/crust/crust-tee/0.4.0/bin/crust-tee -c /opt/crust/crust-tee/0.4.0/etc/Config.json
 ```
 
 ### Local device package model (for developers)
 
-### Operating system requirements
+#### Operating system requirements
 
 - Ubuntu 16.04
 
-### Install dependent libs
+#### Install dependent libs
 ```shell
 sudo apt-get update
 sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
 ```
 
-### Package
+#### Package
 - Run '**sudo ./scripts/package.sh**' to package whole project, you will get a **crust-tee.tar** package.
 
-### Install
+#### Install
 1. Run '**tar -xvf crust-tee.tar**' to extract package.
 1. Cd to the extract folder, run '**sudo ./scripts/install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
 
-### Run
+#### Run
 ```shell
 /opt/crust/crust-tee/0.4.0/bin/crust-tee -c /opt/crust/crust-tee/0.4.0/etc/Config.json
 ```
@@ -130,7 +130,7 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
 }
 ```
 
-## Crust tee executable file
+## Command line
 1. Run '**bin/crust-tee --help**' to show how to use **crust-tee**.
 1. Run '**bin/crust-tee \<argument\>**' to run crust-tee in different mode, argument can be daemon/server/status/report.
    1. **daemon** option lets tee run in daemon mode.
