@@ -51,16 +51,16 @@ std::string Workload::get_workload(void)
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_sha256_hash_t srd_root;
     size_t srd_workload = 0;
-    this->generate_srd_info(&srd_root, &srd_workload);
     json::JSON wl_json;
+    json::JSON md_json;
 
     // ----- workload info ----- //
+    id_get_metadata(md_json);
     // Srd info
+    this->get_srd_info(&srd_root, &srd_workload, md_json);
     wl_json["srd"]["root_hash"] = hexstring_safe(srd_root, HASH_LENGTH);
     wl_json["srd"]["space"] = srd_workload / 1024 / 1024 / 1024;
     // file info
-    json::JSON md_json;
-    id_get_metadata(md_json);
     wl_json["files"] = json::Array();
     if (md_json.hasKey(ID_FILE) && md_json[ID_FILE].size() > 0)
     {
@@ -108,6 +108,61 @@ void Workload::clean_data()
         }
     }
     this->srd_path2hashs_m.clear();
+}
+
+/**
+ * @description: generate srd information
+ * @param srd_root_out srd root hash
+ * @param srd_workload_out srd workload
+ * @return: status
+ */
+crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out, json::JSON &md_json)
+{
+    if (! md_json.hasKey(ID_WORKLOAD) 
+            || md_json[ID_WORKLOAD].JSONType() != json::JSON::Class::Object)
+    {
+        memset(srd_root_out, 0, sizeof(sgx_sha256_hash_t));
+        *srd_workload_out = 0;
+        return CRUST_SUCCESS;
+    }
+    // Get hashs for hashing
+    size_t g_hashs_num = 0;
+    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
+            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
+    {
+        g_hashs_num += it->second.size();
+    }
+    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
+    size_t hashs_len = 0;
+
+    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
+            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
+    {
+        for (int i = 0; i < it->second.size(); i++)
+        {
+            std::string hash_str = it->second[i].ToString();
+            uint8_t *hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
+            memcpy(hashs + hashs_len, hash_u, HASH_LENGTH);
+            hashs_len += HASH_LENGTH;
+        }
+    }
+
+    // generate srd information
+    if (hashs_len == 0)
+    {
+        *srd_workload_out = 0;
+        memset(srd_root_out, 0, HASH_LENGTH);
+    }
+    else
+    {
+        *srd_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, srd_root_out);
+    }
+
+    free(hashs);
+
+    sgx_thread_mutex_unlock(&g_workload_mutex);
+    return CRUST_SUCCESS;
 }
 
 /**

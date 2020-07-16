@@ -164,6 +164,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
             }
             json::JSON wl_json = json::JSON::Load(get_g_enclave_workload());
+            if (wl_json.size() == -1)
+            {
+                res.body() = "Get workload failed!";
+                goto getcleanup;
+            }
             wl_json["srd"]["detail"] = json::JSON::Load(srd_detail);
             wl_json["srd"]["disk_reserved"] = get_reserved_space();
             size_t tmp_size = 0;

@@ -32,6 +32,7 @@ public:
     std::string get_workload(void);
     json::JSON serialize_srd(bool locked = true);
     crust_status_t restore_srd(json::JSON g_hashs);
+    crust_status_t get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out, json::JSON &md_json);
     crust_status_t generate_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out);
     void clean_data();
 
