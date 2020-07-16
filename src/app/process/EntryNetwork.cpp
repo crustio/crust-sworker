@@ -81,7 +81,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
         }
     } while (true);
 
-    status = Ecall_get_report(global_eid, &sgxrv, &report, &target_info);
+    status = Ecall_get_quote_report(global_eid, &sgxrv, &report, &target_info);
     if (status != SGX_SUCCESS)
     {
         p_log->err("get_report: %08x\n", status);

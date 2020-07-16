@@ -116,7 +116,7 @@ crust_status_t DataBase::get(std::string key, std::string &value)
     leveldb::Status s = this->db->Get(leveldb::ReadOptions(), key, &value);
     if (!s.ok())
     {
-        p_log->debug("Get record from DB failed!Error: %s\n", s.ToString().c_str());
+        //p_log->debug("Get record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_GET_FAILED;
     }
 

@@ -98,7 +98,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
     res["status"] = 400;
     res["body"] = "Unknown request!";
 
-    // Storage seal file block
+    // ----- Storage seal file block ----- //
     std::string cur_path = url_end_point->base + "/storage/seal";
     if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
     {
@@ -204,7 +204,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
     }
 
 
-    // Storage unseal file block
+    // ----- Storage unseal file block ----- //
     cur_path = url_end_point->base + "/storage/unseal";
     if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
     {

@@ -2,7 +2,6 @@
 #include "EJson.h"
 
 /* used to store work report */
-std::string work_report;
 size_t srd_workload;
 sgx_sha256_hash_t srd_root;
 
@@ -57,82 +56,12 @@ bool report_has_validated_proof() {
 }
 
 /**
- * @description: generate work report
- * @param report_len (out) -> report's length
- * @return: status
- */
-crust_status_t generate_work_report(size_t *report_len)
-{
-    Workload *p_workload = Workload::get_instance();
-    ecc_key_pair id_key_pair = id_get_key_pair();
-    crust_status_t crust_status = CRUST_SUCCESS;
-
-    crust_status = p_workload->generate_empty_info(&srd_root, &srd_workload);
-    if (crust_status != CRUST_SUCCESS)
-    {
-        return crust_status;
-    }
-    
-    // Get old hash and size
-    Workload *wl = Workload::get_instance();
-    json::JSON old_files_json = json::Array();
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    for (uint32_t i = 0, j = 0; i < wl->checked_files.size(); i++)
-    {
-        if (wl->checked_files[i][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) != 0)
-        {
-            continue;
-        }
-
-        uint8_t *p_meta = NULL;
-        size_t meta_len = 0;
-        crust_status = persist_get((wl->checked_files[i][FILE_HASH].ToString()+"_meta").c_str(), &p_meta, &meta_len);
-        if (CRUST_SUCCESS != crust_status || p_meta == NULL)
-        {
-            sgx_thread_mutex_unlock(&g_checked_files_mutex);
-            return CRUST_STORAGE_UNSEAL_FILE_FAILED;
-        }
-        std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
-        json::JSON meta_json = json::JSON::Load(tree_meta);
-        old_files_json[j][FILE_HASH] = meta_json[FILE_OLD_HASH].ToString();
-        old_files_json[j][FILE_SIZE] = meta_json[FILE_SIZE].ToInt();
-        j++;
-    }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-
-    json::JSON report_json;
-    report_json["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    report_json["reserved"] = srd_workload;
-    report_json["files"] = old_files_json;
-    work_report = report_json.dump();
-    *report_len = work_report.length();
-
-    return crust_status;
-}
-
-/**
- * @description: get validation report
- * @param report (out) -> the validation report
- * @param report_len (in) -> the length of validation report
- * @return: status
- */
-crust_status_t get_work_report(char *report, size_t /*report_len*/)
-{
-    memcpy(report, work_report.c_str(), work_report.size());
-    return CRUST_SUCCESS;
-}
-
-/**
  * @description: Get signed validation report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
- * @param p_signature (out) -> sig by tee
- * @param report (out) -> work report string
- * @param report_len (in) -> work report string length
  * @return: sign status
  * */
-crust_status_t get_signed_work_report(const char *block_hash, size_t block_height,
-        sgx_ec256_signature_t *p_signature, char *report, size_t /*report_len*/)
+crust_status_t get_signed_work_report(const char *block_hash, size_t block_height)
 {
     // Judge whether the current data is validated 
     if (!report_has_validated_proof())
@@ -154,16 +83,56 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
 
-    // ----- Create signature data ----- //
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_status_t sgx_status;
+    // ----- Get files info ----- //
+    Workload *wl = Workload::get_instance();
     ecc_key_pair id_key_pair = id_get_key_pair();
+    crust_status_t crust_status = CRUST_SUCCESS;
+    sgx_status_t sgx_status;
+    // Get srd info
+    crust_status = wl->generate_srd_info(&srd_root, &srd_workload);
+    if (crust_status != CRUST_SUCCESS)
+    {
+        return crust_status;
+    }
+    // Get old hash and size
+    json::JSON old_files_json = json::Array();
+    if (wl->get_report_flag())
+    {
+        sgx_thread_mutex_lock(&g_checked_files_mutex);
+        for (uint32_t i = 0, j = 0; i < wl->checked_files.size(); i++)
+        {
+            if (wl->checked_files[i][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) != 0)
+            {
+                continue;
+            }
+
+            uint8_t *p_meta = NULL;
+            size_t meta_len = 0;
+            std::string hash_str = wl->checked_files[i][FILE_HASH].ToString();
+            crust_status = persist_get((hash_str+"_meta").c_str(), &p_meta, &meta_len);
+            if (CRUST_SUCCESS != crust_status || p_meta == NULL)
+            {
+                log_err("Get file:%s meta failed!\n", hash_str.c_str());
+            }
+            std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
+            json::JSON meta_json = json::JSON::Load(tree_meta);
+            old_files_json[j][FILE_HASH] = meta_json[FILE_OLD_HASH].ToString();
+            old_files_json[j][FILE_SIZE] = meta_json[FILE_OLD_SIZE].ToInt();
+            j++;
+            free(p_meta);
+        }
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    }
+
+    // ----- Create signature data ----- //
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_ec256_signature_t sgx_sig; 
+    json::JSON wr_json;
+    std::string wr_str;
     uint8_t *block_hash_u = NULL;
-    json::JSON workreport_json = json::JSON::Load(work_report);
     std::string block_height_str = std::to_string(block_height);
-    std::string reserved_str = std::to_string(workreport_json["reserved"].ToInt());
-    std::string files = workreport_json["files"].dump();
+    std::string reserved_str = std::to_string(srd_workload);
+    std::string files = old_files_json.dump();
     remove_char(files, '\\');
     remove_char(files, '\n');
     remove_char(files, ' ');
@@ -204,19 +173,25 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         crust_status = CRUST_SGX_SIGN_FAILED;
         goto cleanup;
     }
-
-    sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len, &id_key_pair.pri_key, p_signature, ecc_state);
+    sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len, &id_key_pair.pri_key, &sgx_sig, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         crust_status = CRUST_SGX_SIGN_FAILED;
         goto cleanup;
     }
 
-    // Get work report string
-    memcpy(report, work_report.c_str(), work_report.size());
+    // Store workreport
+    wr_json["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    wr_json["reserved"] = srd_workload;
+    wr_json["files"] = old_files_json;
+    wr_json["block_height"] = block_height_str;
+    wr_json["block_hash"] = hexstring_safe(block_hash, HASH_LENGTH);
+    wr_json["sig"] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
+    wr_str = wr_json.dump();
+    ocall_store_workreport(wr_str.c_str());
 
     // Reset meaningful data
-    Workload::get_instance()->reset_meaningful_data();
+    Workload::get_instance()->set_report_flag(true);
 
 
 cleanup:

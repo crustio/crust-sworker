@@ -61,11 +61,9 @@ X509_STORE * cert_init_ca(X509 *cert);
 char *base64_decode(const char *msg, size_t *sz);
 
 crust_status_t id_verify_iasreport(char ** IASReport, size_t size);
-crust_status_t id_sign_network_entry(const char *p_partial_data, uint32_t data_size, sgx_ec256_signature_t *p_signature);
 sgx_status_t id_gen_key_pair();
-sgx_status_t id_get_report(sgx_report_t *report, sgx_target_info_t *target_info);
+sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t id_gen_sgx_measurement();
-crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size, sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz);
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len);
 crust_status_t id_set_chain_account_id(const char *account_id, size_t len);
 ecc_key_pair id_get_key_pair();

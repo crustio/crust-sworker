@@ -30,7 +30,6 @@
 #include "Workload.h"
 #include "EUtils.h"
 #include "Validator.h"
-#include "ValidationStatus.h"
 #include "Srd.h"
 #include "Report.h"
 

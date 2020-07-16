@@ -138,44 +138,57 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
     "empty_capacity" : 4,                                                # empty disk storage in Gb
     
     "api_base_url": "http://127.0.0.1:12222/api/v0",                     # your tee node api address
-    "validator_api_base_url": "http://127.0.0.1:12222/api/v0",           # the tee validator address (**if you are genesis node, this url must equal to 'api_base_url'**)
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
-    "websocket_thread_num" : 3,
+    "websocket_thread_num" : 3,                                          # Websocket service thread number
 
-    "chain_api_base_url" : "http://127.0.0.1:56666/api/v1",              # the address of crust api
-    "chain_address" : "",                                                # your crust chain identity
-    "chain_account_id" : "",
-    "chain_password" : "",
-    "chain_backup" : "",
-    ......
+    "chain_api_base_url" : "http://139.196.122.228:6009/api/v1",         # the address of crust api
+    "chain_address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",# your crust chain identity
+    "chain_account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
+    "chain_password" : "123456",
+    "chain_backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}",              # Chain backup
+
+    "spid": "<intel_spid>",                                              # Intel SPID
+    "linkable": true,                                                    # Linkable or not
+    "random_nonce": true,                                                # IAS random
+    "use_platform_services": false,                                      # IAS service type
+    "ias_primary_subscription_key": "<intel_ias_primary_key>",           # IAS primary key
+    "ias_secondary_subscription_key": "<intel_ias_secondary_key>",       # IAS secondary key
+    "ias_base_url": "https://api.trustedservices.intel.com",             # IAS base url
+    "ias_base_path": "/sgx/<dev_or_prod>/attestation/v3/report",         # IAS report path
+    "flags": 4                                                           # IAS attributes flag
 }
 ```
 
+### Start
+Crust TEE apllication is installed in /opt/crust/crust-tee.
+
+#### Lanuch crust TEE
+```shell
+cd /opt/crust/crust-tee
+./bin/crust-tee --offline # if you want to run crust TEE with crust chain, please remove '--offline' flag
+```
+
+## Launch crust chain and API
+Crust TEE will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole TEE flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
+
+## Client launch
+### Package resources
+Run '**scripts/package.sh**' to package whole project, you will get a **crust-tee.tar** package.
+
+### Launch by using crust client
+Please follow [crust client](https://github.com/crustio/crust-client) to launch.
+
+## Crust tee executable file
+
 ## Command line
 1. Run '**bin/crust-tee --help**' to show how to use **crust-tee**.
-1. Run '**bin/crust-tee \<argument\>**' to run crust-tee in different mode, argument can be daemon/server/status/report.
+1. Run '**bin/crust-tee \<argument\>**' to run crust-tee in different mode, argument can be daemon.
    1. **daemon** option lets tee run in daemon mode.
-   1. **status** option shows tee current status, make sure daemon or server mode has been running.
-   1. **report** option shows tee work report, make sure daemon or server mode has been running.
-1. Run '**bin/crust-tee --config \<config_file_path\>**' to use customized configure file, if not provided **etc/Config.json** will be used as the default one.
+1. Run '**bin/crust-tee --config \<config_file_path\>**' to use customized configure file, you can get your own configure file by referring **etc/Config.json**k.
 1. Run '**bin/crust-tee --offline**', program will not interact with the chain.
 1. Run '**bin/crust-tee --debug**', program will output debug logs. 
 
 ## API
-### Use 'api/v0/status' to get validation status
-
-Curl shell:
-```shell
-curl http://<url:port>/api/v0/status
-```
-
-Output:
-```json
-{
-  "validation_status": "validate_waiting"
-}
-```
-
 ### Use 'api/v0/report' to get work report
 
 Curl shell:
@@ -190,6 +203,65 @@ Output:
   "empty_root":"a03a10a416fe3f994c11f3e8740862385fde5af78af8f2997b7cbe0094424a6e",
   "empty_workload":10737418240,
   "meaningful_workload":0
+}
+```
+
+### Use 'api/v0/workload' to get workload information
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/workload
+```
+
+Output:
+```json
+{
+  "files" : {
+    "valid" : {
+      "detail" : [
+        {  "hash"        : "7dfe61b0c9a1986048f74250bc212af22b17d679bac0a742217b919183f139dd", "size"        : 2097152,
+           "sealed_hash" : "25c80eda2c4b30fcaf26e4e4adac471814769af252184f2978f48fa6e4a534c2", "sealed_size" : 2098272  },
+        {  "hash"        : "760c18649942e92837b4aac6d5d7f6d526ab3f46fc8443b27ed6cfb83b444fb4", "size"        : 3145728,
+           "sealed_hash" : "bf339cd83479ae54ea42858c20cb9ca115bbadb19ee7b7a45d642c0b13cca50d", "sealed_size" : 3147408  }
+      ],
+      "number" : 2
+    }
+  },
+  "srd" : {
+    "detail" : {
+      "/opt/crust/crust-tee/0.4.0/tee_base_path/test1" : {
+        "assigned" : 24,
+        "available" : 215,
+        "cannotused" : 50
+      }
+    },
+    "root_hash" : "d41bdacdb343757c993c5a87dc6f7d51ebf94baa4cb5b0687f4fa0146b3c1cda",
+    "space" : 24
+  }
+}
+```
+Output:
+1. files: Give meaningful files' hash, size and status
+1. srd: Give srd information
+1. srd_path_x: Indicates your srd path.
+1. assigned: Indicates how many space has been used for srd in the path.
+1. root_hash: Indicates all srd hash
+1. space: Space has been taken by srd
+1. srd_reserved_space: Indicates disk reserved space, default value is 50 which means TEE will remain 50GB space for your stuff and the other will be used for srd.
+
+### Use 'api/v0/enclave/id_info' to get enclave mrenclave and pub_key
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/enclave/id_info
+```
+
+Output:
+```json
+{
+  "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
+  "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
+  "version" : "0.4.0"
 }
 ```
 

@@ -18,7 +18,5 @@
 #include "Log.h"
 
 int main_daemon(void);
-int main_status(void);
-int main_report(void);
 
 #endif /* !_CRUST_APP_H_ */

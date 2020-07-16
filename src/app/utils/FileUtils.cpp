@@ -1,11 +1,6 @@
 #include "FileUtils.h"
 #include <dirent.h>
 
-static bool cmp_available(json::JSON j1, json::JSON j2)
-{
-    return j1["available"].ToInt() < j2["available"].ToInt();
-}
-
 /**
  * @description: get all files' name in directory
  * @param path -> the directory path
@@ -348,82 +343,4 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     }
 
     return disk_info_json;
-}
-
-/**
- * @description: Decrease srd space
- * @param true_srd_capacity -> True decreased size
- * @return: Path to decrease size map
- * */
-json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
-{
-    crust::DataBase *db = crust::DataBase::get_instance();
-    std::string disk_info_str;
-    db->get("srd_info", disk_info_str);
-    json::JSON disk_info_json = json::JSON::Load(disk_info_str);
-    json::JSON ans;
-    std::vector<json::JSON> disk_info_v;
-
-    // Calculate available and assigned size
-    size_t total_avail = 0;
-    size_t total_assigned = 0;
-    auto disk_range = disk_info_json.ObjectRange();
-    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
-    {
-        if (!it->second.hasKey("assigned") || it->second["assigned"].ToInt() == 0)
-        {
-            continue;
-        }
-        json::JSON tmp;
-        tmp["path"] = it->first;
-        tmp["available"] = get_avail_space_under_dir_g(it->first);
-        tmp["assigned"] = it->second["assigned"];
-        disk_info_v.push_back(tmp);
-
-        total_avail += tmp["available"].ToInt();
-        total_assigned += tmp["assigned"].ToInt();
-    }
-    true_srd_capacity = std::min(total_assigned, true_srd_capacity);
-
-    std::sort(disk_info_v.begin(), disk_info_v.end(), cmp_available);
-    size_t decrease_size = 0;
-    for (int i = 0, j = disk_info_v.size() - 1; i < (int)disk_info_v.size() && j >= 0; i++, j--)
-    {
-        std::string path = disk_info_v[i]["path"].ToString();
-        // According to the available space to assign decreased size
-        // Smaller the available space is, larger the decreased size is. 
-        double cur_decrease_size = (double)(disk_info_v[j]["available"].ToInt()) / (double)total_avail * (double)true_srd_capacity;
-        // If decreased size larger than true_srd_capacity, set true decrease size to the left
-        if (decrease_size + cur_decrease_size > true_srd_capacity)
-        {
-            cur_decrease_size = true_srd_capacity - decrease_size;
-        }
-        // Judge if decreased size larger than current disk assigned size
-        if (cur_decrease_size > disk_info_v[i]["assigned"].ToInt())
-        {
-            // If larger, set decrease_size to assigned size
-            ans[path]["decreased"] = disk_info_v[i]["assigned"];
-        }
-        else
-        {
-            // If smaller, set decrease_size according to situation
-            ans[path]["decreased"] = (long)cur_decrease_size;
-            if (cur_decrease_size - (double)(ans[path]["decreased"].ToInt()) > 0.0)
-            {
-                if (decrease_size + cur_decrease_size < true_srd_capacity
-                        && disk_info_v[i]["assigned"].ToInt() > ans[path]["decreased"].ToInt())
-                {
-                    ans[path]["decreased"] = ans[path]["decreased"].ToInt() + 1;
-                }
-            }
-        }
-        decrease_size += ans[path]["decreased"].ToInt();
-
-        if (decrease_size + cur_decrease_size >= true_srd_capacity)
-        {
-            break;
-        }
-    }
-
-    return ans;
 }

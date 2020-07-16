@@ -43,7 +43,6 @@ extern "C"
     crust_status_t ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len);
     crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_file, size_t *len);
     void ocall_usleep(int u);
-    crust_status_t ocall_get_file_block_by_path(char *root_hash, char *cur_hash, uint32_t hash_len, uint32_t *path, uint32_t path_count);
 
     crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len);
     crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t keys_len);
@@ -56,18 +55,16 @@ extern "C"
     crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash, uint8_t **p_sealed_data, size_t *sealed_data_size);
     void ocall_validate_close();
 
-    void ocall_store_order_report(const char *p_order, size_t order_size);
-
     void ocall_srd_info_lock();
     void ocall_srd_info_unlock();
 
     void ocall_srd_change(long change);
 
-    void ocall_store_identity(const char *id);
-
     void ocall_store_enclave_id_info(const char *info);
-
+    void ocall_store_order_report(const char *p_order, size_t order_size);
+    void ocall_store_identity(const char *id);
     void ocall_store_workload(const char *wl);
+    void ocall_store_workreport(const char *wr);
 
 #if defined(__cplusplus)
 }

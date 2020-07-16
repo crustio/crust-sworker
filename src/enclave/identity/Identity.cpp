@@ -604,39 +604,6 @@ cleanup:
 }
 
 /**
- * @description: Sign network entry information
- * @param p_partial_data -> Partial data represented off chain node identity
- * @param data_size -> Partial data size
- * @param p_signature -> Pointer to signature
- * @return: Sign status
- * */
-crust_status_t id_sign_network_entry(const char *p_partial_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature)
-{
-    std::string data_str(p_partial_data, data_size);
-    data_str.append(g_chain_account_id);
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        return CRUST_SGX_FAILED;
-    }
-
-    sgx_status = sgx_ecdsa_sign((const uint8_t *)data_str.c_str(), data_str.size(),
-            &id_key_pair.pri_key, p_signature, ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_SGX_SIGN_FAILED;
-    }
-
-    sgx_ecc256_close_context(ecc_state);
-
-    return crust_status;
-}
-
-/**
  * @description: generate ecc key pair and store it in enclave
  * @return: generate status
  * */
@@ -686,7 +653,7 @@ sgx_status_t id_gen_key_pair()
  *  in report data
  * @return: get sgx report status
  * */
-sgx_status_t id_get_report(sgx_report_t *report, sgx_target_info_t *target_info)
+sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
 
     // Copy public key to report data
@@ -725,57 +692,6 @@ sgx_status_t id_gen_sgx_measurement()
     memcpy(&current_mr_enclave, &verify_report.body.mr_enclave, sizeof(sgx_measurement_t));
 
     return status;
-}
-
-/**
- * @description: Store off-chain node quote and verify signature
- * @return: Store status
- * */
-crust_status_t id_store_quote(const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size, 
-        sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz)
-{
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    uint8_t result;
-    sgx_quote_t *offChain_quote = (sgx_quote_t *)malloc(len);
-    if (offChain_quote == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-
-    memset(offChain_quote, 0, len);
-    memcpy(offChain_quote, quote, len);
-    uint8_t *p_offchain_pubkey = offChain_quote->report_body.report_data.d;
-
-    // Verify off chain node's identity
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        return CRUST_SGX_FAILED;
-    }
-
-    sgx_status = sgx_ecdsa_verify(p_data, data_size, (sgx_ec256_public_t*)p_offchain_pubkey,
-            p_signature, &result, ecc_state);
-
-    if (SGX_SUCCESS != sgx_status || SGX_EC_VALID != result)
-    {
-        crust_status = CRUST_SGX_VERIFY_SIG_FAILED;
-    }
-    else
-    {
-        uint8_t *p_account_id_u = hex_string_to_bytes(p_account_id, account_id_sz);
-        if (p_account_id_u == NULL)
-        {
-            return CRUST_MALLOC_FAILED;
-        }
-        vector<uint8_t> account_id_v(p_account_id_u, p_account_id_u + account_id_sz / 2);
-        vector<uint8_t> off_chain_pub_key_v(p_offchain_pubkey, p_offchain_pubkey + ENCLAVE_PUB_KEY_SIZE);
-    }
-
-    sgx_ecc256_close_context(ecc_state);
-
-    return crust_status;
 }
 
 /**
@@ -910,6 +826,9 @@ crust_status_t id_metadata_del_by_key(std::string key)
 
     crust_status_t crust_status = CRUST_SUCCESS;
     json::JSON meta_json_org;
+    std::string meta_str;
+    size_t meta_len = 0;
+    uint8_t *p_meta = NULL;
     id_get_metadata(meta_json_org, false);
     auto p_obj = meta_json_org.ObjectRange();
     if (!meta_json_org.hasKey(key))
@@ -917,6 +836,20 @@ crust_status_t id_metadata_del_by_key(std::string key)
         goto cleanup;
     }
     p_obj.object->erase(key);
+
+    meta_str = meta_json_org.dump();
+    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
+    p_meta = (uint8_t*)enc_malloc(meta_len);
+    if (p_meta == NULL)
+    {
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
+    }
+    memset(p_meta, 0, meta_len);
+    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
+    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
+    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
+    free(p_meta);
 
 cleanup:
     sgx_thread_mutex_unlock(&g_metadata_mutex);
@@ -941,13 +874,13 @@ crust_status_t id_store_metadata()
     uint8_t *p_meta = NULL;
     std::string hex_id_key_str = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
     id_get_metadata(meta_json, false);
-    meta_json[ID_WORKLOAD] = Workload::get_instance()->serialize_workload();
+
+    // ----- Store metadata ----- //
+    meta_json[ID_WORKLOAD] = Workload::get_instance()->serialize_srd();
     meta_json[ID_KEY_PAIR] = hex_id_key_str;
     meta_json[ID_REPORT_SLOG] = report_slot;
     meta_json[ID_CHAIN_ACCOUNT_ID] = g_chain_account_id;
     std::string meta_str = meta_json.dump();
-
-    // Seal workload string
     meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
     p_meta = (uint8_t*)enc_malloc(meta_len);
     if (p_meta == NULL)
@@ -983,18 +916,20 @@ crust_status_t id_restore_metadata()
     id_get_metadata(meta_json);
     if (meta_json.size() <= 0)
     {
-        log_warn("Get empty metadata, cannot restore metadata!\n");
+        log_warn("Get metadata failed, cannot restore metadata!\n");
         return CRUST_UNEXPECTED_ERROR;
     }
 
-    // Restore workload
+    // Restore srd
     Workload *wl = Workload::get_instance();
-    std::string workload_str = meta_json[ID_WORKLOAD].ToString();
-    remove_char(workload_str, '\\');
-    crust_status = wl->restore_workload(json::JSON::Load(workload_str));
-    if (CRUST_SUCCESS != crust_status)
+    if (meta_json.hasKey(ID_WORKLOAD)
+            && meta_json[ID_WORKLOAD].JSONType() == json::JSON::Class::Object)
     {
-        return CRUST_BAD_SEAL_DATA;
+        crust_status = wl->restore_srd(meta_json[ID_WORKLOAD]);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return CRUST_BAD_SEAL_DATA;
+        }
     }
     // Restore srd info
     ocall_srd_info_lock();
@@ -1012,7 +947,8 @@ crust_status_t id_restore_metadata()
     ocall_srd_info_unlock();
     // Restore meaningful files
     wl->checked_files.clear();
-    if (meta_json.hasKey(ID_FILE))
+    if (meta_json.hasKey(ID_FILE)
+            && meta_json[ID_FILE].JSONType() == json::JSON::Class::Array)
     {
         json::JSON m_files = meta_json[ID_FILE];
         for (int i = 0; i < m_files.size(); i++)
@@ -1144,7 +1080,8 @@ void id_get_info()
     json::JSON id_info;
     id_info["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     id_info["mrenclave"] = hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t));
-    id_info["version"] = TEE_VERSION;
+    id_info["version"] = VERSION;
+    id_info["tee_version"] = TEE_VERSION;
     std::string id_str = id_info.dump();
     ocall_store_enclave_id_info(id_str.c_str());
 }

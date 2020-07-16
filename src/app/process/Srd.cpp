@@ -5,7 +5,7 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
-size_t g_srd_reserved_space = 50;
+size_t g_srd_reserved_space = DEFAULT_SRD_RESERVED;
 std::mutex srd_info_mutex;
 
 extern sgx_enclave_id_t global_eid;
@@ -132,7 +132,12 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
     std::string disk_info_str;
 
     srd_info_mutex.lock();
-    db->get("srd_info", disk_info_str);
+    if (CRUST_SUCCESS != db->get("srd_info", disk_info_str))
+    {
+        p_log->err("Srd info not found!Decrease srd space failed!\n");
+        srd_info_mutex.unlock();
+        return disk_info_str;
+    }
     srd_info_mutex.unlock();
 
     json::JSON disk_info_json = json::JSON::Load(disk_info_str);
@@ -301,7 +306,7 @@ void srd_check_reserved(void)
         srd_info_mutex.lock();
         if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_info_str)))
         {
-            p_log->debug("Get srd info failed! Error code:%lx\n", crust_status);
+            p_log->debug("Srd info not found!Check srd reserved failed!\n");
             // Unlock srd_info
             srd_info_mutex.unlock();
             sleep(15);
@@ -371,15 +376,15 @@ long get_old_reserved_space(std::string url)
 {
     long srd_reserved_space = 0;
     HttpClient *client = new HttpClient();
-    http::response<http::string_body> res = client->Get(url);
+    http::response<http::string_body> res = client->Get(url + "/workload");
     json::JSON res_json = json::JSON::Load(res.body());
-    if (!res_json.hasKey("srd_reserved_space"))
+    if (!res_json.hasKey("srd") || !res_json["srd"].hasKey("disk_reserved"))
     {
         srd_reserved_space = -1;
     }
     else
     {
-        srd_reserved_space = res_json["srd_reserved_space"].ToInt();
+        srd_reserved_space = res_json["srd"]["disk_reserved"].ToInt();
     }
 
     delete client;

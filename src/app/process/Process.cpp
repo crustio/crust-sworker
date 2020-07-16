@@ -1,6 +1,8 @@
 #include "Process.h"
 #include "DataBase.h"
 #include "WebServer.h"
+#include "EntryNetwork.h"
+#include "Chain.h"
 #include "tbb/concurrent_unordered_map.h"
 
 #include <future>
@@ -8,7 +10,7 @@
 
 #define RECEIVE_PID_RETRY 30
 
-/* Global EID shared by multiple threads */
+// Global EID shared by multiple threads
 sgx_enclave_id_t global_eid;
 // Pointor to configure instance
 Config *p_config = NULL;

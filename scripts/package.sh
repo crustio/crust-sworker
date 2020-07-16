@@ -19,8 +19,8 @@ function success_exit()
 }
 
 ############## MAIN BODY ###############
-basedir=$(cd `dirname $0`;pwd)
-basedir=$(cd $basedir/..;pwd)
+scriptdir=$(cd `dirname $0`;pwd)
+basedir=$(cd $scriptdir/..;pwd)
 srcdir=$basedir/src
 pkgdir=$basedir/crust-tee
 enclavefile="enclave.signed.so"

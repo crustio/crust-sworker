@@ -22,12 +22,9 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_set_chain_account_id", 0},
     {"Ecall_cmp_chain_account_id", 0},
     {"Ecall_gen_sgx_measurement", 0},
-    {"Ecall_sign_network_entry", 0},
     {"Ecall_main_loop", 0},
-    {"Ecall_generate_work_report", 0},
     {"Ecall_get_signed_work_report", 0},
-    {"Ecall_get_report", 0},
-    {"Ecall_store_quote", 0},
+    {"Ecall_get_quote_report", 0},
     {"Ecall_verify_iasreport", 0},
     {"Ecall_get_signed_order_report", 0},
     {"Ecall_srd_increase", 1},
@@ -38,8 +35,6 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_unseal_file", 2},
     {"Ecall_confirm_file", 2},
     {"Ecall_delete_file", 2},
-    {"Ecall_get_work_report", 3},
-    {"Ecall_return_validation_status", 3},
     {"Ecall_id_get_info", 3},
     {"Ecall_get_workload", 3},
 };
@@ -341,66 +336,6 @@ sgx_status_t Ecall_set_chain_account_id(sgx_enclave_id_t eid, crust_status_t *st
 }
 
 /**
- * @description: A wrapper function, return validation status
- * @return: the validation status
- */
-sgx_status_t Ecall_return_validation_status(sgx_enclave_id_t eid, validation_status_t *status)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_return_validation_status(eid, status);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: A wrapper function, generate work report
- * @param report_len (out) -> report's length
- * @return: status
- */
-sgx_status_t Ecall_generate_work_report(sgx_enclave_id_t eid, crust_status_t *status, size_t *report_len)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_generate_work_report(eid, status, report_len);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: A wrapper function, get validation report
- * @param report (out) -> the validation report
- * @param report_len (in) -> the length of validation report
- * @return: status
- */
-sgx_status_t Ecall_get_work_report(sgx_enclave_id_t eid, crust_status_t *status, char *report, size_t report_len)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_get_work_report(eid, status, report, report_len);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
  * @description: A wrapper function, Get signed validation report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
@@ -409,8 +344,7 @@ sgx_status_t Ecall_get_work_report(sgx_enclave_id_t eid, crust_status_t *status,
  * @param report_len (in) -> work report string length
  * @return: sign status
  * */
-sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height,
-        sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
+sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -418,30 +352,7 @@ sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *
         return ret;
     }
 
-    ret = ecall_get_signed_work_report(eid, status, block_hash, block_height, p_signature, report, report_len);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: A wrapper function, Sign network entry information
- * @param p_partial_data (in) -> Partial data represented off chain node identity
- * @param data_size -> Partial data size
- * @param p_signature (out) -> Pointer to signature
- * @return: Sign status
- * */
-sgx_status_t Ecall_sign_network_entry(sgx_enclave_id_t eid, crust_status_t *status, const char *p_partial_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_sign_network_entry(eid, status, p_partial_data, data_size, p_signature);
+    ret = ecall_get_signed_work_report(eid, status, block_hash, block_height);
 
     free_enclave(__FUNCTION__);
 
@@ -474,7 +385,7 @@ sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status)
  * @param target_info (in) -> Data used to generate report
  * @return: get sgx report status
  * */
-sgx_status_t Ecall_get_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info)
+sgx_status_t Ecall_get_quote_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -482,7 +393,7 @@ sgx_status_t Ecall_get_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_re
         return ret;
     }
 
-    ret = ecall_get_report(eid, status, report, target_info);
+    ret = ecall_get_quote_report(eid, status, report, target_info);
 
     free_enclave(__FUNCTION__);
 
@@ -502,33 +413,6 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
     }
 
     ret = ecall_gen_sgx_measurement(eid, status);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: A wrapper function, Store off-chain node quote and verify signature
- * @param quote (in) -> Pointer to quote
- * @param len -> Quote length
- * @param p_data (in) -> Original data to be verified
- * @param data_size -> Original data length
- * @param p_signature (in) -> Signature of p_data
- * @param p_account_id (in) -> Pointer to chain account id
- * @param account_id_sz -> Chain account id size
- * @return: Store status
- * */
-sgx_status_t Ecall_store_quote(sgx_enclave_id_t eid, crust_status_t *status, const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_store_quote(eid, status, quote, len, p_data, data_size, p_signature, p_account_id, account_id_sz);
 
     free_enclave(__FUNCTION__);
 

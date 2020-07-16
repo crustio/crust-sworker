@@ -14,6 +14,7 @@
 // For meaningful file
 #define FILE_HASH "hash"
 #define FILE_SIZE "size"
+#define FILE_OLD_SIZE "old_size"
 #define FILE_OLD_HASH "old_hash"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_STATUS "status"

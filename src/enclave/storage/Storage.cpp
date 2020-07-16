@@ -47,6 +47,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     std::string org_root_hash_str = tree_json[FILE_HASH].ToString();
+    size_t org_node_size = tree_json[FILE_SIZE].ToInt();
     std::string old_path(path, path_len);
     std::string new_tree;
 
@@ -97,7 +98,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     // Store new tree meta data
     json::JSON tree_meta_json;
     tree_meta_json[FILE_OLD_HASH] = org_root_hash_str;
-    tree_meta_json[FILE_SIZE] = node_size;
+    tree_meta_json[FILE_OLD_SIZE] = org_node_size;
     tree_meta_json[FILE_BLOCK_NUM] = block_num;
     std::string tree_meta_str = tree_meta_json.dump();
     crust_status = persist_set((new_root_hash_str+"_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
@@ -107,7 +108,10 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     // Print sealed file information
-    log_info("Seal complete,please confirm this file for validation,file info:\n%s\n", file_entry_json.dump().c_str());
+    log_info("Seal complete, file info; hash: %s -> size: %d, status: %s\n",
+            file_entry_json["hash"].ToString().c_str(), 
+            file_entry_json["size"].ToInt(), 
+            file_entry_json["status"].ToString().c_str());
 
     // Add new file to buffer
     Workload::get_instance()->add_new_file(file_entry_json);
@@ -484,10 +488,9 @@ crust_status_t storage_confirm_file_real()
         }
     }
 
-    // ----- Update new_files ----- //
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    confirm_acc = 0;
-    for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
+    // ----- Confirm file items in checked_files ----- //
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
     {
         if (confirm_files_s.find((*it)[FILE_HASH].ToString()) != confirm_files_s.end())
         {
@@ -501,13 +504,12 @@ crust_status_t storage_confirm_file_real()
             }
         }
     }
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
-
-    // ----- Update checked_files ----- //
+    // Confirm file items in new_files
     if (confirm_acc < confirm_files_s.size())
     {
-        sgx_thread_mutex_lock(&g_checked_files_mutex);
-        for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
+        sgx_thread_mutex_lock(&g_new_files_mutex);
+        confirm_acc = 0;
+        for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
         {
             if (confirm_files_s.find((*it)[FILE_HASH].ToString()) != confirm_files_s.end())
             {
@@ -521,15 +523,15 @@ crust_status_t storage_confirm_file_real()
                 }
             }
         }
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+        sgx_thread_mutex_unlock(&g_new_files_mutex);
     }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
     // Report real-time order file
     for (auto file_json : confirmed_files_v)
     {
         wl->add_order_file(make_pair(file_json[FILE_HASH].ToString(), file_json[FILE_SIZE].ToInt()));
     }
-
 
     return crust_status;
 }
@@ -633,9 +635,7 @@ crust_status_t storage_delete_file_real()
             }
         }
     }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-
-    // ----- Delete file items in new_files ----- //
+    // Delete file items in new_files
     if (del_acc != del_hashs_s.size())
     {
         sgx_thread_mutex_lock(&g_new_files_mutex);
@@ -651,6 +651,16 @@ crust_status_t storage_delete_file_real()
             }
         }
         sgx_thread_mutex_unlock(&g_new_files_mutex);
+    }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+    // ----- Delete file related data ----- //
+    for (auto dhash : del_hashs_s)
+    {
+        // Delete file tree structure
+        persist_del(dhash);
+        // Delete file metadata
+        persist_del(dhash+"_meta");
     }
 
     // ----- Delete file related data ----- //

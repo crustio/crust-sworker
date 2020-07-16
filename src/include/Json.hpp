@@ -14,6 +14,8 @@
 #include <ostream>
 #include <iostream>
 
+#define JSON_NL "%$&nl&$%"
+
 namespace json
 {
 
@@ -29,6 +31,22 @@ using std::string;
 
 namespace
 {
+void str_replace(std::string &data, std::string org_str, std::string det_str)
+{
+    size_t spos, epos;
+    spos = epos = 0;
+
+    while (true)
+    {
+        spos = data.find(org_str, epos);
+        if (spos == data.npos)
+        {
+            break;
+        }
+        data.replace(spos, org_str.size(), det_str);
+        epos = spos;
+    }
+}
 string json_escape(const string &str)
 {
     string output;
@@ -60,6 +78,7 @@ string json_escape(const string &str)
             output += str[i];
             break;
         }
+    str_replace(output, JSON_NL, "\n        ");
     return std::move(output);
 }
 } // namespace
@@ -446,16 +465,16 @@ public:
         }
         case Class::Array:
         {
-            string s = "[";
+            string s = "[\n" + pad;
             bool skip = true;
             for (auto &p : *Internal.List)
             {
                 if (!skip)
-                    s += ", ";
+                    s += ", \n" + pad;
                 s += p.dump(depth + 1, tab);
                 skip = false;
             }
-            s += "]";
+            s += "\n" + pad.erase(0, 2) + "]";
             return s;
         }
         case Class::String:

@@ -5,7 +5,6 @@
 #include <set>
 #include <tuple>
 #include "sgx_trts.h"
-#include "Node.h"
 #include "MerkleTree.h"
 #include "Workload.h"
 #include "Parameter.h"

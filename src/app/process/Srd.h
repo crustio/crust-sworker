@@ -14,6 +14,9 @@
 #include "DataBase.h"
 #include "Log.h"
 
+#define MIN_SRD_RESERVED 30
+#define DEFAULT_SRD_RESERVED 50
+
 
 #if defined(__cplusplus)
 extern "C"

@@ -124,7 +124,8 @@ function success_exit()
     kill -- -$selfPID &>/dev/null
 }
 
-usage() {
+function usage()
+{
     echo "Usage:"
 		echo "    $0 -h                      Display this help message."
 		echo "    $0 [options]"
@@ -228,13 +229,13 @@ fi
 installAPP
 
 if [ "$DOCKERMODLE" == "0" ]; then
-verbose INFO "Changing diretory owner..." h
-res=0
-chown -R $uid:$uid $crustteedir
-res=$(($?|$res))
-chown -R $uid:$uid $crusttooldir
-res=$(($?|$res))
-checkRes $res "quit" "success"
+    verbose INFO "Changing diretory owner..." h
+    res=0
+    chown -R $uid:$uid $crustteedir
+    res=$(($?|$res))
+    chown -R $uid:$uid $crusttooldir
+    res=$(($?|$res))
+    checkRes $res "quit" "success"
 fi
 
 verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee/$newversion!"
