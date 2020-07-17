@@ -45,7 +45,6 @@ void srd_change()
     // Get real srd space
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     long srd_change_num = 0;
-    long org_change_num = g_srd_change;
     if (g_srd_change > SRD_MAX_PER_TURN)
     {
         srd_change_num = SRD_MAX_PER_TURN;
