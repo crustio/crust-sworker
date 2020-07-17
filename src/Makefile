@@ -4,8 +4,8 @@ define setMaxThreadNum
 	max_thread_num=$$(cat enclave/Enclave.config.xml | grep -Po "(?<=<TCSNum>).*(?=</TCSNum>)"); \
 	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" app/ecalls/ECalls.h; \
 	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" enclave/Parameter.h; \
-	cat include/CrustStatus.h | grep "#define VERSION" | awk '{print $$3}' | sed 's/"//g' > ../VERSION; \
-	tee_version=$$(cat include/CrustStatus.h | grep "#define TEE_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
+	cat include/Resource.h | grep "#define VERSION" | awk '{print $$3}' | sed 's/"//g' > ../VERSION; \
+	tee_version=$$(cat enclave/Parameter.h | grep "#define TEE_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
 	echo "TEE=$$tee_version" >> ../VERSION
 endef
 

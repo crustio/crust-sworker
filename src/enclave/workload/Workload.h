@@ -15,6 +15,7 @@
 #include "Persistence.h"
 #include "EJson.h"
 #include "Identity.h"
+#include "Srd.h"
 #include "Parameter.h"
 
 class Workload

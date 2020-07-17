@@ -49,42 +49,9 @@ int SGX_CDECL main(int argc, char *argv[])
             p_log->open_debug();
             p_log->debug("Debug log is opened.\n");
         }
-        else if (strcmp(argv[i], "--update") == 0)
+        else if (strcmp(argv[i], "--upgrade") == 0)
         {
-            if (i + 1 < argc)
-            {
-                // Get srd reserved space
-                long srd_reserved_space = 0;
-                if (!is_number(argv[i+1]))
-                {
-                    // If old TEE url is provided, get srd reserved space from it
-                    srd_reserved_space = get_old_reserved_space(argv[i+1]) - 10;
-                }
-                else
-                {
-                    srd_reserved_space = atoi(argv[i+1]);
-                }
-                // Check if srd reserved is valid
-                if (srd_reserved_space < 0)
-                {
-                    p_log->err("Get old srd reserved space failed!\n");
-                    return 1;
-                }
-                else if (srd_reserved_space < 10)
-                {
-                    p_log->err("Old srd reserved:%ld is less than 10!\n", srd_reserved_space);
-                    return 1;
-                }
-                set_reserved_space(srd_reserved_space);
-                p_log->info("Update is performed!Srd reserved space has been set to %ld.\
-                        Make sure you have set srd space in your config file!\n", srd_reserved_space);
-                i++;
-            }
-            else
-            {
-                p_log->err("--update option needs srd space as argument!\n");
-                goto show_help;
-            }
+            srd_init_upgrade();
         }
         else
         {
@@ -114,7 +81,7 @@ show_help:
     printf("           -v, --version: show whole version and TEE version. \n");
     printf("           --offline: add this flag, program will not interact with the chain. \n");
     printf("           --debug: add this flag, program will output debug logs. \n");
-    printf("           --update: used to update, parameter can be:\n");
+    printf("           --upgrade: used to upgrade, parameter can be:\n");
     printf("               1.Srd space(should not exceed old TEE), like 40,\n");
     printf("               2.Old TEE url, like 'http://localhost:12222/api/v0', it can be used to get old TEE srd_reserved_space.\n");
     printf("                 And new TEE's srd_reserved_space will be set to (old_srd_reserved_space - 10).\n");

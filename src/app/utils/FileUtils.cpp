@@ -222,6 +222,7 @@ bool create_directory(std::string path)
 {
     if (access(path.c_str(), 0) == -1)
     {
+        // TODO: If we run this in windows?
         if (system((std::string("mkdir -p ") + path).c_str()) == -1)
         {
             return false;

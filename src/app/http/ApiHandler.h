@@ -173,41 +173,40 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             wl_json["srd"]["disk_reserved"] = get_reserved_space();
             size_t tmp_size = 0;
             json::JSON disk_json = get_increase_srd_info(tmp_size);
-            for (auto it = wl_json["srd"]["detail"].ObjectRange().begin(); 
-                    it != wl_json["srd"]["detail"].ObjectRange().end(); it++)
+            if (wl_json["srd"]["detail"].JSONType() == json::JSON::Class::Object)
             {
-                (it->second)["available"] = disk_json[it->first]["available"];
-                (it->second)["cannotuse"] = get_reserved_space();
-                std::string disk_item = (it->second).dump();
-                remove_char(disk_item, '\n');
-                it->second = disk_item;
+                for (auto it = wl_json["srd"]["detail"].ObjectRange().begin(); 
+                        it != wl_json["srd"]["detail"].ObjectRange().end(); it++)
+                {
+                    (it->second)["available"] = disk_json[it->first]["available"];
+                    std::string disk_item = (it->second).dump();
+                    remove_char(disk_item, '\n');
+                    it->second = disk_item;
+                }
             }
             // Get file info
             json::JSON files_json = wl_json["files"];
-            int size_max = 0;
-            for (auto it = files_json.ObjectRange().begin(); it != files_json.ObjectRange().end(); it++)
-            {
-                std::string it_str = it->second.ToString();
-                remove_char(it_str, '\\');
-                json::JSON it_json = json::JSON::Load(it_str);
-                size_max = std::max(size_max, (int)std::to_string(it_json["size"].ToInt()).size());
-                it->second = it_json;
-            }
-            char buf1[128];
-            char buf2[128];
             json::JSON n_files_json;
-            for (auto it = files_json.ObjectRange().begin(); it != files_json.ObjectRange().end(); it++)
+            if (files_json.JSONType() == json::JSON::Class::Object)
             {
-                memset(buf1, 0, sizeof(buf1));
-                memset(buf2, 0, sizeof(buf2));
-                sprintf(buf1, "{  \"hash\"        : \"%s\", \"size\"        : %-*ld, ",
-                        (it->second)["old_hash"].ToString().c_str(), size_max, (it->second)["old_size"].ToInt());
-                sprintf(buf2, "   \"sealed_hash\" : \"%s\", \"sealed_size\" : %-*ld  }",
-                        (it->first).c_str(), size_max, (it->second)["sealed_size"].ToInt());
-                std::string tmp_str = std::string(buf1) + JSON_NL + std::string(buf2);
-                std::string fstatus = (it->second)["status"].ToString();
-                n_files_json[fstatus]["detail"].append(tmp_str);
-                n_files_json[fstatus]["number"] = n_files_json[fstatus]["number"].ToInt() + 1;
+                char buf1[128];
+                char buf2[128];
+                for (auto it = files_json.ObjectRange().begin(); it != files_json.ObjectRange().end(); it++)
+                {
+                    std::string item_str = it->second.ToString();
+                    remove_char(item_str, '\\');
+                    json::JSON item_json = json::JSON::Load(item_str);
+                    memset(buf1, 0, sizeof(buf1));
+                    memset(buf2, 0, sizeof(buf2));
+                    sprintf(buf1, "{  \"hash\"        : \"%s\", \"size\"        : %ld, ",
+                            item_json["old_hash"].ToString().c_str(), item_json["old_size"].ToInt());
+                    sprintf(buf2, "   \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld  }",
+                            (it->first).c_str(), item_json["sealed_size"].ToInt());
+                    std::string tmp_str = std::string(buf1) + JSON_NL + std::string(buf2);
+                    std::string fstatus = item_json["status"].ToString();
+                    n_files_json[fstatus]["detail"].append(tmp_str);
+                    n_files_json[fstatus]["number"] = n_files_json[fstatus]["number"].ToInt() + 1;
+                }
             }
             wl_json["files"] = n_files_json;
             std::string wl_str = wl_json.dump();
@@ -227,15 +226,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Get enclave id information ----- //
-        cur_path = urlendpoint->base + "/enclave/id_info";
-        if (path.compare(cur_path) == 0)
-        {
-            Ecall_id_get_info(global_eid);
-            res.body() = get_g_enclave_id_info();
-            goto getcleanup;
-        }
-
-        // Get enclave id information
         cur_path = urlendpoint->base + "/enclave/id_info";
         if (path.compare(cur_path) == 0)
         {
@@ -312,7 +302,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // --- Change srd reserved space --- //
-        cur_path = urlendpoint->base + "/srd/stop";
+        cur_path = urlendpoint->base + "/srd/reset";
         if (path.compare(cur_path) == 0)
         {
             res.result(200);

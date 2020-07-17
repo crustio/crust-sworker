@@ -32,6 +32,9 @@ using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 
 crust::Log *p_log = crust::Log::get_instance();
 
+bool g_start_server_success = true;
+std::mutex g_start_server_mutex;
+
 // Return a reasonable mime type based on the extension of a file.
 beast::string_view mime_type(beast::string_view path)
 {
@@ -740,6 +743,8 @@ WebServer::WebServer(
 {
     beast::error_code ec;
 
+    endpoint_ = endpoint;
+
     // Open the acceptor
     acceptor_.open(endpoint.protocol(), ec);
     if(ec)
@@ -755,13 +760,19 @@ WebServer::WebServer(
         fail(ec, "set_option");
         return;
     }
+}
+
+// Start accepting incoming connections
+bool WebServer::run()
+{
+    beast::error_code ec;
 
     // Bind to the server address
-    acceptor_.bind(endpoint, ec);
+    acceptor_.bind(endpoint_, ec);
     if(ec)
     {
         fail(ec, "bind");
-        return;
+        return false;
     }
 
     // Start listening for connections
@@ -770,14 +781,12 @@ WebServer::WebServer(
     if(ec)
     {
         fail(ec, "listen");
-        return;
+        return false;
     }
-}
 
-// Start accepting incoming connections
-void WebServer::run()
-{
     do_accept();
+
+    return true;
 }
 
 void WebServer::do_accept()
@@ -836,7 +845,14 @@ void start_webservice(void)
     load_server_certificate(ctx);
 
     // Create and launch a server
-    std::make_shared<WebServer>(ioc, ctx, tcp::endpoint{address, port}, doc_root)->run();
+    if (! std::make_shared<WebServer>(ioc, ctx, tcp::endpoint{address, port}, doc_root)->run())
+    {
+        g_start_server_success = false;
+        g_start_server_mutex.unlock();
+        return;
+    }
+
+    g_start_server_mutex.unlock();
 
     // Capture SIGINT and SIGTERM to perform a clean shutdown
     //net::signal_set signals(ioc, SIGINT, SIGTERM);
@@ -853,11 +869,13 @@ void start_webservice(void)
     std::vector<std::thread> v;
     v.reserve(threads - 1);
     for(auto i = threads - 1; i > 0; --i)
+    {
         v.emplace_back(
         [&ioc]
         {
             ioc.run();
         });
+    }
     ioc.run();
 
     // (If we get here, it means we got a SIGINT or SIGTERM)

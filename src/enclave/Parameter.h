@@ -1,6 +1,8 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
+#define TEE_VERSION "0.5.0"
+
 #define LEAF_SEPARATOR  "+leaf+"
 
 // For enclave metadata

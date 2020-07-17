@@ -3,6 +3,7 @@
 #include "leveldb/write_batch.h"
 #include "Config.h"
 #include "Log.h"
+#include "FileUtils.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -23,6 +24,7 @@ DataBase *DataBase::get_instance()
 
         leveldb::Options options;
         options.create_if_missing = true;
+        create_directory(Config::get_instance()->db_path);
         leveldb::Status s = leveldb::DB::Open(options, Config::get_instance()->db_path.c_str(), &database->db);
         if (!s.ok())
         {

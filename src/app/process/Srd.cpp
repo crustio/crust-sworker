@@ -147,21 +147,24 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
     // Calculate available and assigned size
     size_t total_avail = 0;
     size_t total_assigned = 0;
-    auto disk_range = disk_info_json.ObjectRange();
-    for (auto it = disk_range.begin(); it != disk_range.end(); it++)
+    if (disk_info_json.JSONType() == json::JSON::Class::Object)
     {
-        if (!it->second.hasKey("assigned") || it->second["assigned"].ToInt() == 0)
+        auto disk_range = disk_info_json.ObjectRange();
+        for (auto it = disk_range.begin(); it != disk_range.end(); it++)
         {
-            continue;
-        }
-        json::JSON tmp;
-        tmp["path"] = it->first;
-        tmp["available"] = get_avail_space_under_dir_g(it->first);
-        tmp["assigned"] = it->second["assigned"];
-        disk_info_v.push_back(tmp);
+            if (!it->second.hasKey("assigned") || it->second["assigned"].ToInt() == 0)
+            {
+                continue;
+            }
+            json::JSON tmp;
+            tmp["path"] = it->first;
+            tmp["available"] = get_avail_space_under_dir_g(it->first);
+            tmp["assigned"] = it->second["assigned"];
+            disk_info_v.push_back(tmp);
 
-        total_avail += tmp["available"].ToInt();
-        total_assigned += tmp["assigned"].ToInt();
+            total_avail += tmp["available"].ToInt();
+            total_assigned += tmp["assigned"].ToInt();
+        }
     }
     true_srd_capacity = std::min(total_assigned, true_srd_capacity);
 
@@ -202,11 +205,29 @@ void srd_change(long change)
         {
             long left_srd_num = change - true_increase;
             Ecall_srd_set_change(global_eid, left_srd_num);
-            p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
+            //p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
         }
         if (true_increase == 0)
         {
-            p_log->warn("No available space for srd!\n");
+            //p_log->warn("No available space for srd!\n");
+            // Check if upgrading
+            crust::DataBase *db = crust::DataBase::get_instance();
+            std::string upgrade_info;
+            if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info))
+            {
+                json::JSON upgrade_json = json::JSON::Load(upgrade_info);
+                upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = upgrade_json[SRD_UPGRADE_INFO_TIMEOUT].ToInt() + 1;
+                if (upgrade_json[SRD_UPGRADE_INFO_TIMEOUT].ToInt() > SRD_UPGRADE_TIMEOUT)
+                {
+                    // If timeout, reset srd reserved space and delete SRD_UPGRADE_INFO
+                    set_reserved_space(DEFAULT_SRD_RESERVED);
+                    db->del(SRD_UPGRADE_INFO);
+                }
+                else
+                {
+                    db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
+                }
+            }
             return;
         }
         // Print disk info
@@ -297,11 +318,11 @@ void srd_check_reserved(void)
     crust::DataBase *db = crust::DataBase::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
-    std::string srd_info_str;
-    long srd_reserved_space = get_reserved_space();
 
     while (true)
     {
+        std::string srd_info_str;
+        long srd_reserved_space = get_reserved_space();
         // Lock srd_info
         srd_info_mutex.lock();
         if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_info_str)))
@@ -390,4 +411,16 @@ long get_old_reserved_space(std::string url)
     delete client;
 
     return srd_reserved_space;
+}
+
+/**
+ * @description: Initialize srd upgrade
+ * */
+void srd_init_upgrade()
+{
+    crust::DataBase *db = crust::DataBase::get_instance();
+    json::JSON upgrade_json;
+    upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = 0;
+    db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
+    set_reserved_space(DEFAULT_SRD_RESERVED - 10);
 }

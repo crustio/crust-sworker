@@ -6,9 +6,6 @@
 
 using namespace std;
 
-extern long g_srd_change;
-extern sgx_thread_mutex_t g_srd_change_mutex;
-
 //------------------Srd ecalls-----------------//
 
 /**
@@ -36,9 +33,8 @@ size_t ecall_srd_decrease(long change)
  * */
 void ecall_srd_set_change(long change)
 {
-    sgx_thread_mutex_lock(&g_srd_change_mutex);
-    g_srd_change += change;
-    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+    long srd_change = get_srd_change() + change;
+    set_srd_change(srd_change);
 }
 
 /**

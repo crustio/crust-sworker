@@ -53,6 +53,7 @@ std::string Workload::get_workload(void)
     size_t srd_workload = 0;
     json::JSON wl_json;
     json::JSON md_json;
+    memset(srd_root, 0, sizeof(sgx_sha256_hash_t));
 
     // ----- workload info ----- //
     id_get_metadata(md_json);
@@ -60,8 +61,8 @@ std::string Workload::get_workload(void)
     this->get_srd_info(&srd_root, &srd_workload, md_json);
     wl_json["srd"]["root_hash"] = hexstring_safe(srd_root, HASH_LENGTH);
     wl_json["srd"]["space"] = srd_workload / 1024 / 1024 / 1024;
+    wl_json["srd"]["remaining_task"] = get_srd_change();
     // file info
-    wl_json["files"] = json::Array();
     if (md_json.hasKey(ID_FILE) && md_json[ID_FILE].size() > 0)
     {
         for (int i = 0; i < md_json[ID_FILE].size(); i++)
@@ -121,8 +122,6 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *s
     if (! md_json.hasKey(ID_WORKLOAD) 
             || md_json[ID_WORKLOAD].JSONType() != json::JSON::Class::Object)
     {
-        memset(srd_root_out, 0, sizeof(sgx_sha256_hash_t));
-        *srd_workload_out = 0;
         return CRUST_SUCCESS;
     }
     // Get hashs for hashing
