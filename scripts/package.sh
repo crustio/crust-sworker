@@ -20,13 +20,13 @@ function success_exit()
 
 ############## MAIN BODY ###############
 basedir=$(cd `dirname $0`;pwd)
-basedir=$(cd $basedir/..;pwd)
-srcdir=$basedir/src
-pkgdir=$basedir/crust-tee
+instdir=$(cd $basedir/..;pwd)
+srcdir=$instdir/src
+pkgdir=$instdir/crust-tee
 enclavefile="enclave.signed.so"
-SYNCFILE=$basedir/.syncfile
+SYNCFILE=$instdir/.syncfile
 
-. $basedir/scripts/utils.sh
+. $instdir/scripts/utils.sh
 
 true > $SYNCFILE
 
@@ -34,11 +34,10 @@ trap "success_exit" INT
 trap "success_exit" EXIT
 
 # Write version
-cat $basedir/src/include/CrustStatus.h | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' > $basedir/VERSION
-tee_version=$(cat $basedir/src/include/CrustStatus.h | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g') 
-echo "TEE=$tee_version" >> $basedir/VERSION
+getVERSION > $instdir/VERSION
+echo "TEE=$(getTEEVERSION)" >> $instdir/VERSION
 
-newversion=$(cat $basedir/VERSION | head -n 1)
+newversion=$(cat $instdir/VERSION | head -n 1)
 verbose INFO "Start packaging tee, version is $newversion..."
 
 # Create directory
@@ -47,7 +46,7 @@ mkdir -p $pkgdir
 mkdir -p $pkgdir/etc
 
 # Install dependencies
-$SUDO bash $basedir/scripts/install_deps.sh
+$SUDO bash $instdir/scripts/install_deps.sh
 if [ $? -ne 0 ]; then
     verbose ERROR "Install dependencies failed!"
     exit 1

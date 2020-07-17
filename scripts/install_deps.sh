@@ -298,7 +298,11 @@ usage() {
 
 ############## MAIN BODY ###############
 # basic variable
-scriptdir=$(cd `dirname $0`;pwd)
+basedir=$(cd `dirname $0`;pwd)
+scriptdir=$basedir
+### Import parameters {{{
+. $scriptdir/utils.sh
+### }}}
 TMPFILE=$scriptdir/tmp.$$
 ERRFILE=$scriptdir/err.log
 rsrcdir=$scriptdir/../resource

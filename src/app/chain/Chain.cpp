@@ -1,6 +1,8 @@
 #include "Chain.h"
+#include "HttpClient.h"
 
 crust::Log *p_log = crust::Log::get_instance();
+HttpClient *pri_chain_client = NULL;
 
 namespace crust
 {
@@ -30,10 +32,11 @@ Chain *Chain::get_instance()
  */
 Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp)
 {
+    this->url = url;
     this->url_end_point = get_url_end_point(url);
-    this->chain_client = new httplib::Client(this->url_end_point->ip, this->url_end_point->port);
     this->password = password_tmp;
     this->backup = backup_tmp;
+    pri_chain_client = new HttpClient();
 }
 
 /**
@@ -41,7 +44,11 @@ Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp)
  */
 Chain::~Chain()
 {
-    delete this->chain_client;
+    if (pri_chain_client != NULL)
+    {
+        delete pri_chain_client;
+        pri_chain_client = NULL;
+    }
 }
 
 /**
@@ -50,29 +57,20 @@ Chain::~Chain()
  */
 BlockHeader *Chain::get_block_header(void)
 {
-    try
+    std::string path = this->url + "/block/header";
+    http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
+    if ((int)res.result() == 200)
     {
-        std::string path = this->url_end_point->base + "/block/header";
-        auto res = this->chain_client->Get(path.c_str());
-        if (res && res->status == 200)
-        {
-            json::JSON block_header_json = json::JSON::Load(res->body);
-
-            BlockHeader *block_header = new BlockHeader();
-            block_header->hash = block_header_json["hash"].ToString().erase(0,2);
-            block_header->number = block_header_json["number"].ToInt();
-            return block_header;
-        }
-        else if (res)
-        {
-            p_log->err("%s\n", res->body.c_str());
-        }
-
-        return NULL;
+        json::JSON block_header_json = json::JSON::Load(res.body());
+        BlockHeader *block_header = new BlockHeader();
+        block_header->hash = block_header_json["hash"].ToString().erase(0,2);
+        block_header->number = block_header_json["number"].ToInt();
+        return block_header;
     }
-    catch (const std::exception &e)
+
+    if (res.body().size() != 0)
     {
-        p_log->err("HTTP throw: %s\n", e.what());
+        p_log->err("%s\n", res.body().c_str());
     }
 
     return NULL;
@@ -86,24 +84,16 @@ BlockHeader *Chain::get_block_header(void)
  * */
 std::string Chain::get_block_hash(size_t block_number)
 {
-    try
+    std::string url = this->url + "/block/hash?blockNumber=" + std::to_string(block_number);
+    http::response<http::string_body> res = pri_chain_client->Get(url.c_str());
+    if ((int)res.result() == 200)
     {
-        std::string url = this->url_end_point->base + "/block/hash?blockNumber=" + std::to_string(block_number);
-        auto res = this->chain_client->Get(url.c_str());
-        if (res && res->status == 200)
-        {
-            return res->body.substr(3, 64);
-        }
-        else if (res)
-        {
-            p_log->err("%s\n", res->body.c_str());
-        }
-
-        return "";
+        return res.body().substr(3, 64);
     }
-    catch (const std::exception &e)
+
+    if (res.body().size() != 0)
     {
-        p_log->err("HTTP throw: %s\n", e.what());
+        p_log->err("%s\n", res.body().c_str());
     }
 
     return "";
@@ -116,24 +106,16 @@ std::string Chain::get_block_hash(size_t block_number)
  * */
 bool Chain::is_online(void)
 {
-    try
+    std::string path = this->url + "/block/header";
+    http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
+    if ((int)res.result() == 200)
     {
-        std::string path = this->url_end_point->base + "/block/header";
-        auto res = this->chain_client->Get(path.c_str());
-        if (res && res->status == 200)
-        {
-            return true;
-        }
-        else if (res)
-        {
-            p_log->err("%s\n", res->body.c_str());
-        }
-
-        return false;
+        return true;
     }
-    catch (const std::exception &e)
+
+    if (res.body().size() != 0)
     {
-        p_log->err("HTTP throw: %s\n", e.what());
+        p_log->err("%s\n", res.body().c_str());
     }
 
     return false;
@@ -186,29 +168,21 @@ bool Chain::post_tee_identity(std::string identity)
 {
     for(int i = 0; i < 3; i++)
     {
-        try
+        std::string path = this->url + "/tee/identity";
+        ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
+
+        json::JSON obj = json::JSON::Load(identity);
+        obj["backup"] = this->backup;
+        http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
+
+        if ((int)res.result() == 200)
         {
-            std::string path = this->url_end_point->base + "/tee/identity";
-            httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
-
-            json::JSON obj = json::JSON::Load(identity);
-            obj["backup"] = this->backup;
-            auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
-
-            if (res && res->status == 200)
-            {
-                return true;
-            }
-            else if (res)
-            {
-                p_log->err("%s\n", res->body.c_str());
-            }
-
-            return false;
+            return true;
         }
-        catch (const std::exception &e)
+
+        if (res.body().size() != 0)
         {
-            p_log->err("HTTP throw: %s\n", e.what());
+            p_log->err("%s\n", res.body().c_str());
         }
     }
 
@@ -224,29 +198,21 @@ bool Chain::post_tee_work_report(std::string work_report)
 {
     for(int i = 0; i < 3; i++)
     {
-        try
+        std::string path = this->url + "/tee/workreport";
+        ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
+
+        json::JSON obj = json::JSON::Load(work_report);
+        obj["backup"] = this->backup;
+        http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
+
+        if ((int)res.result() == 200)
         {
-            std::string path = this->url_end_point->base + "/tee/workreport";
-            httplib::Headers headers = {{"password", this->password}, {"Content-Type", "application/json"}};
-
-            json::JSON obj = json::JSON::Load(work_report);
-            obj["backup"] = this->backup;
-            auto res = this->chain_client->Post(path.c_str(), headers, obj.dump(), "application/json");
-
-            if (res && res->status == 200)
-            {
-                return true;
-            }
-            else if (res)
-            {
-                p_log->err("%s\n", res->body.c_str());
-            }
-
-            return false;
+            return true;
         }
-        catch (const std::exception &e)
+
+        if (res.body().size() != 0)
         {
-            p_log->err("HTTP throw: %s\n", e.what());
+            p_log->err("%s\n", res.body().c_str());
         }
     }
 

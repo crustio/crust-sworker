@@ -14,6 +14,16 @@
 #include "DataBase.h"
 #include "Log.h"
 
+// Indicates minimal srd reserved space
+#define MIN_SRD_RESERVED 30
+// Indicates maximal srd reserved space
+#define DEFAULT_SRD_RESERVED 50
+// Indicates srd upgrade timeout
+#define SRD_UPGRADE_TIMEOUT 20
+
+#define SRD_UPGRADE_INFO "srd_upgrade_info"
+#define SRD_UPGRADE_INFO_TIMEOUT "timeout"
+
 
 #if defined(__cplusplus)
 extern "C"
@@ -27,6 +37,7 @@ void srd_check_reserved(void);
 void set_reserved_space(size_t reserved);
 size_t get_reserved_space();
 long get_old_reserved_space(std::string url);
+void srd_init_upgrade();
 
 #if defined(__cplusplus)
 }

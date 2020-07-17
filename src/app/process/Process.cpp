@@ -1,6 +1,8 @@
 #include "Process.h"
 #include "DataBase.h"
 #include "WebServer.h"
+#include "EntryNetwork.h"
+#include "Chain.h"
 #include "tbb/concurrent_unordered_map.h"
 
 #include <future>
@@ -8,7 +10,7 @@
 
 #define RECEIVE_PID_RETRY 30
 
-/* Global EID shared by multiple threads */
+// Global EID shared by multiple threads
 sgx_enclave_id_t global_eid;
 // Pointor to configure instance
 Config *p_config = NULL;
@@ -19,6 +21,8 @@ std::vector<std::pair<std::shared_ptr<std::future<void>>, task_func_t>> g_tasks_
 
 crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
+extern bool g_start_server_success;
+extern std::mutex g_start_server_mutex;
 
 /**
  * @description: Init configuration
@@ -113,8 +117,17 @@ bool initialize_components(void)
     }
 
     // Start http service
+    g_start_server_mutex.lock();
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
             std::async(std::launch::async, &start_webservice)), &start_webservice));
+    g_start_server_mutex.lock();
+    if (!g_start_server_success)
+    {
+        p_log->err("Start web service failed!\n");
+        g_start_server_mutex.unlock();
+        return false;
+    }
+    g_start_server_mutex.unlock();
 
     // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)

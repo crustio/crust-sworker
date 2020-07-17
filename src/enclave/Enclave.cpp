@@ -6,11 +6,6 @@
 
 using namespace std;
 
-/* Used to store validation status */
-validation_status_t validation_status = VALIDATE_STOP;
-extern long g_srd_change;
-extern sgx_thread_mutex_t g_srd_change_mutex;
-
 //------------------Srd ecalls-----------------//
 
 /**
@@ -38,9 +33,8 @@ size_t ecall_srd_decrease(long change)
  * */
 void ecall_srd_set_change(long change)
 {
-    sgx_thread_mutex_lock(&g_srd_change_mutex);
-    g_srd_change += change;
-    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+    long srd_change = get_srd_change() + change;
+    set_srd_change(srd_change);
 }
 
 /**
@@ -69,11 +63,9 @@ void ecall_main_loop()
         storage_confirm_file_real();
 
         // ----- Meaningful validate ----- //
-        validation_status = VALIDATE_MEANINGFUL;
         validate_meaningful_file();
 
         // ----- SRD validate ----- //
-        validation_status = VALIDATE_EMPTY;
         validate_srd();
 
         // ----- SRD ----- //
@@ -88,7 +80,6 @@ void ecall_main_loop()
         // Add validated proof
         report_add_validated_proof();
 
-        validation_status = VALIDATE_WAITING;
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
 }
@@ -125,36 +116,6 @@ crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
 }
 
 /**
- * @description: return validation status
- * @return: the validation status
- */
-validation_status_t ecall_return_validation_status(void)
-{
-    return validation_status;
-}
-
-/**
- * @description: generate work report
- * @param report_len (out) -> report's length
- * @return: status
- */
-crust_status_t ecall_generate_work_report(size_t *report_len)
-{
-    return generate_work_report(report_len);
-}
-
-/**
- * @description: get validation report
- * @param report (out) -> the validation report
- * @param report_len (in) -> the length of validation report
- * @return: status
- */
-crust_status_t ecall_get_work_report(char *report, size_t report_len)
-{
-    return get_work_report(report, report_len);
-}
-
-/**
  * @description: Get signed validation report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
@@ -163,10 +124,9 @@ crust_status_t ecall_get_work_report(char *report, size_t report_len)
  * @param report_len (in) -> work report string length
  * @return: sign status
  * */
-crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block_height,
-        sgx_ec256_signature_t *p_signature, char *report, size_t report_len)
+crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block_height)
 {
-    return get_signed_work_report(block_hash, block_height, p_signature, report, report_len);
+    return get_signed_work_report(block_hash, block_height);
 }
 
 /**
@@ -176,19 +136,6 @@ crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block
 crust_status_t ecall_get_signed_order_report()
 {
     return get_signed_order_report();
-}
-
-/**
- * @description: Sign network entry information
- * @param p_partial_data (in) -> Partial data represented off chain node identity
- * @param data_size -> Partial data size
- * @param p_signature (out) -> Pointer to signature
- * @return: Sign status
- * */
-crust_status_t ecall_sign_network_entry(const char *p_partial_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature)
-{
-    return id_sign_network_entry(p_partial_data, data_size, p_signature);
 }
 
 /**
@@ -207,9 +154,9 @@ sgx_status_t ecall_gen_key_pair()
  * @param target_info (in) -> Data used to generate report
  * @return: get sgx report status
  * */
-sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_info)
+sgx_status_t ecall_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
-    return id_get_report(report, target_info);
+    return id_get_quote_report(report, target_info);
 }
 
 /**
@@ -219,23 +166,6 @@ sgx_status_t ecall_get_report(sgx_report_t *report, sgx_target_info_t *target_in
 sgx_status_t ecall_gen_sgx_measurement()
 {
     return id_gen_sgx_measurement();
-}
-
-/**
- * @description: Store off-chain node quote and verify signature
- * @param quote (in) -> Pointer to quote
- * @param len -> Quote length
- * @param p_data (in) -> Original data to be verified
- * @param data_size -> Original data length
- * @param p_signature (in) -> Signature of p_data
- * @param p_account_id (in) -> Pointer to chain account id
- * @param account_id_sz -> Chain account id size
- * @return: Store status
- * */
-crust_status_t ecall_store_quote(const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz)
-{
-    return id_store_quote(quote, len, p_data, data_size, p_signature, p_account_id, account_id_sz);
 }
 
 /**

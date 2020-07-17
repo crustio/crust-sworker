@@ -16,9 +16,9 @@
 #include "Config.h"
 #include "Process.h"
 #include "Log.h"
+#include "Srd.h"
+#include "../enclave/Parameter.h"
 
 int main_daemon(void);
-int main_status(void);
-int main_report(void);
 
 #endif /* !_CRUST_APP_H_ */

@@ -3,6 +3,7 @@
 #include "leveldb/write_batch.h"
 #include "Config.h"
 #include "Log.h"
+#include "FileUtils.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -23,6 +24,7 @@ DataBase *DataBase::get_instance()
 
         leveldb::Options options;
         options.create_if_missing = true;
+        create_directory(Config::get_instance()->db_path);
         leveldb::Status s = leveldb::DB::Open(options, Config::get_instance()->db_path.c_str(), &database->db);
         if (!s.ok())
         {
@@ -116,7 +118,7 @@ crust_status_t DataBase::get(std::string key, std::string &value)
     leveldb::Status s = this->db->Get(leveldb::ReadOptions(), key, &value);
     if (!s.ok())
     {
-        p_log->debug("Get record from DB failed!Error: %s\n", s.ToString().c_str());
+        //p_log->debug("Get record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_GET_FAILED;
     }
 

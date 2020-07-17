@@ -8,6 +8,8 @@ std::string g_order_report;
 std::string g_enclave_id_info;
 // Store enclave workload information
 std::string g_enclave_workload;
+// Store signed work report
+std::string g_enclave_workreport;
 
 std::string get_g_tee_identity()
 {
@@ -47,4 +49,14 @@ std::string get_g_enclave_workload()
 void set_g_enclave_workload(std::string workload)
 {
     g_enclave_workload = workload;
+}
+
+std::string get_g_enclave_workreport()
+{
+    return g_enclave_workreport;
+}
+
+void set_g_enclave_workreport(std::string workreport)
+{
+    g_enclave_workreport = workreport;
 }

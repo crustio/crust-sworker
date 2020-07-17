@@ -44,22 +44,12 @@ sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);
 sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status);
 sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len);
 sgx_status_t Ecall_set_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len);
-sgx_status_t Ecall_return_validation_status(sgx_enclave_id_t eid, validation_status_t *status);
-sgx_status_t Ecall_generate_work_report(sgx_enclave_id_t eid, crust_status_t *status, size_t *report_len);
-sgx_status_t Ecall_get_work_report(sgx_enclave_id_t eid, crust_status_t *status, char *report, size_t report_len);
 
-sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height,
-        sgx_ec256_signature_t *p_signature, char *report, size_t report_len);
-
-sgx_status_t Ecall_sign_network_entry(sgx_enclave_id_t eid, crust_status_t *status, const char *p_partial_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature);
+sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height);
 
 sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status);
-sgx_status_t Ecall_get_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info);
+sgx_status_t Ecall_get_quote_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *status);
-
-sgx_status_t Ecall_store_quote(sgx_enclave_id_t eid, crust_status_t *status, const char *quote, size_t len, const uint8_t *p_data, uint32_t data_size,
-        sgx_ec256_signature_t *p_signature, const uint8_t *p_account_id, uint32_t account_id_sz);
 
 sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
 

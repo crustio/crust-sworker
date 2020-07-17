@@ -17,6 +17,8 @@ std::string get_g_enclave_id_info();
 void set_g_enclave_id_info(std::string id_info);
 std::string get_g_enclave_workload();
 void set_g_enclave_workload(std::string workload);
+std::string get_g_enclave_workreport();
+void set_g_enclave_workreport(std::string workreport);
 
 #if defined(__cplusplus)
 }

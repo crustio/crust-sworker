@@ -48,31 +48,44 @@ Workload::~Workload()
  */
 std::string Workload::get_workload(void)
 {
-    sgx_sha256_hash_t empty_root;
-    size_t empty_workload = 0;
-    this->generate_empty_info(&empty_root, &empty_workload);
+    crust_status_t crust_status = CRUST_SUCCESS;
+    sgx_sha256_hash_t srd_root;
+    size_t srd_workload = 0;
     json::JSON wl_json;
+    json::JSON md_json;
+    memset(srd_root, 0, sizeof(sgx_sha256_hash_t));
 
-    // ----- Get workload ----- //
+    // ----- workload info ----- //
+    id_get_metadata(md_json);
     // Srd info
-    wl_json["srd"]["root_hash"] = hexstring_safe(empty_root, HASH_LENGTH);
-    wl_json["srd"]["space"] = empty_workload / 1024 / 1024 / 1024;
+    this->get_srd_info(&srd_root, &srd_workload, md_json);
+    wl_json["srd"]["root_hash"] = hexstring_safe(srd_root, HASH_LENGTH);
+    wl_json["srd"]["space"] = srd_workload / 1024 / 1024 / 1024;
+    wl_json["srd"]["remaining_task"] = get_srd_change();
     // file info
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    wl_json["files"] = json::Array();
-    if (this->checked_files.size() != 0)
+    if (md_json.hasKey(ID_FILE) && md_json[ID_FILE].size() > 0)
     {
-        for (uint32_t i = 0; i < this->checked_files.size(); i++)
+        for (int i = 0; i < md_json[ID_FILE].size(); i++)
         {
             json::JSON tmp_json;
-            tmp_json["size"] = this->checked_files[i][FILE_SIZE];
-            tmp_json["status"] = this->checked_files[i][FILE_STATUS];
+            tmp_json["sealed_size"] = md_json[ID_FILE][i][FILE_SIZE];
+            tmp_json["status"] = md_json[ID_FILE][i][FILE_STATUS];
+            // Get old hash
+            uint8_t *p_meta = NULL;
+            size_t meta_len = 0;
+            crust_status = persist_get((md_json[ID_FILE][i][FILE_HASH].ToString()+"_meta").c_str(), &p_meta, &meta_len);
+            if (CRUST_SUCCESS == crust_status && p_meta != NULL)
+            {
+                json::JSON org_file_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_meta), meta_len));
+                free(p_meta);
+                tmp_json["old_hash"] = org_file_json[FILE_OLD_HASH].ToString();
+                tmp_json["old_size"] = org_file_json[FILE_OLD_SIZE].ToInt();
+            }
             std::string tmp_str = tmp_json.dump();
             remove_char(tmp_str, '\n');
-            wl_json["files"][this->checked_files[i][FILE_HASH].ToString()] = tmp_str;
+            wl_json["files"][md_json[ID_FILE][i][FILE_HASH].ToString()] = tmp_str;
         }
     }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 
     // Store workload
     std::string wl_str = wl_json.dump();
@@ -99,12 +112,65 @@ void Workload::clean_data()
 }
 
 /**
- * @description: generate empty information
- * @param empty_root_out empty root hash
- * @param empty_workload_out empty workload
+ * @description: generate srd information
+ * @param srd_root_out srd root hash
+ * @param srd_workload_out srd workload
  * @return: status
  */
-crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, size_t *empty_workload_out)
+crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out, json::JSON &md_json)
+{
+    if (! md_json.hasKey(ID_WORKLOAD) 
+            || md_json[ID_WORKLOAD].JSONType() != json::JSON::Class::Object)
+    {
+        return CRUST_SUCCESS;
+    }
+    // Get hashs for hashing
+    size_t g_hashs_num = 0;
+    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
+            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
+    {
+        g_hashs_num += it->second.size();
+    }
+    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
+    size_t hashs_len = 0;
+
+    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
+            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
+    {
+        for (int i = 0; i < it->second.size(); i++)
+        {
+            std::string hash_str = it->second[i].ToString();
+            uint8_t *hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
+            memcpy(hashs + hashs_len, hash_u, HASH_LENGTH);
+            hashs_len += HASH_LENGTH;
+        }
+    }
+
+    // generate srd information
+    if (hashs_len == 0)
+    {
+        *srd_workload_out = 0;
+        memset(srd_root_out, 0, HASH_LENGTH);
+    }
+    else
+    {
+        *srd_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, srd_root_out);
+    }
+
+    free(hashs);
+
+    sgx_thread_mutex_unlock(&g_workload_mutex);
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: generate srd information
+ * @param srd_root_out srd root hash
+ * @param srd_workload_out srd workload
+ * @return: status
+ */
+crust_status_t Workload::generate_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out)
 {
     sgx_thread_mutex_lock(&g_workload_mutex);
 
@@ -126,16 +192,16 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
         }
     }
 
-    // generate empty information
+    // generate srd information
     if (hashs_len == 0)
     {
-        *empty_workload_out = 0;
-        memset(empty_root_out, 0, HASH_LENGTH);
+        *srd_workload_out = 0;
+        memset(srd_root_out, 0, HASH_LENGTH);
     }
     else
     {
-        *empty_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)hashs_len, empty_root_out);
+        *srd_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, srd_root_out);
     }
 
     free(hashs);
@@ -148,7 +214,7 @@ crust_status_t Workload::generate_empty_info(sgx_sha256_hash_t *empty_root_out, 
  * @description: serialize workload for sealing
  * @return: serialized workload
  * */
-std::string Workload::serialize_workload(bool locked /*=true*/)
+json::JSON Workload::serialize_srd(bool locked /*=true*/)
 {
     if (locked)
     {
@@ -171,19 +237,14 @@ std::string Workload::serialize_workload(bool locked /*=true*/)
         sgx_thread_mutex_unlock(&g_workload_mutex);
     }
 
-    std::string g_hashs_str = g_hashs_json.dump();
-    remove_char(g_hashs_str, '\\');
-    remove_char(g_hashs_str, '\n');
-    remove_char(g_hashs_str, ' ');
-
-    return g_hashs_str;
+    return g_hashs_json;
 }
 
 /**
  * @description: Restore workload from serialized workload
  * @return: Restore status
  * */
-crust_status_t Workload::restore_workload(json::JSON g_hashs)
+crust_status_t Workload::restore_srd(json::JSON g_hashs)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
@@ -216,41 +277,6 @@ crust_status_t Workload::restore_workload(json::JSON g_hashs)
     return crust_status;
 }
 
-bool Workload::reset_meaningful_data()
-{
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-
-    this->checked_files.clear();
-
-    // Get metadata
-    json::JSON meta_json;
-    id_get_metadata(meta_json);
-
-    // Reset meaningful files
-    if (!meta_json.hasKey(ID_FILE))
-    {
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
-        return true;
-    }
-
-    json::JSON meaningful_files = meta_json[ID_FILE];
-    if (meaningful_files.JSONType() == json::JSON::Class::Array)
-    {
-        for (int i = 0; i < meaningful_files.size(); i++)
-        {
-            this->checked_files.push_back(meaningful_files[i]);
-        }
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
-        return true;
-    }
-
-    log_warn("Workload: invalid meaningful roots! Set meaningful files to empty.\n");
-
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-
-    return true;
-}
-
 /**
  * @description: Add new file to new_files
  * @param file -> A pair of file's hash and file's size
@@ -271,4 +297,22 @@ void Workload::add_order_file(std::pair<std::string, size_t> file)
     sgx_thread_mutex_lock(&g_order_files_mutex);
     this->order_files.push_back(file);
     sgx_thread_mutex_unlock(&g_order_files_mutex);
+}
+
+/**
+ * @description: Set report file flag
+ * @param flag -> Report flag
+ * */
+void Workload::set_report_flag(bool flag)
+{
+    this->report_files = flag;
+}
+
+/**
+ * @description: Get report flag
+ * @return: Report flag
+ * */
+bool Workload::get_report_flag()
+{
+    return this->report_files;
 }

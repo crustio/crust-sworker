@@ -43,7 +43,7 @@ function installAPP()
 
     # Install tee-app dependencies
     res=0
-    cd $basedir
+    cd $instdir
     make clean &>/dev/null
     setTimeWait "$(verbose INFO "Building and installing tee application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
@@ -53,15 +53,15 @@ function installAPP()
 
     # Copy related files to install directory
     cp $srcdir/$appname $realteedir/bin
-    if [ ! -e "$basedir/etc/$enclaveso" ]; then
+    if [ ! -e "$instdir/etc/$enclaveso" ]; then
         cp $srcdir/$enclaveso $realteedir/etc
     else
-        cp $basedir/etc/$enclaveso $realteedir/etc
+        cp $instdir/etc/$enclaveso $realteedir/etc
     fi
     cp $srcdir/$configfile $realteedir/etc
-    cp -r $basedir/scripts/uninstall.sh $realteedir/scripts
-    cp -r $basedir/scripts/utils.sh $realteedir/scripts
-    cp -r $basedir/VERSION $realteedir
+    cp -r $instdir/scripts/uninstall.sh $realteedir/scripts
+    cp -r $instdir/scripts/utils.sh $realteedir/scripts
+    cp -r $instdir/VERSION $realteedir
 
     # Set environment
     setEnv
@@ -124,7 +124,8 @@ function success_exit()
     kill -- -$selfPID &>/dev/null
 }
 
-usage() {
+function usage()
+{
     echo "Usage:"
 		echo "    $0 -h                      Display this help message."
 		echo "    $0 [options]"
@@ -136,22 +137,25 @@ usage() {
 
 ############## MAIN BODY ###############
 # basic variable
-scriptdir=$(cd `dirname $0`;pwd)
-basedir=$(cd $scriptdir/..;pwd)
-srcdir=$basedir/src
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+### Import parameters {{{
+. $basedir/utils.sh
+### }}}
+srcdir=$instdir/src
 TMPFILE=$srcdir/tmp.$$
-ERRFILE=$basedir/err.log
+ERRFILE=$instdir/err.log
 crustdir=/opt/crust
 crustteedir=$crustdir/crust-tee
-newversion=$(cat $basedir/VERSION | head -n 1)
+newversion=$(getVERSION)
 realteedir=$crustteedir/$newversion
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 selfName=$(basename $0)
 selfPID=$$
-SYNCFILE=$basedir/.syncfile
+SYNCFILE=$instdir/.syncfile
 res=0
-uid=$(stat -c '%U' $basedir)
+uid=$(stat -c '%U' $instdir)
 pad="$(printf '%0.1s' ' '{1..10})"
 instSuccess=false
 coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
@@ -164,10 +168,14 @@ configfile="Config.json"
 # Crust related
 crust_env_file=$realteedir/etc/environment
 
-. $basedir/scripts/utils.sh
-
 #trap "success_exit" INT
 trap "success_exit" EXIT
+
+# If get right version
+if [ x"$newversion" = x"" ]; then
+    verbose ERROR "Get wrong version:$newversion!"
+    exit 1
+fi
 
 # Cmds
 DOCKERMODLE=0
@@ -218,7 +226,7 @@ if [ "$DOCKERMODLE" == "0" ]; then
     checkRes $res "quit" "success"
 
     # Install denpendencies
-    bash $basedir/scripts/install_deps.sh
+    bash $instdir/scripts/install_deps.sh
     if [ $? -ne 0 ]; then
         exit 1
     fi
@@ -228,13 +236,13 @@ fi
 installAPP
 
 if [ "$DOCKERMODLE" == "0" ]; then
-verbose INFO "Changing diretory owner..." h
-res=0
-chown -R $uid:$uid $crustteedir
-res=$(($?|$res))
-chown -R $uid:$uid $crusttooldir
-res=$(($?|$res))
-checkRes $res "quit" "success"
+    verbose INFO "Changing diretory owner..." h
+    res=0
+    chown -R $uid:$uid $crustteedir
+    res=$(($?|$res))
+    chown -R $uid:$uid $crusttooldir
+    res=$(($?|$res))
+    checkRes $res "quit" "success"
 fi
 
 verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee/$newversion!"

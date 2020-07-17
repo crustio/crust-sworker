@@ -1,6 +1,8 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
+#define TEE_VERSION "0.5.0"
+
 #define LEAF_SEPARATOR  "+leaf+"
 
 // For enclave metadata
@@ -14,6 +16,7 @@
 // For meaningful file
 #define FILE_HASH "hash"
 #define FILE_SIZE "size"
+#define FILE_OLD_SIZE "old_size"
 #define FILE_OLD_HASH "old_hash"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_STATUS "status"

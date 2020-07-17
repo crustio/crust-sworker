@@ -45,7 +45,6 @@ void srd_change()
     // Get real srd space
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     long srd_change_num = 0;
-    long org_change_num = g_srd_change;
     if (g_srd_change > SRD_MAX_PER_TURN)
     {
         srd_change_num = SRD_MAX_PER_TURN;
@@ -61,7 +60,6 @@ void srd_change()
     // Do srd
     if (srd_change_num != 0)
     {
-        log_info("Total srd task is:%ld, will srd %ldG this turn.\n", org_change_num, srd_change_num);
         ocall_srd_change(srd_change_num);
     }
 }
@@ -166,8 +164,11 @@ void srd_increase(const char *path)
     ocall_srd_info_lock();
     size_t srd_info_len = 0;
     uint8_t *p_srd_info = NULL;
-    persist_get_unsafe("srd_info", &p_srd_info, &srd_info_len);
-    json::JSON srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
+    json::JSON srd_info_json;
+    if (CRUST_SUCCESS == persist_get_unsafe("srd_info", &p_srd_info, &srd_info_len))
+    {
+        srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
+    }
     srd_info_json[path_str]["assigned"] = srd_info_json[path_str]["assigned"].ToInt() + 1;
     std::string srd_info_str = srd_info_json.dump();
     if (CRUST_SUCCESS != (crust_status = persist_set_unsafe("srd_info", reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
@@ -178,7 +179,7 @@ void srd_increase(const char *path)
 }
 
 /**
- * @description: Decrease empty files under directory
+ * @description: Decrease srd files under directory
  * @param change -> Total to be deleted space volumn
  * @param del_indexes -> To be deleted srd index in srd_path2hashs_m
  * @return: Decreased size
@@ -291,7 +292,7 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
     }
 
     // Update workload in metadata
-    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_WORKLOAD, wl->serialize_workload(false))))
+    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_WORKLOAD, wl->serialize_srd(false))))
     {
         log_err("Store metadata failed! Error code:%lx\n", crust_status);
     }
@@ -362,4 +363,28 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
 
     ocall_srd_info_unlock();
     sgx_thread_mutex_unlock(&g_workload_mutex);
+}
+
+/**
+ * @description: Get srd change
+ * @return: Srd change 
+ * */
+long get_srd_change()
+{
+    sgx_thread_mutex_lock(&g_srd_change_mutex);
+    long srd_change = g_srd_change;
+    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+
+    return srd_change;
+}
+
+/**
+ * @description: Set srd change
+ * @param change -> Srd change
+ * */
+void set_srd_change(long change)
+{
+    sgx_thread_mutex_lock(&g_srd_change_mutex);
+    g_srd_change = change;
+    sgx_thread_mutex_unlock(&g_srd_change_mutex);
 }

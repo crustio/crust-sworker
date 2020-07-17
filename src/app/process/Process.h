@@ -24,13 +24,11 @@
 #include "SgxSupport.h"
 #include "ECalls.h"
 #include "Config.h"
-#include "Chain.h"
 #include "FormatUtils.h"
 #include "Common.h"
 #include "Resource.h"
 #include "FileUtils.h"
 #include "Log.h"
-#include "EntryNetwork.h"
 #include "WorkReport.h"
 #include "Srd.h"
 

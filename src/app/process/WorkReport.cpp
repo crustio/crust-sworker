@@ -24,8 +24,6 @@ size_t get_random_wait_time(std::string seed)
  * */
 void work_report_loop(void)
 {
-    size_t report_len = 0;
-    sgx_ec256_signature_t ecc_signature;
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
     int order_report_interval = 0;
@@ -73,18 +71,9 @@ void work_report_loop(void)
                 goto loop;
             }
 
-            // Generate validation report and get report size
-            if (Ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
-            {
-                p_log->err("Generate validation report failed! Error code: %x\n", crust_status);
-                goto loop;
-            }
-
             // Get signed validation report
-            char *report = (char *)malloc(report_len);
-            memset(report, 0, report_len);
             if (SGX_SUCCESS != Ecall_get_signed_work_report(global_eid, &crust_status,
-                    block_header->hash.c_str(), block_header->number, &ecc_signature, report, report_len))
+                    block_header->hash.c_str(), block_header->number))
             {
                 p_log->err("Get signed validation report failed!\n");
             }
@@ -93,17 +82,8 @@ void work_report_loop(void)
                 if (CRUST_SUCCESS == crust_status)
                 {
                     // Send signed validation report to crust chain
-                    json::JSON work_json = json::JSON::Load(std::string(report));
-                    char *p_hex_sig = hexstring_safe((const uint8_t *)&ecc_signature, sizeof(ecc_signature));
-                    work_json["sig"] = std::string(p_hex_sig, sizeof(ecc_signature) * 2);
-                    work_json["block_height"] = block_header->number;
-                    work_json["block_hash"] = block_header->hash;
-                    std::string work_str = work_json.dump();
+                    std::string work_str = get_g_enclave_workreport();
                     p_log->info("Sign validation report successfully!\n%s\n", work_str.c_str());
-                    if (p_hex_sig != NULL)
-                    {
-                        free(p_hex_sig);
-                    }
                     // Delete space and line break
                     remove_char(work_str, '\\');
                     remove_char(work_str, '\n');
@@ -130,7 +110,6 @@ void work_report_loop(void)
                     p_log->err("Get signed validation report failed! Error code: %x\n", crust_status);
                 }
             }
-            free(report);
         }
 
     loop:

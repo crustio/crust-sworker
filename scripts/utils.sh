@@ -100,6 +100,22 @@ function setTimeWait()
     true > $syncfile
 }
 
+# Be careful about this function
+function getVERSION()
+{
+    local basedir=$(cd `dirname $0`;pwd)
+    local srcdir=$(cd $basedir/../src;pwd)
+    echo $(cat $srcdir/include/Resource.h | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null)
+}
+
+# Be careful about this function
+function getTEEVERSION()
+{
+    local basedir=$(cd `dirname $0`;pwd)
+    local srcdir=$(cd $basedir/../src;pwd)
+    echo $(cat $srcdir/enclave/Parameter.h | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null) 
+}
+
 # color
 RED='\033[0;31m'
 HRED='\033[1;31m'

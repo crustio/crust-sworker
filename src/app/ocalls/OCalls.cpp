@@ -375,23 +375,6 @@ void ocall_usleep(int u)
 }
 
 /**
- * @description: TEE gets file block data by path
- * @param root_hash -> MerkleTree root hash
- * @param cur_hash -> Recieved indicated file block hash
- * @param hash_len -> Hash length
- * @param path -> Vector of path from root to leaf node
- * @param path_count -> Vector size
- * @return: Get status
- * */
-crust_status_t ocall_get_file_block_by_path(char * /*root_hash*/, char * /*cur_hash*/, uint32_t /*hash_len*/, uint32_t *path, uint32_t path_count)
-{
-    std::vector<uint32_t> path_v(path, path + path_count);
-    // TODO: Send path to storage and get corresponding file block
-
-    return CRUST_SUCCESS;
-}
-
-/**
  * @description: Add record to DB
  * @param key -> Pointer to key
  * @param value -> Pointer to value
@@ -698,4 +681,13 @@ void ocall_store_enclave_id_info(const char *info)
 void ocall_store_workload(const char *wl)
 {
     set_g_enclave_workload(wl);
+}
+
+/**
+ * @description: Store enclave workreport
+ * @param wr -> Workreport information
+ * */
+void ocall_store_workreport(const char *wr)
+{
+    set_g_enclave_workreport(wr);
 }

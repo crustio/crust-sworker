@@ -253,7 +253,7 @@ void validate_meaningful_file()
     ocall_validate_init(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
-        wl->checked_files.clear();
+        wl->set_report_flag(false);
         ocall_validate_close();
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return;
@@ -382,7 +382,7 @@ void validate_meaningful_file()
             if (CRUST_SUCCESS != crust_status)
             {
                 //log_err("Get file block:%ld failed!\n", check_block_idx);
-                wl->checked_files.clear();
+                wl->set_report_flag(false);
                 ocall_validate_close();
                 sgx_thread_mutex_unlock(&g_checked_files_mutex);
                 return;

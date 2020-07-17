@@ -1,8 +1,7 @@
-#include "CrustStatus.h"
+#define VERSION "0.5.0"
 
 #define CRUST_INST_DIR      "/opt/crust/crust-tee/" VERSION
 #define ENCLAVE_FILE_PATH   CRUST_INST_DIR "/etc/enclave.signed.so"
-#define LOG_FILE_PATH       CRUST_INST_DIR "/log/crust.log"
 #define CONFIG_FILE_PATH    CRUST_INST_DIR "/etc/Config.json"
 
 #define HASH_LENGTH 32

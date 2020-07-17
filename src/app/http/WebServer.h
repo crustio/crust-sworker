@@ -43,6 +43,7 @@ class WebServer : public std::enable_shared_from_this<WebServer>
     ssl::context& ctx_;
     tcp::acceptor acceptor_;
     std::shared_ptr<std::string const> doc_root_;
+    tcp::endpoint endpoint_;
 
 public:
     WebServer(
@@ -52,7 +53,7 @@ public:
         std::shared_ptr<std::string const> const& doc_root);
 
     // Start accepting incoming connections
-    void run();
+    bool run();
     void set_api_handler(ApiHandler *api_handler);
 
 private:

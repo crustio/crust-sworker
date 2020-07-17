@@ -115,7 +115,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     // Build the path to the requested file
     std::string path = std::string(req.target().data(), req.target().size());
-    p_log->debug("Request url:%s\n", path.c_str());
+    p_log->info("Request url:%s\n", path.c_str());
     std::map<std::string, std::string> params = get_params(path);
     size_t epos = path.find('\?');
     if (epos != std::string::npos)
@@ -146,87 +146,78 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.set(http::field::content_type, "application/text");
 
 
-        // Outter APIs
-        cur_path = urlendpoint->base + "/status";
-        if (path.compare(cur_path) == 0)
-        {
-            validation_status_t validation_status = VALIDATE_STOP;
-
-            if (Ecall_return_validation_status(global_eid, &validation_status) != SGX_SUCCESS)
-            {
-                p_log->err("Get validation status failed.\n");
-                res.body() = "InternalError";
-                goto getcleanup;
-            }
-
-            res.body() = std::string("{\"validation_status\":") + "\"" + validation_status_strings[validation_status] + "\"}";
-            goto getcleanup;
-        }
-
-        // Get report
-        cur_path = urlendpoint->base + "/report";
-        if (path.compare(cur_path) == 0)
-        {
-            // ----- Call ecall function to get work report ----- //
-            size_t report_len = 0;
-            crust_status_t crust_status = CRUST_SUCCESS;
-            if (Ecall_generate_work_report(global_eid, &crust_status, &report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
-            {
-                p_log->err("Generate validation report failed. Error code: %x\n", crust_status);
-                res.body() = "InternalError";
-                goto getcleanup;
-            }
-
-            char *report = (char*)malloc(report_len);
-            memset(report, 0, report_len);
-            if (Ecall_get_work_report(global_eid, &crust_status, report, report_len) != SGX_SUCCESS || crust_status != CRUST_SUCCESS)
-            {
-                p_log->err("Get validation report failed.\n");
-                res.body() = "InternalError";
-                free(report);
-                goto getcleanup;
-            }
-
-            if (report == NULL)
-            {
-                res.body() = "InternalError";
-                free(report);
-                goto getcleanup;
-            }
-
-            res.body() = std::string(report, report_len);
-            free(report);
-            goto getcleanup;
-        }
-
-        // Get workload
+        // ----- Get workload ----- //
         cur_path = urlendpoint->base + "/workload";
         if (path.compare(cur_path) == 0)
         {
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
             crust::DataBase *db = crust::DataBase::get_instance();
+            // Get srd info
             std::string srd_detail;
             if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_detail)))
             {
-                p_log->warn("Get srd info failed! Error code:%lx\n", crust_status);
+                p_log->warn("Srd info not found!Get workload srd info failed!\n");
             }
             if (SGX_SUCCESS != Ecall_get_workload(global_eid))
             {
                 p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
             }
             json::JSON wl_json = json::JSON::Load(get_g_enclave_workload());
-            wl_json["srd"]["srd_reserved_space"] = get_reserved_space();
+            if (wl_json.size() == -1)
+            {
+                res.body() = "Get workload failed!";
+                goto getcleanup;
+            }
             wl_json["srd"]["detail"] = json::JSON::Load(srd_detail);
+            wl_json["srd"]["disk_reserved"] = get_reserved_space();
+            size_t tmp_size = 0;
+            json::JSON disk_json = get_increase_srd_info(tmp_size);
+            if (wl_json["srd"]["detail"].JSONType() == json::JSON::Class::Object)
+            {
+                for (auto it = wl_json["srd"]["detail"].ObjectRange().begin(); 
+                        it != wl_json["srd"]["detail"].ObjectRange().end(); it++)
+                {
+                    (it->second)["available"] = disk_json[it->first]["available"];
+                    std::string disk_item = (it->second).dump();
+                    remove_char(disk_item, '\n');
+                    it->second = disk_item;
+                }
+            }
+            // Get file info
+            json::JSON files_json = wl_json["files"];
+            json::JSON n_files_json;
+            if (files_json.JSONType() == json::JSON::Class::Object)
+            {
+                char buf1[128];
+                char buf2[128];
+                for (auto it = files_json.ObjectRange().begin(); it != files_json.ObjectRange().end(); it++)
+                {
+                    std::string item_str = it->second.ToString();
+                    remove_char(item_str, '\\');
+                    json::JSON item_json = json::JSON::Load(item_str);
+                    memset(buf1, 0, sizeof(buf1));
+                    memset(buf2, 0, sizeof(buf2));
+                    sprintf(buf1, "{  \"hash\"        : \"%s\", \"size\"        : %ld, ",
+                            item_json["old_hash"].ToString().c_str(), item_json["old_size"].ToInt());
+                    sprintf(buf2, "   \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld  }",
+                            (it->first).c_str(), item_json["sealed_size"].ToInt());
+                    std::string tmp_str = std::string(buf1) + JSON_NL + std::string(buf2);
+                    std::string fstatus = item_json["status"].ToString();
+                    n_files_json[fstatus]["detail"].append(tmp_str);
+                    n_files_json[fstatus]["number"] = n_files_json[fstatus]["number"].ToInt() + 1;
+                }
+            }
+            wl_json["files"] = n_files_json;
             std::string wl_str = wl_json.dump();
             replace(wl_str, "\"{", "{");
-            replace(wl_str, "}\"", "  }");
+            replace(wl_str, "}\"", "}");
             remove_char(wl_str, '\\');
             res.body() = wl_str;
             goto getcleanup;
         }
 
-        // Get enclave thread information
+        // ----- Get enclave thread information ----- //
         cur_path = urlendpoint->base + "/enclave/thread_info";
         if (path.compare(cur_path) == 0)
         {
@@ -234,7 +225,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
-        // Get enclave id information
+        // ----- Get enclave id information ----- //
         cur_path = urlendpoint->base + "/enclave/id_info";
         if (path.compare(cur_path) == 0)
         {
@@ -307,6 +298,39 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = "Change srd file success, the srd workload will change in next validation loop!";
             }
         end_change_empty:
+            goto postcleanup;
+        }
+
+        // --- Change srd reserved space --- //
+        cur_path = urlendpoint->base + "/srd/reset";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            // Change srd reserved
+            set_reserved_space(DEFAULT_SRD_RESERVED);
+            ret_info = "Stop srd successfully!Set srd reserved space to " + std::to_string(DEFAULT_SRD_RESERVED);
+            p_log->info("%s\n", ret_info.c_str());
+            res.body() = ret_info;
+
             goto postcleanup;
         }
 
