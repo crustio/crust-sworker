@@ -69,6 +69,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
             std::string path = srd_paths[i].ToString();
             // Calculate free disk
             disk_info_json[path]["available"] = get_avail_space_under_dir_g(path);
+            disk_info_json[path]["total"] = get_total_space_under_dir_g(path);
             if (disk_info_json[path]["available"].ToInt() <= srd_reserved_space)
             {
                 disk_info_json[path]["available"] = 0;
@@ -87,6 +88,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
         create_directory(p_config->empty_path);
         // Calculate free disk
         disk_info_json[p_config->empty_path]["available"] = get_avail_space_under_dir_g(p_config->empty_path);
+        disk_info_json[p_config->empty_path]["total"] = get_total_space_under_dir_g(p_config->empty_path);
         if (disk_info_json[p_config->empty_path]["available"].ToInt() <= srd_reserved_space)
         {
             disk_info_json[p_config->empty_path]["available"] = 0;

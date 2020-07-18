@@ -185,7 +185,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     wr_json["reserved"] = srd_workload;
     wr_json["files"] = old_files_json;
     wr_json["block_height"] = block_height_str;
-    wr_json["block_hash"] = hexstring_safe(block_hash, HASH_LENGTH);
+    wr_json["block_hash"] = std::string(block_hash, HASH_LENGTH * 2);
     wr_json["sig"] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
     wr_str = wr_json.dump();
     ocall_store_workreport(wr_str.c_str());
