@@ -179,6 +179,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         it != wl_json["srd"]["detail"].ObjectRange().end(); it++)
                 {
                     (it->second)["available"] = disk_json[it->first]["available"];
+                    (it->second)["total"] = disk_json[it->first]["total"];
                     std::string disk_item = (it->second).dump();
                     remove_char(disk_item, '\n');
                     it->second = disk_item;

@@ -159,6 +159,49 @@ int rm(std::string path)
  * @param path -> the directory path
  * @return: free space size (M)
  */
+size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
+{
+    struct statfs disk_info;
+    if (statfs(path.c_str(), &disk_info) == -1)
+    {
+        return 0;
+    }
+    size_t avail_disk = (size_t)disk_info.f_blocks * (size_t)disk_info.f_bsize;
+    return avail_disk >> unit;
+}
+
+/**
+ * @description: Get disk free space according to path
+ * @return: Free space calculated as KB
+ * */
+size_t get_total_space_under_dir_k(std::string path)
+{
+    return get_total_space_under_dir_r(path, 10);
+}
+
+/**
+ * @description: Get disk free space according to path
+ * @return: Free space calculated as MB
+ * */
+size_t get_total_space_under_dir_m(std::string path)
+{
+    return get_total_space_under_dir_r(path, 20);
+}
+
+/**
+ * @description: Get disk free space according to path
+ * @return: Free space calculated as GB
+ * */
+size_t get_total_space_under_dir_g(std::string path)
+{
+    return get_total_space_under_dir_r(path, 30);
+}
+
+/**
+ * @description: get free space under directory
+ * @param path -> the directory path
+ * @return: free space size (M)
+ */
 size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
 {
     struct statfs disk_info;
