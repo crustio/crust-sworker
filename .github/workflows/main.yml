@@ -10,7 +10,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Install docker
-      run: apt install docker
     - name: Build docker
       run: ./docker/build.sh
