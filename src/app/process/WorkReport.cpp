@@ -26,11 +26,12 @@ void work_report_loop(void)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
-    int order_report_interval = 0;
+    //int order_report_interval = 0;
 
     while (true)
     {
         // ----- Report order report ----- //
+        /*
         if (3 == order_report_interval)
         {
             // Ecall_get_signed_order_report will store order report in g_order_report
@@ -50,6 +51,7 @@ void work_report_loop(void)
             order_report_interval = 0;
         }
         order_report_interval++;
+        */
 
         // ----- Report work report ----- //
         crust::BlockHeader *block_header = p_chain->get_block_header();

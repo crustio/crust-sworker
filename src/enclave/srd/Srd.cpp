@@ -42,6 +42,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
  * */
 void srd_change()
 {
+    // ----- Change and store srd task ----- //
     // Get real srd space
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     long srd_change_num = 0;
@@ -160,7 +161,7 @@ void srd_increase(const char *path)
     log_info("Seal random data -> %s, %luG success\n", hex_g_hash.c_str(), srd_total_num);
     sgx_thread_mutex_unlock(&g_workload_mutex);
 
-    // Update srd info
+    // ----- Update srd info ----- //
     ocall_srd_info_lock();
     size_t srd_info_len = 0;
     uint8_t *p_srd_info = NULL;

@@ -50,40 +50,28 @@ Config::Config(std::string path)
     {
         this->srd_paths = json::Array();
     }
-    this->empty_path = this->base_path + "/empty_path";
+    this->srd_path = this->base_path + "/srd_path";
     this->db_path = this->base_path + "/db";
-    this->empty_capacity = config_value["empty_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["empty_capacity"].ToInt();
-    this->api_base_url = config_value["api_base_url"].ToString();
+    this->srd_capacity = config_value["srd_init_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["srd_init_capacity"].ToInt();
+    this->base_url = config_value["base_url"].ToString();
   
-    this->websocket_thread_num = config_value["websocket_thread_num"].ToInt();
     this->srd_thread_num = std::min(omp_get_num_procs() * 2, 8);
 
     // storage configurations
     this->karst_url = config_value["karst_url"].ToString();
 
     // crust chain configurations
-    this->chain_api_base_url = config_value["chain_api_base_url"].ToString();
-    this->chain_address = config_value["chain_address"].ToString();
-    this->chain_account_id = config_value["chain_account_id"].ToString();
+    this->chain_api_base_url = config_value["chain"]["base_url"].ToString();
+    this->chain_address = config_value["chain"]["address"].ToString();
+    this->chain_account_id = config_value["chain"]["account_id"].ToString();
     if (this->chain_account_id.find("0x") != this->chain_account_id.npos)
     {
         this->chain_account_id.erase(0, 2);
     }
-    this->chain_password = config_value["chain_password"].ToString();
-    std::string backup_temp = config_value["chain_backup"].ToString();
+    this->chain_password = config_value["chain"]["password"].ToString();
+    std::string backup_temp = config_value["chain"]["backup"].ToString();
     remove_chars_from_string(backup_temp, "\\");
     this->chain_backup = backup_temp;
-
-    // tee identity validation configurations
-    this->spid = config_value["spid"].ToString();
-    this->linkable = config_value["linkable"].ToBool();
-    this->random_nonce = config_value["random_nonce"].ToBool();
-    this->use_platform_services = config_value["use_platform_services"].ToBool();
-    this->ias_primary_subscription_key = config_value["ias_primary_subscription_key"].ToString();
-    this->ias_secondary_subscription_key = config_value["ias_secondary_subscription_key"].ToString();
-    this->ias_base_url = config_value["ias_base_url"].ToString();
-    this->ias_base_path = config_value["ias_base_path"].ToString();
-    this->flags = config_value["flags"].ToInt();
 }
 
 /**
@@ -91,50 +79,67 @@ Config::Config(std::string path)
  */
 void Config::show(void)
 {
-    printf("Config:\n{\n");
+    printf("Config : {\n");
     printf("    'base path' : '%s',\n", this->base_path.c_str());
+    printf("    'db path' : '%s',\n", this->db_path.c_str());
     for (int i = 0; i < this->srd_paths.size(); i++)
     {
         printf("    'srd path %d' : '%s',\n", i + 1, this->srd_paths[i].ToString().c_str());
     }
-    printf("    'db path' : '%s',\n", this->db_path.c_str());
-    printf("    'srd capacity' : %lu,\n", this->empty_capacity);
-
-    printf("    'api base url' : '%s',\n", this->api_base_url.c_str());
+    printf("    'srd capacity' : %lu,\n", this->srd_capacity);
+    printf("    'tee base url' : '%s',\n", this->base_url.c_str());
     printf("    'karst url' : '%s',\n", this->karst_url.c_str());
-    printf("    'websocket thread number' : '%d',\n", this->websocket_thread_num);
 
-    printf("    'chain api base url' : %s,\n", this->chain_api_base_url.c_str());
-    printf("    'chain address' : '%s',\n", this->chain_address.c_str());
-    printf("    'chain account id' : '%s',\n", this->chain_account_id.c_str());
-    printf("    'chain password' : '%s',\n", this->chain_password.c_str());
-    printf("    'chain backup' : '%s',\n", this->chain_backup.c_str());
+    printf("    'chain config' : {\n");
+    printf("        'base url' : %s,\n", this->chain_api_base_url.c_str());
+    printf("        'address' : '%s',\n", this->chain_address.c_str());
+    printf("        'account id' : '%s',\n", this->chain_account_id.c_str());
+    printf("        'password' : '%s',\n", this->chain_password.c_str());
+    printf("        'backup' : '%s'\n", this->chain_backup.c_str());
+    printf("    },\n");
 
-    printf("    'spid' : '%s',\n", this->spid.c_str());
-    printf("    'linkable' : '%s',\n", this->linkable ? "true" : "false");
-    printf("    'random nonce' : '%s',\n", this->random_nonce ? "true" : "false");
-    printf("    'use platform services' : '%s',\n", this->use_platform_services ? "true" : "false");
-    printf("    'IAS Primary subscription key' : '%s',\n", this->ias_primary_subscription_key.c_str());
-    printf("    'IAS Secondary subscription key' : '%s',\n", this->ias_secondary_subscription_key.c_str());
-    printf("    'IAS base url' : '%s',\n", this->ias_base_url.c_str());
-    printf("    'IAS base path' : '%s',\n", this->ias_base_path.c_str());
-    printf("    'flags' : '%d'\n", this->flags);
+    printf("    'IAS parameters' : {\n");
+    printf("        'spid' : '%s',\n", IAS_SPID);
+    printf("        'linkable' : '%s',\n", IAS_LINKABLE ? "true" : "false");
+    printf("        'random nonce' : '%s',\n", IAS_RANDOM_NONCE ? "true" : "false");
+    printf("        'primary subscription key' : '%s',\n", IAS_PRIMARY_SUBSCRIPTION_KEY);
+    printf("        'secondary subscription key' : '%s',\n", IAS_SECONDARY_SUBSCRIPTION_KEY);
+    printf("        'base url' : '%s',\n", IAS_BASE_URL);
+    printf("        'report path' : '%s',\n", IAS_REPORT_PATH);
+    printf("        'flags' : '%d'\n", IAS_FLAGS);
+    printf("    }\n");
     printf("}\n");
 }
 
 /**
- * @description: change empty capacity
- * @param change -> the number of empty capacity changed 
+ * @description: change srd capacity
+ * @param change -> the number of srd capacity changed 
  */
-void Config::change_empty_capacity(int change)
+void Config::change_srd_capacity(int change)
 {
-    // Get now empty_capacity
-    if (change >= 0 || (size_t)-change <= this->empty_capacity)
+    // Get now srd_capacity
+    if (change >= 0 || (size_t)-change <= this->srd_capacity)
     {
-        this->empty_capacity += change;
+        this->srd_capacity += change;
     }
     else
     {
-        this->empty_capacity = 0;
+        this->srd_capacity = 0;
+    }
+}
+
+/**
+ * @description: Get configure file path
+ * @return: Configure file path
+ * */
+std::string Config::get_config_path()
+{
+    if (config_file_path.size() == 0)
+    {
+        return CONFIG_FILE_PATH;
+    }
+    else
+    {
+        return config_file_path;
     }
 }

@@ -38,6 +38,19 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_id_get_info", 3},
     {"Ecall_get_workload", 3},
 };
+// Mapping of Enclave task to its block task
+std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_um = {
+    {
+        "Ecall_srd_increase", 
+        {
+            "Ecall_seal_file", 
+            "Ecall_unseal_file", 
+            "Ecall_get_signed_work_report",
+            "Ecall_get_signed_order_report",
+            "Ecall_confirm_file"
+        }
+    }
+};
 // Indicate number of each priority task, higher index represents lower priority
 tbb::concurrent_vector<int> g_waiting_task_sum_v(4, 0);
 // Ecall function name to invoked number mapping
@@ -97,12 +110,17 @@ sgx_status_t try_get_enclave(const char *name)
     // ----- Task scheduling ----- //
     while (true)
     {
-        // Sealing task races to ignore srd task
-        if (tname.compare("Ecall_srd_increase") == 0 
-                && (g_invoked_ecalls_um["Ecall_seal_file"] > 0 || g_invoked_ecalls_um["Ecall_unseal_file"] > 0))
+        // Check if current task's blocking task is running
+        if (g_block_tasks_um.find(tname) != g_block_tasks_um.end())
         {
-            sgx_status = SGX_ERROR_DEVICE_BUSY;
-            break;
+            for (auto btask : g_block_tasks_um[tname])
+            {
+                if (g_invoked_ecalls_um[btask] > 0)
+                {
+                    sgx_status = SGX_ERROR_DEVICE_BUSY;
+                    goto end_of_wait;
+                }
+            }
         }
 
         if (g_running_task_num < ENC_MAX_THREAD_NUM)
@@ -158,6 +176,8 @@ sgx_status_t try_get_enclave(const char *name)
         }
         task_sleep(cur_task_prio);
     }
+
+end_of_wait:
 
     // Decrease waiting task queue
     g_waiting_task_sum_v[cur_task_prio]--;
@@ -217,7 +237,7 @@ std::string show_enclave_thread_info()
 }
 
 /**
- * @description: A wrapper function, seal one G empty files under directory, can be called from multiple threads
+ * @description: A wrapper function, seal one G srd files under directory, can be called from multiple threads
  * @param path -> the directory path
  */
 sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, const char* path)
@@ -236,7 +256,7 @@ sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, const char* path)
 }
 
 /**
- * @description: A wrapper function, decrease empty files under directory
+ * @description: A wrapper function, decrease srd files under directory
  * @param path -> the directory path
  * @param change -> reduction
  */
@@ -257,7 +277,6 @@ sgx_status_t Ecall_srd_decrease(sgx_enclave_id_t eid, size_t *size, size_t chang
 
 /**
  * @description: A wrapper function, ecall main loop
- * @param empty_path -> the empty directory path
  */
 sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid)
 {

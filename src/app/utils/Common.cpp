@@ -28,6 +28,11 @@ UrlEndPoint *get_url_end_point(std::string url)
     if (epos == url.npos)
     {
         epos = url.find("/", spos);
+        if (epos == url.npos)
+        {
+            url_end_point->ip = url.substr(spos, url.length());
+            goto parse_end;
+        }
         url_end_point->ip = url.substr(spos, epos - spos);
         url_end_point->base = url.substr(epos, url.size());
         p_log->warn("Parse url warn: Port not indicate, will assign port by protocol.\n");
@@ -50,9 +55,16 @@ UrlEndPoint *get_url_end_point(std::string url)
         url_end_point->ip = url.substr(spos, epos - spos);
         spos = epos + 1;
         epos = url.find("/", spos);
+        if (epos == url.npos)
+        {
+            url_end_point->port = std::atoi(url.substr(spos, epos - spos).c_str());
+            goto parse_end;
+        }
         url_end_point->port = std::atoi(url.substr(spos, epos - spos).c_str());
         url_end_point->base = url.substr(epos, url.size());
     }
+
+parse_end:
 
     return url_end_point;
 }
@@ -249,6 +261,6 @@ void replace(std::string &data, std::string org_str, std::string det_str)
             break;
         }
         data.replace(spos, org_str.size(), det_str);
-        epos = spos;
+        epos = spos + det_str.size();
     }
 }

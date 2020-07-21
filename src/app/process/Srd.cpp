@@ -85,20 +85,20 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     else
     {
         // Create path
-        create_directory(p_config->empty_path);
+        create_directory(p_config->srd_path);
         // Calculate free disk
-        disk_info_json[p_config->empty_path]["available"] = get_avail_space_under_dir_g(p_config->empty_path);
-        disk_info_json[p_config->empty_path]["total"] = get_total_space_under_dir_g(p_config->empty_path);
-        if (disk_info_json[p_config->empty_path]["available"].ToInt() <= srd_reserved_space)
+        disk_info_json[p_config->srd_path]["available"] = get_avail_space_under_dir_g(p_config->srd_path);
+        disk_info_json[p_config->srd_path]["total"] = get_total_space_under_dir_g(p_config->srd_path);
+        if (disk_info_json[p_config->srd_path]["available"].ToInt() <= srd_reserved_space)
         {
-            disk_info_json[p_config->empty_path]["available"] = 0;
+            disk_info_json[p_config->srd_path]["available"] = 0;
         }
         else
         {
-            disk_info_json[p_config->empty_path]["available"] = disk_info_json[p_config->empty_path]["available"].ToInt() - srd_reserved_space;
+            disk_info_json[p_config->srd_path]["available"] = disk_info_json[p_config->srd_path]["available"].ToInt() - srd_reserved_space;
         }
-        total_avail = disk_info_json[p_config->empty_path]["available"].ToInt();
-        disk_info_json[p_config->empty_path]["left"] = disk_info_json[p_config->empty_path]["available"].ToInt();
+        total_avail = disk_info_json[p_config->srd_path]["available"].ToInt();
+        disk_info_json[p_config->srd_path]["left"] = disk_info_json[p_config->srd_path]["available"].ToInt();
     }
     true_srd_capacity = std::min(total_avail, true_srd_capacity);
 
@@ -197,11 +197,13 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
 void srd_change(long change)
 {
     Config *p_config = Config::get_instance();
+    crust::DataBase *db = crust::DataBase::get_instance();
 
     if (change > 0)
     {
         size_t true_increase = change;
         json::JSON disk_info_json = get_increase_srd_info(true_increase);
+        json::JSON upgrade_json;
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
@@ -213,17 +215,18 @@ void srd_change(long change)
         {
             //p_log->warn("No available space for srd!\n");
             // Check if upgrading
-            crust::DataBase *db = crust::DataBase::get_instance();
             std::string upgrade_info;
-            if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info))
+            if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
             {
-                json::JSON upgrade_json = json::JSON::Load(upgrade_info);
+                // Check if srd upgrade can be reset
+                upgrade_json = json::JSON::Load(upgrade_info);
                 upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = upgrade_json[SRD_UPGRADE_INFO_TIMEOUT].ToInt() + 1;
                 if (upgrade_json[SRD_UPGRADE_INFO_TIMEOUT].ToInt() > SRD_UPGRADE_TIMEOUT)
                 {
                     // If timeout, reset srd reserved space and delete SRD_UPGRADE_INFO
                     set_reserved_space(DEFAULT_SRD_RESERVED);
                     db->del(SRD_UPGRADE_INFO);
+                    upgrade_json = json::JSON();
                 }
                 else
                 {
@@ -267,6 +270,7 @@ void srd_change(long change)
         {
             std::string path = srd_paths[i];
             sgx_enclave_id_t eid = global_eid;
+            //tasks_v.push_back(std::make_shared<std::future<void>>(std::async(std::launch::async, [eid, path](){
             tasks_v.push_back(std::make_shared<std::future<void>>(pool.push([eid, path](int /*id*/){
                 if (SGX_SUCCESS != Ecall_srd_increase(eid, path.c_str()))
                 {
@@ -280,7 +284,7 @@ void srd_change(long change)
         {
             try 
             {
-                it.get();
+                it->get();
             }
             catch (std::exception &e)
             {
@@ -289,7 +293,33 @@ void srd_change(long change)
             }
         }
 
-        p_config->change_empty_capacity(true_increase);
+        // Check and stop upgrade
+        std::string upgrade_info;
+        if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
+        {
+            upgrade_json = json::JSON::Load(upgrade_info);
+            // Get assigned total srd
+            long srd_assigned_total = 0;
+            std::string srd_str;
+            srd_info_mutex.lock();
+            if (CRUST_SUCCESS == db->get("srd_info", srd_str) && srd_str.size() > 0)
+            {
+                srd_info_mutex.unlock();
+                json::JSON srd_json = json::JSON::Load(srd_str);
+                for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)
+                {
+                    srd_assigned_total += it->second["assigned"].ToInt();
+                }
+                if (srd_assigned_total >= upgrade_json[SRD_UPGRADE_INFO_SRD].ToInt())
+                {
+                    // If srd upgrade finished, reset srd reserved space and delete SRD_UPGRADE_INFO
+                    set_reserved_space(DEFAULT_SRD_RESERVED);
+                    db->del(SRD_UPGRADE_INFO);
+                }
+            }
+        }
+
+        p_config->change_srd_capacity(true_increase);
         p_log->info("Increase %dG srd files success, the srd workload will change gradually in next validation loops\n", true_increase);
     }
     else if (change < 0)
@@ -306,7 +336,7 @@ void srd_change(long change)
         p_log->info("True decreased space is:%d\n", true_decrease);
         Ecall_srd_decrease(global_eid, &ret_size, true_decrease);
         total_decrease_size = ret_size;
-        p_config->change_empty_capacity(total_decrease_size);
+        p_config->change_srd_capacity(total_decrease_size);
         p_log->info("Decrease %luG srd files success, the srd workload will change in next validation loop\n", total_decrease_size);
     }
 }
@@ -418,11 +448,12 @@ long get_old_reserved_space(std::string url)
 /**
  * @description: Initialize srd upgrade
  * */
-void srd_init_upgrade()
+void srd_init_upgrade(int srd_num)
 {
     crust::DataBase *db = crust::DataBase::get_instance();
     json::JSON upgrade_json;
     upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = 0;
+    upgrade_json[SRD_UPGRADE_INFO_SRD] = srd_num;
     db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
     set_reserved_space(DEFAULT_SRD_RESERVED - 10);
 }

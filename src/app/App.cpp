@@ -1,6 +1,7 @@
 #include "App.h"
 
 bool offline_chain_mode = false;
+bool g_init_upgrade = false;
 extern std::string config_file_path;
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -22,17 +23,19 @@ int SGX_CDECL main(int argc, char *argv[])
         }
         else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0)
         {
-            if (i + 1 < argc)
-            {
-                config_file_path = std::string(argv[i + 1]);
-                i++;
-                is_set_config = true;
-            }
-            else
+            if (i + 1 >= argc)
             {
                 p_log->err("-c option needs configure file path as argument!\n");
-                goto show_help;
+                return 1;
             }
+            config_file_path = std::string(argv[i + 1]);
+            is_set_config = true;
+            i++;
+        }
+        else if (strcmp(argv[i], "--upgrade") == 0)
+        {
+            g_init_upgrade = true;
+            i++;
         }
         else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
         {
@@ -46,12 +49,8 @@ int SGX_CDECL main(int argc, char *argv[])
         }
         else if (strcmp(argv[i], "--debug") == 0)
         {
-            p_log->open_debug();
+            p_log->set_debug(true);
             p_log->debug("Debug log is opened.\n");
-        }
-        else if (strcmp(argv[i], "--upgrade") == 0)
-        {
-            srd_init_upgrade();
         }
         else
         {
@@ -76,16 +75,12 @@ show_help:
     printf("        %s <option> <argument>\n", argv[0]);
     printf("          option: \n");
     printf("           -h, --help: help information. \n");
-    printf("           -c, --config: indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
+    printf("           -c, --config: required, indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
     printf("               If no file provided, default path is etc/Config.json. \n");
     printf("           -v, --version: show whole version and TEE version. \n");
     printf("           --offline: add this flag, program will not interact with the chain. \n");
     printf("           --debug: add this flag, program will output debug logs. \n");
-    printf("           --upgrade: used to upgrade, parameter can be:\n");
-    printf("               1.Srd space(should not exceed old TEE), like 40,\n");
-    printf("               2.Old TEE url, like 'http://localhost:12222/api/v0', it can be used to get old TEE srd_reserved_space.\n");
-    printf("                 And new TEE's srd_reserved_space will be set to (old_srd_reserved_space - 10).\n");
-    printf("           daemon: run as daemon process(this mode is the default one). \n");
+    printf("           --upgrade: used to upgrade.\n");
 
     return 0;
 }

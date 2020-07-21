@@ -23,6 +23,7 @@
 
 #define SRD_UPGRADE_INFO "srd_upgrade_info"
 #define SRD_UPGRADE_INFO_TIMEOUT "timeout"
+#define SRD_UPGRADE_INFO_SRD "srd"
 
 
 #if defined(__cplusplus)
@@ -37,7 +38,7 @@ void srd_check_reserved(void);
 void set_reserved_space(size_t reserved);
 size_t get_reserved_space();
 long get_old_reserved_space(std::string url);
-void srd_init_upgrade();
+void srd_init_upgrade(int srd_num);
 
 #if defined(__cplusplus)
 }

@@ -93,7 +93,7 @@ std::string Chain::get_block_hash(size_t block_number)
 
     if (res.body().size() != 0)
     {
-        p_log->err("%s\n", res.body().c_str());
+        p_log->debug("%s\n", res.body().c_str());
     }
 
     return "";
@@ -111,11 +111,6 @@ bool Chain::is_online(void)
     if ((int)res.result() == 200)
     {
         return true;
-    }
-
-    if (res.body().size() != 0)
-    {
-        p_log->err("%s\n", res.body().c_str());
     }
 
     return false;

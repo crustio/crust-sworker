@@ -94,7 +94,7 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
 {
     Config *p_config = Config::get_instance();
     json::JSON res;
-    UrlEndPoint *url_end_point = get_url_end_point(p_config->api_base_url);
+    UrlEndPoint *url_end_point = get_url_end_point(p_config->base_url);
     res["status"] = 400;
     res["body"] = "Unknown request!";
 

@@ -134,18 +134,19 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
 ```shell
 {
     "base_path" : "/opt/crust/crust-tee/tee_base_path",                  # TEE key information location, must be absolute path
+    "base_url": "http://127.0.0.1:12222/api/v0",                         # your tee node api address
     "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
-    "empty_capacity" : 4,                                                # empty disk storage in Gb
+    "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
     
-    "api_base_url": "http://127.0.0.1:12222/api/v0",                     # your tee node api address
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
-    "websocket_thread_num" : 3,                                          # Websocket service thread number
 
-    "chain_api_base_url" : "http://139.196.122.228:6009/api/v1",         # the address of crust api
-    "chain_address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",# your crust chain identity
-    "chain_account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
-    "chain_password" : "123456",
-    "chain_backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}",              # Chain backup
+    "chain" : {
+        "base_url" : "http://139.196.122.228:6009/api/v1",
+        "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX", # the address of crust api
+        "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
+        "password" : "123456",
+        "backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
+    }
 
     "spid": "<intel_spid>",                                              # Intel SPID
     "linkable": true,                                                    # Linkable or not
@@ -212,7 +213,7 @@ Output:
   },
   "srd" : {
     "detail" : {
-      "/opt/crust/crust-tee/0.5.0/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0}
+      "/opt/crust/crust-tee/0.5.0/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
     },
     "disk_reserved" : 50,
     "remaining_task" : 1,
@@ -223,10 +224,12 @@ Output:
 ```
 Output:
 1. files: Give meaningful files' hash, size and status
+1. status: There are three status: unconfirmed, lost and valid
 1. srd: Give srd information
 1. srd_path_x: Indicates your srd path.
 1. assigned: Indicates how many space has been used for srd in the path.
 1. available: Indicates how many space could be used for srd in the path.
+1. total: Indicates total disk volume.
 1. disk_reserved: Indicates disk reserved space, default value is 50 which means TEE will remain 50GB space for your stuff and the other will be used for srd.
 1. remaining_task: Indicates remaining srd task.
 1. root_hash: Indicates all srd hash
@@ -262,6 +265,61 @@ Output:
   "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
   "version" : "0.5.0"
 }
+```
+
+### Use 'api/v0/debug' to set debug flag
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/debug --data-raw '{"debug" : true}'
+```
+
+Parameter:
+1. debug: true or false, indicates open or close DEBUG mode.
+
+Output (200, success):
+```shell
+Set debug flag successfully
+```
+
+Output (400, failed):
+```shell
+Set debug flag failed
+```
+
+### Use 'api/v0/karst/change_url' to change karst url
+
+Curl shell:
+```shell
+curl http://<url:port>/api/v0/karst/change_url \
+--header 'Content-Type: application/json' \
+--header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
+--data-raw '{"karst_url" : "http://xxxxxx"}'
+```
+
+Output (200, success):
+```shell
+Change srd file success, the srd workload will change in next validation loop
+```
+
+Output (400, empty backup):
+```shell
+empty backup
+```
+
+Output (401, invalid backup):
+```shell
+invalid backup
+```
+
+Output (402, invalid karst url):
+```shell
+invalid karst url
+```
+
+Output (403, internal error):
+```shell
+internal error
 ```
 
 ### Use 'api/v0/srd/change' to change SRD capacity, 

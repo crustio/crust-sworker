@@ -37,9 +37,9 @@ Log::Log()
 /**
  * @desination: open debug mode
  * */
-void Log::open_debug(void)
+void Log::set_debug(bool flag)
 {
-    this->debug_flag = true;
+    this->debug_flag = flag;
 }
 
 /**

@@ -829,11 +829,11 @@ void start_webservice(void)
 {
     // Check command line arguments.
     Config *p_config = Config::get_instance();
-    UrlEndPoint *url_end_point = get_url_end_point(p_config->api_base_url);
+    UrlEndPoint *url_end_point = get_url_end_point(p_config->base_url);
     auto const address = net::ip::make_address(url_end_point->ip);
     auto const port = static_cast<unsigned short>(url_end_point->port);
     auto const doc_root = std::make_shared<std::string>(url_end_point->base);
-    auto const threads = std::max<int>(1, p_config->websocket_thread_num);
+    auto const threads = std::max<int>(1, WEBSOCKET_THREAD_NUM);
 
     // The io_context is required for all I/O
     net::io_context ioc{threads};
