@@ -24,7 +24,7 @@ class Log
 public:
     static Log *log;
     static Log *get_instance();
-    void open_debug(void);
+    void set_debug(bool flag);
     void info(const char *format, ...);
     void warn(const char *format, ...);
     void err(const char *format, ...);

@@ -72,8 +72,7 @@ std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
 // Used to show validation status
-const char *validation_status_strings[] = {"validate_stop", "validate_waiting", "validate_meaningful", "validate_empty"};
-long change_empty_num = 0;
+long change_srd_num = 0;
 
 /**
  * @desination: Start rest service
@@ -85,7 +84,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 {
     Config *p_config = Config::get_instance();
     crust::Log *p_log = crust::Log::get_instance();
-    UrlEndPoint *urlendpoint = get_url_end_point(p_config->api_base_url);
+    UrlEndPoint *urlendpoint = get_url_end_point(p_config->base_url);
     std::string cur_path;
 
     // Returns a bad request response
@@ -182,6 +181,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     (it->second)["total"] = disk_json[it->first]["total"];
                     std::string disk_item = (it->second).dump();
                     remove_char(disk_item, '\n');
+                    replace(disk_item, "}", "  }");
                     it->second = disk_item;
                 }
             }
@@ -256,6 +256,101 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         json::JSON res_json;
 
 
+        // ----- Set debug flag ----- //
+        cur_path = urlendpoint->base + "/debug";
+        if (path.compare(cur_path) == 0)
+        {
+            // Check input parameters
+            std::string ret_info;
+            json::JSON req_json = json::JSON::Load(req.body());
+            if (!req_json.hasKey("debug") || req_json["debug"].JSONType() != json::JSON::Class::Boolean)
+            {
+                ret_info = "Wrong request body!";
+                p_log->err("%s\n", ret_info.c_str());
+                res.result(400);
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+            bool debug_flag = req_json["debug"].ToBool();
+            p_log->set_debug(debug_flag);
+            ret_info = "Set debug flag successfully!";
+            p_log->info("%s %s debug.\n", ret_info.c_str(), debug_flag ? "Open" : "Close");
+            res.result(200);
+            res.body() = ret_info;
+        }
+
+        // --- Change karst url API --- //
+        cur_path = urlendpoint->base + "/karst/change_url";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            // Check input parameters
+            json::JSON req_json = json::JSON::Load(req.body());
+            std::string karst_url = req_json["karst_url"].ToString();
+
+            if (karst_url.size() == 0)
+            {
+                ret_info = "Invalid karst url";
+                p_log->info("%s\n", ret_info.c_str());
+                res.body() =ret_info;
+                res.result(402);
+                goto postcleanup;
+            }
+            else
+            {
+                // Get original config
+                std::string config_path = p_config->get_config_path();
+                std::ifstream config_ifs(config_path);
+                std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
+                json::JSON config_json = json::JSON::Load(config_str);
+                config_json["karst_url"] = karst_url;
+                // Write new config
+                std::ofstream config_ofs;
+                config_ofs.open(config_path);
+                config_str = config_json.dump();
+                try
+                {
+                    config_ofs.write(config_str.c_str(), config_str.size());
+                    config_ofs.close();
+                    // Chain Config karst_url
+                    set_g_new_karst_url(karst_url);
+                }
+                catch (std::exception e)
+                {
+                    ret_info = "Change karst url failed!";
+                    p_log->err("%s Error: %s\n", ret_info.c_str(), e.what());
+                    config_ofs.close();
+                    res.body() = ret_info;
+                    res.result(403);
+                    goto postcleanup;
+                }
+
+                ret_info = "Change karst url successfully!Will use new karst url next era!";
+                p_log->info("%s Set karst url to:%s\n", ret_info.c_str(), karst_url.c_str());
+                res.body() = ret_info;
+            }
+            goto postcleanup;
+        }
+
         // --- Srd change API --- //
         cur_path = urlendpoint->base + "/srd/change";
         if (path.compare(cur_path) == 0)
@@ -282,56 +377,23 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req.body());
-            change_empty_num = req_json["change"].ToInt();
+            change_srd_num = req_json["change"].ToInt();
 
-            if (change_empty_num == 0)
+            if (change_srd_num == 0)
             {
                 p_log->info("Invalid change\n");
                 res.body() = "Invalid change";
                 res.result(402);
-                goto end_change_empty;
+                goto end_change_srd;
             }
             else
             {
-                // Start changing empty
-                Ecall_srd_set_change(global_eid, change_empty_num);
-                p_log->info("Change task:%ldG has been added, will be executed next srd.\n", change_empty_num);
+                // Start changing srd
+                Ecall_srd_set_change(global_eid, change_srd_num);
+                p_log->info("Change task:%ldG has been added, will be executed next srd.\n", change_srd_num);
                 res.body() = "Change srd file success, the srd workload will change in next validation loop!";
             }
-        end_change_empty:
-            goto postcleanup;
-        }
-
-        // --- Change srd reserved space --- //
-        cur_path = urlendpoint->base + "/srd/reset";
-        if (path.compare(cur_path) == 0)
-        {
-            res.result(200);
-            std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
-            // Change srd reserved
-            set_reserved_space(DEFAULT_SRD_RESERVED);
-            ret_info = "Stop srd successfully!Set srd reserved space to " + std::to_string(DEFAULT_SRD_RESERVED);
-            p_log->info("%s\n", ret_info.c_str());
-            res.body() = ret_info;
-
+        end_change_srd:
             goto postcleanup;
         }
 

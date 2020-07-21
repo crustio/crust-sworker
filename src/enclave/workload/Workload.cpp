@@ -28,6 +28,14 @@ Workload *Workload::get_instance()
 }
 
 /**
+ * @description: Initialize workload
+ * */
+Workload::Workload()
+{
+    this->report_files = true;
+}
+
+/**
  * @description: destructor
  */
 Workload::~Workload()

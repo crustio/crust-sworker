@@ -589,6 +589,6 @@ void replace(std::string &data, std::string org_str, std::string det_str)
             break;
         }
         data.replace(spos, org_str.size(), det_str);
-        epos = spos;
+        epos = spos + det_str.size();
     }
 }

@@ -22,13 +22,13 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     sgx_target_info_t target_info;
     sgx_epid_group_id_t epid_gid;
     uint32_t sz = 0;
-    uint32_t flags = p_config->flags;
+    uint32_t flags = IAS_FLAGS;
     sgx_quote_nonce_t nonce;
     char *b64quote = NULL;
     char *b64manifest = NULL;
     sgx_spid_t *spid = (sgx_spid_t *)malloc(sizeof(sgx_spid_t));
     memset(spid, 0, sizeof(sgx_spid_t));
-    from_hexstring((unsigned char *)spid, p_config->spid.c_str(), p_config->spid.size());
+    from_hexstring((unsigned char *)spid, IAS_SPID, strlen(IAS_SPID));
     int i = 0;
     bool entry_status = false;
     int common_tryout = 3;
@@ -162,7 +162,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     // ----- Entry network process ----- //
     HttpClient *client = new HttpClient();
     ApiHeaders headers = {
-        {"Ocp-Apim-Subscription-Key", p_config->ias_primary_subscription_key}
+        {"Ocp-Apim-Subscription-Key", IAS_PRIMARY_SUBSCRIPTION_KEY}
     };
     std::string body = "{\n\"isvEnclaveQuote\":\"";
     body.append(b64quote);
@@ -171,9 +171,11 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     http::response<http::string_body> ias_res;
     // Send quote to IAS service
     int net_tryout = IAS_TRYOUT;
+    std::string ias_report_url(IAS_BASE_URL);
+    ias_report_url.append(IAS_REPORT_PATH);
     while (net_tryout > 0)
     {
-        ias_res = client->SSLPost(p_config->ias_base_url+p_config->ias_base_path, body, "application/json", headers, HTTP_REQ_INSECURE);
+        ias_res = client->SSLPost(ias_report_url, body, "application/json", headers, HTTP_REQ_INSECURE);
         if ((int)ias_res.result() != 200)
         {
             p_log->err("Send to IAS failed! Trying again...(%d)\n", IAS_TRYOUT - net_tryout + 1);

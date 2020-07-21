@@ -44,6 +44,7 @@ public:
     bool get_report_flag();
 
 private:
+    Workload();
     // True indicates report files this turn, false means not report
     bool report_files;
 };

@@ -23,6 +23,7 @@ crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
 extern bool g_start_server_success;
 extern std::mutex g_start_server_mutex;
+extern bool g_init_upgrade;
 
 /**
  * @description: Init configuration
@@ -187,6 +188,12 @@ int process_run()
         goto cleanup;
     }
 
+    // Init upgrade
+    if (g_init_upgrade)
+    {
+        srd_init_upgrade(p_config->srd_capacity);
+    }
+
     // ----- Restore data from file ----- //
     if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
@@ -204,8 +211,8 @@ int process_run()
         // Store crust info in enclave
         crust_status_t crust_status = CRUST_SUCCESS;
         if (SGX_SUCCESS != Ecall_set_chain_account_id(global_eid, &crust_status,
-                p_config->chain_address.c_str(), p_config->chain_address.size()) ||
-            CRUST_SUCCESS != crust_status)
+                p_config->chain_address.c_str(), p_config->chain_address.size())
+            || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Store backup information to enclave failed!Error code:%lx\n", crust_status);
             return_status = -1;
@@ -240,20 +247,33 @@ int process_run()
             p_log->info("Send identity to crust chain successfully!\n");
         }
 
-        // Srd empty disk
-        Ecall_srd_set_change(global_eid, p_config->empty_capacity);
+        // Srd disk
+        Ecall_srd_set_change(global_eid, p_config->srd_capacity);
     }
     else
     {
         // Compare crust account it in configure file and recovered file
         if (SGX_SUCCESS != Ecall_cmp_chain_account_id(global_eid, &crust_status,
-                p_config->chain_address.c_str(), p_config->chain_address.size()) ||
-            CRUST_SUCCESS != crust_status)
+                p_config->chain_address.c_str(), p_config->chain_address.size())
+            || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Configure chain account id doesn't equal to recovered one!\n");
             return_status = -1;
             goto cleanup;
         }
+
+        // Check and do previous srd upgrade
+        std::string upgrade_info;
+        crust::DataBase *db = crust::DataBase::get_instance();
+        if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
+        {
+            json::JSON upgrade_json = json::JSON::Load(upgrade_info);
+            upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = 0;
+            db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
+            set_reserved_space(DEFAULT_SRD_RESERVED - 10);
+            Ecall_srd_set_change(global_eid, upgrade_json[SRD_UPGRADE_INFO_SRD].ToInt());
+        }
+
         p_log->info("Restore enclave data successfully!\n");
     }
 

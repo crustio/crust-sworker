@@ -191,7 +191,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     ocall_store_workreport(wr_str.c_str());
 
     // Reset meaningful data
-    Workload::get_instance()->set_report_flag(true);
+    wl->set_report_flag(true);
 
 
 cleanup:
