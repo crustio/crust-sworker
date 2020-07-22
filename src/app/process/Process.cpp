@@ -57,25 +57,25 @@ bool initialize_enclave()
     if (sgx_support & SGX_SUPPORT_NO)
     {
         p_log->err("This system does not support Intel SGX.\n");
-        return -1;
+        return false;
     }
     else
     {
         if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED)
         {
             p_log->err("Intel SGX is supported on this system but disabled in the BIOS\n");
-            return -1;
+            return false;
         }
         else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED)
         {
             p_log->err("Intel SGX will be enabled after the next reboot\n");
-            return -1;
+            return false;
         }
         else if (!(sgx_support & SGX_SUPPORT_ENABLED))
         {
             p_log->err("Intel SGX is supported on this sytem but not available for use. \
                     The system may lock BIOS support, or the Platform Software is not available\n");
-            return -1;
+            return false;
         }
     }
 
@@ -162,7 +162,6 @@ int process_run()
     std::string tee_identity_result = "";
     int return_status = 1;
     p_log->info("WorkerPID = %d\n", worker_pid);
-    p_log->info("Worker global eid: %d\n", global_eid);
 
     // Init conifigure
     if (!initialize_config())
@@ -187,6 +186,7 @@ int process_run()
         return_status = -1;
         goto cleanup;
     }
+    p_log->info("Worker global eid: %d\n", global_eid);
 
     // Init upgrade
     if (g_init_upgrade)
@@ -209,6 +209,7 @@ int process_run()
         p_log->info("Generate key pair successfully!\n");
 
         // Store crust info in enclave
+        // TODO: Get srd from other node
         crust_status_t crust_status = CRUST_SUCCESS;
         if (SGX_SUCCESS != Ecall_set_chain_account_id(global_eid, &crust_status,
                 p_config->chain_address.c_str(), p_config->chain_address.size())

@@ -663,14 +663,5 @@ crust_status_t storage_delete_file_real()
         persist_del(dhash+"_meta");
     }
 
-    // ----- Delete file related data ----- //
-    for (auto dhash : del_hashs_s)
-    {
-        // Delete file tree structure
-        persist_del(dhash);
-        // Delete file metadata
-        persist_del(dhash+"_meta");
-    }
-
     return crust_status;
 }

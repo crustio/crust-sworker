@@ -13,14 +13,7 @@ Config *Config::get_instance()
 {
     if (Config::config == NULL)
     {
-        if (config_file_path.size() == 0)
-        {
-            Config::config = new Config(CONFIG_FILE_PATH);
-        }
-        else
-        {
-            Config::config = new Config(config_file_path);
-        }
+        Config::config = new Config(config_file_path);
     }
 
     return Config::config;
@@ -86,7 +79,7 @@ void Config::show(void)
     {
         printf("    'srd path %d' : '%s',\n", i + 1, this->srd_paths[i].ToString().c_str());
     }
-    printf("    'srd capacity' : %lu,\n", this->srd_capacity);
+    printf("    'srd init capacity' : %lu,\n", this->srd_capacity);
     printf("    'tee base url' : '%s',\n", this->base_url.c_str());
     printf("    'karst url' : '%s',\n", this->karst_url.c_str());
 
@@ -134,12 +127,5 @@ void Config::change_srd_capacity(int change)
  * */
 std::string Config::get_config_path()
 {
-    if (config_file_path.size() == 0)
-    {
-        return CONFIG_FILE_PATH;
-    }
-    else
-    {
-        return config_file_path;
-    }
+    return config_file_path;
 }

@@ -362,7 +362,7 @@ void srd_check_reserved(void)
             p_log->debug("Srd info not found!Check srd reserved failed!\n");
             // Unlock srd_info
             srd_info_mutex.unlock();
-            sleep(15);
+            sleep(10);
             continue;
         }
         json::JSON srd_info_json = json::JSON::Load(srd_info_str);
@@ -398,7 +398,7 @@ void srd_check_reserved(void)
             }
         }
 
-        sleep(15);
+        sleep(10);
     }
 }
 
