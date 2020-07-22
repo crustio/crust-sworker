@@ -544,7 +544,7 @@ crust_status_t ocall_validate_init()
     if (! wssclient->websocket_request(backup_json.dump(), res))
     {
         p_log->err("Validate meaningful failed! Send backup to server failed! Error: %s\n", res.c_str());
-        return CRUST_VALIDATE_WSS_REQUEST_FAILED;
+        return CRUST_VALIDATE_KARST_OFFLINE;
     }
     json::JSON res_json = json::JSON::Load(res);
     if (res_json["status"].ToInt() != 200)
