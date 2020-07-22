@@ -194,6 +194,12 @@ int process_run()
         srd_init_upgrade(p_config->srd_capacity);
     }
 
+    // Init upgrade
+    if (g_init_upgrade)
+    {
+        srd_init_upgrade(p_config->srd_capacity);
+    }
+
     // ----- Restore data from file ----- //
     if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
@@ -268,11 +274,28 @@ int process_run()
         crust::DataBase *db = crust::DataBase::get_instance();
         if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
         {
+            std::string srd_info;
+            long srd_assigned_total = 0;
+            if (CRUST_SUCCESS == db->get("srd_info", srd_info) && srd_info.size() > 0)
+            {
+                json::JSON srd_json = json::JSON::Load(srd_info);
+                for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)
+                {
+                    srd_assigned_total += it->second["assigned"].ToInt();
+                }
+            }
             json::JSON upgrade_json = json::JSON::Load(upgrade_info);
-            upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = 0;
-            db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
-            set_reserved_space(DEFAULT_SRD_RESERVED - 10);
-            Ecall_srd_set_change(global_eid, upgrade_json[SRD_UPGRADE_INFO_SRD].ToInt());
+            if (srd_assigned_total >= upgrade_json[SRD_UPGRADE_INFO_SRD].ToInt())
+            {
+                db->del(SRD_UPGRADE_INFO);
+            }
+            else
+            {
+                upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = 0;
+                db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
+                set_reserved_space(DEFAULT_SRD_RESERVED - 10);
+                Ecall_srd_set_change(global_eid, upgrade_json[SRD_UPGRADE_INFO_SRD].ToInt() - srd_assigned_total);
+            }
         }
 
         p_log->info("Restore enclave data successfully!\n");

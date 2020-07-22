@@ -379,7 +379,7 @@ void validate_meaningful_file()
             size_t sealed_data_size = 0;
             ocall_validate_get_file(&crust_status, root_hash.c_str(), block_str.c_str(),
                                     &p_sealed_data, &sealed_data_size);
-            if (CRUST_SUCCESS != crust_status)
+            if (CRUST_SUCCESS != crust_status && CRUST_VALIDATE_KARST_OFFLINE == crust_status)
             {
                 //log_err("Get file block:%ld failed!\n", check_block_idx);
                 wl->set_report_flag(false);
