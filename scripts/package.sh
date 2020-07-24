@@ -22,7 +22,7 @@ function success_exit()
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 srcdir=$instdir/src
-pkgdir=$instdir/crust-tee
+pkgdir=$instdir/crust-sworker
 enclavefile="enclave.signed.so"
 SYNCFILE=$instdir/.syncfile
 
@@ -38,7 +38,7 @@ getVERSION > $instdir/VERSION
 echo "TEE=$(getTEEVERSION)" >> $instdir/VERSION
 
 newversion=$(cat $instdir/VERSION | head -n 1)
-verbose INFO "Start packaging tee, version is $newversion..."
+verbose INFO "Start packaging sworker, version is $newversion..."
 
 # Create directory
 rm -rf $pkgdir &>/dev/null
@@ -64,8 +64,8 @@ cp -r src resource scripts test $pkgdir
 cp Makefile VERSION buildenv.mk $pkgdir
 
 # Tar
-verbose INFO "Tar tee..." h
+verbose INFO "Tar sworker..." h
 res=0
-tar -cvf crust-tee.tar $(basename $pkgdir) &> /dev/null
+tar -cvf crust-sworker.tar $(basename $pkgdir) &> /dev/null
 res=$(($?|$res))
 checkRes $res "quit" "success"

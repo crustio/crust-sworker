@@ -1,5 +1,5 @@
-# Crust TEE &middot; [![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fcrustio%2Fcrust%2Fbadge&style=flat)](https://github.com/crustio/crust-tee/actions?query=workflow%3ACI) [![GitHub license](https://img.shields.io/github/license/crustio/crust-tee)](LICENSE)
-Implement the trusted layer based on TEE technology, functionally connect  the consensus layer, and be responsible for the trusted verification of the resource layer.
+# Crust sWorker &middot; [![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fcrustio%2Fcrust%2Fbadge&style=flat)](https://github.com/crustio/crust-sworker/actions?query=workflow%3ACI) [![GitHub license](https://img.shields.io/github/license/crustio/crust-sworker)](LICENSE)
+sWorker(storage worker) is an offchain storage quantizer of Crust MPoW protocol running inside TEE enclave.
 
 <a href='https://web3.foundation/'><img width='220' alt='Funded by web3 foundation' src='docs/img/web3f_grants_badge.png'></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='https://builders.parity.io/'><img width='260' src='docs/img/sbp_grants_badge.png'></a>
 
@@ -29,7 +29,7 @@ git lfs install
 
 ### Git clone
 ```shell
-git clone https://github.com/crustio/crust-tee.git
+git clone https://github.com/crustio/crust-sworker.git
 ```
 
 ## Install and run
@@ -45,14 +45,14 @@ sudo apt-get update
 curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 ```
 
-#### Pull crust tee runner image
+#### Pull crust sworker runner image
 ```shell
-sudo docker pull crustio/crust-tee:0.5.0
+sudo docker pull crustio/crust-sworker:0.5.0
 ```
 
 #### Run
 ```shell
-sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee:0.5.0
+sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
 ```
 
 ### Docker model (for developers)
@@ -68,19 +68,19 @@ curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 ```
 
 #### Build docker env
-If dependencies don't be changed, you don't need to execute this shell to generate new crust-tee-base docker
+If dependencies don't be changed, you don't need to execute this shell to generate new crust-sworker-env docker
 ```shell
 sudo ./docker/build_env.sh
 ```
 
-#### Build crust tee docker
+#### Build crust sworker docker
 ```shell
 sudo ./docker/build.sh
 ```
 
 #### Run
 ```shell
-sudo docker run -it -e ARGS="-c /opt/crust/crust-tee/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-tee:0.5.0
+sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
 ```
 
 ### Local device model (for developers)
@@ -102,7 +102,7 @@ sudo ./stripts/install.sh
 
 #### Run
 ```shell
-/opt/crust/crust-tee/0.5.0/bin/crust-tee -c /opt/crust/crust-tee/0.5.0/etc/Config.json
+/opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
 ```
 
 ### Local device package model (for developers)
@@ -118,30 +118,30 @@ sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev 
 ```
 
 #### Package
-- Run '**sudo ./scripts/package.sh**' to package whole project, you will get a **crust-tee.tar** package.
+- Run '**sudo ./scripts/package.sh**' to package whole project, you will get a **crust-sworker.tar** package.
 
 #### Install
-1. Run '**tar -xvf crust-tee.tar**' to extract package.
-1. Cd to the extract folder, run '**sudo ./scripts/install.sh**' to install TEE application. Related dependencies will be installed on your machine. TEE application will be installed on '**/opt/crust/crust-tee**' directory.
+1. Run '**tar -xvf crust-sworker.tar**' to extract package.
+1. Cd to the extract folder, run '**sudo ./scripts/install.sh**' to install sWorker application. Related dependencies will be installed on your machine. sWorker application will be installed on '**/opt/crust/crust-sworker**' directory.
 
 #### Run
 ```shell
-/opt/crust/crust-tee/0.5.0/bin/crust-tee -c /opt/crust/crust-tee/0.5.0/etc/Config.json
+/opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
 ```
 
-## Configure crust tee
-In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE application.
+## Configure crust sworker
+In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
 ```shell
 {
-    "base_path" : "/opt/crust/crust-tee/tee_base_path",                  # TEE key information location, must be absolute path
-    "base_url": "http://127.0.0.1:12222/api/v0",                         # your tee node api address
+    "base_path" : "/opt/crust/crust-sworker/tee_base_path",              # sWorker key information location, must be absolute path
+    "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
     "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
     "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
     
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
 
     "chain" : {
-        "base_url" : "http://139.196.122.228:6009/api/v1",
+        "base_url" : "http://127.0.0.1:56666/api/v1",
         "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX", # the address of crust api
         "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
         "password" : "123456",
@@ -161,33 +161,33 @@ In /opt/crust/crust-tee/etc/Config.json file you can configure your TEE applicat
 ```
 
 ### Start
-Crust TEE apllication is installed in /opt/crust/crust-tee.
+Crust sWorker apllication is installed in /opt/crust/crust-sworker.
 
-#### Lanuch crust TEE
+#### Lanuch crust sWorker
 ```shell
-cd /opt/crust/crust-tee
-./bin/crust-tee --offline # if you want to run crust TEE with crust chain, please remove '--offline' flag
+cd /opt/crust/crust-sworker
+./bin/crust-sworker --offline # if you want to run crust sWorker with crust chain, please remove '--offline' flag
 ```
 
 ## Launch crust chain and API
-Crust TEE will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole TEE flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
+Crust sWorker will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole sWorker flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
 
 ## Client launch
 ### Package resources
-Run '**scripts/package.sh**' to package whole project, you will get a **crust-tee.tar** package.
+Run '**scripts/package.sh**' to package whole project, you will get a **crust-sworker.tar** package.
 
 ### Launch by using crust client
 Please follow [crust client](https://github.com/crustio/crust-client) to launch.
 
-## Crust tee executable file
+## Crust sWorker executable file
 
 ## Command line
-1. Run '**bin/crust-tee --help**' to show how to use **crust-tee**.
-1. Run '**bin/crust-tee \<argument\>**' to run crust-tee in different mode, argument can be daemon.
-   1. **daemon** option lets tee run in daemon mode.
-1. Run '**bin/crust-tee --config \<config_file_path\>**' to use customized configure file, you can get your own configure file by referring **etc/Config.json**k.
-1. Run '**bin/crust-tee --offline**', program will not interact with the chain.
-1. Run '**bin/crust-tee --debug**', program will output debug logs. 
+1. Run '**bin/crust-sworker --help**' to show how to use **crust-sworker**.
+1. Run '**bin/crust-sworker \<argument\>**' to run crust-sworker in different mode, argument can be daemon.
+   1. **daemon** option lets sWorker run in daemon mode.
+1. Run '**bin/crust-sworker --config \<config_file_path\>**' to use customized configure file, you can get your own configure file by referring **etc/Config.json**k.
+1. Run '**bin/crust-sworker --offline**', program will not interact with the chain.
+1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
 
 ## API
 ### Use 'api/v0/workload' to get workload information
@@ -213,7 +213,7 @@ Output:
   },
   "srd" : {
     "detail" : {
-      "/opt/crust/crust-tee/0.5.0/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
+      "/opt/crust/crust-sworker/0.5.0/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
     },
     "disk_reserved" : 50,
     "remaining_task" : 1,
@@ -230,7 +230,7 @@ Output:
 1. assigned: Indicates how many space has been used for srd in the path.
 1. available: Indicates how many space could be used for srd in the path.
 1. total: Indicates total disk volume.
-1. disk_reserved: Indicates disk reserved space, default value is 50 which means TEE will remain 50GB space for your stuff and the other will be used for srd.
+1. disk_reserved: Indicates disk reserved space, default value is 50 which means sWorker will remain 50GB space for your stuff and the other will be used for srd.
 1. remaining_task: Indicates remaining srd task.
 1. root_hash: Indicates all srd hash
 1. space: Space has been taken by srd
@@ -361,9 +361,9 @@ Output (500, service busy, this API does not support concurrency):
 Change SRD service busy
 ```
 
-Output (500, TEE has not been fully launched , this API does not support concurrency):
+Output (500, sWorker has not been fully launched , this API does not support concurrency):
 ```shell
-'TEE has not been fully launched' or 'Get validation status failed'
+'sWorker has not been fully launched' or 'Get validation status failed'
 ```
 
 ### Use 'storage/seal' to start storage related work, 
@@ -568,7 +568,7 @@ Please make sure your contribution adhere to our coding guideliness:
 Merging pull requests once CI is successful:
 
 - A PR needs to be reviewed and approved by project maintainers;
-- PRs that break the external API must be tagged with [`breaksapi`](https://github.com/crustio/crust-tee/labels/breakapi);
+- PRs that break the external API must be tagged with [`breaksapi`](https://github.com/crustio/crust-sworker/labels/breakapi);
 - No PR should be merged until **all reviews' comments** are addressed.
 
 ## License

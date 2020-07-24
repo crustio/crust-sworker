@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-# script to build tee build base image
+# script to build sworker build base image
 
 usage() {
     echo "Usage:"
@@ -29,7 +29,7 @@ while getopts ":hp" opt; do
 done
 
 VER=$(cat VERSION | head -n 1)
-IMAGEID="crustio/crust-tee-env:$VER"
+IMAGEID="crustio/crust-sworker-env:$VER"
 echo "building $IMAGEID image"
 if [ "$PUBLISH" -eq "1" ]; then
   echo "will publish after build"
@@ -39,7 +39,7 @@ fi
 docker build -f docker/env/Dockerfile -t $IMAGEID .
 
 if [ "$?" -ne "0" ]; then
-  echo "crust-tee-env build failed!"
+  echo "crust-sworker-env build failed!"
   exit 1
 fi
 

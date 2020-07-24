@@ -33,7 +33,7 @@
 
 # User
 .vscode/
-crust-tee.tar
-crust-tee/
+crust-sworker.tar
+crust-sworker/
 scripts/err.log
 err.log
