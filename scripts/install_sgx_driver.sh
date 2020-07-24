@@ -13,20 +13,20 @@ fi
 
 . $scriptdir/utils.sh
 
-log_info "Apt-get update..."
+verbose INFO "Apt-get update..."
 apt-get update 
 
-log_info "Installing denpendencies..."
+verbose INFO "Installing denpendencies..."
 apt-get install -y wget build-essential kmod linux-headers-`uname -r`
 
-log_info "Download sgx driver"
+verbose INFO "Download sgx driver"
 wget $driverurl
 
-log_info "Give sgx driver executable permission"
+verbose INFO "Give sgx driver executable permission"
 chmod +x $driverbin
 
-log_info "Installing sgx driver..."
+verbose INFO "Installing sgx driver..."
 ./$driverbin
 
-log_info "Clear resource"
+verbose INFO "Clear resource"
 rm $driverbin
