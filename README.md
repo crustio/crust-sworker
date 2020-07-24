@@ -141,8 +141,8 @@ sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev 
 In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
 ```shell
 {
-    "base_path" : "/opt/crust/crust-sworker/<VERSION>/tee_base_path",    # sWorker key information location, must be absolute path
-    "base_url": "http://127.0.0.1:56666/api/v0",                         # your sWorker node api address
+    "base_path" : "/opt/crust/crust-sworker/0.5.0/tee_base_path",    # sWorker key information location, must be absolute path
+    "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
     "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
     "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
     

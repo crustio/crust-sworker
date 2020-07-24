@@ -7,7 +7,7 @@
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",
 
     "chain" : {
-        "base_url" : "http://139.196.122.228:6009/api/v1",
+        "base_url" : "http://127.0.0.1:56666/api/v1",
         "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",
         "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
         "password" : "123456",
