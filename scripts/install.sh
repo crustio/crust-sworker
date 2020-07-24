@@ -1,13 +1,13 @@
 #!/bin/bash
 function checkOldCrustTee()
 {
-    verbose INFO "Checking old crust tee..." h
+    verbose INFO "Checking old crust sworker..." h
     local ret=0
-    if [ ! -e "$crustdir/crust-tee" ]; then
+    if [ ! -e "$crustdir/crust-sworker" ]; then
         verbose INFO "SUCCESS" t
         return
     fi
-    cd $crustteedir
+    cd $crustsworkerdir
     # Check version
     for dir in $(ls -d */ 2>/dev/null); do
         if [ -e $dir/VERSION ]; then
@@ -24,44 +24,44 @@ function checkOldCrustTee()
 
 function installAPP()
 {
-    # Create tee directory
-    verbose INFO "Creating tee diretory related..." h
+    # Create sworker directory
+    verbose INFO "Creating sworker diretory related..." h
     local res=0
     mkdir -p $crustdir
     res=$(($?|$res))
-    mkdir -p $crustteedir
+    mkdir -p $crustsworkerdir
     res=$(($?|$res))
-    mkdir -p $realteedir
+    mkdir -p $realsworkerdir
     res=$(($?|$res))
-    mkdir -p $realteedir/bin
+    mkdir -p $realsworkerdir/bin
     res=$(($?|$res))
-    mkdir -p $realteedir/etc
+    mkdir -p $realsworkerdir/etc
     res=$(($?|$res))
-    mkdir -p $realteedir/scripts
+    mkdir -p $realsworkerdir/scripts
     res=$(($?|$res))
     checkRes $res "quit" "success"
 
-    # Install tee-app dependencies
+    # Install sworker-app dependencies
     res=0
     cd $instdir
     make clean &>/dev/null
-    setTimeWait "$(verbose INFO "Building and installing tee application..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Building and installing sworker application..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
     make -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     cd - &>/dev/null
 
     # Copy related files to install directory
-    cp $srcdir/$appname $realteedir/bin
+    cp $srcdir/$appname $realsworkerdir/bin
     if [ ! -e "$instdir/etc/$enclaveso" ]; then
-        cp $srcdir/$enclaveso $realteedir/etc
+        cp $srcdir/$enclaveso $realsworkerdir/etc
     else
-        cp $instdir/etc/$enclaveso $realteedir/etc
+        cp $instdir/etc/$enclaveso $realsworkerdir/etc
     fi
-    cp $srcdir/$configfile $realteedir/etc
-    cp -r $instdir/scripts/uninstall.sh $realteedir/scripts
-    cp -r $instdir/scripts/utils.sh $realteedir/scripts
-    cp -r $instdir/VERSION $realteedir
+    cp $srcdir/$configfile $realsworkerdir/etc
+    cp -r $instdir/scripts/uninstall.sh $realsworkerdir/scripts
+    cp -r $instdir/scripts/utils.sh $realsworkerdir/scripts
+    cp -r $instdir/VERSION $realsworkerdir
 
     # Set environment
     setEnv
@@ -146,9 +146,9 @@ srcdir=$instdir/src
 TMPFILE=$srcdir/tmp.$$
 ERRFILE=$instdir/err.log
 crustdir=/opt/crust
-crustteedir=$crustdir/crust-tee
+crustsworkerdir=$crustdir/crust-sworker
 newversion=$(getVERSION)
-realteedir=$crustteedir/$newversion
+realsworkerdir=$crustsworkerdir/$newversion
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 selfName=$(basename $0)
@@ -162,11 +162,11 @@ coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
 # Control configuration
 toKillPID=()
 # App related
-appname="crust-tee"
+appname="crust-sworker"
 enclaveso="enclave.signed.so"
 configfile="Config.json"
 # Crust related
-crust_env_file=$realteedir/etc/environment
+crust_env_file=$realsworkerdir/etc/environment
 
 #trap "success_exit" INT
 trap "success_exit" EXIT
@@ -203,15 +203,15 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-printf "%s%s\n"   "$pad" '                        __     __               _            __        ____'
-printf "%s%s\n"   "$pad" '  ____________  _______/ /_   / /____  ___     (_)___  _____/ /_____ _/ / /'
-printf "%s%s\n"   "$pad" ' / ___/ ___/ / / / ___/ __/  / __/ _ \/ _ \   / / __ \/ ___/ __/ __ `/ / / '
-printf "%s%s\n"   "$pad" '/ /__/ /  / /_/ (__  ) /_   / /_/  __/  __/  / / / / (__  ) /_/ /_/ / / /  '
-printf "%s%s\n\n" "$pad" '\___/_/   \__,_/____/\__/   \__/\___/\___/  /_/_/ /_/____/\__/\__,_/_/_/   '
+printf "%s%s\n"   "$pad" '                             __                _            __        ____'
+printf "%s%s\n"   "$pad" '   ______      ______  _____/ /_____  _____   (_)___  _____/ /_____ _/ / /'
+printf "%s%s\n"   "$pad" '  / ___/ | /| / / __ \/ ___/ //_/ _ \/ ___/  / / __ \/ ___/ __/ __ `/ / / '
+printf "%s%s\n"   "$pad" ' (__  )| |/ |/ / /_/ / /  / ,< /  __/ /     / / / / (__  ) /_/ /_/ / / /  '
+printf "%s%s\n\n" "$pad" '/____/ |__/|__/\____/_/  /_/|_|\___/_/     /_/_/ /_/____/\__/\__,_/_/_/   '
 
 verbose INFO "Version -----------------$newversion-------------------"
 
-# check previous crust-tee
+# check previous crust-sworker
 checkOldCrustTee
 
 # Install Dependencies
@@ -238,12 +238,12 @@ installAPP
 if [ "$DOCKERMODLE" == "0" ]; then
     verbose INFO "Changing diretory owner..." h
     res=0
-    chown -R $uid:$uid $crustteedir
+    chown -R $uid:$uid $crustsworkerdir
     res=$(($?|$res))
     chown -R $uid:$uid $crusttooldir
     res=$(($?|$res))
     checkRes $res "quit" "success"
 fi
 
-verbose INFO "Crust-tee has been installed in /opt/crust/crust-tee/$newversion!"
+verbose INFO "Crust-sworker has been installed in /opt/crust/crust-sworker/$newversion!"
 instSuccess=true

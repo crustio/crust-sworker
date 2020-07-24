@@ -1,6 +1,6 @@
 #!/bin/bash
-crust_tee_main_install_dir=/opt/crust/crust-tee
+crust_sworker_main_install_dir=/opt/crust/crust-sworker
 
-rm -rf $crust_tee_main_install_dir/*
+rm -rf $crust_sworker_main_install_dir/*
 
-echo "Uninstall crust-tee successfully!"
+echo "Uninstall crust-sworker successfully!"

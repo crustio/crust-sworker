@@ -101,7 +101,7 @@ endif
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 App_C_Objects := $(App_C_Files:.c=.o)
 
-App_Name := crust-tee
+App_Name := crust-sworker
 
 
 ######## Enclave Settings ########
@@ -190,4 +190,4 @@ endif
 
 Test_Source_Files := EnclaveUtilsTest.cpp MainTest.cpp
 Test_Objects := $(Test_Source_Files:.cpp=.o)
-Test_Target := crust-tee-test
+Test_Target := crust-sworker-test

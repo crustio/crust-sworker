@@ -1,6 +1,6 @@
 #define VERSION "0.5.0"
 
-#define CRUST_INST_DIR      "/opt/crust/crust-tee/" VERSION
+#define CRUST_INST_DIR      "/opt/crust/crust-sworker/" VERSION
 #define ENCLAVE_FILE_PATH   CRUST_INST_DIR "/etc/enclave.signed.so"
 
 #define HASH_LENGTH 32

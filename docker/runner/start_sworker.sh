@@ -1,12 +1,12 @@
 #! /usr/bin/env bash
 
 crustdir=/opt/crust
-version=$(cat /crust-tee/VERSION | head -n 1)
-crustteedir=$crustdir/crust-tee/$version
-crust_env_file=$crustteedir/etc/environment
+version=$(cat /crust-sworker/VERSION | head -n 1)
+crustsworkerdir=$crustdir/crust-sworker/$version
+crust_env_file=$crustsworkerdir/etc/environment
 inteldir=/opt/intel
 
-echo "Starting curst tee $version"
+echo "Starting curst sworker $version"
 source $crust_env_file
 export LD_LIBRARY_PATH=LD_LIBRARY_PATH:$inteldir/libsgx-enclave-common/aesm
 
@@ -22,5 +22,5 @@ else
     sleep 5
 fi
 
-echo "Run tee with arguments: $ARGS"
-/opt/crust/crust-tee/$version/bin/crust-tee $ARGS
+echo "Run sworker with arguments: $ARGS"
+/opt/crust/crust-sworker/$version/bin/crust-sworker $ARGS

@@ -307,8 +307,8 @@ TMPFILE=$scriptdir/tmp.$$
 ERRFILE=$scriptdir/err.log
 rsrcdir=$scriptdir/../resource
 crustdir=/opt/crust
-crustteedir=$crustdir/crust-tee
-realteedir=$crustteedir/$(cat $scriptdir/../VERSION | head -n 1)
+crustsworkerdir=$crustdir/crust-sworker
+realsworkerdir=$crustsworkerdir/$(cat $scriptdir/../VERSION | head -n 1)
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
 sgxssldir=$inteldir/sgxssl
@@ -358,7 +358,7 @@ othersprereq=(libboost-all-dev libleveldb-dev openssl)
 delOrder=(libsgx-enclave-common-dev libsgx-enclave-common sgxdriver sgxsdk)
 declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 # Crust related
-crust_env_file=$realteedir/etc/environment
+crust_env_file=$realsworkerdir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
 
 
