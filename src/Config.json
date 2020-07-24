@@ -1,7 +1,7 @@
 {
-    "base_path" : "/opt/crust/crust-sworker/0.5.0/sworker_base_path",
+    "base_path" : "/opt/crust/crust-sworker/<VERSION>/tee_base_path",
     "base_url": "http://0.0.0.0:12222/api/v0",
-    "srd_paths" : ["/opt/crust/crust-sworker/0.5.0/sworker_base_path/test1", "/opt/crust/crust-sworker/0.5.0/sworker_base_path/test2"],
+    "srd_paths" : ["/opt/crust/crust-sworker/<VERSION>/tee_base_path/test1", "/opt/crust/crust-sworker/<VERSION>/tee_base_path/test2"],
     "srd_init_capacity" : 4,
     
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",

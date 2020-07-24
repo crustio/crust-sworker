@@ -4,7 +4,7 @@
 #include "EJson.h"
 #include <algorithm>
 
-extern sgx_thread_mutex_t g_workload_mutex;
+extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_new_files_mutex;
 
@@ -36,7 +36,7 @@ void validate_srd()
 
     Workload *wl = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_workload_mutex);
+    sgx_thread_mutex_lock(&g_srd_mutex);
 
     size_t srd_num_threshold = 1 / SRD_VALIDATE_RATE * SRD_VALIDATE_MIN_NUM;
     size_t srd_total_num = 0;
@@ -114,6 +114,19 @@ void validate_srd()
     std::map<std::string, std::set<size_t>> del_path2idx_m;
     for (auto srd_idx : validate_srd_idx_us)
     {
+        // Check sched func
+        sched_check(SCHED_SRD_CHANGE, g_srd_mutex);
+        // If srd has been deleted, go to next check
+        std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
+        for (size_t i = 0; i < srd_idx.first; i++)
+        {
+            chose_entry++;
+        }
+        if (srd_idx.second >= chose_entry->second.size())
+        {
+            continue;
+        }
+
         uint8_t *m_hashs_org = NULL;
         uint8_t *m_hashs = NULL;
         size_t m_hashs_size = 0;
@@ -127,11 +140,6 @@ void validate_srd()
         std::string dir_path;
         std::string g_path;
 
-        std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
-        for (size_t i = 0; i < srd_idx.first; i++)
-        {
-            chose_entry++;
-        }
         dir_path = chose_entry->first;
         uint8_t *p_g_hash = chose_entry->second[srd_idx.second];
 
@@ -202,7 +210,7 @@ void validate_srd()
     }
     srd_random_delete(srd_punish_num * srd_validate_failed_num, &del_path2idx_m);
 
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    sgx_thread_mutex_unlock(&g_srd_mutex);
 }
 
 /**
@@ -289,6 +297,14 @@ void validate_meaningful_file()
     std::unordered_map<size_t, bool> changed_idx2lost_um;
     for (auto file_idx : file_idx_s)
     {
+        // Check race
+        sched_check(SCHED_VALIDATE_FILE, g_checked_files_mutex);
+        // If file has been deleted, go to next check
+        if (file_idx >= wl->checked_files.size())
+        {
+            continue;
+        }
+
         // If new file hasn't been confirmed, skip this validation
         if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
         {

@@ -25,7 +25,9 @@
 #include "Common.h"
 #include "DataBase.h"
 #include "Srd.h"
+#include "Storage.h"
 #include "Data.h"
+#include "../enclave/Parameter.h"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -231,7 +233,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (path.compare(cur_path) == 0)
         {
             Ecall_id_get_info(global_eid);
-            res.body() = get_g_enclave_id_info();
+            json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
+            id_json["version"] = VERSION;
+            id_json["tee_version"] = TEE_VERSION;
+            res.body() = id_json.dump();
             goto getcleanup;
         }
 
@@ -422,7 +427,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
 
             // Confirm new file
-            sgx_status_t sgx_status = SGX_SUCCESS;
             json::JSON req_json = json::JSON::Load(req.body());
             std::string hash = req_json["hash"].ToString();
             // Check hash
@@ -434,18 +438,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
                 goto postcleanup;
             }
-            if (SGX_SUCCESS != (sgx_status = Ecall_confirm_file(global_eid, hash.c_str())))
-            {
-                ret_info = "Confirm new file failed!Invoke SGX API failed!";
-                p_log->err("%sError code:%lx\n", ret_info.c_str(), sgx_status);
-                res.body() = ret_info;
-                res.result(403);
-            }
-            else
-            {
-                ret_info = "Confirming new file task has beening added!";
-                res.body() = ret_info;
-            }
+            storage_add_confirm(hash);
+            ret_info = "Confirming new file task has beening added!";
+            res.body() = ret_info;
 
             goto postcleanup;
         }
@@ -475,7 +470,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
 
             // Delete file
-            sgx_status_t sgx_status = SGX_SUCCESS;
             json::JSON req_json = json::JSON::Load(req.body());
             std::string hash = req_json["hash"].ToString();
             // Check hash
@@ -487,18 +481,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
                 goto postcleanup;
             }
-            if (SGX_SUCCESS != (sgx_status = Ecall_delete_file(global_eid, hash.c_str())))
-            {
-                ret_info = "Delete file failed!Invoke SGX API failed!";
-                p_log->err("%sError code:%lx\n", ret_info.c_str(), sgx_status);
-                res.body() = ret_info;
-                res.result(403);
-            }
-            else
-            {
-                ret_info = "Deleting file task has beening added!";
-                res.body() = ret_info;
-            }
+            storage_add_delete(hash);
+            ret_info = "Deleting file task has beening added!";
+            res.body() = ret_info;
 
             goto postcleanup;
         }

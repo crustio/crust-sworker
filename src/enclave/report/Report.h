@@ -15,6 +15,7 @@
 #include "Workload.h"
 #include "Identity.h"
 #include "EUtils.h"
+#include "Schedule.h"
 
 # define ERA_LENGTH 300
 

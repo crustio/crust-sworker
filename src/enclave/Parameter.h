@@ -24,6 +24,8 @@
 #define FILE_STATUS_VALID "valid"
 #define FILE_STATUS_UNCONFIRMED "unconfirmed"
 
+#define HASH_LENGTH 32
 #define ENC_MAX_THREAD_NUM  15
+#define ENCLAVE_MALLOC_TRYOUT 3
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

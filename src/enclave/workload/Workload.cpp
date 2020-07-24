@@ -2,6 +2,7 @@
 
 extern ecc_key_pair id_key_pair;
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_new_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_order_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
@@ -168,7 +169,6 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *s
 
     free(hashs);
 
-    sgx_thread_mutex_unlock(&g_workload_mutex);
     return CRUST_SUCCESS;
 }
 
@@ -180,7 +180,7 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *s
  */
 crust_status_t Workload::generate_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out)
 {
-    sgx_thread_mutex_lock(&g_workload_mutex);
+    sgx_thread_mutex_lock(&g_srd_mutex);
 
     // Get hashs for hashing
     size_t g_hashs_num = 0;
@@ -214,7 +214,7 @@ crust_status_t Workload::generate_srd_info(sgx_sha256_hash_t *srd_root_out, size
 
     free(hashs);
 
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    sgx_thread_mutex_unlock(&g_srd_mutex);
     return CRUST_SUCCESS;
 }
 
@@ -226,7 +226,7 @@ json::JSON Workload::serialize_srd(bool locked /*=true*/)
 {
     if (locked)
     {
-        sgx_thread_mutex_lock(&g_workload_mutex);
+        sgx_thread_mutex_lock(&g_srd_mutex);
     }
 
     // Store srd_path2hashs_m
@@ -242,7 +242,7 @@ json::JSON Workload::serialize_srd(bool locked /*=true*/)
 
     if (locked)
     {
-        sgx_thread_mutex_unlock(&g_workload_mutex);
+        sgx_thread_mutex_unlock(&g_srd_mutex);
     }
 
     return g_hashs_json;

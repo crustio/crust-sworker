@@ -1080,8 +1080,6 @@ void id_get_info()
     json::JSON id_info;
     id_info["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     id_info["mrenclave"] = hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t));
-    id_info["version"] = VERSION;
-    id_info["tee_version"] = TEE_VERSION;
     std::string id_str = id_info.dump();
     ocall_store_enclave_id_info(id_str.c_str());
 }

@@ -11,7 +11,7 @@ function checkOldCrustTee()
     # Check version
     for dir in $(ls -d */ 2>/dev/null); do
         if [ -e $dir/VERSION ]; then
-            if [ x"$(cat $dir/VERSION| head -n 1)" = x"$newversion" ]; then
+            if [ x"$(cat $dir/VERSION | head -n 1)" = x"$newversion" ]; then
                 verbose ERROR "FAILED" t
                 verbose ERROR "Same version $newversion has been installed!"
                 exit 1
@@ -62,6 +62,9 @@ function installAPP()
     cp -r $instdir/scripts/uninstall.sh $realsworkerdir/scripts
     cp -r $instdir/scripts/utils.sh $realsworkerdir/scripts
     cp -r $instdir/VERSION $realsworkerdir
+
+    # Generate template configure
+    sed -i "s@<VERSION>@$newversion@g" $realsworkerdir/etc/$configfile
 
     # Set environment
     setEnv

@@ -10,6 +10,7 @@
 #include "Workload.h"
 #include "EUtils.h"
 #include "PathHelper.h"
+#include "Schedule.h"
 
 #define SRD_MAX_PER_TURN 64
 
