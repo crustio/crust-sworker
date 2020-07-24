@@ -141,7 +141,7 @@ sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev 
 In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
 ```shell
 {
-    "base_path" : "/opt/crust/crust-sworker/0.5.0/tee_base_path",    # sWorker key information location, must be absolute path
+    "base_path" : "/opt/crust/crust-sworker/0.5.0/tee_base_path",        # sWorker key information location, must be absolute path
     "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
     "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
     "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
@@ -169,13 +169,6 @@ cd /opt/crust/crust-sworker
 
 ## Launch crust chain and API
 Crust sWorker will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole sWorker flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
-
-## Client launch
-### Package resources
-Run '**scripts/package.sh**' to package whole project, you will get a **crust-sworker.tar** package.
-
-### Launch by using crust client
-Please follow [crust client](https://github.com/crustio/crust-client) to launch.
 
 ## Crust sWorker executable file
 
