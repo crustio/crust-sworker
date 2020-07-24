@@ -34,6 +34,10 @@ git clone https://github.com/crustio/crust-sworker.git
 
 ## Install and run
 ### Docker model
+#### Operating system requirements
+
+- Ubuntu 16.04/18.04
+
 #### Install sgx driver
 ```shell
 sudo ./scripts/install_sgx_driver.sh
@@ -56,6 +60,10 @@ sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json -
 ```
 
 ### Docker model (for developers)
+#### Operating system requirements
+
+- Ubuntu 16.04/18.04
+
 #### Install sgx driver
 ```shell
 sudo ./scripts/install_sgx_driver.sh
