@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include "Enclave_t.h"
-#include "Resource.h"
+#include "Parameter.h"
 
 namespace json
 {

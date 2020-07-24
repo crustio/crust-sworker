@@ -5,7 +5,7 @@
 // Enclave task structure
 typedef struct _enclave_task_t {
     // Task id to task running number mapping
-    std::unordered_map<std::string, uint32_t> task_info;
+    std::unordered_map<std::string, int> task_info;
     uint32_t timeout = 0;
 } enclave_task_t;
 
@@ -24,21 +24,21 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_get_quote_report", 0},
     {"Ecall_verify_iasreport", 0},
     {"Ecall_gen_sgx_measurement", 0},
+    {"Ecall_main_loop", 0},
     {"Ecall_get_signed_work_report", 0},
     {"Ecall_get_signed_order_report", 0},
-    {"Ecall_main_loop", 0},
-    {"Ecall_srd_increase", 1},
+    {"Ecall_confirm_file", 0},
+    {"Ecall_delete_file", 0},
+    {"Ecall_seal_file", 1},
+    {"Ecall_unseal_file", 1},
     {"Ecall_srd_decrease", 1},
     {"Ecall_srd_update_metadata", 1},
     {"Ecall_srd_set_change", 1},
-    {"Ecall_seal_file", 2},
-    {"Ecall_unseal_file", 2},
-    {"Ecall_confirm_file", 2},
-    {"Ecall_delete_file", 2},
+    {"Ecall_srd_increase", 2},
     {"Ecall_id_get_info", 3},
     {"Ecall_get_workload", 3},
 };
-// Mapping of Enclave task to its block task
+// Mapping of Enclave task to its block tasks
 std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_um = {
     {
         "Ecall_srd_increase", 
@@ -47,7 +47,13 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
             "Ecall_unseal_file", 
             "Ecall_get_signed_work_report",
             "Ecall_get_signed_order_report",
-            "Ecall_confirm_file"
+            "Ecall_confirm_file",
+        }
+    },
+    {
+        "Ecall_confirm_file",
+        {
+            "Ecall_get_signed_work_report",
         }
     }
 };
@@ -118,7 +124,7 @@ sgx_status_t try_get_enclave(const char *name)
                 if (g_invoked_ecalls_um[btask] > 0)
                 {
                     sgx_status = SGX_ERROR_DEVICE_BUSY;
-                    goto end_of_wait;
+                    goto loop;
                 }
             }
         }
@@ -149,7 +155,7 @@ sgx_status_t try_get_enclave(const char *name)
             {
                 // This situation happens when an ecall invokes an ocall
                 // and the ocall invokes an ecall again.
-                (g_running_task_um[this_id].task_info)[tname]++;
+                (g_running_task_um[this_id].task_info)[tname] = 1;
                 g_running_task_num++;
             }
             else
@@ -169,15 +175,13 @@ sgx_status_t try_get_enclave(const char *name)
             if (timeout >= ENC_TASK_TIMEOUT)
             {
                 g_running_task_um.unsafe_erase(this_id);
-                p_log->warn("task:%s(thread id:%s) timeout!\n", name, this_id.c_str());
+                p_log->debug("task:%s(thread id:%s) timeout!\n", name, this_id.c_str());
                 sgx_status = SGX_ERROR_SERVICE_TIMEOUT;
                 break;
             }
         }
         task_sleep(cur_task_prio);
     }
-
-end_of_wait:
 
     // Decrease waiting task queue
     g_waiting_task_sum_v[cur_task_prio]--;
@@ -203,15 +207,8 @@ void free_enclave(const char *name)
     std::stringstream ss;
     ss << tid;
     std::string this_id = ss.str();
-    if (--(g_running_task_um[this_id].task_info)[tname] <= 0)
-    {
-        g_running_task_um[this_id].task_info.erase(tname);
-        if (g_running_task_um[this_id].task_info.size() == 0)
-        {
-            g_running_task_um.unsafe_erase(this_id);
-            g_running_task_num--;
-        }
-    }
+    g_running_task_um.unsafe_erase(this_id);
+    g_running_task_num--;
     g_task_mutex.unlock();
 
     // Decrease corresponding invoked ecall
@@ -572,7 +569,7 @@ sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, 
  * @param hash -> New file hash
  * @return: Confirm status
  * */
-sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, const char *hash)
+sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -580,7 +577,7 @@ sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, const char *hash)
         return ret;
     }
 
-    ret = ecall_confirm_file(eid, hash);
+    ret = ecall_confirm_file(eid, status, hash);
 
     free_enclave(__FUNCTION__);
 
@@ -591,7 +588,7 @@ sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, const char *hash)
  * @description: Delete file
  * @param hash -> File root hash
  * */
-sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, const char *hash)
+sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -599,7 +596,7 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, const char *hash)
         return ret;
     }
 
-    ret = ecall_delete_file(eid, hash);
+    ret = ecall_delete_file(eid, status, hash);
 
     free_enclave(__FUNCTION__);
 

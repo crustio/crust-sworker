@@ -1,9 +1,6 @@
 #ifndef _CRUST_IDENTITY_H_
 #define _CRUST_IDENTITY_H_
 
-#ifndef _WIN32
-#include "Resource.h"
-#endif
 #include "Enclave_t.h"
 #include "IASReport.h"
 #include "tSgxSSL_api.h"

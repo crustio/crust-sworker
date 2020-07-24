@@ -141,8 +141,8 @@ sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev 
 In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
 ```shell
 {
-    "base_path" : "/opt/crust/crust-sworker/tee_base_path",              # sWorker key information location, must be absolute path
-    "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
+    "base_path" : "/opt/crust/crust-sworker/<VERSION>/tee_base_path",    # sWorker key information location, must be absolute path
+    "base_url": "http://127.0.0.1:56666/api/v0",                         # your sWorker node api address
     "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
     "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
     
@@ -155,16 +155,6 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
         "password" : "123456",
         "backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
     }
-
-    "spid": "<intel_spid>",                                              # Intel SPID
-    "linkable": true,                                                    # Linkable or not
-    "random_nonce": true,                                                # IAS random
-    "use_platform_services": false,                                      # IAS service type
-    "ias_primary_subscription_key": "<intel_ias_primary_key>",           # IAS primary key
-    "ias_secondary_subscription_key": "<intel_ias_secondary_key>",       # IAS secondary key
-    "ias_base_url": "https://api.trustedservices.intel.com",             # IAS base url
-    "ias_base_path": "/sgx/<dev_or_prod>/attestation/v3/report",         # IAS report path
-    "flags": 4                                                           # IAS attributes flag
 }
 ```
 
@@ -302,7 +292,7 @@ Curl shell:
 curl http://<url:port>/api/v0/karst/change_url \
 --header 'Content-Type: application/json' \
 --header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
---data-raw '{"karst_url" : "http://xxxxxx"}'
+--data-raw '{"karst_url" : "ws://xxxxxx"}'
 ```
 
 Output (200, success):

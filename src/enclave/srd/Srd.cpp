@@ -1,6 +1,6 @@
 #include "Srd.h"
 
-extern sgx_thread_mutex_t g_workload_mutex;
+extern sgx_thread_mutex_t g_srd_mutex;
 std::unordered_set<std::string> g_srd_decreased_g_hashs_s;
 long g_srd_change = 0;
 sgx_thread_mutex_t g_srd_change_mutex = SGX_THREAD_MUTEX_INITIALIZER;
@@ -151,7 +151,7 @@ void srd_increase(const char *path)
 
     // Add new g_hash to srd_path2hashs_m
     // Cause add this p_hash to the srd_path2hashs_m we cannot free p_hash
-    sgx_thread_mutex_lock(&g_workload_mutex);
+    sgx_thread_mutex_lock(&g_srd_mutex);
     wl->srd_path2hashs_m[path_str].push_back(p_hash);
     size_t srd_total_num = 0;
     for (auto it : wl->srd_path2hashs_m)
@@ -159,7 +159,7 @@ void srd_increase(const char *path)
         srd_total_num += it.second.size();
     }
     log_info("Seal random data -> %s, %luG success\n", hex_g_hash.c_str(), srd_total_num);
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    sgx_thread_mutex_unlock(&g_srd_mutex);
 
     // ----- Update srd info ----- //
     ocall_srd_info_lock();
@@ -308,7 +308,7 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
  * */
 void srd_update_metadata(const char *hashs, size_t hashs_len)
 {
-    sgx_thread_mutex_lock(&g_workload_mutex);
+    sgx_thread_mutex_lock(&g_srd_mutex);
     ocall_srd_info_lock();
 
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -330,6 +330,9 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
 
     for (auto it = del_hashs_json.ObjectRange().begin(); it != del_hashs_json.ObjectRange().end(); it++)
     {
+        // Check sched flag
+        sched_check(SCHED_SRD_CHECK_RESERVED, g_srd_mutex);
+
         std::vector<uint8_t*> *p_entry = &wl->srd_path2hashs_m[it->first];
         for (int i = it->second.ToInt(); i > 0; i--)
         {
@@ -363,7 +366,7 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
     }
 
     ocall_srd_info_unlock();
-    sgx_thread_mutex_unlock(&g_workload_mutex);
+    sgx_thread_mutex_unlock(&g_srd_mutex);
 }
 
 /**

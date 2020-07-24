@@ -72,6 +72,10 @@ BlockHeader *Chain::get_block_header(void)
     {
         p_log->err("%s\n", res.body().c_str());
     }
+    else
+    {
+        p_log->err("%s\n", "return body is null");
+    }
 
     return NULL;
 }
@@ -94,6 +98,10 @@ std::string Chain::get_block_hash(size_t block_number)
     if (res.body().size() != 0)
     {
         p_log->debug("%s\n", res.body().c_str());
+    }
+    else
+    {
+        p_log->err("%s\n", "return body is null");
     }
 
     return "";
@@ -179,6 +187,12 @@ bool Chain::post_tee_identity(std::string identity)
         {
             p_log->err("%s\n", res.body().c_str());
         }
+        else
+        {
+            p_log->err("%s\n", "return body is null");
+        }
+
+        usleep(3000000);
     }
 
     return false;
@@ -209,6 +223,12 @@ bool Chain::post_tee_work_report(std::string work_report)
         {
             p_log->err("%s\n", res.body().c_str());
         }
+        else
+        {
+            p_log->err("%s\n", "return body is null");
+        }
+        
+        usleep(3000000);
     }
 
     return false;

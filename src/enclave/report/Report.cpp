@@ -1,14 +1,12 @@
 #include "Report.h"
 #include "EJson.h"
 
-/* used to store work report */
-size_t srd_workload;
-sgx_sha256_hash_t srd_root;
 
 /* Indicates whether the current work report is validated */
 sgx_thread_mutex_t g_validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 int validated_proof = 0;
 
+extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_order_files_mutex;
 extern ecc_key_pair id_key_pair;
@@ -83,18 +81,45 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
 
-    // ----- Get files info ----- //
     Workload *wl = Workload::get_instance();
     ecc_key_pair id_key_pair = id_get_key_pair();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status;
-    // Get srd info
-    crust_status = wl->generate_srd_info(&srd_root, &srd_workload);
-    if (crust_status != CRUST_SUCCESS)
+    // ----- Get srd info ----- //
+    sgx_thread_mutex_lock(&g_srd_mutex);
+    size_t srd_workload;
+    sgx_sha256_hash_t srd_root;
+    // Get hashs for hashing
+    size_t g_hashs_num = 0;
+    for (auto it : wl->srd_path2hashs_m)
     {
-        return crust_status;
+        g_hashs_num += it.second.size();
     }
-    // Get old hash and size
+    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
+    size_t hashs_len = 0;
+    for (auto it : wl->srd_path2hashs_m)
+    {
+        for (auto g_hash : it.second)
+        {
+            memcpy(hashs + hashs_len, g_hash, HASH_LENGTH);
+            hashs_len += HASH_LENGTH;
+        }
+    }
+    // generate srd information
+    if (hashs_len == 0)
+    {
+        srd_workload = 0;
+        memset(srd_root, 0, HASH_LENGTH);
+    }
+    else
+    {
+        srd_workload = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, &srd_root);
+    }
+    free(hashs);
+    sgx_thread_mutex_unlock(&g_srd_mutex);
+    
+    // ----- Get files info ----- //
     json::JSON old_files_json = json::Array();
     if (wl->get_report_flag())
     {

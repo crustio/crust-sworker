@@ -14,7 +14,9 @@ using namespace std;
  */
 void ecall_srd_increase(const char* path)
 {
+    sched_add(SCHED_SRD_CHANGE);
     srd_increase(path);
+    sched_del(SCHED_SRD_CHANGE);
 }
 
 /**
@@ -24,7 +26,11 @@ void ecall_srd_increase(const char* path)
  */
 size_t ecall_srd_decrease(long change)
 {
-    return srd_decrease(change);
+    sched_add(SCHED_SRD_CHANGE);
+    size_t ret = srd_decrease(change);
+    sched_del(SCHED_SRD_CHANGE);
+
+    return ret;
 }
 
 /**
@@ -44,7 +50,9 @@ void ecall_srd_set_change(long change)
  * */
 void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
 {
-    return srd_update_metadata(hashs, hashs_len);
+    sched_add(SCHED_SRD_CHECK_RESERVED);
+    srd_update_metadata(hashs, hashs_len);
+    sched_del(SCHED_SRD_CHECK_RESERVED);
 }
 
 /**
@@ -56,20 +64,20 @@ void ecall_main_loop()
     {
         crust_status_t crust_status = CRUST_SUCCESS;
 
-        // ----- Delete meaningful file ----- //
-        storage_delete_file_real();
-
-        // ----- Confirm meaningful file ----- //
-        storage_confirm_file_real();
-
         // ----- Meaningful validate ----- //
+        sched_add(SCHED_VALIDATE_FILE);
         validate_meaningful_file();
+        sched_del(SCHED_VALIDATE_FILE);
 
         // ----- SRD validate ----- //
+        sched_add(SCHED_VALIDATE_SRD);
         validate_srd();
+        sched_del(SCHED_VALIDATE_SRD);
 
         // ----- SRD ----- //
+        sched_add(SCHED_SRD_CHANGE);
         srd_change();
+        sched_del(SCHED_SRD_CHANGE);
 
         // Store metadata periodically
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
@@ -126,7 +134,11 @@ crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
  * */
 crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block_height)
 {
-    return get_signed_work_report(block_hash, block_height);
+    sched_add(SCHED_GET_WORKREPORT);
+    crust_status_t ret = get_signed_work_report(block_hash, block_height);
+    sched_del(SCHED_GET_WORKREPORT);
+
+    return ret;
 }
 
 /**
@@ -135,7 +147,11 @@ crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block
  * */
 crust_status_t ecall_get_signed_order_report()
 {
-    return get_signed_order_report();
+    sched_add(SCHED_GET_ORDERREPORT);
+    crust_status_t ret = get_signed_order_report();
+    sched_del(SCHED_GET_ORDERREPORT);
+
+    return ret;
 }
 
 /**
@@ -190,7 +206,11 @@ crust_status_t ecall_verify_iasreport(char **IASReport, size_t len)
  * */
 crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *path, char *p_new_path , size_t path_len)
 {
-    return storage_seal_file(p_tree, tree_len, path, path_len, p_new_path);
+    sched_add(SCHED_SEAL);
+    crust_status_t ret = storage_seal_file(p_tree, tree_len, path, path_len, p_new_path);
+    sched_del(SCHED_SEAL);
+
+    return ret;
 }
 
 /**
@@ -204,7 +224,11 @@ crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *
  * */
 crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path, uint32_t /*path_len*/)
 {
-    return storage_unseal_file(files, files_num, p_dir, p_new_path);
+    sched_add(SCHED_UNSEAL);
+    crust_status_t ret = storage_unseal_file(files, files_num, p_dir, p_new_path);
+    sched_del(SCHED_UNSEAL);
+
+    return ret;
 }
 
 /**
@@ -212,18 +236,26 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
  * @param hash -> New file hash
  * @return: Confirm status
  * */
-void ecall_confirm_file(const char *hash)
+crust_status_t ecall_confirm_file(const char *hash)
 {
-    storage_confirm_file(hash);
+    sched_add(SCHED_CONFIRM_FILE);
+    crust_status_t ret = storage_confirm_file(hash);
+    sched_del(SCHED_CONFIRM_FILE);
+
+    return ret;
 }
 
 /**
  * @description: Add to be deleted file hash to buffer
  * @param hash -> File root hash
  * */
-void ecall_delete_file(const char *hash)
+crust_status_t ecall_delete_file(const char *hash)
 {
-    return storage_delete_file(hash);
+    sched_add(SCHED_DELETE_FILE);
+    crust_status_t ret = storage_delete_file(hash);
+    sched_del(SCHED_DELETE_FILE);
+
+    return ret;
 }
 
 /**

@@ -62,7 +62,7 @@ void work_report_loop(void)
         }
         if (0 == block_header->number % REPORT_BLOCK_HEIGHT_BASE)
         {
-            size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address);
+            size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address+Config::get_instance()->base_url);
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
             sleep(wait_time);
 

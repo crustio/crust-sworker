@@ -1,9 +1,6 @@
 #ifndef _CRUST_ENCLAVE_H_
 #define _CRUST_ENCLAVE_H_
 
-#ifndef _WIN32
-#include "Resource.h"
-#endif
 #include "Enclave_t.h"
 #include "tSgxSSL_api.h"
 #include <string>
@@ -32,5 +29,6 @@
 #include "Validator.h"
 #include "Srd.h"
 #include "Report.h"
+#include "Schedule.h"
 
 #endif /* !_CRUST_ENCLAVE_H_ */
