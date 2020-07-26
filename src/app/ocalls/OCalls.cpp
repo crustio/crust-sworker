@@ -429,6 +429,13 @@ crust_status_t ocall_persist_del(const char *key)
     return crust::DataBase::get_instance()->del(std::string(key));
 }
 
+/**
+ * @description: Delete json value by keys
+ * @param key -> DB key, corresponding value must be json format
+ * @param keys -> To be deleted Key-value keys
+ * @param keys_len -> Keys length
+ * @return: Delete status
+ * */
 crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t keys_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;

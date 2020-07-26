@@ -194,12 +194,6 @@ int process_run()
         srd_init_upgrade(p_config->srd_capacity);
     }
 
-    // Init upgrade
-    if (g_init_upgrade)
-    {
-        srd_init_upgrade(p_config->srd_capacity);
-    }
-
     // ----- Restore data from file ----- //
     if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {

@@ -118,11 +118,11 @@ void validate_srd()
         sched_check(SCHED_SRD_CHANGE, g_srd_mutex);
         // If srd has been deleted, go to next check
         std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
-        for (size_t i = 0; i < srd_idx.first; i++)
+        for (size_t i = 0; i < srd_idx.first && chose_entry != wl->srd_path2hashs_m.end(); i++)
         {
             chose_entry++;
         }
-        if (srd_idx.second >= chose_entry->second.size())
+        if (chose_entry == wl->srd_path2hashs_m.end() || srd_idx.second >= chose_entry->second.size())
         {
             continue;
         }
@@ -276,7 +276,6 @@ void validate_meaningful_file()
     std::set<uint32_t> file_idx_s;
     uint32_t rand_val;
     size_t rand_index = 0;
-    size_t check_file_num_real = 0;
     while (file_idx_s.size() < check_file_num)
     {
         do
@@ -285,10 +284,6 @@ void validate_meaningful_file()
             rand_index = rand_val % wl->checked_files.size();
         } while (file_idx_s.find(rand_index) != file_idx_s.end());
         file_idx_s.insert(rand_index);
-        if (wl->checked_files[rand_index][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
-        {
-            check_file_num_real++;
-        }
     }
 
     // ----- Randomly check file block ----- //
@@ -395,13 +390,23 @@ void validate_meaningful_file()
             size_t sealed_data_size = 0;
             ocall_validate_get_file(&crust_status, root_hash.c_str(), block_str.c_str(),
                                     &p_sealed_data, &sealed_data_size);
-            if (CRUST_SUCCESS != crust_status && CRUST_VALIDATE_KARST_OFFLINE == crust_status)
+            if (CRUST_SUCCESS != crust_status)
             {
-                //log_err("Get file block:%ld failed!\n", check_block_idx);
-                wl->set_report_flag(false);
-                ocall_validate_close();
-                sgx_thread_mutex_unlock(&g_checked_files_mutex);
-                return;
+                if (CRUST_VALIDATE_KARST_OFFLINE == crust_status)
+                {
+                    //log_err("Get file block:%ld failed!\n", check_block_idx);
+                    wl->set_report_flag(false);
+                    ocall_validate_close();
+                    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+                    return;
+                }
+                if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+                {
+                    wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                    changed_idx2lost_um[file_idx] = true;
+                }
+                checked_ret = false;
+                break;
             }
             // Validate hash
             sgx_sha256_hash_t got_hash;
