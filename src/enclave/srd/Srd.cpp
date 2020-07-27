@@ -143,12 +143,6 @@ void srd_increase(const char *path)
     // ----- Update related items ----- //
     std::string hex_g_hash = hexstring_safe(p_hash, HASH_LENGTH);
 
-    // Add g_hash to path mapping
-    if (CRUST_SUCCESS != persist_set_unsafe(hex_g_hash, reinterpret_cast<const uint8_t *>(path), strlen(path)))
-    {
-        log_warn("Store g_hash:%s failed!\n", hex_g_hash.c_str());
-    }
-
     // Add new g_hash to srd_path2hashs_m
     // Cause add this p_hash to the srd_path2hashs_m we cannot free p_hash
     sgx_thread_mutex_lock(&g_srd_mutex);
