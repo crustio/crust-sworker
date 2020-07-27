@@ -207,24 +207,27 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
         return 0;
     }
 
-    // Randomly choose to be deleted g_hash index
-    uint32_t rand_val;
-    size_t rand_idx;
+    // Choose to be deleted g_hash index
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
-    while (srd_del_num < change)
+    size_t sAcc = 1;
+    bool end_of_traverse = false;
+    while (srd_del_num < change && !end_of_traverse)
     {
-        do
+        end_of_traverse = true;
+        for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end(); it++)
         {
-            sgx_read_rand((uint8_t*)&rand_val, 4);
-            chose_entry = wl->srd_path2hashs_m.begin();
-            for (int i = rand_val % wl->srd_path2hashs_m.size(); i > 0; i--)
+            if (it->second.size() >= sAcc)
             {
-                chose_entry++;
+                size_t tIdx = it->second.size() - sAcc;
+                if ((*srd_del_index_m)[it->first].find(tIdx) == (*srd_del_index_m)[it->first].end())
+                {
+                    (*srd_del_index_m)[it->first].insert(tIdx);
+                    srd_del_num++;
+                }
+                end_of_traverse = false;
             }
-            rand_idx = rand_val % chose_entry->second.size();
-        } while ((*srd_del_index_m)[chose_entry->first].find(rand_idx) != (*srd_del_index_m)[chose_entry->first].end());
-        (*srd_del_index_m)[chose_entry->first].insert(rand_idx);
-        srd_del_num++;
+        }
+        sAcc++;
     }
 
     // Delete chose hashs in srd_path2hashs_m

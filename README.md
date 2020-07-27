@@ -238,23 +238,8 @@ Output:
 {
   "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
   "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
-  "version" : "0.4.0"
-}
-```
-
-### Use 'api/v0/enclave/id_info' to get enclave mrenclave and pub_key
-
-Curl shell:
-```shell
-curl http://<url:port>/api/v0/enclave/id_info
-```
-
-Output:
-```json
-{
-  "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
-  "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
   "version" : "0.5.0"
+  "tee_version" : "0.5.0"
 }
 ```
 
