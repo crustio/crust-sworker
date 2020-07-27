@@ -75,28 +75,26 @@ void validate_srd()
     }
 
     // Randomly choose validate srd files
-    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
+    std::vector<std::pair<uint32_t, uint32_t>> validate_srd_idx_v;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
     if (srd_validate_num < srd_total_num)
     {
         uint32_t rand_val;
         uint32_t rand_idx = 0;
         std::pair<uint32_t, uint32_t> p_chose;
-        while (validate_srd_idx_s.size() < srd_validate_num)
+        for (size_t i = 0; i < srd_validate_num; i++)
         {
-            do
+            sgx_read_rand((uint8_t *)&rand_val, 4);
+            chose_entry = wl->srd_path2hashs_m.begin();
+            uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
+            for (uint32_t i = 0; i < path_idx; i++)
             {
-                sgx_read_rand((uint8_t *)&rand_val, 4);
-                chose_entry = wl->srd_path2hashs_m.begin();
-                uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
-                for (uint32_t i = 0; i < path_idx; i++)
-                {
-                    chose_entry++;
-                }
-                rand_idx = rand_val % chose_entry->second.size();
-                p_chose = std::make_pair(path_idx, rand_idx);
-            } while (validate_srd_idx_s.find(p_chose) != validate_srd_idx_s.end());
-            validate_srd_idx_s.insert(p_chose);
+                chose_entry++;
+            }
+            sgx_read_rand((uint8_t *)&rand_val, 4);
+            rand_idx = rand_val % chose_entry->second.size();
+            p_chose = std::make_pair(path_idx, rand_idx);
+            validate_srd_idx_v.push_back(p_chose);
         }
     }
     else
@@ -106,14 +104,14 @@ void validate_srd()
         {
             for (size_t j = 0; j < it->second.size(); j++)
             {
-                validate_srd_idx_s.insert(make_pair(i, j));
+                validate_srd_idx_v.push_back(make_pair(i, j));
             }
         }
     }
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::set<size_t>> del_path2idx_m;
-    for (auto srd_idx : validate_srd_idx_s)
+    for (auto srd_idx : validate_srd_idx_v)
     {
         // Check sched func
         sched_check(SCHED_SRD_CHANGE, g_srd_mutex);
@@ -144,10 +142,6 @@ void validate_srd()
         dir_path = chose_entry->first;
         uint8_t *p_g_hash = chose_entry->second[srd_idx.second];
 
-        // Choose validate block
-        uint32_t rand_val;
-        sgx_read_rand((uint8_t *)&rand_val, 4);
-
         // Get g_hash corresponding path
         hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
         g_path = std::string(dir_path).append("/").append(unsigned_char_array_to_hex_string(p_g_hash, HASH_LENGTH));
@@ -175,6 +169,7 @@ void validate_srd()
         }
 
         // Get leaf data
+        uint32_t rand_val;
         sgx_read_rand((uint8_t*)&rand_val, 4);
         srd_block_index = rand_val % SRD_RAND_DATA_NUM;
         leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
@@ -274,24 +269,21 @@ void validate_meaningful_file()
     {
         check_file_num = wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE;
     }
-    std::set<uint32_t> file_idx_s;
+    std::vector<uint32_t> file_idx_v;
     uint32_t rand_val;
     size_t rand_index = 0;
-    while (file_idx_s.size() < check_file_num)
+    for (size_t i = 0; i < check_file_num; i++)
     {
-        do
-        {
-            sgx_read_rand((uint8_t *)&rand_val, 4);
-            rand_index = rand_val % wl->checked_files.size();
-        } while (file_idx_s.find(rand_index) != file_idx_s.end());
-        file_idx_s.insert(rand_index);
+        sgx_read_rand((uint8_t *)&rand_val, 4);
+        rand_index = rand_val % wl->checked_files.size();
+        file_idx_v.push_back(rand_index);
     }
 
     // ----- Randomly check file block ----- //
     // TODO: Do we allow to store duplicated files?
     // Used to indicate which meaningful file status has been changed
     std::unordered_map<size_t, bool> changed_idx2lost_um;
-    for (auto file_idx : file_idx_s)
+    for (auto file_idx : file_idx_v)
     {
         // Check race
         sched_check(SCHED_VALIDATE_FILE, g_checked_files_mutex);
@@ -346,22 +338,23 @@ void validate_meaningful_file()
         std::string stag = "\"links_num\":0,\"hash\":\"";
         std::string etag = "\",\"size\"";
         // Get to be checked block index
-        std::set<size_t> block_idx_s;
-        while (block_idx_s.size() < MEANINGFUL_VALIDATE_MIN_BLOCK_NUM 
-                && block_idx_s.size() < file_block_num)
+        std::set<size_t> chose_idx_s;
+        std::vector<size_t> block_idx_v;
+        for (size_t i = 0; i < MEANINGFUL_VALIDATE_MIN_BLOCK_NUM && i < file_block_num; i++)
         {
             size_t tmp_idx = 0;
-            do
+            sgx_read_rand((uint8_t *)&rand_val, 4);
+            tmp_idx = rand_val % file_block_num;
+            if (chose_idx_s.find(tmp_idx) == chose_idx_s.end())
             {
-                sgx_read_rand((uint8_t *)&rand_val, 4);
-                tmp_idx = rand_val % file_block_num;
-            } while (block_idx_s.find(tmp_idx) != block_idx_s.end());
-            block_idx_s.insert(tmp_idx);
+                chose_idx_s.insert(tmp_idx);
+                block_idx_v.push_back(tmp_idx);
+            }
         }
         // Do check
         size_t cur_block_idx = 0;
         bool checked_ret = true;
-        for (auto check_block_idx : block_idx_s)
+        for (auto check_block_idx : block_idx_v)
         {
             // Get leaf node position
             do
