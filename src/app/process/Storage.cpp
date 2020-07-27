@@ -7,7 +7,7 @@ extern sgx_enclave_id_t global_eid;
 /**
  * @description: Add confirm meaningful file task
  * @param hash -> Meaningful file root hash
- * */
+ */
 void storage_add_confirm(std::string hash)
 {
     sgx_enclave_id_t eid = global_eid;
@@ -24,7 +24,7 @@ void storage_add_confirm(std::string hash)
 /**
  * @description: Add delete meaningful file task
  * @param hash -> Meaningful file root hash
- * */
+ */
 void storage_add_delete(std::string hash)
 {
     sgx_enclave_id_t eid = global_eid;

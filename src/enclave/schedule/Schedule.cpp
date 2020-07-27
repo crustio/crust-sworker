@@ -40,7 +40,7 @@ std::map<sched_process_t, std::set<sched_process_t>> g_block_func_m = {
 /**
  * @description: Add executing thread
  * @param id -> Executing thread name
- * */
+ */
 void sched_add(sched_process_t id)
 {
     sgx_thread_mutex_lock(&g_sched_mutex);
@@ -51,7 +51,7 @@ void sched_add(sched_process_t id)
 /**
  * @description: Delete executing thread
  * @param id -> Executing thread name
- * */
+ */
 void sched_del(sched_process_t id)
 {
     sgx_thread_mutex_lock(&g_sched_mutex);
@@ -63,7 +63,7 @@ void sched_del(sched_process_t id)
  * @description: Check executing thread
  * @param id -> Executing thread name
  * @param mutex -> mutex
- * */
+ */
 void sched_check(sched_process_t id, sgx_thread_mutex_t mutex)
 {
     bool is_unlocked = false;

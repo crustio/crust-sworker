@@ -26,7 +26,7 @@ void fail(beast::error_code ec, char const* what)
  * @param port -> Server port
  * @param route -> Request route path
  * @return: Initialize status
- * */
+ */
 bool WebsocketClient::websocket_init(std::string host, std::string port, std::string route)
 {
     try
@@ -86,7 +86,7 @@ bool WebsocketClient::websocket_init(std::string host, std::string port, std::st
  * @param content -> Request content
  * @param res -> Response from server
  * @return: Request status
- * */
+ */
 bool WebsocketClient::websocket_request(std::string content, std::string &res)
 {
     if (this->_ws == NULL)
@@ -119,7 +119,7 @@ bool WebsocketClient::websocket_request(std::string content, std::string &res)
 
 /**
  * @description: Close websocket
- * */
+ */
 void WebsocketClient::websocket_close()
 {
     // Close the WebSocket connection

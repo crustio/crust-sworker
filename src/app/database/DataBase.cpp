@@ -15,7 +15,7 @@ DataBase* DataBase::database = NULL;
 /**
  * @description: Get single class instance
  * @return: The instance
- * */
+ */
 DataBase *DataBase::get_instance()
 {
     if (database == NULL)
@@ -39,7 +39,7 @@ DataBase *DataBase::get_instance()
 
 /**
  * @description: Close leveldb
- * */
+ */
 DataBase::~DataBase()
 {
     if (this->db != NULL)
@@ -51,7 +51,7 @@ DataBase::~DataBase()
  * @param key -> key
  * @param value -> value
  * @return: Add status
- * */
+ */
 crust_status_t DataBase::add(std::string key, std::string value)
 {
     std::string old_val;
@@ -74,7 +74,7 @@ crust_status_t DataBase::add(std::string key, std::string value)
  * @description: Delete key value pair
  * @param key -> key
  * @return: Delete status
- * */
+ */
 crust_status_t DataBase::del(std::string key)
 {
     leveldb::WriteBatch batch;
@@ -94,7 +94,7 @@ crust_status_t DataBase::del(std::string key)
  * @param key -> key
  * @param value -> value
  * @return: Update status
- * */
+ */
 crust_status_t DataBase::set(std::string key, std::string value)
 {
     leveldb::Status s = this->db->Put(this->write_opt, key, value);
@@ -112,7 +112,7 @@ crust_status_t DataBase::set(std::string key, std::string value)
  * @param key -> key
  * @param value -> Reference to value
  * @return: Get status
- * */
+ */
 crust_status_t DataBase::get(std::string key, std::string &value)
 {
     leveldb::Status s = this->db->Get(leveldb::ReadOptions(), key, &value);

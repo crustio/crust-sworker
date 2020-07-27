@@ -13,8 +13,9 @@ long long g_validate_timeout = 0;
 
 /**
  * @description: Randomly delete punish number of srd
- * @param punish_num -> To be deleted srd number
- * */
+ * @param punish_num -> To be deleted srd space for punishment
+ * @param del_indexes -> Pointer to to be deleted srd path to hash map
+ */
 void srd_random_delete(long punish_num, std::map<std::string, std::set<size_t>> *del_indexes)
 {
     if (punish_num <= 0 && del_indexes->size() == 0)
@@ -74,14 +75,14 @@ void validate_srd()
     }
 
     // Randomly choose validate srd files
-    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_us;
+    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
     if (srd_validate_num < srd_total_num)
     {
         uint32_t rand_val;
         uint32_t rand_idx = 0;
         std::pair<uint32_t, uint32_t> p_chose;
-        while (validate_srd_idx_us.size() < srd_validate_num)
+        while (validate_srd_idx_s.size() < srd_validate_num)
         {
             do
             {
@@ -94,8 +95,8 @@ void validate_srd()
                 }
                 rand_idx = rand_val % chose_entry->second.size();
                 p_chose = std::make_pair(path_idx, rand_idx);
-            } while (validate_srd_idx_us.find(p_chose) != validate_srd_idx_us.end());
-            validate_srd_idx_us.insert(p_chose);
+            } while (validate_srd_idx_s.find(p_chose) != validate_srd_idx_s.end());
+            validate_srd_idx_s.insert(p_chose);
         }
     }
     else
@@ -105,14 +106,14 @@ void validate_srd()
         {
             for (size_t j = 0; j < it->second.size(); j++)
             {
-                validate_srd_idx_us.insert(make_pair(i, j));
+                validate_srd_idx_s.insert(make_pair(i, j));
             }
         }
     }
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::set<size_t>> del_path2idx_m;
-    for (auto srd_idx : validate_srd_idx_us)
+    for (auto srd_idx : validate_srd_idx_s)
     {
         // Check sched func
         sched_check(SCHED_SRD_CHANGE, g_srd_mutex);
@@ -215,7 +216,7 @@ void validate_srd()
 
 /**
  * @description: Validate Meaningful files
- * */
+ */
 void validate_meaningful_file()
 {
     uint8_t *p_data = NULL;

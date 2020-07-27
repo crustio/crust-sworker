@@ -149,7 +149,7 @@ http::response<http::string_body> HttpClient::SSLPost(std::string url, std::stri
  * @param content_type -> Indicates content type
  * @param headers -> Poniter to header
  * @return: Json result
- * */
+ */
 http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method, std::string url, 
         std::string body,std::string content_type, ApiHeaders *headers, request_type_t type)
 {
@@ -266,7 +266,7 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
  * @param content_type -> Indicates content type
  * @param headers -> Poniter to header
  * @return: Json result
- * */
+ */
 http::response<http::string_body> HttpClient::request_sync(http::verb method, std::string url, 
         std::string body, std::string content_type, ApiHeaders *headers)
 {

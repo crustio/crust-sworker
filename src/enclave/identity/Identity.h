@@ -77,7 +77,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked = true);
  * @param val -> Set or append value
  * @param isSet -> Indicate current operation is set or append, default is set
  * @return: Set or append status
- * */
+ */
 template<class T>
 crust_status_t id_metadata_set_or_append(const char *key, T val, 
         metadata_op_e op = ID_UPDATE, bool locked = true)

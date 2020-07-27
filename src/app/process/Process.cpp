@@ -28,7 +28,7 @@ extern bool g_init_upgrade;
 /**
  * @description: Init configuration
  * @return: Init status
- * */
+ */
 bool initialize_config(void)
 {
     // New configure
@@ -144,7 +144,7 @@ bool initialize_components(void)
 
 /**
  * @description: Wrapper for main loop
- * */
+ */
 void main_loop(void)
 {
     Ecall_main_loop(global_eid);
@@ -153,7 +153,7 @@ void main_loop(void)
 /**
  * @desination: Main function to start application
  * @return: Start status
- * */
+ */
 int process_run()
 {
     pid_t worker_pid = getpid();

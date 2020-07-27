@@ -12,7 +12,7 @@ Workload *Workload::workload = NULL;
 /**
  * @desination: single instance class function to get instance
  * @return: workload instance
- * */
+ */
 Workload *Workload::get_instance()
 {
     if (Workload::workload == NULL)
@@ -30,7 +30,7 @@ Workload *Workload::get_instance()
 
 /**
  * @description: Initialize workload
- * */
+ */
 Workload::Workload()
 {
     this->report_files = true;
@@ -105,7 +105,7 @@ std::string Workload::get_workload(void)
 
 /**
  * @description: Clean up work report data
- * */
+ */
 void Workload::clean_data()
 {
     // Clean srd_path2hashs_m
@@ -220,8 +220,9 @@ crust_status_t Workload::generate_srd_info(sgx_sha256_hash_t *srd_root_out, size
 
 /**
  * @description: serialize workload for sealing
+ * @param locked -> Indicates whether to get lock, default value is true
  * @return: serialized workload
- * */
+ */
 json::JSON Workload::serialize_srd(bool locked /*=true*/)
 {
     if (locked)
@@ -250,8 +251,9 @@ json::JSON Workload::serialize_srd(bool locked /*=true*/)
 
 /**
  * @description: Restore workload from serialized workload
+ * @param g_hashs -> G hashs in json format
  * @return: Restore status
- * */
+ */
 crust_status_t Workload::restore_srd(json::JSON g_hashs)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -288,7 +290,7 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
 /**
  * @description: Add new file to new_files
  * @param file -> A pair of file's hash and file's size
- * */
+ */
 void Workload::add_new_file(json::JSON file)
 {
     sgx_thread_mutex_lock(&g_new_files_mutex);
@@ -299,7 +301,7 @@ void Workload::add_new_file(json::JSON file)
 /**
  * @description: Add new order file to order_files
  * @param file -> A pair of file's hash and file's size
- * */
+ */
 void Workload::add_order_file(std::pair<std::string, size_t> file)
 {
     sgx_thread_mutex_lock(&g_order_files_mutex);
@@ -310,7 +312,7 @@ void Workload::add_order_file(std::pair<std::string, size_t> file)
 /**
  * @description: Set report file flag
  * @param flag -> Report flag
- * */
+ */
 void Workload::set_report_flag(bool flag)
 {
     this->report_files = flag;
@@ -319,7 +321,7 @@ void Workload::set_report_flag(bool flag)
 /**
  * @description: Get report flag
  * @return: Report flag
- * */
+ */
 bool Workload::get_report_flag()
 {
     return this->report_files;

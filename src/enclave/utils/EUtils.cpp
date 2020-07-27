@@ -11,6 +11,7 @@ int eprint_base(char buf[], int flag);
 
 /**
  * @description: Print flat normal info
+ * @param fmt -> Output format
  * @return: the length of printed string
  */
 int eprint_info(const char* fmt, ...)
@@ -25,6 +26,7 @@ int eprint_info(const char* fmt, ...)
 
 /**
  * @description: Print flat debug info
+ * @param fmt -> Output format
  * @return: the length of printed string
  */
 int eprint_debug(const char *fmt, ...)
@@ -42,7 +44,7 @@ int eprint_debug(const char *fmt, ...)
  * @param buf -> Print content
  * @param flag -> 0 for info, 1 for debug
  * @return: Print content length
- * */
+ */
 int eprint_base(char buf[], int flag)
 {
     switch (flag)
@@ -59,6 +61,7 @@ int eprint_base(char buf[], int flag)
 
 /**
  * @description: use ocall_log_info to print format string
+ * @param fmt -> Output format
  * @return: the length of printed string
  */
 int log_info(const char *fmt, ...)
@@ -74,6 +77,7 @@ int log_info(const char *fmt, ...)
 
 /**
  * @description: use ocall_log_warn to print format string
+ * @param fmt -> Output format
  * @return: the length of printed string
  */
 int log_warn(const char *fmt, ...)
@@ -89,6 +93,7 @@ int log_warn(const char *fmt, ...)
 
 /**
  * @description: use ocall_log_err to print format string
+ * @param fmt -> Output format
  * @return: the length of printed string
  */
 int log_err(const char *fmt, ...)
@@ -104,6 +109,7 @@ int log_err(const char *fmt, ...)
 
 /**
  * @description: use ocall_log_debug to print format string
+ * @param fmt -> Output format
  * @return: the length of printed string
  */
 int log_debug(const char *fmt, ...)
@@ -119,8 +125,9 @@ int log_debug(const char *fmt, ...)
 
 /**
  * @description: Change char to int
+ * @param input -> Input character
  * @return: Corresponding int
- * */
+ */
 int char_to_int(char input)
 {
     if (input >= '0' && input <= '9')
@@ -137,7 +144,7 @@ int char_to_int(char input)
  * @param vsrc -> Source byte array
  * @param len -> Srouce byte array length
  * @return: Hexstringed data
- * */
+ */
 char *hexstring(const void *vsrc, size_t len)
 {
     size_t i, bsz;
@@ -174,7 +181,7 @@ char *hexstring(const void *vsrc, size_t len)
  * @param vsrc -> Source byte array
  * @param len -> Srouce byte array length
  * @return: Hexstringed data
- * */
+ */
 std::string hexstring_safe(const void *vsrc, size_t len)
 {
     size_t i;
@@ -208,7 +215,7 @@ std::string hexstring_safe(const void *vsrc, size_t len)
  * @param src -> Source char*
  * @param len -> Source char* length
  * @return: Bytes array
- * */
+ */
 uint8_t *hex_string_to_bytes(const void *src, size_t len)
 {
     if (len % 2 != 0)
@@ -343,7 +350,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
  * @description: Validate Merkle file tree
  * @param tree -> root of Merkle tree
  * @return: Validate status
- * */
+ */
 crust_status_t validate_merkle_tree_c(MerkleTree *tree)
 {
     if (tree == NULL || tree->links_num == 0)
@@ -396,6 +403,11 @@ cleanup:
     return crust_status;
 }
 
+/**
+ * @description: Validate merkle tree in json format
+ * @param tree -> Merkle tree json format
+ * @return: Validate status
+ */
 crust_status_t validate_merkletree_json(json::JSON tree)
 {
     if (tree["links_num"].ToInt() == 0)
@@ -457,7 +469,7 @@ cleanup:
  * @description: Serialize MerkleTree to json string
  * @param root -> MerkleTree root node
  * @return: Json string
- * */
+ */
 string serialize_merkletree_to_json_string(MerkleTree *root)
 {
     if (root == NULL)
@@ -486,11 +498,9 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
 
 /**
  * @description: Deserialize json string to MerkleTree
- * @param root -> Pointer to MerkleTree root
- * @param ser_tree -> Serialized MerkleTree string
- * @param spos -> Search start position
- * @return: Deseialize status
- * */
+ * @param tree_json -> Tree in json format
+ * @return: Deseialize tree in Merkle tree format
+ */
 MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
 {
     if (tree_json.JSONType() != json::JSON::Class::Object)
@@ -528,7 +538,7 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
  * @description: Wrapper for malloc function, add tryout
  * @param size -> malloc buffer size
  * @return: Pointer to malloc buffer
- * */
+ */
 void *enc_malloc(size_t size)
 {
     int tryout = 0;
@@ -547,7 +557,7 @@ void *enc_malloc(size_t size)
  * @param p -> Realloc pointer
  * @param size -> realloc buffer size
  * @return: Realloc buffer pointer
- * */
+ */
 void *enc_realloc(void *p, size_t size)
 {
     int tryout = 0;
@@ -564,7 +574,7 @@ void *enc_realloc(void *p, size_t size)
  * @description: Remove indicated character from given string
  * @param data -> Reference to given string
  * @param c -> Indicated character
- * */
+ */
 void remove_char(std::string &data, char c)
 {
     data.erase(std::remove(data.begin(), data.end(), c), data.end());
@@ -575,7 +585,7 @@ void remove_char(std::string &data, char c)
  * @param data -> Reference to origin data
  * @param org_str -> Replaced string
  * @param det_str -> Replaced to string
- * */
+ */
 void replace(std::string &data, std::string org_str, std::string det_str)
 {
     size_t spos, epos;

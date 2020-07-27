@@ -1,7 +1,6 @@
 #include "Srd.h"
 
 extern sgx_thread_mutex_t g_srd_mutex;
-std::unordered_set<std::string> g_srd_decreased_g_hashs_s;
 long g_srd_change = 0;
 sgx_thread_mutex_t g_srd_change_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 uint8_t *g_base_rand_buffer = NULL;
@@ -14,6 +13,7 @@ sgx_thread_mutex_t g_base_rand_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
  * @param hash -> m file's hash
  * @param data -> m file's data
  * @param data_size -> the length of m file's data
+ * @return: Save status
  */
 crust_status_t save_file(const char *g_path, size_t index, sgx_sha256_hash_t hash, const unsigned char *data, size_t data_size)
 {
@@ -28,6 +28,7 @@ crust_status_t save_file(const char *g_path, size_t index, sgx_sha256_hash_t has
  * @param g_path -> g folder path
  * @param data -> data
  * @param data_size -> the length of data
+ * @return: Save status
  */
 crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, size_t data_size)
 {
@@ -39,7 +40,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
 
 /**
  * @description: Do srd
- * */
+ */
 void srd_change()
 {
     // ----- Change and store srd task ----- //
@@ -95,7 +96,7 @@ void srd_increase(const char *path)
         }
     } while (0);
 
-    // New and get now G hash index
+    // Generate current G hash index
     size_t now_index = 0;
     sgx_read_rand((unsigned char *)&now_index, 8);
 
@@ -136,17 +137,16 @@ void srd_increase(const char *path)
     ocall_rename_dir(&crust_status, g_path.c_str(), new_g_path.c_str());
 
     // Get g hash
-    uint8_t *p_hash = (uint8_t *)enc_malloc(HASH_LENGTH);
-    memset(p_hash, 0, HASH_LENGTH);
-    memcpy(p_hash, g_out_hash256, HASH_LENGTH);
+    uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);
+    memset(p_hash_u, 0, HASH_LENGTH);
+    memcpy(p_hash_u, g_out_hash256, HASH_LENGTH);
 
-    // ----- Update related items ----- //
-    std::string hex_g_hash = hexstring_safe(p_hash, HASH_LENGTH);
-
+    // ----- Update srd_path2hashs_m ----- //
+    std::string hex_g_hash = hexstring_safe(p_hash_u, HASH_LENGTH);
     // Add new g_hash to srd_path2hashs_m
-    // Cause add this p_hash to the srd_path2hashs_m we cannot free p_hash
+    // Because add this p_hash_u to the srd_path2hashs_m, so we cannot free p_hash_u
     sgx_thread_mutex_lock(&g_srd_mutex);
-    wl->srd_path2hashs_m[path_str].push_back(p_hash);
+    wl->srd_path2hashs_m[path_str].push_back(p_hash_u);
     size_t srd_total_num = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
@@ -270,8 +270,6 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
             {
                 change_num++;
             }
-            // --- Delete hash to path --- //
-            persist_del(del_hash);
             // Add hash pointer to hashs_v
             hashs_json.append(del_hash);
         }
@@ -299,7 +297,7 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
  * @description: Update srd_path2hashs_m
  * @param hashs -> Pointer to the address of to be deleted hashs array
  * @param hashs_len -> Hashs array length
- * */
+ */
 void srd_update_metadata(const char *hashs, size_t hashs_len)
 {
     sgx_thread_mutex_lock(&g_srd_mutex);
@@ -347,8 +345,6 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
             {
                 srd_info_json[it->first]["assigned"] = srd_info_json[it->first]["assigned"].ToInt() - 1;
             }
-            // Delete hash to path mapping
-            persist_del(hex_g_hash);
         }
     }
 
@@ -366,7 +362,7 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
 /**
  * @description: Get srd change
  * @return: Srd change 
- * */
+ */
 long get_srd_change()
 {
     sgx_thread_mutex_lock(&g_srd_change_mutex);
@@ -379,7 +375,7 @@ long get_srd_change()
 /**
  * @description: Set srd change
  * @param change -> Srd change
- * */
+ */
 void set_srd_change(long change)
 {
     sgx_thread_mutex_lock(&g_srd_change_mutex);

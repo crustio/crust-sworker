@@ -10,7 +10,7 @@ Log *Log::log = NULL;
 /**
  * @desination: single instance class function to get instance
  * @return: log instance
- * */
+ */
 Log *Log::get_instance()
 {
     if (Log::log == NULL)
@@ -28,7 +28,7 @@ Log *Log::get_instance()
 
 /**
  * @desination: constructor
- * */
+ */
 Log::Log()
 {
     this->debug_flag = false;
@@ -36,7 +36,7 @@ Log::Log()
 
 /**
  * @desination: open debug mode
- * */
+ */
 void Log::set_debug(bool flag)
 {
     this->debug_flag = flag;
@@ -45,7 +45,7 @@ void Log::set_debug(bool flag)
 /**
  * @description: print information
  * @param format -> data format 
- * */
+ */
 void Log::info(const char *format, ...)
 {
     log_mutex.lock();
@@ -61,7 +61,7 @@ void Log::info(const char *format, ...)
 /**
  * @description: print information
  * @param format -> data format 
- * */
+ */
 void Log::warn(const char *format, ...)
 {
     log_mutex.lock();
@@ -77,7 +77,7 @@ void Log::warn(const char *format, ...)
 /**
  * @description: print information
  * @param format -> data format 
- * */
+ */
 void Log::err(const char *format, ...)
 {
     log_mutex.lock();
@@ -93,7 +93,7 @@ void Log::err(const char *format, ...)
 /**
  * @description: print information
  * @param format -> data format 
- * */
+ */
 void Log::debug(const char *format, ...)
 {
     if (this->debug_flag)
@@ -113,7 +113,7 @@ void Log::debug(const char *format, ...)
  * @description: print base data
  * @param log_str -> data for logging
  * @param tag -> log tag
- * */
+ */
 void Log::base_log(std::string log_str, std::string tag)
 {
     // Get timestamp
@@ -137,7 +137,7 @@ void Log::base_log(std::string log_str, std::string tag)
 /**
  * @description: Return debug flag
  * @return: Debug flag
- * */
+ */
 bool Log::get_debug_flag()
 {
     return this->debug_flag;
