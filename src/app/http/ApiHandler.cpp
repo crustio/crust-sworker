@@ -22,7 +22,7 @@ crust::Log *p_log = crust::Log::get_instance();
  * @param base -> Url base path
  * @param path -> Url specific path
  * @return: Analyzed path
- * */
+ */
 std::string path_cat(beast::string_view base, beast::string_view path)
 {
     if(base.empty())
@@ -49,7 +49,7 @@ std::string path_cat(beast::string_view base, beast::string_view path)
  * @description: Get url parameters
  * @param url -> Request URL
  * @return: Key value pair url parameters
- * */
+ */
 std::map<std::string, std::string> get_params(std::string &url)
 {
     std::map<std::string, std::string> ans;
@@ -89,7 +89,7 @@ std::map<std::string, std::string> get_params(std::string &url)
  * @param data -> Request data
  * @param close_connection -> Indicate whether to close connection
  * @return: Response data as json format
- * */
+ */
 std::string ApiHandler::websocket_handler(std::string &path, std::string &data, bool &close_connection)
 {
     Config *p_config = Config::get_instance();

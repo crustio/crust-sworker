@@ -8,7 +8,7 @@ crust::Log *p_log = crust::Log::get_instance();
  * @description: get url end point from url
  * @param url base url, like: http://127.0.0.1:56666/api/v1
  * @return: url end point
- * */
+ */
 UrlEndPoint *get_url_end_point(std::string url)
 {
     UrlEndPoint *url_end_point = new UrlEndPoint();
@@ -73,7 +73,7 @@ parse_end:
  * @description: remove chars from string
  * @param str input string
  * @param chars_to_remove removed chars
- * */
+ */
 void remove_chars_from_string(std::string &str, const char *chars_to_remove)
 {
     for (unsigned int i = 0; i < strlen(chars_to_remove); ++i)
@@ -86,7 +86,7 @@ void remove_chars_from_string(std::string &str, const char *chars_to_remove)
  * @description: Deserialize merkle tree from json
  * @param tree_json -> Merkle tree json
  * @return: Merkle tree root node
- * */
+ */
 MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
 {
     if (tree_json.JSONType() != json::JSON::Class::Object)
@@ -124,7 +124,7 @@ MerkleTree *deserialize_merkle_tree_from_json(json::JSON tree_json)
  * @description: Serialize MerkleTree to json
  * @param root -> MerkleTree root node
  * @return: MerkleTree json structure
- * */
+ */
 json::JSON serialize_merkletree_to_json(MerkleTree *root)
 {
     if (root == NULL)
@@ -144,7 +144,7 @@ json::JSON serialize_merkletree_to_json(MerkleTree *root)
 /**
  * @description: Free MerkleTree buffer
  * @param root -> Pointer to MerkleTree root
- * */
+ */
 void free_merkletree(MerkleTree *root)
 {
     if (root == NULL)
@@ -166,7 +166,7 @@ void free_merkletree(MerkleTree *root)
  * @description: Hex string to int
  * @param s -> Pointer to hex char array
  * @return: Int
- * */
+ */
 static inline int htoi(char *s)
 {
     int value;
@@ -189,7 +189,7 @@ static inline int htoi(char *s)
  * @description: Decode url to flat string
  * @param url -> Reference to url
  * @return: Decoded url
- * */
+ */
 std::string flat_urlformat(std::string &url)
 {
     int len = url.size();
@@ -228,7 +228,7 @@ std::string flat_urlformat(std::string &url)
  * @description: Judge if a string is a number
  * @param s -> Const reference to string
  * @return: Number or not
- * */
+ */
 bool is_number(const std::string &s)
 {
     for (auto c : s)
@@ -247,7 +247,7 @@ bool is_number(const std::string &s)
  * @param data -> Reference to origin data
  * @param org_str -> Replaced string
  * @param det_str -> Replaced to string
- * */
+ */
 void replace(std::string &data, std::string org_str, std::string det_str)
 {
     size_t spos, epos;

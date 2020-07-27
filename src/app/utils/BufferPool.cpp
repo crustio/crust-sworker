@@ -10,7 +10,7 @@ crust::Log *p_log = crust::Log::get_instance();
 /**
  * @description: Get single instance
  * @return: Single instance
- * */
+ */
 BufferPool *BufferPool::get_instance()
 {
     if (BufferPool::buffer_pool == NULL)
@@ -23,7 +23,7 @@ BufferPool *BufferPool::get_instance()
 
 /**
  * @description: Allocate buffers
- * */
+ */
 BufferPool::BufferPool()
 {
     for (uint32_t i = 0; i < this->_buffer_num; i++)
@@ -40,7 +40,7 @@ BufferPool::BufferPool()
 
 /**
  * @description: Free buffers
- * */
+ */
 BufferPool::~BufferPool()
 {
     for (uint32_t i = 0; i < this->buffers.size(); i++)
@@ -56,7 +56,7 @@ BufferPool::~BufferPool()
  * @description: Get available buffer
  * @param buf_len -> Indicated buffer length
  * @return: Poniter to available buffer
- * */
+ */
 uint8_t *BufferPool::get_buffer(size_t buf_len)
 {
     _buffer_mutex.lock();

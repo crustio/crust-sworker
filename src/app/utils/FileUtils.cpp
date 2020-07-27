@@ -173,7 +173,7 @@ size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as KB
- * */
+ */
 size_t get_total_space_under_dir_k(std::string path)
 {
     return get_total_space_under_dir_r(path, 10);
@@ -182,7 +182,7 @@ size_t get_total_space_under_dir_k(std::string path)
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as MB
- * */
+ */
 size_t get_total_space_under_dir_m(std::string path)
 {
     return get_total_space_under_dir_r(path, 20);
@@ -191,7 +191,7 @@ size_t get_total_space_under_dir_m(std::string path)
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as GB
- * */
+ */
 size_t get_total_space_under_dir_g(std::string path)
 {
     return get_total_space_under_dir_r(path, 30);
@@ -216,7 +216,7 @@ size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as KB
- * */
+ */
 size_t get_avail_space_under_dir_k(std::string path)
 {
     return get_avail_space_under_dir_r(path, 10);
@@ -225,7 +225,7 @@ size_t get_avail_space_under_dir_k(std::string path)
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as MB
- * */
+ */
 size_t get_avail_space_under_dir_m(std::string path)
 {
     return get_avail_space_under_dir_r(path, 20);
@@ -234,7 +234,7 @@ size_t get_avail_space_under_dir_m(std::string path)
 /**
  * @description: Get disk free space according to path
  * @return: Free space calculated as GB
- * */
+ */
 size_t get_avail_space_under_dir_g(std::string path)
 {
     return get_avail_space_under_dir_r(path, 30);
@@ -278,7 +278,7 @@ bool create_directory(std::string path)
  * @description: Get sub folders and files in indicated path
  * @param path -> Indicated path
  * @return: Array of sub folders and files
- * */
+ */
 std::vector<std::string> get_sub_folders_and_files(const char *path)
 {
     DIR *dir;
@@ -302,7 +302,7 @@ std::vector<std::string> get_sub_folders_and_files(const char *path)
  * @description: Get srd disks info according to configure
  * @param true_srd_capacity -> True assigned size
  * @return: A path to assigned size map
- * */
+ */
 json::JSON get_increase_srd_info(size_t &true_srd_capacity)
 {
     // Get multi-disk info

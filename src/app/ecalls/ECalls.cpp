@@ -70,7 +70,7 @@ crust::Log *p_log = crust::Log::get_instance();
  * @description: Get higher priority task number
  * @param cur_prio -> current priority
  * @return: The higher task number
- * */
+ */
 int get_higher_prio_waiting_task_num(int priority)
 {
     int ret = 0;
@@ -85,7 +85,7 @@ int get_higher_prio_waiting_task_num(int priority)
 /**
  * @description: Set task sleep by priority
  * @param priority -> Task priority
- * */
+ */
 void task_sleep(int priority)
 {
     usleep(g_task_wait_time_v[priority]);
@@ -95,7 +95,7 @@ void task_sleep(int priority)
  * @description: Try to get permission to enclave
  * @param name -> Pointer to invoke function name
  * @return: Get status
- * */
+ */
 sgx_status_t try_get_enclave(const char *name)
 {
     std::string tname(name);
@@ -198,7 +198,7 @@ sgx_status_t try_get_enclave(const char *name)
 /**
  * @description: Free enclave
  * @param name -> Pointer to invoke function name
- * */
+ */
 void free_enclave(const char *name)
 {
     g_task_mutex.lock();
@@ -218,7 +218,7 @@ void free_enclave(const char *name)
 /**
  * @description: Show enclave thread info
  * @return: Task information
- * */
+ */
 std::string show_enclave_thread_info()
 {
     json::JSON task_info_json;
@@ -292,8 +292,8 @@ sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid)
 
 /**
  * @description: A wrapper function, Restore enclave data from file
- * @return: Restore status
- * */
+ * @param status -> Pointer to restore result status
+ */
 sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -311,10 +311,10 @@ sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status
 
 /**
  * @description: A wrapper function, Compare chain account with enclave's
+ * @param status -> Pointer to compare result status
  * @param account_id (in) -> Pointer to account id
  * @param len -> account id length
- * @return: Compare status
- * */
+ */
 sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -332,10 +332,10 @@ sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *st
 
 /**
  * @description: A wrapper function, Set crust account id
+ * @param status -> Pointer to set result status
  * @param account_id (in) -> Pointer to account id
  * @param len -> Account id length
- * @return: Set status
- * */
+ */
 sgx_status_t Ecall_set_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -353,13 +353,10 @@ sgx_status_t Ecall_set_chain_account_id(sgx_enclave_id_t eid, crust_status_t *st
 
 /**
  * @description: A wrapper function, Get signed validation report
+ * @param status -> Pointer to get result status
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
- * @param p_signature (out) -> sig by tee
- * @param report (out) -> work report string
- * @param report_len (in) -> work report string length
- * @return: sign status
- * */
+ */
 sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -377,8 +374,7 @@ sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *
 
 /**
  * @description: A wrapper function, generate ecc key pair and store it in enclave
- * @return: generate status
- * */
+ */
 sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -399,8 +395,7 @@ sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status)
  *  in report data
  * @param report (out) -> Pointer to SGX report
  * @param target_info (in) -> Data used to generate report
- * @return: get sgx report status
- * */
+ */
 sgx_status_t Ecall_get_quote_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -418,8 +413,7 @@ sgx_status_t Ecall_get_quote_report(sgx_enclave_id_t eid, sgx_status_t *status, 
 
 /**
  * @description: A wrapper function, generate current code measurement
- * @return: generate status
- * */
+ */
 sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *status)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -437,10 +431,10 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
 
 /**
  * @description: A wrapper function, verify IAS report
+ * @param status -> Pointer to verify result status
  * @param IASReport (in) -> Vector first address
  * @param len -> Count of Vector IASReport
- * @return: verify status
- * */
+ */
 sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -458,13 +452,13 @@ sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status
 
 /**
  * @description: A wrapper function, Seal file according to given path and return new MerkleTree
+ * @param status -> Pointer to seal result status
  * @param p_tree (in) -> Pointer to MerkleTree json structure buffer 
  * @param tree_len -> MerkleTree json structure buffer length
  * @param path (in) -> Reference to file path
  * @param p_new_path (out) -> Pointer to sealed data path
  * @param path_len -> Pointer to file path length
- * @return: Seal status
- * */
+ */
 sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *p_tree, size_t tree_len, const char *path, 
         char *p_new_path , size_t path_len)
 {
@@ -483,13 +477,13 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
 
 /**
  * @description: A wrapper function, Unseal file according to given path
+ * @param status -> Pointer to unseal result status
  * @param files (in) -> Files in root directory
  * @param files_num -> Files number in root directory
  * @param p_dir (in) -> Root directory path
  * @param p_new_path (out) -> Pointer to unsealed data path
  * @param path_len -> Root dir path length
- * @return: Unseal status
- * */
+ */
 sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, char **files, size_t files_num, const char *p_dir, 
         char *p_new_path, uint32_t path_len)
 {
@@ -508,8 +502,8 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
 
 /**
  * @description: Get signed order report
- * @return: Get status
- * */
+ * @param status -> Pointer to get result status
+ */
 sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -528,7 +522,7 @@ sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t 
 /**
  * @description: Change srd number
  * @param change -> Will be changed srd number
- * */
+ */
 sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, long change)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -548,7 +542,7 @@ sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, long change)
  * @description: Update srd_g_hashs
  * @param hashs -> Pointer to the address of to be deleted hashs array
  * @param hashs_len -> Hashs array length
- * */
+ */
 sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, size_t hashs_len)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -566,9 +560,9 @@ sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, 
 
 /**
  * @description: Confirm new file
+ * @param status -> Pointer to confirm result status
  * @param hash -> New file hash
- * @return: Confirm status
- * */
+ */
 sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -586,8 +580,9 @@ sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, crust_status_t *status, co
 
 /**
  * @description: Delete file
+ * @param status -> Pointer to delete result status
  * @param hash -> File root hash
- * */
+ */
 sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -605,7 +600,7 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, con
 
 /**
  * @description: Get enclave id information
- * */
+ */
 sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -623,7 +618,7 @@ sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid)
 
 /**
  * @description: Get workload
- * */
+ */
 sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;

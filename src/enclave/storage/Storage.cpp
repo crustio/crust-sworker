@@ -23,7 +23,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
  * @param path_len -> Pointer to file path length
  * @param p_new_path -> Pointer to sealed data path
  * @return: Seal status
- * */
+ */
 crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char *path, size_t path_len, char *p_new_path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -95,7 +95,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     tree_meta_json[FILE_OLD_SIZE] = org_node_size;
     tree_meta_json[FILE_BLOCK_NUM] = block_num;
     std::string tree_meta_str = tree_meta_json.dump();
-    crust_status = persist_set((new_root_hash_str+"_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
+    crust_status = persist_set((new_root_hash_str + "_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -121,7 +121,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
  * @param node_size -> Current node data length
  * @param block_num -> Current block index
  * @return: Seal status
- * */
+ */
 crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tree,
         size_t &node_size, size_t &block_num)
 {
@@ -274,7 +274,7 @@ cleanup:
  * @param p_dir -> Root directory path
  * @param p_new_path -> Pointer to unsealed data path
  * @return: Unseal status
- * */
+ */
 crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
@@ -400,7 +400,7 @@ cleanup:
  * @description: Confirm new file
  * @param hash -> Pointer to new file hash
  * @return: Confirm status
- * */
+ */
 crust_status_t storage_confirm_file(const char *hash)
 {
     sgx_thread_mutex_lock(&g_metadata_mutex);
@@ -418,6 +418,7 @@ crust_status_t storage_confirm_file(const char *hash)
         sgx_thread_mutex_unlock(&g_metadata_mutex);
         return CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
+    // Do confirm
     for (auto it = meta_json_org[ID_FILE].ArrayRange().object->rbegin(); 
             it != meta_json_org[ID_FILE].ArrayRange().object->rend(); it++)
     {
@@ -496,7 +497,7 @@ crust_status_t storage_confirm_file(const char *hash)
  * @description: Delete meaningful file
  * @param hash -> File root hash
  * @return: Delete status
- * */
+ */
 crust_status_t storage_delete_file(const char *hash)
 {
     // ----- Delete file items in metadata ----- //
@@ -576,7 +577,7 @@ crust_status_t storage_delete_file(const char *hash)
         // Delete file tree structure
         persist_del(deleted_file);
         // Delete file metadata
-        persist_del(deleted_file+"_meta");
+        persist_del(deleted_file + "_meta");
     }
 
     return crust_status;

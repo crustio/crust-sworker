@@ -331,7 +331,7 @@ crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_f
  * @param org_root_hash -> Original MerkleTree root hash
  * @param tree_data -> Serialized MerkleTree
  * @param tree_len -> Serialized MerkleTree length 
- * */
+ */
 void ocall_store_sealed_merkletree(const char *org_root_hash, const char *tree_data, size_t tree_len)
 {
     std::string org_root_hash_str(org_root_hash);
@@ -345,7 +345,7 @@ void ocall_store_sealed_merkletree(const char *org_root_hash, const char *tree_d
  * @param data -> New file data
  * @param len -> New file data length
  * @return: Replace status
- * */
+ */
 crust_status_t ocall_replace_file(const char *old_path, const char *new_path, const uint8_t *data, size_t len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -380,7 +380,7 @@ void ocall_usleep(int u)
  * @param value -> Pointer to value
  * @param value_len -> value length
  * @return: Add status
- * */
+ */
 crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len)
 {
     return crust::DataBase::get_instance()->add(std::string(key), std::string((const char*)value, value_len));
@@ -392,7 +392,7 @@ crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t v
  * @param keys -> To be added keys array
  * @param keys_len -> Keys array length
  * @return: Add status
- * */
+ */
 crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t keys_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -423,7 +423,7 @@ crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t 
  * @description: Delete record from DB
  * @param key -> Pointer to key
  * @return: Delete status
- * */
+ */
 crust_status_t ocall_persist_del(const char *key)
 {
     return crust::DataBase::get_instance()->del(std::string(key));
@@ -435,7 +435,7 @@ crust_status_t ocall_persist_del(const char *key)
  * @param keys -> To be deleted Key-value keys
  * @param keys_len -> Keys length
  * @return: Delete status
- * */
+ */
 crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t keys_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -470,7 +470,7 @@ crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t 
  * @param value -> Pointer to value
  * @param value_len -> value length
  * @return: Update status
- * */
+ */
 crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len)
 {
     return crust::DataBase::get_instance()->set(std::string(key), std::string((const char*)value, value_len));
@@ -482,7 +482,7 @@ crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t v
  * @param value -> Pointer points to pointer to value
  * @param value_len -> value length
  * @return: Get status
- * */
+ */
 crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len)
 {
     std::string val;
@@ -506,7 +506,7 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
  * @param path -> Indicated path
  * @param files -> Indicate sub folders and files vector
  * @param files_num -> Sub folders and files number
- * */
+ */
 void ocall_get_sub_folders_and_files(const char *path, char ***files, size_t *files_num)
 {
     std::vector<std::string> dirs = get_sub_folders_and_files(path);
@@ -523,7 +523,7 @@ void ocall_get_sub_folders_and_files(const char *path, char ***files, size_t *fi
 /**
  * @description: Initialize websocket client
  * @return: Initialize status
- * */
+ */
 crust_status_t ocall_validate_init()
 {
     if (wssclient != NULL)
@@ -570,7 +570,7 @@ crust_status_t ocall_validate_init()
  * @param p_sealed_data -> Pointer to sealed data
  * @param sealed_data_size -> Sealed data size
  * @return: Get validation files status
- * */
+ */
 // TODO: malloc a const space for p_sealed_data
 crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash,
         uint8_t **p_sealed_data, size_t *sealed_data_size)
@@ -616,7 +616,7 @@ crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_h
 
 /**
  * @description: Close websocket connection
- * */
+ */
 void ocall_validate_close()
 {
     if (wssclient != NULL)
@@ -638,7 +638,7 @@ void ocall_validate_close()
  * @description: Store order report from enclave
  * @param p_order -> Poniter to order buffer
  * @param order_size -> Order buffer size
- * */
+ */
 void ocall_store_order_report(const char *p_order, size_t order_size)
 {
     set_g_order_report(std::string(p_order, order_size));
@@ -646,7 +646,7 @@ void ocall_store_order_report(const char *p_order, size_t order_size)
 
 /**
  * @description: Lock srd info
- * */
+ */
 void ocall_srd_info_lock()
 {
     srd_info_mutex.lock();
@@ -654,7 +654,7 @@ void ocall_srd_info_lock()
 
 /**
  * @description: Unlock srd info
- * */
+ */
 void ocall_srd_info_unlock()
 {
     srd_info_mutex.unlock();
@@ -663,7 +663,7 @@ void ocall_srd_info_unlock()
 /**
  * @description: Do srd in this function
  * @param change -> The change number will be committed this turn
- * */
+ */
 void ocall_srd_change(long change)
 {
     srd_change(change);
@@ -672,7 +672,7 @@ void ocall_srd_change(long change)
 /**
  * @description: Store tee identity
  * @param id -> Pointer to identity
- * */
+ */
 void ocall_store_identity(const char *id)
 {
     set_g_tee_identity(id);
@@ -681,7 +681,7 @@ void ocall_store_identity(const char *id)
 /**
  * @description: Store enclave id information
  * @param info -> Pointer to enclave id information
- * */
+ */
 void ocall_store_enclave_id_info(const char *info)
 {
     set_g_enclave_id_info(info);
@@ -690,7 +690,7 @@ void ocall_store_enclave_id_info(const char *info)
 /**
  * @description: Store enclave workload
  * @param wl -> Workload information
- * */
+ */
 void ocall_store_workload(const char *wl)
 {
     set_g_enclave_workload(wl);
@@ -699,7 +699,7 @@ void ocall_store_workload(const char *wl)
 /**
  * @description: Store enclave workreport
  * @param wr -> Workreport information
- * */
+ */
 void ocall_store_workreport(const char *wr)
 {
     set_g_enclave_workreport(wr);

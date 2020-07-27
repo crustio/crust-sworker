@@ -8,7 +8,7 @@ std::string config_file_path;
 /**
  * @desination: Single instance class function to get instance
  * @return: Configure instance
- * */
+ */
 Config *Config::get_instance()
 {
     if (Config::config == NULL)
@@ -124,7 +124,7 @@ void Config::change_srd_capacity(int change)
 /**
  * @description: Get configure file path
  * @return: Configure file path
- * */
+ */
 std::string Config::get_config_path()
 {
     return config_file_path;

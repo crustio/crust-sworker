@@ -12,7 +12,7 @@ Chain *Chain::chain = NULL;
 /**
  * @desination: single instance class function to get instance
  * @return: chain instance
- * */
+ */
 Chain *Chain::get_instance()
 {
     if (Chain::chain == NULL)
@@ -85,7 +85,7 @@ BlockHeader *Chain::get_block_header(void)
  * @description: get block hash by number
  * @param block_number block number
  * @return: block hash
- * */
+ */
 std::string Chain::get_block_hash(size_t block_number)
 {
     std::string url = this->url + "/block/hash?blockNumber=" + std::to_string(block_number);
@@ -111,7 +111,7 @@ std::string Chain::get_block_hash(size_t block_number)
 /**
  * @description: test if chian is online
  * @return: test result
- * */
+ */
 bool Chain::is_online(void)
 {
     std::string path = this->url + "/block/header";
@@ -127,7 +127,7 @@ bool Chain::is_online(void)
 /**
  * @description: waiting for the crust chain to run
  * @return: success or not
- * */
+ */
 bool Chain::wait_for_running(void)
 {
     size_t start_block_height = 10;
@@ -166,7 +166,7 @@ bool Chain::wait_for_running(void)
  * @description: post tee identity to chain chain
  * @param identity -> tee identity
  * @return: success or fail
- * */
+ */
 bool Chain::post_tee_identity(std::string identity)
 {
     for(int i = 0; i < 3; i++)
@@ -202,7 +202,7 @@ bool Chain::post_tee_identity(std::string identity)
  * @description: post tee work report to chain
  * @param work_report -> tee work report
  * @return: success or fail
- * */
+ */
 bool Chain::post_tee_work_report(std::string work_report)
 {
     for(int i = 0; i < 3; i++)

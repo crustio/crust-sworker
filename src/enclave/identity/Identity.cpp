@@ -67,8 +67,9 @@ static enum _error_type {
 
 /**
  * @description: used to decode url in cert
+ * @param str -> Url
  * @return: decoded url
- * */
+ */
 string url_decode(string str)
 {
     string decoded;
@@ -106,8 +107,11 @@ string url_decode(string str)
 
 /**
  * @description: Load cert
+ * @param cert -> X509 certificate
+ * @param pemdata -> PEM data
+ * @param sz -> PEM data size
  * @return: Load status
- * */
+ */
 int cert_load_size(X509 **cert, const char *pemdata, size_t sz)
 {
     BIO *bmem;
@@ -139,8 +143,10 @@ cleanup:
 
 /**
  * @description: Load cert based on data size
+ * @param cert -> X509 certificate
+ * @param pemdata -> PEM data
  * @return: Load status
- * */
+ */
 int cert_load(X509 **cert, const char *pemdata)
 {
     return cert_load_size(cert, pemdata, strlen(pemdata));
@@ -148,6 +154,7 @@ int cert_load(X509 **cert, const char *pemdata)
 
 /**
  * @description: Take an array of certificate pointers and build a stack.
+ * @param certs -> Pointer to X509 certificate array
  * @return: x509 cert
  */
 STACK_OF(X509) * cert_stack_build(X509 **certs)
@@ -175,6 +182,8 @@ STACK_OF(X509) * cert_stack_build(X509 **certs)
  *   the chain is the one to validate. Note that a store context can only
  *   be used for a single verification so we need to do this every time
  *   we want to validate a cert.
+ * @param store -> X509 store
+ * @param chain -> X509 chain
  * @return: Verify status
  */
 int cert_verify(X509_STORE *store, STACK_OF(X509) * chain)
@@ -209,7 +218,8 @@ cleanup:
 
 /**
  * @description: Free cert stack
- * */
+ * @param chain -> X509 chain
+ */
 void cert_stack_free(STACK_OF(X509) * chain)
 {
     sk_X509_free(chain);
@@ -217,8 +227,13 @@ void cert_stack_free(STACK_OF(X509) * chain)
 
 /**
  * @description: Verify content signature
+ * @param msg -> Verified message
+ * @param mlen -> Verified message length
+ * @param sig -> Signature
+ * @param sigsz -> Signature size
+ * @param pkey -> EVP key
  * @return: Verify status
- * */
+ */
 int sha256_verify(const uint8_t *msg, size_t mlen, uint8_t *sig,
                   size_t sigsz, EVP_PKEY *pkey)
 {
@@ -256,8 +271,9 @@ cleanup:
 
 /**
  * @description: Init CA
+ * @param cert -> X509 certificate
  * @return: x509 store
- * */
+ */
 X509_STORE *cert_init_ca(X509 *cert)
 {
     X509_STORE *store;
@@ -283,8 +299,10 @@ X509_STORE *cert_init_ca(X509 *cert)
 
 /**
  * @description: base64 decode function
+ * @param msg -> To be decoded message
+ * @param sz -> Message size
  * @return: Decoded result
- * */
+ */
 char *base64_decode(const char *msg, size_t *sz)
 {
     BIO *b64, *bmem;
@@ -322,7 +340,7 @@ char *base64_decode(const char *msg, size_t *sz)
  * @param IASReport -> Pointer to vector address
  * @param size -> Vector size
  * @return: Verify status
- * */
+ */
 crust_status_t id_verify_iasreport(char **IASReport, size_t size)
 {
     string certchain;
@@ -604,9 +622,9 @@ cleanup:
 }
 
 /**
- * @description: generate ecc key pair and store it in enclave
- * @return: generate status
- * */
+ * @description: Generate ecc key pair and store it in enclave
+ * @return: Generate status
+ */
 sgx_status_t id_gen_key_pair()
 {
     if (g_is_set_id_key_pair)
@@ -649,10 +667,12 @@ sgx_status_t id_gen_key_pair()
 }
 
 /**
- * @description: get sgx report, our generated public key contained
+ * @description: Get sgx report, our generated public key contained
  *  in report data
- * @return: get sgx report status
- * */
+ * @param report -> Sgx report
+ * @param target_info -> Sgx target info
+ * @return: Get sgx report status
+ */
 sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info)
 {
 
@@ -668,9 +688,9 @@ sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target
 }
 
 /**
- * @description: generate current code measurement
- * @return: generate status
- * */
+ * @description: Generate current code measurement
+ * @return: Generate status
+ */
 sgx_status_t id_gen_sgx_measurement()
 {
     sgx_status_t status = SGX_SUCCESS;
@@ -698,8 +718,7 @@ sgx_status_t id_gen_sgx_measurement()
  * @description: Get metadata
  * @param meta_json -> Reference to metadata json
  * @param locked -> Indicate whether lock current operation
- * @return: Get status
- * */
+ */
 void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
 {
     if (locked)
@@ -754,7 +773,7 @@ cleanup:
  * @description: Set old matadata by new key values in meta_json
  * @param meta_json -> New metadata json to be set
  * @return: Set status
- * */
+ */
 crust_status_t id_metadata_set_by_new(json::JSON meta_json)
 {
     sgx_thread_mutex_lock(&g_metadata_mutex);
@@ -794,7 +813,7 @@ cleanup:
  * @description: Get metadata by key
  * @param key -> Key
  * @return: Value
- * */
+ */
 json::JSON id_metadata_get_by_key(std::string key)
 {
     sgx_thread_mutex_lock(&g_metadata_mutex);
@@ -819,7 +838,7 @@ cleanup:
  * @description: Delete new file by file hash
  * @param file_hash -> To be deleted file hash
  * @return: Delete status
- * */
+ */
 crust_status_t id_metadata_del_by_key(std::string key)
 {
     sgx_thread_mutex_lock(&g_metadata_mutex);
@@ -862,7 +881,7 @@ cleanup:
  * Just store all metadata except meaningful files. Meaningfule files can be added through 
  * 'id_metadata_set_or_append' function
  * @return: Store status
- * */
+ */
 crust_status_t id_store_metadata()
 {
     sgx_thread_mutex_lock(&g_metadata_mutex);
@@ -907,7 +926,7 @@ cleanup:
 /**
  * @description: Restore enclave all metadata
  * @return: Restore status
- * */
+ */
 crust_status_t id_restore_metadata()
 {
     // Get metadata
@@ -990,7 +1009,7 @@ crust_status_t id_restore_metadata()
  * @param account_id -> Pointer to account id
  * @param len -> account id length
  * @return: Compare status
- * */
+ */
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len)
 {
     if (memcmp(g_chain_account_id.c_str(), account_id, len) != 0)
@@ -1003,8 +1022,10 @@ crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len)
 
 /**
  * @description: Set crust account id
+ * @param account_id -> Chain account id
+ * @param len -> Chain account id length
  * @return: Set status
- * */
+ */
 crust_status_t id_set_chain_account_id(const char *account_id, size_t len)
 {
     // Check if value has been set
@@ -1028,8 +1049,8 @@ crust_status_t id_set_chain_account_id(const char *account_id, size_t len)
 
 /**
  * @description: Get key pair
- * @return: identity key pair
- * */
+ * @return: Identity key pair
+ */
 ecc_key_pair id_get_key_pair()
 {
     return id_key_pair;
@@ -1037,8 +1058,8 @@ ecc_key_pair id_get_key_pair()
 
 /**
  * @description: Get current work report slot
- * @return: current work report slot
- * */
+ * @return: Current work report slot
+ */
 size_t id_get_report_slot()
 {
     return report_slot;
@@ -1047,7 +1068,7 @@ size_t id_get_report_slot()
 /**
  * @description: Set current work report slot
  * @param new_report_slot -> new report slot
- * */
+ */
 void id_set_report_slot(size_t new_report_slot)
 {
     report_slot = new_report_slot;
@@ -1057,7 +1078,7 @@ void id_set_report_slot(size_t new_report_slot)
 /**
  * @description: Determine if it just restarted 
  * @return: true or false
- * */
+ */
 bool id_just_after_restart()
 {
     return just_after_restart;
@@ -1066,7 +1087,7 @@ bool id_just_after_restart()
 /**
  * @description: set just_after_restart
  * @param: true or false
- * */
+ */
 void id_set_just_after_restart(bool in)
 {
     just_after_restart = in;
@@ -1074,7 +1095,7 @@ void id_set_just_after_restart(bool in)
 
 /**
  * @description: Show enclave id information
- * */
+ */
 void id_get_info()
 {
     json::JSON id_info;

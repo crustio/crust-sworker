@@ -58,7 +58,7 @@ bool report_has_validated_proof() {
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
  * @return: sign status
- * */
+ */
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height)
 {
     // Judge whether the current data is validated 
@@ -105,7 +105,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
             hashs_len += HASH_LENGTH;
         }
     }
-    // generate srd information
+    // Generate srd information
     if (hashs_len == 0)
     {
         srd_workload = 0;
@@ -134,7 +134,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
             uint8_t *p_meta = NULL;
             size_t meta_len = 0;
             std::string hash_str = wl->checked_files[i][FILE_HASH].ToString();
-            crust_status = persist_get((hash_str+"_meta").c_str(), &p_meta, &meta_len);
+            crust_status = persist_get((hash_str + "_meta").c_str(), &p_meta, &meta_len);
             if (CRUST_SUCCESS != crust_status || p_meta == NULL)
             {
                 log_err("Get file:%s meta failed!\n", hash_str.c_str());
@@ -207,10 +207,10 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
 
     // Store workreport
     wr_json["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    wr_json["reserved"] = srd_workload;
-    wr_json["files"] = old_files_json;
     wr_json["block_height"] = block_height_str;
     wr_json["block_hash"] = std::string(block_hash, HASH_LENGTH * 2);
+    wr_json["reserved"] = srd_workload;
+    wr_json["files"] = old_files_json;
     wr_json["sig"] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
     wr_str = wr_json.dump();
     ocall_store_workreport(wr_str.c_str());
@@ -235,7 +235,7 @@ cleanup:
 /**
  * @description: Get signed order report
  * @return: Get status
- * */
+ */
 crust_status_t get_signed_order_report()
 {
     sgx_status_t sgx_status = SGX_SUCCESS;

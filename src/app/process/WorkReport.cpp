@@ -21,7 +21,7 @@ size_t get_random_wait_time(std::string seed)
 
 /**
  * @description: Check if there is enough height, send signed work report to chain
- * */
+ */
 void work_report_loop(void)
 {
     crust_status_t crust_status = CRUST_SUCCESS;

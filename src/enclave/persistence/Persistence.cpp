@@ -10,7 +10,7 @@ using namespace std;
  * @param value -> Pointer to value
  * @param value_len -> value length
  * @return: Add status
- * */
+ */
 crust_status_t persist_add(std::string key, const uint8_t *value, size_t value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -39,7 +39,7 @@ crust_status_t persist_add(std::string key, const uint8_t *value, size_t value_l
  * @param keys -> To be added keys array
  * @param keys_len -> To be added keys array length
  * @return: Add status
- * */
+ */
 crust_status_t persist_add_keys_unsafe(std::string key, const char *keys, size_t keys_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -52,7 +52,7 @@ crust_status_t persist_add_keys_unsafe(std::string key, const char *keys, size_t
  * @description: Delete value by key
  * @param key -> Pointer to key
  * @return: Delete status
- * */
+ */
 crust_status_t persist_del(std::string key)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -68,7 +68,7 @@ crust_status_t persist_del(std::string key)
  * @param keys -> To be deleted keys array
  * @param keys_len -> Keys array length
  * @return: Delete status
- * */
+ */
 crust_status_t persist_del_keys_unsafe(std::string key, const char *keys, size_t keys_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -83,7 +83,7 @@ crust_status_t persist_del_keys_unsafe(std::string key, const char *keys, size_t
  * @param value -> Pointer to value
  * @param value_len -> value length
  * @return: Update status
- * */
+ */
 crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -112,7 +112,7 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
  * @param value -> Pointer to value
  * @param value_len -> value length
  * @return: Update status
- * */
+ */
 crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -128,7 +128,7 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
  * @param value -> Pointer points to value
  * @param value_len -> Pointer to value length
  * @return: Get status
- * */
+ */
 crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -174,7 +174,7 @@ cleanup:
  * @param value -> Pointer points to value
  * @param value_len -> Pointer to value length
  * @return: Get status
- * */
+ */
 crust_status_t persist_get_unsafe(std::string key, uint8_t **value, size_t *value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;

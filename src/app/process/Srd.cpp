@@ -14,7 +14,7 @@ extern sgx_enclave_id_t global_eid;
  * @description: If the given paths have same disk, just choose one of the same
  * @param srd_paths -> Input srd paths
  * @return: Final chosen srd paths
- * */
+ */
 json::JSON get_valid_srd_path(json::JSON srd_paths)
 {
     json::JSON ans;
@@ -53,7 +53,7 @@ json::JSON get_valid_srd_path(json::JSON srd_paths)
  * @description: Get srd disks info according to configure
  * @param true_srd_capacity -> True assigned size
  * @return: A path to assigned size map
- * */
+ */
 json::JSON get_increase_srd_info(size_t &true_srd_capacity)
 {
     // Get multi-disk info
@@ -127,7 +127,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
  * @description: Decrease srd space
  * @param true_srd_capacity -> True decreased size
  * @return: Path to decrease size map
- * */
+ */
 json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
 {
     crust::DataBase *db = crust::DataBase::get_instance();
@@ -193,7 +193,7 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
 /**
  * @description: Change SRD space
  * @param change -> SRD space number
- * */
+ */
 void srd_change(long change)
 {
     Config *p_config = Config::get_instance();
@@ -344,7 +344,7 @@ void srd_change(long change)
 /**
  * @description: Check if disk's available space is smaller than minimal reserved space,
  * if it is, delete srd space
- * */
+ */
 void srd_check_reserved(void)
 {
     crust::DataBase *db = crust::DataBase::get_instance();
@@ -405,7 +405,7 @@ void srd_check_reserved(void)
 /**
  * @description: Get reserved space
  * @return: srd reserved space
- * */
+ */
 size_t get_reserved_space()
 {
     return g_srd_reserved_space;
@@ -414,7 +414,7 @@ size_t get_reserved_space()
 /**
  * @description: Set reserved space
  * @param reserved -> Reserved space
- * */
+ */
 void set_reserved_space(size_t reserved)
 {
     g_srd_reserved_space = reserved;
@@ -424,7 +424,7 @@ void set_reserved_space(size_t reserved)
  * @description: Get old TEE's reserved space from url
  * @param url -> Indicates old TEE url
  * @return: Old TEE srd reserved space
- * */
+ */
 long get_old_reserved_space(std::string url)
 {
     long srd_reserved_space = 0;
@@ -447,7 +447,8 @@ long get_old_reserved_space(std::string url)
 
 /**
  * @description: Initialize srd upgrade
- * */
+ * @param srd_num -> Upgrade initial srd space
+ */
 void srd_init_upgrade(int srd_num)
 {
     crust::DataBase *db = crust::DataBase::get_instance();
