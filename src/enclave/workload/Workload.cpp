@@ -1,6 +1,5 @@
 #include "Workload.h"
 
-extern ecc_key_pair id_key_pair;
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
@@ -10,8 +9,8 @@ sgx_thread_mutex_t g_order_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 Workload *Workload::workload = NULL;
 
 /**
- * @desination: single instance class function to get instance
- * @return: workload instance
+ * @desination: Single instance class function to get instance
+ * @return: Workload instance
  */
 Workload *Workload::get_instance()
 {
@@ -37,7 +36,7 @@ Workload::Workload()
 }
 
 /**
- * @description: destructor
+ * @description: Destructor
  */
 Workload::~Workload()
 {
@@ -53,7 +52,7 @@ Workload::~Workload()
 }
 
 /**
- * @description: print work report
+ * @description: Print work report
  */
 std::string Workload::get_workload(void)
 {
@@ -121,10 +120,10 @@ void Workload::clean_data()
 }
 
 /**
- * @description: generate srd information
- * @param srd_root_out srd root hash
- * @param srd_workload_out srd workload
- * @return: status
+ * @description: Generate srd information
+ * @param srd_root_out -> srd root hash
+ * @param srd_workload_out -> srd workload
+ * @return: Get status
  */
 crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out, json::JSON &md_json)
 {
@@ -173,55 +172,9 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *s
 }
 
 /**
- * @description: generate srd information
- * @param srd_root_out srd root hash
- * @param srd_workload_out srd workload
- * @return: status
- */
-crust_status_t Workload::generate_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *srd_workload_out)
-{
-    sgx_thread_mutex_lock(&g_srd_mutex);
-
-    // Get hashs for hashing
-    size_t g_hashs_num = 0;
-    for (auto it : this->srd_path2hashs_m)
-    {
-        g_hashs_num += it.second.size();
-    }
-    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
-    size_t hashs_len = 0;
-
-    for (auto it : this->srd_path2hashs_m)
-    {
-        for (auto g_hash : it.second)
-        {
-            memcpy(hashs + hashs_len, g_hash, HASH_LENGTH);
-            hashs_len += HASH_LENGTH;
-        }
-    }
-
-    // generate srd information
-    if (hashs_len == 0)
-    {
-        *srd_workload_out = 0;
-        memset(srd_root_out, 0, HASH_LENGTH);
-    }
-    else
-    {
-        *srd_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)hashs_len, srd_root_out);
-    }
-
-    free(hashs);
-
-    sgx_thread_mutex_unlock(&g_srd_mutex);
-    return CRUST_SUCCESS;
-}
-
-/**
- * @description: serialize workload for sealing
+ * @description: Serialize workload for sealing
  * @param locked -> Indicates whether to get lock, default value is true
- * @return: serialized workload
+ * @return: Serialized workload
  */
 json::JSON Workload::serialize_srd(bool locked /*=true*/)
 {

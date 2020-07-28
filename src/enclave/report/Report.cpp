@@ -9,7 +9,6 @@ int validated_proof = 0;
 extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_order_files_mutex;
-extern ecc_key_pair id_key_pair;
 
 /**
  * @description: add validated proof
@@ -266,6 +265,7 @@ crust_status_t get_signed_order_report()
     sgx_thread_mutex_unlock(&g_order_files_mutex);
 
     // Prepare order data
+    ecc_key_pair id_key_pair = id_get_key_pair();
     std::string files_str = order_json["files"].dump();
     remove_char(files_str, ' ');
     remove_char(files_str, '\n');

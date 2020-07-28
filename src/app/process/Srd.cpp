@@ -133,14 +133,11 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
     crust::DataBase *db = crust::DataBase::get_instance();
     std::string disk_info_str;
 
-    srd_info_mutex.lock();
     if (CRUST_SUCCESS != db->get("srd_info", disk_info_str))
     {
         p_log->err("Srd info not found!Decrease srd space failed!\n");
-        srd_info_mutex.unlock();
         return disk_info_str;
     }
-    srd_info_mutex.unlock();
 
     json::JSON disk_info_json = json::JSON::Load(disk_info_str);
     json::JSON ans;
@@ -301,10 +298,8 @@ void srd_change(long change)
             // Get assigned total srd
             long srd_assigned_total = 0;
             std::string srd_str;
-            srd_info_mutex.lock();
             if (CRUST_SUCCESS == db->get("srd_info", srd_str) && srd_str.size() > 0)
             {
-                srd_info_mutex.unlock();
                 json::JSON srd_json = json::JSON::Load(srd_str);
                 for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)
                 {

@@ -22,6 +22,6 @@ typedef enum _sched_process_t {
 
 void sched_add(sched_process_t id);
 void sched_del(sched_process_t id);
-void sched_check(sched_process_t id, sgx_thread_mutex_t mutex);
+void sched_check(sched_process_t id, sgx_thread_mutex_t &mutex);
 
 #endif /* !_CRUST_SCHEDULE_H_ */
