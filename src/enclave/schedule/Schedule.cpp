@@ -62,33 +62,26 @@ void sched_del(sched_process_t id)
 /**
  * @description: Check executing thread
  * @param id -> Executing thread name
- * @param mutex -> mutex
+ * @param mutex -> Reference to mutex
  */
-void sched_check(sched_process_t id, sgx_thread_mutex_t mutex)
+void sched_check(sched_process_t id, sgx_thread_mutex_t &mutex)
 {
-    bool is_unlocked = false;
-    do
+    bool release_lock = false;
+    sgx_thread_mutex_lock(&g_sched_mutex);
+    for (auto proc : g_block_func_m[id])
     {
-    proc_check:
-        sgx_thread_mutex_lock(&g_sched_mutex);
-        for (auto proc : g_block_func_m[id])
+        if (g_func_m[proc] > 0)
         {
-            if (g_func_m[proc] > 0)
-            {
-                sgx_thread_mutex_unlock(&g_sched_mutex);
-                if (!is_unlocked)
-                {
-                    sgx_thread_mutex_unlock(&mutex);
-                    is_unlocked = true;
-                }
-                ocall_usleep(1000);
-                goto proc_check;
-            }
+            release_lock = true;
+            break;
         }
-    } while (0);
+    }
     sgx_thread_mutex_unlock(&g_sched_mutex);
-    if (is_unlocked)
+
+    if (release_lock)
     {
+        sgx_thread_mutex_unlock(&mutex);
+        ocall_usleep(1000);
         sgx_thread_mutex_lock(&mutex);
     }
 }

@@ -5,9 +5,9 @@
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
- * @description: get url end point from url
- * @param url base url, like: http://127.0.0.1:56666/api/v1
- * @return: url end point
+ * @description: Get url end point from url
+ * @param url -> base url, like: http://127.0.0.1:56666/api/v1
+ * @return: Url end point
  */
 UrlEndPoint *get_url_end_point(std::string url)
 {
@@ -70,9 +70,9 @@ parse_end:
 }
 
 /**
- * @description: remove chars from string
- * @param str input string
- * @param chars_to_remove removed chars
+ * @description: Remove chars from string
+ * @param str -> input string
+ * @param chars_to_remove -> removed chars
  */
 void remove_chars_from_string(std::string &str, const char *chars_to_remove)
 {

@@ -9,7 +9,6 @@ using namespace std;
 sgx_thread_mutex_t g_file_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 // Current node public and private key pair
-extern ecc_key_pair id_key_pair;
 extern sgx_thread_mutex_t g_new_files_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 
