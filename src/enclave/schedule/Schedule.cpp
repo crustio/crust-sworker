@@ -1,5 +1,4 @@
 #include "Schedule.h"
-#include "EUtils.h"
 
 sgx_thread_mutex_t g_sched_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
@@ -68,6 +67,7 @@ void sched_del(sched_process_t id)
 void sched_check(sched_process_t id, sgx_thread_mutex_t &mutex)
 {
     bool release_lock = false;
+    sgx_thread_mutex_lock(&g_sched_mutex);
     for (auto proc : g_block_func_m[id])
     {
         if (g_func_m[proc] > 0)
@@ -76,6 +76,7 @@ void sched_check(sched_process_t id, sgx_thread_mutex_t &mutex)
             break;
         }
     }
+    sgx_thread_mutex_unlock(&g_sched_mutex);
 
     if (release_lock)
     {
