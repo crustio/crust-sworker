@@ -43,8 +43,8 @@ bool initialize_config(void)
 }
 
 /**
- * @description: call sgx_create_enclave to initialize an enclave instance
- * @return: success or failure
+ * @description: Call sgx_create_enclave to initialize an enclave instance
+ * @return: Success or failure
  */
 bool initialize_enclave()
 {
@@ -100,10 +100,10 @@ bool initialize_enclave()
 }
 
 /**
- * @description: initialize the components:
+ * @description: Initialize the components:
  *   config -> user configurations and const configurations
  *   api handler -> external API interface 
- * @return: success or failure
+ * @return: Success or failure
  */
 bool initialize_components(void)
 {
@@ -270,7 +270,7 @@ int process_run()
         {
             std::string srd_info;
             long srd_assigned_total = 0;
-            if (CRUST_SUCCESS == db->get("srd_info", srd_info) && srd_info.size() > 0)
+            if (CRUST_SUCCESS == db->get(DB_SRD_INFO, srd_info) && srd_info.size() > 0)
             {
                 json::JSON srd_json = json::JSON::Load(srd_info);
                 for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)

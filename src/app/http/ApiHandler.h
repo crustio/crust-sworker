@@ -27,7 +27,7 @@
 #include "Srd.h"
 #include "Storage.h"
 #include "Data.h"
-#include "../enclave/Parameter.h"
+#include "../enclave/include/Parameter.h"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -156,7 +156,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust::DataBase *db = crust::DataBase::get_instance();
             // Get srd info
             std::string srd_detail;
-            if (CRUST_SUCCESS != (crust_status = db->get("srd_info", srd_detail)))
+            if (CRUST_SUCCESS != (crust_status = db->get(DB_SRD_INFO, srd_detail)))
             {
                 p_log->warn("Srd info not found!Get workload srd info failed!\n");
             }

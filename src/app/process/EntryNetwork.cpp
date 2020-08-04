@@ -7,10 +7,10 @@ extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
- * @description: entry network off-chain node sends quote to onchain node to verify identity
+ * @description: Entry network off-chain node sends quote to onchain node to verify identity
  * @param p_config -> configurations
  * @param tee_identity_out -> tee identity result
- * @return: success or failure
+ * @return: Success or failure
  */
 bool entry_network(Config *p_config, std::string &tee_identity_out)
 {

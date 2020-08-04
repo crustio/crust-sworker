@@ -69,7 +69,7 @@ App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*
 	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp) \
 	$(wildcard app/ecalls/*.cpp)
 	
-App_Include_Paths := -I$(SGX_SDK)/include -Iinclude -Iapp -Iapp/utils -Iapp/http \
+App_Include_Paths := -I$(SGX_SDK)/include -Iapp -Iapp/include -Iapp/utils -Iapp/http \
 	-Iapp/config -Iapp/ocalls -Iapp/ecalls -Iapp/process -Iapp/chain -Iapp/log -Iapp/database
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 
@@ -121,7 +121,7 @@ Enclave_Cpp_Files := enclave/Enclave.cpp $(wildcard enclave/srd/*.cpp) $(wildcar
 	$(wildcard enclave/schedule/*.cpp)
 
 Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx \
-	-I$(SGXSSL_INCDIR) -Iinclude -Ienclave -Ienclave/utils -Ienclave/identity -Ienclave/workload \
+	-I$(SGXSSL_INCDIR) -Ienclave -Ienclave/include -Ienclave/utils -Ienclave/identity -Ienclave/workload \
 	-Ienclave/srd -Ienclave/validator -Ienclave/storage -Ienclave/persistence -Ienclave/report \
 	-Ienclave/schedule
 	

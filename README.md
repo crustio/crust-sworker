@@ -13,139 +13,112 @@ sWorker(storage worker) is an offchain storage work inspector of Crust MPoW prot
   - **Secure Boot** in BIOS needs to be turned off
   - Need use ordinary account, **cannot support root account**
 
-
 ## Dependent library and project
 - [Intel SGX](https://software.intel.com/en-us/sgx)
 - [Crust](https://github.com/crustio/crust)
 - [Crust API](https://github.com/crustio/crust-api)
 
-## Download project
-### Install git lfs
-```shell
-curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-sudo apt-get install git-lfs
-git lfs install
-```
+## Prerequisites:
+- Ensure that you have one of the following required operating systems:
+  * Ubuntu\* 16.04 LTS Desktop 64bits
+  * Ubuntu\* 16.04 LTS Server 64bits
+  * Ubuntu\* 18.04 LTS Desktop 64bits (just for docker mode)
+  * Ubuntu\* 18.04 LTS Server 64bits (just for docker mode)
 
-### Git clone
-```shell
-git clone https://github.com/crustio/crust-sworker.git
-```
+- Install git-lfs:
+  ```
+  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+  sudo apt-get install git-lfs
+  git lfs install
+  ```
 
-## Install and run
-### Docker model
-#### Operating system requirements
+- Install docker (for docker mode):
+  ```
+  sudo apt-get update
+  curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+  ```
 
-- Ubuntu 16.04/18.04
+## Install and run with docker
+### Docker model (for user)
+- Install SGX driver.
+  ```
+  sudo ./scripts/install_sgx_driver.sh
+  ```
 
-#### Install sgx driver
-```shell
-sudo ./scripts/install_sgx_driver.sh
-```
+- Pulll crust sworker runner image.
+  ```
+  sudo docker pull crustio/crust-sworker:0.5.0
+  ```
 
-#### Install docker
-```shell
-sudo apt-get update
-curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
-```
+- Run crust sworker.
+  ```
+  sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
+  ```
 
-#### Pull crust sworker runner image
-```shell
-sudo docker pull crustio/crust-sworker:0.5.0
-```
+### Docker model (for developer)
+- Build docker env.
+If dependencies don't be changed, you don't need to execute this shell to generate new crust-sworker-env docker.
+  ```
+  sudo ./docker/build_env.sh
+  ```
 
-#### Run
-```shell
-sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
-```
+- Build crust sworker docker.
+  ```
+  sudo ./docker/build.sh
+  ```
 
-### Docker model (for developers)
-#### Operating system requirements
+- Run crust sworker.
+  ```
+  sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
+  ```
 
-- Ubuntu 16.04/18.04
+## Install and run from source code
+- Prerequisites:
+  ```
+  sudo apt-get update
+  sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
+  ```
+  ***Note: This mode is just for Ubuntu\* 16.04***
 
-#### Install sgx driver
-```shell
-sudo ./scripts/install_sgx_driver.sh
-```
+- Install crust sworker.
+  ```
+  sudo ./stripts/install.sh
+  ```
 
-#### Install docker
-```shell
-sudo apt-get update
-curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
-```
+- Run crust sworker.
+  ```
+  /opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
+  ```
 
-#### Build docker env
-If dependencies don't be changed, you don't need to execute this shell to generate new crust-sworker-env docker
-```shell
-sudo ./docker/build_env.sh
-```
+## Install and run with package
+- Prerequisites:
+  ```
+  sudo apt-get update
+  sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
+  ```
+  ***Note: This mode is just for Ubuntu\* 16.04***
 
-#### Build crust sworker docker
-```shell
-sudo ./docker/build.sh
-```
+- Package.
+  Run '***sudo ./scripts/package.sh***' to package whole project, you will get a ***crust-sworker.tar*** package.
 
-#### Run
-```shell
-sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
-```
+- Install crust-sworker.
+  * Run '***tar -xvf crust-sworker.tar***' to extract package.
+  * Go to the extract folder, run '***sudo ./scripts/install.sh***' to install sWorker application. Related dependencies will be installed on your machine. sWorker application will be installed on '***/opt/crust/crust-sworker***' directory.
 
-### Local device model (for developers)
-
-#### Operating system requirements
-
-- Ubuntu 16.04
-
-#### Install dependent libs
-```shell
-sudo apt-get update
-sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
-```
-
-#### Install
-```shell
-sudo ./stripts/install.sh
-```
-
-#### Run
-```shell
-/opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
-```
-
-### Local device package model (for developers)
-
-#### Operating system requirements
-
-- Ubuntu 16.04
-
-#### Install dependent libs
-```shell
-sudo apt-get update
-sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
-```
-
-#### Package
-- Run '**sudo ./scripts/package.sh**' to package whole project, you will get a **crust-sworker.tar** package.
-
-#### Install
-1. Run '**tar -xvf crust-sworker.tar**' to extract package.
-1. Cd to the extract folder, run '**sudo ./scripts/install.sh**' to install sWorker application. Related dependencies will be installed on your machine. sWorker application will be installed on '**/opt/crust/crust-sworker**' directory.
-
-#### Run
-```shell
-/opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
-```
+- Run crust sworker.
+  ```
+  /opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
+  ```
 
 ## Configure crust sworker
 In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
-```shell
+```
 {
     "base_path" : "/opt/crust/crust-sworker/0.5.0/tee_base_path",        # sWorker key information location, must be absolute path
     "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
     "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
     "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
-    
+      
     "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
 
     "chain" : {
@@ -158,33 +131,23 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 }
 ```
 
-### Start
-Crust sWorker apllication is installed in /opt/crust/crust-sworker.
-
-#### Lanuch crust sWorker
-```shell
-cd /opt/crust/crust-sworker
-./bin/crust-sworker --offline # if you want to run crust sWorker with crust chain, please remove '--offline' flag
-```
+## Crust sWorker executable file
+1. Run '**bin/crust-sworker -h, --help**' to show how to use ***crust-sworker***.
+1. Run '**bin/crust-sworker -c, --config \<config_file_path\>**' to use customized configure file, you can get your own configure file by referring ***etc/Config.json***.
+1. Run '**bin/crust-sworker -v, --version**', program will output version information. 
+1. Run '**bin/crust-sworker --offline**', program will not interact with the chain.
+1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
+1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
 
 ## Launch crust chain and API
 Crust sWorker will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole sWorker flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
 
-## Crust sWorker executable file
+## APIs
+When you start crust-sworker successfully, you can use following commands to request some information:
 
-## Command line
-1. Run '**bin/crust-sworker --help**' to show how to use **crust-sworker**.
-1. Run '**bin/crust-sworker \<argument\>**' to run crust-sworker in different mode, argument can be daemon.
-   1. **daemon** option lets sWorker run in daemon mode.
-1. Run '**bin/crust-sworker --config \<config_file_path\>**' to use customized configure file, you can get your own configure file by referring **etc/Config.json**k.
-1. Run '**bin/crust-sworker --offline**', program will not interact with the chain.
-1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
-
-## API
-### Use 'api/v0/workload' to get workload information
-
-Curl shell:
-```shell
+Use 'api/v0/workload' to get workload information
+-------------------------------------------------
+```
 curl http://<url:port>/api/v0/workload
 ```
 
@@ -213,7 +176,7 @@ Output:
   }
 }
 ```
-Output:
+Description:
 1. files: Give meaningful files' hash, size and status
 1. status: There are three status: unconfirmed, lost and valid
 1. srd: Give srd information
@@ -226,10 +189,9 @@ Output:
 1. root_hash: Indicates all srd hash
 1. space: Space has been taken by srd
 
-### Use 'api/v0/enclave/id_info' to get enclave mrenclave and pub_key
-
-Curl shell:
-```shell
+Use 'api/v0/enclave/id_info' to get enclave mrenclave and pub_key
+---------------------------------------------------------------------
+```
 curl http://<url:port>/api/v0/enclave/id_info
 ```
 
@@ -243,10 +205,9 @@ Output:
 }
 ```
 
-### Use 'api/v0/debug' to set debug flag
-
-Curl shell:
-```shell
+Use 'api/v0/debug' to set debug flag
+------------------------------------
+```
 curl http://<url:port>/api/v0/debug --data-raw '{"debug" : true}'
 ```
 
@@ -254,19 +215,18 @@ Parameter:
 1. debug: true or false, indicates open or close DEBUG mode.
 
 Output (200, success):
-```shell
+```
 Set debug flag successfully
 ```
 
 Output (400, failed):
-```shell
+```
 Set debug flag failed
 ```
 
-### Use 'api/v0/karst/change_url' to change karst url
-
-Curl shell:
-```shell
+Use 'api/v0/karst/change_url' to change karst url
+-------------------------------------------------
+```
 curl http://<url:port>/api/v0/karst/change_url \
 --header 'Content-Type: application/json' \
 --header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
@@ -274,36 +234,34 @@ curl http://<url:port>/api/v0/karst/change_url \
 ```
 
 Output (200, success):
-```shell
+```
 Change srd file success, the srd workload will change in next validation loop
 ```
 
 Output (400, empty backup):
-```shell
+```
 empty backup
 ```
 
 Output (401, invalid backup):
-```shell
+```
 invalid backup
 ```
 
 Output (402, invalid karst url):
-```shell
+```
 invalid karst url
 ```
 
 Output (403, internal error):
-```shell
+```
 internal error
 ```
 
-### Use 'api/v0/srd/change' to change SRD capacity, 
-
+Use 'api/v0/srd/change' to change SRD capacity 
+----------------------------------------------
 Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
-
-Curl shell:
-```shell
+```
 curl --location --request POST 'http://<url:port>/api/v0/srd/change' \
 --header 'Content-Type: application/json' \
 --header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
@@ -313,38 +271,39 @@ curl --location --request POST 'http://<url:port>/api/v0/srd/change' \
 ```
 
 Output (200, success):
-```shell
+```
 Change srd file success, the srd workload will change in next validation loop
 ```
 
 Output (400, empty backup):
-```shell
+```
 empty backup
 ```
 
 Output (401, invalid backup):
-```shell
+```
 invalid backup
 ```
 
 Output (402, invalid change):
-```shell
+```
 invalid change
 ```
 
 Output (500, service busy, this API does not support concurrency):
-```shell
+```
 Change SRD service busy
 ```
 
 Output (500, sWorker has not been fully launched , this API does not support concurrency):
-```shell
+```
 'sWorker has not been fully launched' or 'Get validation status failed'
 ```
 
-### Use 'storage/seal' to start storage related work, 
+Use 'storage/seal' to start storage related work 
+------------------------------------------------
 This API is a websocket API.
-1. Websocket api: wss://<url:port>/api/v0/storage/seal
+Websocket api: wss://<url:port>/api/v0/storage/seal
 ```
 {
     "backup" : {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}},
@@ -399,59 +358,91 @@ This API is a websocket API.
     "path" : "/home/xxxx/xxxx/xxxxx"
 }
 ```
+
 Parameter:
 1. backup: Indicates identity
 1. body: Valid merkletree json structure
 1. path: Path to the to be sealed file data
 
-Output status:
-1. 200: validate successfully, return sealed merkletree json structure
+Output (200, success)
 ```
+validate successfully, return sealed merkletree json structure:
 {
     "body" : <sealed_merkletree_json>,
     "path" : <path_to_sealed_dir>,
     "status" : 200
 }
 ```
-1. 400: Invalid request json 
-1. 401: nvalid backup
-1. 402: Empty body
-1. 403: seal failed! Invoke ECALL failed
 
+Output (400, Invalid request json)
+```
+Invalid request json 
+```
 
-### Use 'storage/unseal' to unseal file block, 
+Output (401, Invalid backup)
+```
+Invalid backup
+```
+
+Output (402, Empty body)
+```
+Empty body
+```
+
+Output (403, Seal failed)
+```
+Seal failed! Invoke ECALL failed
+```
+
+Use 'storage/unseal' to unseal file block
+-----------------------------------------
 This API is a websocket API.
-1. Websocket api: wss://<url:port>/api/v0/storage/unseal
+Websocket api: wss://<url:port>/api/v0/storage/unseal
 ```
 {
     "backup" : {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}},
     "path" : "/home/xxxx/xxxx/xxxxx"
 }
 ```
+
 Parameter:
 1. backup: Indicates identity
 1. path: Path to the to be unsealed file data
 
-Output status:
-1. 200: unseal data successfully!
+Output (200, success)
 ```
+unseal data successfully!
 {
     "body" : <seal_msg>,
     "path" : <path_to_new_dir>,
     "status" : 200
 }
 ```
-1. 400: Unseal file failed!Error invalid request json!
-1. 401: Unseal file failed!Error invalid backup 
-1. 402: Unseal file failed!Error empty file directory
-1. 403: Unseal file failed!Error Invoke ECALL failed
 
-### Use 'api/v0/storage/confirm' to confirm new file, 
+Output (400, unseal failed)
+```
+Unseal file failed!Error invalid request json!
+```
 
+Output (401, unseal failed)
+```
+Unseal file failed!Error invalid backup 
+```
+
+Output (402, unseal failed)
+```
+Unseal file failed!Error empty file directory
+```
+
+Output (403, unseal failed)
+```
+Unseal file failed!Error Invoke ECALL failed
+```
+
+Use 'api/v0/storage/confirm' to confirm new file
+------------------------------------------------
 Parameter 'hash' in body represents the new file hash you want to confirm. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
-
-Curl shell:
-```shell
+```
 curl --location --request POST 'http://<url:port>/api/v0/storage/confirm' \
 --header 'Content-Type: application/json' \
 --header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
@@ -461,36 +452,34 @@ curl --location --request POST 'http://<url:port>/api/v0/storage/confirm' \
 ```
 
 Output (200, success):
-```shell
+```
 Confirming new file task has beening added
 ```
 
 Output (400, empty backup):
-```shell
+```
 empty backup
 ```
 
 Output (401, invalid backup):
-```shell
+```
 invalid backup
 ```
 
 Output (402, invalid hash):
-```shell
+```
 Confirm new file failed!Invalid hash!
 ```
 
 Output (403, invoke SGX API failed):
-```shell
+```
 Confirm new file failed!Invoke SGX API failed!
 ```
 
-### Use 'api/v0/storage/delete' to delete file, 
-
+Use 'api/v0/storage/delete' to delete file 
+------------------------------------------
 Parameter 'hash' in body represents the file hash you want to delete. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
-
-Curl shell:
-```shell
+```
 curl --location --request POST 'http://<url:port>/api/v0/storage/delete' \
 --header 'Content-Type: application/json' \
 --header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
@@ -500,53 +489,46 @@ curl --location --request POST 'http://<url:port>/api/v0/storage/delete' \
 ```
 
 Output (200, success):
-```shell
+```
 Deleting file task has beening added
 ```
 
 Output (400, empty backup):
-```shell
+```
 empty backup
 ```
 
 Output (401, invalid backup):
-```shell
+```
 invalid backup
 ```
 
 Output (402, invalid hash):
-```shell
+```
 Delete file failed!Invalid hash!
 ```
 
 Output (403, invoke SGX API failed):
-```shell
+```
 Delete file failed!Invoke SGX API failed!
 ```
 
 ## Contribution
-
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
-
 If you'd like to contribute to crust, please **fork, fix, commit and send a pull request for the maintainers to review and merge into the main codebase**.
 
 ### Rules
-
 Please make sure your contribution adhere to our coding guideliness:
-
 - **No --force pushes** or modifying the master branch history in any way. If you need to rebase, ensure you do it in your own repo.
 - Pull requests need to be based on and opened against the `master branch`.
 - A pull-request **must not be merged until CI** has finished successfully.
 - Make sure your every `commit` is [signed](https://help.github.com/en/github/authenticating-to-github/about-commit-signature-verification)
 
 ### Merge process
-
 Merging pull requests once CI is successful:
-
 - A PR needs to be reviewed and approved by project maintainers;
 - PRs that break the external API must be tagged with [`breaksapi`](https://github.com/crustio/crust-sworker/labels/breakapi);
 - No PR should be merged until **all reviews' comments** are addressed.
 
 ## License
-
 [GPL v3](LICENSE)
