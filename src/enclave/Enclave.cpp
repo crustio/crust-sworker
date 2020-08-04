@@ -62,7 +62,7 @@ void ecall_main_loop()
     {
         crust_status_t crust_status = CRUST_SUCCESS;
 
-        // ----- Meaningful validate ----- //
+        // ----- File validate ----- //
         sched_add(SCHED_VALIDATE_FILE);
         validate_meaningful_file();
         sched_del(SCHED_VALIDATE_FILE);

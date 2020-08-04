@@ -135,7 +135,7 @@ sgx_status_t try_get_enclave(const char *name)
             if (!g_task_mutex.try_lock())
                 goto loop;
 
-            // If cannot get enclave resource
+            // Following situations cannot get enclave resource:
             // 1. Current task number equal or larger than ENC_MAX_THREAD_NUM
             // 2. Current task priority lower than highest level and remaining resource less than ENC_RESERVED_THREAD_NUM
             // 3. There exists higher priority task waiting

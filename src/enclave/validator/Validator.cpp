@@ -8,9 +8,6 @@ extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_new_files_mutex;
 
-// For timeout
-long long g_validate_timeout = 0;
-
 /**
  * @description: Randomly delete punish number of srd
  * @param punish_num -> To be deleted srd space for punishment
@@ -75,7 +72,7 @@ void validate_srd()
     }
 
     // Randomly choose validate srd files
-    std::vector<std::pair<uint32_t, uint32_t>> validate_srd_idx_v;
+    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
     if (srd_validate_num < srd_total_num)
     {
@@ -94,7 +91,7 @@ void validate_srd()
             sgx_read_rand((uint8_t *)&rand_val, 4);
             rand_idx = rand_val % chose_entry->second.size();
             p_chose = std::make_pair(path_idx, rand_idx);
-            validate_srd_idx_v.push_back(p_chose);
+            validate_srd_idx_s.insert(p_chose);
         }
     }
     else
@@ -104,17 +101,17 @@ void validate_srd()
         {
             for (size_t j = 0; j < it->second.size(); j++)
             {
-                validate_srd_idx_v.push_back(make_pair(i, j));
+                validate_srd_idx_s.insert(make_pair(i, j));
             }
         }
     }
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::set<size_t>> del_path2idx_m;
-    for (auto srd_idx : validate_srd_idx_v)
+    for (auto srd_idx : validate_srd_idx_s)
     {
         // Check sched func
-        sched_check(SCHED_SRD_CHANGE, g_srd_mutex);
+        sched_check(SCHED_VALIDATE_SRD, g_srd_mutex);
         // If srd has been deleted, go to next check
         std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
         for (size_t i = 0; i < srd_idx.first && chose_entry != wl->srd_path2hashs_m.end(); i++)
@@ -338,23 +335,21 @@ void validate_meaningful_file()
         std::string stag = "\"links_num\":0,\"hash\":\"";
         std::string etag = "\",\"size\"";
         // Get to be checked block index
-        std::set<size_t> chose_idx_s;
-        std::vector<size_t> block_idx_v;
+        std::set<size_t> block_idx_s;
         for (size_t i = 0; i < MEANINGFUL_VALIDATE_MIN_BLOCK_NUM && i < file_block_num; i++)
         {
             size_t tmp_idx = 0;
             sgx_read_rand((uint8_t *)&rand_val, 4);
             tmp_idx = rand_val % file_block_num;
-            if (chose_idx_s.find(tmp_idx) == chose_idx_s.end())
+            if (block_idx_s.find(tmp_idx) == block_idx_s.end())
             {
-                chose_idx_s.insert(tmp_idx);
-                block_idx_v.push_back(tmp_idx);
+                block_idx_s.insert(tmp_idx);
             }
         }
         // Do check
         size_t cur_block_idx = 0;
         bool checked_ret = true;
-        for (auto check_block_idx : block_idx_v)
+        for (auto check_block_idx : block_idx_s)
         {
             // Get leaf node position
             do

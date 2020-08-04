@@ -2,9 +2,9 @@
 #include <dirent.h>
 
 /**
- * @description: get all files' name in directory
+ * @description: Get all files' name in directory
  * @param path -> the directory path
- * @return: file's name vector
+ * @return: File's name vector
  */
 std::vector<std::string> get_files_under_path(std::string path)
 {
@@ -35,9 +35,9 @@ std::vector<std::string> get_files_under_path(std::string path)
 }
 
 /**
- * @description: get all folders' name in directory
+ * @description: Get all folders' name in directory
  * @param path -> the directory path
- * @return: folder's name vector
+ * @return: Folder's name vector
  */
 std::vector<std::string> get_folders_under_path(std::string path)
 {
@@ -69,7 +69,7 @@ std::vector<std::string> get_folders_under_path(std::string path)
 }
 
 /**
- * @description: recursively delete all the file in the directory
+ * @description: Recursively delete all the file in the directory
  * @param dir_full_path -> the directory path
  * @return: 0 for successed, -1 for falied
  */
@@ -121,7 +121,7 @@ int rm_dir(std::string dir_full_path)
 }
 
 /**
- * @description: recursively delete all the file in the directory or delete file
+ * @description: Recursively delete all the file in the directory or delete file
  * @param path -> the directory path or filepath
  * @return: 0 for successed, -1 for falied
  */
@@ -155,9 +155,9 @@ int rm(std::string path)
 }
 
 /**
- * @description: get free space under directory
+ * @description: Get free space under directory
  * @param path -> the directory path
- * @return: free space size (M)
+ * @return: Free space size (M)
  */
 size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
 {
@@ -198,9 +198,9 @@ size_t get_total_space_under_dir_g(std::string path)
 }
 
 /**
- * @description: get free space under directory
+ * @description: Get free space under directory
  * @param path -> the directory path
- * @return: free space size (M)
+ * @return: Free space size (M)
  */
 size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
 {
@@ -241,9 +241,9 @@ size_t get_avail_space_under_dir_g(std::string path)
 }
 
 /**
- * @description: get free space under directory
+ * @description: Get free space under directory
  * @param path -> the directory path
- * @return: free space size (M)
+ * @return: Free space size (M)
  */
 size_t get_free_space_under_directory(std::string path)
 {
@@ -258,7 +258,7 @@ size_t get_free_space_under_directory(std::string path)
 }
 
 /**
- * @description: create directory
+ * @description: Create directory
  * @param path -> the directory path
  */
 bool create_directory(std::string path)

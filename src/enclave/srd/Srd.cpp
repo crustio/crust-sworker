@@ -280,12 +280,14 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
         srd_info_json[del_dir]["assigned"] = srd_info_json[del_dir]["assigned"].ToInt() - path_2_hash.second.size();
     }
     // Update srd info
+    ocall_srd_info_lock();
     std::string srd_info_str = srd_info_json.dump();
     if (CRUST_SUCCESS != (crust_status = persist_set_unsafe("srd_info", 
                     reinterpret_cast<const uint8_t*>(srd_info_str.c_str()), srd_info_str.size())))
     {
         log_err("Delete punish g: set srd info failed! Error code:%lx\n", crust_status);
     }
+    ocall_srd_info_unlock();
 
     // Update workload in metadata
     if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_WORKLOAD, wl->serialize_srd(false))))
