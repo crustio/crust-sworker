@@ -17,7 +17,7 @@
 #include "Process.h"
 #include "Log.h"
 #include "Srd.h"
-#include "../enclave/Parameter.h"
+#include "../enclave/include/Parameter.h"
 
 int main_daemon(void);
 

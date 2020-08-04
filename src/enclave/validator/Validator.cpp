@@ -332,8 +332,8 @@ void validate_meaningful_file()
         // be careful about "links_num", "hash" and "size" sequence
         size_t spos, epos;
         spos = epos = 0;
-        std::string stag = "\"links_num\":0,\"hash\":\"";
-        std::string etag = "\",\"size\"";
+        std::string stag = "\"" MT_LINKS_NUM "\":0,\"" MT_HASH "\":\"";
+        std::string etag = "\",\"" MT_SIZE "\"";
         // Get to be checked block index
         std::set<size_t> block_idx_s;
         for (size_t i = 0; i < MEANINGFUL_VALIDATE_MIN_BLOCK_NUM && i < file_block_num; i++)

@@ -67,17 +67,17 @@ std::string Workload::get_workload(void)
     id_get_metadata(md_json);
     // Srd info
     this->get_srd_info(&srd_root, &srd_workload, md_json);
-    wl_json["srd"]["root_hash"] = hexstring_safe(srd_root, HASH_LENGTH);
-    wl_json["srd"]["space"] = srd_workload / 1024 / 1024 / 1024;
-    wl_json["srd"]["remaining_task"] = get_srd_change();
+    wl_json[WL_SRD][WL_SRD_ROOT_HASH] = hexstring_safe(srd_root, HASH_LENGTH);
+    wl_json[WL_SRD][WL_SRD_SPACE] = srd_workload / 1024 / 1024 / 1024;
+    wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_change();
     // file info
     if (md_json.hasKey(ID_FILE) && md_json[ID_FILE].size() > 0)
     {
         for (int i = 0; i < md_json[ID_FILE].size(); i++)
         {
             json::JSON tmp_json;
-            tmp_json["sealed_size"] = md_json[ID_FILE][i][FILE_SIZE];
-            tmp_json["status"] = md_json[ID_FILE][i][FILE_STATUS];
+            tmp_json[WL_FILE_SEALED_SIZE] = md_json[ID_FILE][i][FILE_SIZE];
+            tmp_json[WL_FILE_STATUS] = md_json[ID_FILE][i][FILE_STATUS];
             // Get old hash
             uint8_t *p_meta = NULL;
             size_t meta_len = 0;
@@ -86,12 +86,12 @@ std::string Workload::get_workload(void)
             {
                 json::JSON org_file_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_meta), meta_len));
                 free(p_meta);
-                tmp_json["old_hash"] = org_file_json[FILE_OLD_HASH].ToString();
-                tmp_json["old_size"] = org_file_json[FILE_OLD_SIZE].ToInt();
+                tmp_json[WL_FILE_OLD_HASH] = org_file_json[FILE_OLD_HASH].ToString();
+                tmp_json[WL_FILE_OLD_SIZE] = org_file_json[FILE_OLD_SIZE].ToInt();
             }
             std::string tmp_str = tmp_json.dump();
             remove_char(tmp_str, '\n');
-            wl_json["files"][md_json[ID_FILE][i][FILE_HASH].ToString()] = tmp_str;
+            wl_json[WL_FILES][md_json[ID_FILE][i][FILE_HASH].ToString()] = tmp_str;
         }
     }
 

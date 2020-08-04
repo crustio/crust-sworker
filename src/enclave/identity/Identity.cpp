@@ -517,7 +517,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     }
 
     // Verify quote
-    quoteSPos = (int)isv_body.find("\"isvEnclaveQuoteBody\":\"");
+    quoteSPos = (int)isv_body.find("\"" IAS_ISV_BODY_TAG "\":\"");
     quoteSPos = (int)isv_body.find("\":\"", quoteSPos) + 3;
     quoteEPos = (int)isv_body.size() - 2;
     ias_quote_body = isv_body.substr(quoteSPos, quoteEPos - quoteSPos);
@@ -580,11 +580,11 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     }
     
     // Get tee identity and store it outside of tee
-    id_json["ias_cert"] = certchain_1;
-    id_json["ias_sig"] = ias_sig;
-    id_json["isv_body"] = isv_body;
-    id_json["account_id"] = chain_account_id;
-    id_json["sig"] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
+    id_json[IAS_CERT] = certchain_1;
+    id_json[IAS_SIG] = ias_sig;
+    id_json[IAS_ISV_BODY] = isv_body;
+    id_json[IAS_CHAIN_ACCOUNT_ID] = chain_account_id;
+    id_json[IAS_REPORT_SIG] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
     id_str = id_json.dump();
 
     ocall_store_identity(id_str.c_str());
@@ -958,7 +958,7 @@ crust_status_t id_restore_metadata()
         srd_info_json[it.first]["assigned"] = it.second.size();
     }
     std::string srd_info_str = srd_info_json.dump();
-    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe("srd_info", 
+    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, 
                     reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
     {
         log_warn("Restore srd info failed! Error code:%lx\n", crust_status);

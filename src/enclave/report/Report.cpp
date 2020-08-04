@@ -205,12 +205,12 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
 
     // Store workreport
-    wr_json["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    wr_json["block_height"] = block_height_str;
-    wr_json["block_hash"] = std::string(block_hash, HASH_LENGTH * 2);
-    wr_json["reserved"] = srd_workload;
-    wr_json["files"] = old_files_json;
-    wr_json["sig"] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
+    wr_json[WORKREPORT_PUB_KEY] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    wr_json[WORKREPORT_BLOCK_HEIGHT] = block_height_str;
+    wr_json[WORKREPORT_BLOCK_HASH] = std::string(block_hash, HASH_LENGTH * 2);
+    wr_json[WORKREPORT_RESERVED] = srd_workload;
+    wr_json[WORKREPORT_FILES] = old_files_json;
+    wr_json[WORKREPORT_SIG] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
     wr_str = wr_json.dump();
     ocall_store_workreport(wr_str.c_str());
 
@@ -255,18 +255,18 @@ crust_status_t get_signed_order_report()
         return CRUST_REPORT_NO_ORDER_FILE;
     }
     json::JSON order_json;
-    order_json["files"] = json::Array();
+    order_json[ORDERREPORT_FILES] = json::Array();
     for (size_t i = 0; i < wl->order_files.size(); i++)
     {
-        order_json["files"][i][FILE_HASH] = wl->order_files[i].first;
-        order_json["files"][i][FILE_SIZE] = wl->order_files[i].second;
+        order_json[ORDERREPORT_FILES][i][FILE_HASH] = wl->order_files[i].first;
+        order_json[ORDERREPORT_FILES][i][FILE_SIZE] = wl->order_files[i].second;
     }
     wl->order_files.clear();
     sgx_thread_mutex_unlock(&g_order_files_mutex);
 
     // Prepare order data
     ecc_key_pair id_key_pair = id_get_key_pair();
-    std::string files_str = order_json["files"].dump();
+    std::string files_str = order_json[ORDERREPORT_FILES].dump();
     remove_char(files_str, ' ');
     remove_char(files_str, '\n');
     remove_char(files_str, '\\');
@@ -275,8 +275,8 @@ crust_status_t get_signed_order_report()
     std::string hex_pub_key_str = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     std::string random_str = to_string(random_num);
     // Order report data
-    order_json["pub_key"] = hex_pub_key_str;
-    order_json["random"] = random_num;
+    order_json[ORDERREPORT_PUB_KEY] = hex_pub_key_str;
+    order_json[ORDERREPORT_RANDOM] = random_num;
 
     // Sign order report
     sgx_status = sgx_ecc256_open_context(&ecc_state);
@@ -306,7 +306,7 @@ crust_status_t get_signed_order_report()
         goto cleanup;
     }
 
-    order_json["sig"] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
+    order_json[ORDERREPORT_SIG] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
 
     order_str = order_json.dump();
     remove_char(order_str, ' ');

@@ -1,11 +1,13 @@
 include ../buildenv.mk
 
 define setMaxThreadNum
+	enclave_para="enclave/include/Parameter.h"; \
+	app_para="app/include/Resource.h"; \
 	max_thread_num=$$(cat enclave/Enclave.config.xml | grep -Po "(?<=<TCSNum>).*(?=</TCSNum>)"); \
 	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" app/ecalls/ECalls.h; \
-	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" enclave/Parameter.h; \
-	cat include/Resource.h | grep "#define VERSION" | awk '{print $$3}' | sed 's/"//g' > ../VERSION; \
-	tee_version=$$(cat enclave/Parameter.h | grep "#define TEE_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
+	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" $$enclave_para; \
+	cat $$app_para | grep "#define VERSION" | awk '{print $$3}' | sed 's/"//g' > ../VERSION; \
+	tee_version=$$(cat $$enclave_para | grep "#define TEE_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
 	echo "TEE=$$tee_version" >> ../VERSION
 endef
 

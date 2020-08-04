@@ -105,7 +105,8 @@ function getVERSION()
 {
     local basedir=$(cd `dirname $0`;pwd)
     local srcdir=$(cd $basedir/../src;pwd)
-    echo $(cat $srcdir/include/Resource.h | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null)
+    local app_para="$srcdir/app/include/Resource.h"
+    echo $(cat $app_para | grep "#define VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null)
 }
 
 # Be careful about this function
@@ -113,7 +114,8 @@ function getTEEVERSION()
 {
     local basedir=$(cd `dirname $0`;pwd)
     local srcdir=$(cd $basedir/../src;pwd)
-    echo $(cat $srcdir/enclave/Parameter.h | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null) 
+    local tee_para="$srcdir/enclave/include/Parameter.h"
+    echo $(cat $tee_para | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null) 
 }
 
 # color

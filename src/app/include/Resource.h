@@ -7,3 +7,6 @@
 #define SEAL_BLOCK_MAX_SIZE 2097152 /* 2*1024*1024 */
 #define WEB_TIMEOUT 60
 #define ENCLAVE_MALLOC_TRYOUT 3
+
+// For db data
+#define DB_SRD_INFO "srd_info"

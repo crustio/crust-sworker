@@ -311,12 +311,12 @@ char *unsigned_char_to_hex(const unsigned char in)
 }
 
 /**
- * @description: seal data by using input bytes
+ * @description: Seal data by using input bytes
  * @param p_src -> bytes for seal
  * @param src_len -> the length of input bytes
  * @param p_sealed_data -> the output of seal
  * @param sealed_data_size -> the length of output bytes
- * @return: status
+ * @return: Seal status
  */
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
         sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
@@ -410,12 +410,12 @@ cleanup:
  */
 crust_status_t validate_merkletree_json(json::JSON tree)
 {
-    if (tree["links_num"].ToInt() == 0)
+    if (tree[MT_LINKS_NUM].ToInt() == 0)
     {
         return CRUST_SUCCESS;
     }
 
-    if (tree["links_num"].ToInt() != tree["links"].size())
+    if (tree[MT_LINKS_NUM].ToInt() != tree[MT_LINKS].size())
     {
         return CRUST_INVALID_MERKLETREE;
     }
@@ -425,16 +425,16 @@ crust_status_t validate_merkletree_json(json::JSON tree)
 
     uint8_t *parent_hash_org = NULL;
 
-    uint8_t *children_hashs = (uint8_t*)enc_malloc(tree["links_num"].ToInt() * HASH_LENGTH);
-    memset(children_hashs, 0, tree["links_num"].ToInt() * HASH_LENGTH);
-    for (int i = 0; i < tree["links_num"].ToInt(); i++)
+    uint8_t *children_hashs = (uint8_t*)enc_malloc(tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
+    memset(children_hashs, 0, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
+    for (int i = 0; i < tree[MT_LINKS_NUM].ToInt(); i++)
     {
-        if(validate_merkletree_json(tree["links"][i]) != CRUST_SUCCESS)
+        if(validate_merkletree_json(tree[MT_LINKS][i]) != CRUST_SUCCESS)
         {
             crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
         }
-        uint8_t *tmp_hash = hex_string_to_bytes(tree["links"][i]["hash"].ToString().c_str(), HASH_LENGTH * 2);
+        uint8_t *tmp_hash = hex_string_to_bytes(tree[MT_LINKS][i][MT_HASH].ToString().c_str(), HASH_LENGTH * 2);
         if (tmp_hash == NULL)
         {
             crust_status = CRUST_INVALID_MERKLETREE;
@@ -445,9 +445,9 @@ crust_status_t validate_merkletree_json(json::JSON tree)
     }
 
     // Compute and compare hash value
-    sgx_sha256_msg(children_hashs, tree["links_num"].ToInt() * HASH_LENGTH, &parent_hash);
+    sgx_sha256_msg(children_hashs, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH, &parent_hash);
 
-    parent_hash_org = hex_string_to_bytes(tree["hash"].ToString().c_str(), HASH_LENGTH * 2);
+    parent_hash_org = hex_string_to_bytes(tree[MT_HASH].ToString().c_str(), HASH_LENGTH * 2);
     if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
     {
         crust_status = CRUST_INVALID_MERKLETREE;
@@ -480,10 +480,10 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
     uint32_t hash_len = strlen(root->hash);
     string node;
     std::string hex_hash_str = hexstring_safe(root->hash, hash_len);
-    node.append("{\"size\":").append(to_string(root->size)).append(",")
-        .append("\"links_num\":").append(to_string(root->links_num)).append(",")
-        .append("\"hash\":\"").append(hex_hash_str).append("\",")
-        .append("\"links\":[");
+    node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",")
+        .append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num)).append(",")
+        .append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",")
+        .append("\"" MT_LINKS "\":[");
 
     for (size_t i = 0; i < root->links_num; i++)
     {
@@ -507,13 +507,13 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
         return NULL;
 
     MerkleTree *root = new MerkleTree();
-    std::string hash = tree_json["hash"].ToString();
+    std::string hash = tree_json[MT_HASH].ToString();
     size_t hash_len = hash.size() + 1;
     root->hash = (char*)malloc(hash_len);
     memset(root->hash, 0, hash_len);
     memcpy(root->hash, hash.c_str(), hash.size());
-    root->links_num = tree_json["links_num"].ToInt();
-    json::JSON children = tree_json["links"];
+    root->links_num = tree_json[MT_LINKS_NUM].ToInt();
+    json::JSON children = tree_json[MT_LINKS];
 
     if (root->links_num != 0)
     {

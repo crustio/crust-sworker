@@ -102,9 +102,9 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
 
     // Print sealed file information
     log_info("Seal complete, file info; hash: %s -> size: %d, status: %s\n",
-            file_entry_json["hash"].ToString().c_str(), 
-            file_entry_json["size"].ToInt(), 
-            file_entry_json["status"].ToString().c_str());
+            file_entry_json[FILE_HASH].ToString().c_str(), 
+            file_entry_json[FILE_SIZE].ToInt(), 
+            file_entry_json[FILE_STATUS].ToString().c_str());
 
     // Add new file to buffer
     Workload::get_instance()->add_new_file(file_entry_json);
@@ -130,7 +130,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     crust_status_t crust_status = CRUST_SUCCESS;
 
     // ----- Deal with leaf node ----- //
-    if (tree_json["links_num"].ToInt() == 0)
+    if (tree_json[MT_LINKS_NUM].ToInt() == 0)
     {
         std::string old_path;
         std::string old_hash_str = tree_json[FILE_HASH].ToString();
@@ -202,9 +202,9 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
         // Construct tree string
         // Note: Cannot change append sequence!
-        tree.append("{\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
-        tree.append("\"hash\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
-        tree.append("\"size\":").append(to_string(sealed_data_size)).append("},");
+        tree.append("{\"" MT_LINKS_NUM "\":").append(to_string(tree_json[MT_LINKS_NUM].ToInt())).append(",");
+        tree.append("\"" MT_HASH "\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
+        tree.append("\"" MT_SIZE "\":").append(to_string(sealed_data_size)).append("},");
 
     sealend:
 
@@ -222,20 +222,20 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
     // ----- Deal with non-leaf node ----- //
     // Construct tree string
-    tree.append("{\"links\": [");
+    tree.append("{\"" MT_LINKS "\": [");
 
-    size_t sub_hashs_len = tree_json["links_num"].ToInt() * HASH_LENGTH;
+    size_t sub_hashs_len = tree_json[MT_LINKS_NUM].ToInt() * HASH_LENGTH;
     uint8_t *sub_hashs = (uint8_t*)enc_malloc(sub_hashs_len);
     memset(sub_hashs, 0, sub_hashs_len);
     size_t cur_size = 0;
-    for (int i = 0; i < tree_json["links_num"].ToInt(); i++)
+    for (int i = 0; i < tree_json[MT_LINKS_NUM].ToInt(); i++)
     {
-        crust_status = _storage_seal_file(tree_json["links"][i], path, tree, cur_size, block_num);
+        crust_status = _storage_seal_file(tree_json[MT_LINKS][i], path, tree, cur_size, block_num);
         if (CRUST_SUCCESS != crust_status)
         {
             goto cleanup;
         }
-        uint8_t *p_new_hash = hex_string_to_bytes(tree_json["links"][i][FILE_HASH].ToString().c_str(), HASH_LENGTH * 2);
+        uint8_t *p_new_hash = hex_string_to_bytes(tree_json[MT_LINKS][i][FILE_HASH].ToString().c_str(), HASH_LENGTH * 2);
         if (p_new_hash == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
@@ -251,9 +251,9 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
     // Construct tree string
     tree.erase(tree.size() - 1, 1);
-    tree.append("],\"links_num\":").append(to_string(tree_json["links_num"].ToInt())).append(",");
-    tree.append("\"hash\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
-    tree.append("\"size\":").append(to_string(cur_size)).append("},");
+    tree.append("],\"" MT_LINKS_NUM "\":").append(to_string(tree_json[MT_LINKS_NUM].ToInt())).append(",");
+    tree.append("\"" MT_HASH "\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
+    tree.append("\"" MT_SIZE "\":").append(to_string(cur_size)).append("},");
 
     node_size += cur_size;
 
