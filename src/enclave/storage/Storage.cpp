@@ -39,8 +39,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
         return crust_status;
     }
 
-    std::string org_root_hash_str = tree_json[FILE_HASH].ToString();
-    size_t org_node_size = tree_json[FILE_SIZE].ToInt();
+    std::string org_root_hash_str = tree_json[MT_HASH].ToString();
+    size_t org_node_size = tree_json[MT_SIZE].ToInt();
     std::string old_path(path, path_len);
     std::string new_tree;
 
@@ -54,7 +54,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
         return crust_status;
     }
     new_tree.erase(new_tree.size() - 1, 1);
-    std::string new_root_hash_str = tree_json[FILE_HASH].ToString();
+    std::string new_root_hash_str = tree_json[MT_HASH].ToString();
 
     // Rename old directory
     std::string new_path = old_path.substr(0, old_path.find(org_root_hash_str)) + new_root_hash_str;
@@ -133,7 +133,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     if (tree_json[MT_LINKS_NUM].ToInt() == 0)
     {
         std::string old_path;
-        std::string old_hash_str = tree_json[FILE_HASH].ToString();
+        std::string old_hash_str = tree_json[MT_HASH].ToString();
         old_path.append(path).append("/").append(to_string(block_num)).append("_").append(old_hash_str);
 
         uint8_t *p_sealed_data = NULL;
@@ -153,13 +153,12 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         if (CRUST_SUCCESS != crust_status || file_data == NULL)
         {
             log_err("Get file:%s data failed!\n", old_path.c_str());
-            sgx_thread_mutex_unlock(&g_file_buffer_mutex);
             goto sealend;
         }
 
         // --- Seal file data --- //
         // Check file size
-        if (tree_json[FILE_SIZE].ToInt() != (long long)file_data_len)
+        if (tree_json[MT_SIZE].ToInt() != (long long)file_data_len)
         {
             crust_status = CRUST_STORAGE_NEW_FILE_SIZE_ERROR;
             goto sealend;
@@ -176,7 +175,6 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
             goto sealend;
         }
         // Do seal
-        sgx_thread_mutex_unlock(&g_file_buffer_mutex);
         crust_status = seal_data_mrenclave(file_data_r, file_data_len, 
                 (sgx_sealed_data_t**)&p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
@@ -196,17 +194,19 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         {
             goto sealend;
         }
-        tree_json[FILE_HASH] = hex_new_hash_str;
+        tree_json[MT_HASH] = hex_new_hash_str;
         node_size += sealed_data_size;
         block_num++;
 
         // Construct tree string
         // Note: Cannot change append sequence!
         tree.append("{\"" MT_LINKS_NUM "\":").append(to_string(tree_json[MT_LINKS_NUM].ToInt())).append(",");
-        tree.append("\"" MT_HASH "\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
+        tree.append("\"" MT_HASH "\":\"").append(tree_json[MT_HASH].ToString()).append("\",");
         tree.append("\"" MT_SIZE "\":").append(to_string(sealed_data_size)).append("},");
 
     sealend:
+
+        sgx_thread_mutex_unlock(&g_file_buffer_mutex);
 
         if (file_data_r != NULL)
             free(file_data_r);
@@ -235,7 +235,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         {
             goto cleanup;
         }
-        uint8_t *p_new_hash = hex_string_to_bytes(tree_json[MT_LINKS][i][FILE_HASH].ToString().c_str(), HASH_LENGTH * 2);
+        uint8_t *p_new_hash = hex_string_to_bytes(tree_json[MT_LINKS][i][MT_HASH].ToString().c_str(), HASH_LENGTH * 2);
         if (p_new_hash == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
@@ -247,12 +247,12 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     // Get new hash
     sgx_sha256_hash_t new_hash;
     sgx_sha256_msg(sub_hashs, sub_hashs_len, &new_hash);
-    tree_json[FILE_HASH] = hexstring_safe(new_hash, HASH_LENGTH);
+    tree_json[MT_HASH] = hexstring_safe(new_hash, HASH_LENGTH);
 
     // Construct tree string
     tree.erase(tree.size() - 1, 1);
     tree.append("],\"" MT_LINKS_NUM "\":").append(to_string(tree_json[MT_LINKS_NUM].ToInt())).append(",");
-    tree.append("\"" MT_HASH "\":\"").append(tree_json[FILE_HASH].ToString()).append("\",");
+    tree.append("\"" MT_HASH "\":\"").append(tree_json[MT_HASH].ToString()).append("\",");
     tree.append("\"" MT_SIZE "\":").append(to_string(cur_size)).append("},");
 
     node_size += cur_size;
@@ -304,6 +304,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
     free(p_meta);
     
     // Do unseal file
+    sgx_thread_mutex_lock(&g_file_buffer_mutex);
     for (auto path : files_v)
     {
         std::string tag = path.substr(0, path.find("_"));
@@ -311,11 +312,9 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
 
         // ----- Unseal file data ----- //
         // Get file data
-        sgx_thread_mutex_lock(&g_file_buffer_mutex);
         ocall_get_storage_file(&crust_status, path.c_str(), &p_sealed_data, &sealed_data_size_r);
         if (CRUST_SUCCESS != crust_status || p_sealed_data == NULL)
         {
-            sgx_thread_mutex_unlock(&g_file_buffer_mutex);
             goto cleanup;
         }
         // Allocate buffer for sealed data
@@ -323,12 +322,10 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
         if (p_sealed_data_r == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
-            sgx_thread_mutex_unlock(&g_file_buffer_mutex);
             goto cleanup;
         }
         memset(p_sealed_data_r, 0, sealed_data_size_r);
         memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size_r);
-        sgx_thread_mutex_unlock(&g_file_buffer_mutex);
         // Allocate buffer for decrypted data
         decrypted_data_len_r = sgx_get_encrypt_txt_len(p_sealed_data_r);
         if (decrypted_data_len_r > decrypted_data_len)
@@ -385,6 +382,8 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
 
 
 cleanup:
+
+    sgx_thread_mutex_unlock(&g_file_buffer_mutex);
 
     if (p_sealed_data_r != NULL)
         free(p_sealed_data_r);

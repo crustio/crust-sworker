@@ -201,11 +201,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     json::JSON item_json = json::JSON::Load(item_str);
                     memset(buf1, 0, sizeof(buf1));
                     memset(buf2, 0, sizeof(buf2));
-                    sprintf(buf1, "{  \"hash\"        : \"%s\", \"size\"        : %ld, ",
+                    sprintf(buf1, "  \"hash\"        : \"%s\", \"size\"        : %ld, ",
                             item_json["old_hash"].ToString().c_str(), item_json["old_size"].ToInt());
-                    sprintf(buf2, "   \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld  }",
+                    sprintf(buf2, "  \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld",
                             (it->first).c_str(), item_json["sealed_size"].ToInt());
-                    std::string tmp_str = std::string(buf1) + JSON_NL + std::string(buf2);
+                    std::string tmp_str = std::string("{") + JSON_NL + std::string(buf1) + JSON_NL + std::string(buf2) + JSON_NL + "}";
                     std::string fstatus = item_json["status"].ToString();
                     n_files_json[fstatus]["detail"].append(tmp_str);
                     n_files_json[fstatus]["number"] = n_files_json[fstatus]["number"].ToInt() + 1;

@@ -66,9 +66,9 @@ static enum _error_type {
 } error_type = e_none;
 
 /**
- * @description: used to decode url in cert
+ * @description: Used to decode url in cert
  * @param str -> Url
- * @return: decoded url
+ * @return: Decoded url
  */
 string url_decode(string str)
 {

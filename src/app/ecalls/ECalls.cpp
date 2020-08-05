@@ -9,12 +9,6 @@ typedef struct _enclave_task_t {
     uint32_t timeout = 0;
 } enclave_task_t;
 
-// Task info, invoked enclave function to enclave task_info mapping
-tbb::concurrent_unordered_map<std::string, enclave_task_t> g_running_task_um;
-// Record running task number
-int g_running_task_num;
-// Lock to ensure mutex
-std::mutex g_task_mutex;
 // Task priority map, lower number represents higher priority
 std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_restore_metadata", 0},
@@ -57,6 +51,12 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
         }
     }
 };
+// Task info, invoked enclave function to enclave task_info mapping
+tbb::concurrent_unordered_map<std::string, enclave_task_t> g_running_task_um;
+// Record running task number
+int g_running_task_num;
+// Lock to ensure mutex
+std::mutex g_task_mutex;
 // Indicate number of each priority task, higher index represents lower priority
 tbb::concurrent_vector<int> g_waiting_task_sum_v(4, 0);
 // Ecall function name to invoked number mapping
