@@ -165,6 +165,11 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         }
         // Check file hash
         file_data_r = (uint8_t*)enc_malloc(file_data_len);
+        if (file_data_r == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            goto sealend;
+        }
         memset(file_data_r, 0, file_data_len);
         memcpy(file_data_r, file_data, file_data_len);
         sgx_sha256_msg(file_data_r, file_data_len, &got_org_hash);
@@ -226,6 +231,11 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
     size_t sub_hashs_len = tree_json[MT_LINKS_NUM].ToInt() * HASH_LENGTH;
     uint8_t *sub_hashs = (uint8_t*)enc_malloc(sub_hashs_len);
+    if (sub_hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(sub_hashs, 0, sub_hashs_len);
     size_t cur_size = 0;
     for (int i = 0; i < tree_json[MT_LINKS_NUM].ToInt(); i++)
@@ -411,7 +421,8 @@ crust_status_t storage_confirm_file(const char *hash)
     // Get metadata
     json::JSON meta_json_org;
     id_get_metadata(meta_json_org, false);
-    if (!meta_json_org.hasKey(ID_FILE))
+    if (!meta_json_org.hasKey(ID_FILE) 
+            || meta_json_org[ID_FILE].JSONType() != json::JSON::Class::Array)
     {
         sgx_thread_mutex_unlock(&g_metadata_mutex);
         return CRUST_STORAGE_NEW_FILE_NOTFOUND;
@@ -434,7 +445,7 @@ crust_status_t storage_confirm_file(const char *hash)
     if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_FILE, 
                     meta_json_org[ID_FILE], ID_UPDATE, false)))
     {
-        log_err("Conirm file failed!Update metadata failed!Error code:%lx\n", crust_status);
+        log_err("Confirm file failed!Update metadata failed!Error code:%lx\n", crust_status);
         sgx_thread_mutex_unlock(&g_metadata_mutex);
         return crust_status;
     }

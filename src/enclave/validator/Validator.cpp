@@ -153,6 +153,11 @@ void validate_srd()
         }
 
         m_hashs = (uint8_t*)enc_malloc(m_hashs_size);
+        if (m_hashs == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            goto nextloop;
+        }
         memset(m_hashs, 0, m_hashs_size);
         memcpy(m_hashs, m_hashs_org, m_hashs_size);
 

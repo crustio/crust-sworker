@@ -189,7 +189,7 @@ std::string hexstring_safe(const void *vsrc, size_t len)
     char *hex_buffer = (char*)enc_malloc(len * 2);
     if (hex_buffer == NULL)
     {
-        return NULL;
+        return "";
     }
     memset(hex_buffer, 0, len * 2);
     char *bp;
@@ -326,12 +326,17 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
     *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(sealed_data_sz);
+    if (*p_sealed_data == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED; 
+    }
     memset(*p_sealed_data, 0, sealed_data_sz);
     sgx_attributes_t sgx_attr;
     sgx_attr.flags = 0xFF0000000000000B;
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
-    sgx_status = sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
+    sgx_status = Sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
             0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
 
     if (SGX_SUCCESS != sgx_status)
@@ -362,9 +367,15 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
     *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(sealed_data_sz);
+    if (p_sealed_data == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
+
     memset(*p_sealed_data, 0, sealed_data_sz);
 
-    sgx_status = sgx_seal_data(0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
+    sgx_status = Sgx_seal_data(0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
     if (SGX_SUCCESS != sgx_status)
     {
         log_err("Seal data failed!Error code:%lx\n", sgx_status);
@@ -395,6 +406,11 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
     uint8_t *parent_hash_org = NULL;
 
     uint8_t *children_hashs = (uint8_t*)enc_malloc(tree->links_num * HASH_LENGTH);
+    if (children_hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(children_hashs, 0, tree->links_num * HASH_LENGTH);
     for (uint32_t i = 0; i < tree->links_num; i++)
     {
@@ -457,6 +473,11 @@ crust_status_t validate_merkletree_json(json::JSON tree)
     uint8_t *parent_hash_org = NULL;
 
     uint8_t *children_hashs = (uint8_t*)enc_malloc(tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
+    if (children_hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(children_hashs, 0, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
     for (int i = 0; i < tree[MT_LINKS_NUM].ToInt(); i++)
     {
@@ -540,7 +561,12 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
     MerkleTree *root = new MerkleTree();
     std::string hash = tree_json[MT_HASH].ToString();
     size_t hash_len = hash.size() + 1;
-    root->hash = (char*)malloc(hash_len);
+    root->hash = (char*)enc_malloc(hash_len);
+    if (root->hash == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return NULL;
+    }
     memset(root->hash, 0, hash_len);
     memcpy(root->hash, hash.c_str(), hash.size());
     root->links_num = tree_json[MT_LINKS_NUM].ToInt();
@@ -549,6 +575,11 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
     if (root->links_num != 0)
     {
         root->links = (MerkleTree**)malloc(root->links_num * sizeof(MerkleTree*));
+        if (root->links == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            return NULL;
+        }
         for (uint32_t i = 0; i < root->links_num; i++)
         {
             MerkleTree *child = deserialize_json_to_merkletree(children[i]);
@@ -599,6 +630,50 @@ void *enc_realloc(void *p, size_t size)
     }
 
     return p;
+}
+
+/**
+ * @description: A wrapper for sgx_seal_data
+ */
+sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
+                           const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
+                           const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
+                           sgx_sealed_data_t *p_sealed_data)
+{
+    uint8_t *p_test = (uint8_t *)enc_malloc(sealed_data_size);
+    if (p_test == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return SGX_ERROR_OUT_OF_MEMORY; 
+    }
+    free(p_test);
+
+    return sgx_seal_data(additional_MACtext_length, p_additional_MACtext, 
+            text2encrypt_length, p_text2encrypt, sealed_data_size, p_sealed_data);
+}
+
+/**
+ * @description: A wrapper function for sgx_seal_data_ex
+ */
+sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
+                              const sgx_attributes_t attribute_mask,
+                              const sgx_misc_select_t misc_mask,
+                              const uint32_t additional_MACtext_length,
+                              const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
+                              const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
+                              sgx_sealed_data_t *p_sealed_data)
+{
+    uint8_t *p_test = (uint8_t *)enc_malloc(sealed_data_size);
+    if (p_test == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return SGX_ERROR_OUT_OF_MEMORY; 
+    }
+    free(p_test);
+
+    return sgx_seal_data_ex(key_policy, attribute_mask, misc_mask,
+            additional_MACtext_length, p_additional_MACtext, text2encrypt_length, 
+            p_text2encrypt, sealed_data_size, p_sealed_data);
 }
 
 /**
