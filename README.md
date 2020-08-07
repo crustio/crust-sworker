@@ -32,7 +32,7 @@ sWorker(storage worker) is an offchain storage work inspector of Crust MPoW prot
 ## Build
 
 ### Build from docker
-Please refer to [crust sWorker docker mode](https://github.com/crustio/crust-sworker/docs/Docker.md)
+Please refer to [Crust sWorker docker mode](docs/Docker.md)
 
 ### Build from source code
 - Prerequisites:
@@ -85,7 +85,7 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
 
 ## APIs
-Crust sWorker provides plenty of getting and controlling interfaces, please refer to [crust sWorker APIs](https://github.com/crustio/crust-sworker/docs/API.md)
+Crust sWorker provides plenty of getting and controlling interfaces, please refer to [Crust sWorker APIs](docs/API.md)
 
 ## Contribution
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
