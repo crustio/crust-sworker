@@ -96,38 +96,33 @@ If dependencies don't be changed, you don't need to execute this shell to genera
   * Go to the extract folder, run '***sudo ./scripts/install.sh***' to install sWorker application. Related dependencies will be installed on your machine. sWorker application will be installed on '***/opt/crust/crust-sworker***' directory.
 
 ## How to use
+- Configure crust sworker
+  In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
+  ```
+  {
+      "base_path" : "/opt/crust/crust-sworker/0.5.0/tee_base_path",        # sWorker key information location, must be absolute path
+      "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
+      "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
+      "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
+        
+      "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
 
-### Configure crust sworker
-In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
-```
-{
-    "base_path" : "/opt/crust/crust-sworker/0.5.0/tee_base_path",        # sWorker key information location, must be absolute path
-    "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
-    "srd_paths" : ["/data1", "/data2"],                                  # If this item is not set, base_path will be used
-    "srd_init_capacity" : 4,                                             # srd initial disk storage in Gb
-      
-    "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",                 # the kasrt node url
+      "chain" : {
+          "base_url" : "http://127.0.0.1:56666/api/v1",
+          "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX", # the address of crust api
+          "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
+          "password" : "123456",
+          "backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
+      }
+  }
+  ```
 
-    "chain" : {
-        "base_url" : "http://127.0.0.1:56666/api/v1",
-        "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX", # the address of crust api
-        "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
-        "password" : "123456",
-        "backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
-    }
-}
-```
-
-### Run docker mode
-
-- Run crust sworker.
+- Run docker mode
   ```
   sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
   ```
 
-### Run local mode
-
-- Run crust sworker.
+- Run local mode
   ```
   /opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
   ```
@@ -141,7 +136,7 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
 
 ## APIs
-Crust sWorker provides plenty of getting and controlling interfaces, please refer to [crust sWorker APIs](https://github.com/crustio/crust-sworker/doc/API.md)
+Crust sWorker provides plenty of getting and controlling interfaces, please refer to [crust sWorker APIs](https://github.com/crustio/crust-sworker/docs/API.md)
 
 ## Launch crust chain and API
 Crust sWorker will wait for the chain to run before uploading identity information and performing file verification. So if you want to test whole sWorker flow, please lanuch crust chain and API. Please reference to [crust chain readme](https://github.com/crustio/crust) and [crust api readme](https://github.com/crustio/crust-api) .
