@@ -32,15 +32,8 @@
   git clone https://github.com/crustio/crust-sworker.git
   ```
 
-## Build
-- Build docker env.
-  If dependencies don't be changed, you don't need to execute this shell to generate new crust-sworker-env docker.
-  ```
-  sudo ./docker/build_env.sh
-  ```
-
+re## Build
 - Build crust sworker docker.
   ```
   sudo ./docker/build.sh
   ```
-
