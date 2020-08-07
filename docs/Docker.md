@@ -1,19 +1,38 @@
-# crust sWorker Docker mode
+# Crust sWorker Docker mode
 
-## Building
+## Prerequisites:
+- Hardware requirements: 
+  CPU must contain **SGX module**, and make sure the SGX function is turned on in the bios, please click [this page](https://github.com/crustio/crust/wiki/Check-TEE-supportive) to check if your machine supports SGX
+  
+- Other configurations
+  - **Secure Boot** in BIOS needs to be turned off
+  - Need use ordinary account, **cannot support root account**
 
-### For user
-- Install SGX driver.
+- Ensure that you have one of the following required operating systems:
+  * Ubuntu\* 16.04 LTS Desktop 64bits
+  * Ubuntu\* 16.04 LTS Server 64bits
+  * Ubuntu\* 18.04 LTS Desktop 64bits
+  * Ubuntu\* 18.04 LTS Server 64bits
+
+- Install git-lfs:
   ```
-  sudo ./scripts/install_sgx_driver.sh
+  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+  sudo apt-get install git-lfs
+  git lfs install
   ```
 
-- Pulll crust sworker runner image.
+- Install docker (for docker mode):
   ```
-  sudo docker pull crustio/crust-sworker:0.5.0
+  sudo apt-get update
+  curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
   ```
 
-### For developer
+- Clone project
+  ```
+  git clone https://github.com/crustio/crust-sworker.git
+  ```
+
+## Build
 - Build docker env.
   If dependencies don't be changed, you don't need to execute this shell to generate new crust-sworker-env docker.
   ```
@@ -25,7 +44,3 @@
   sudo ./docker/build.sh
   ```
 
-## Run
-  ```
-  sudo docker run -it -e ARGS="-c /opt/crust/crust-sworker/0.5.0/etc/Config.json --offline" --device /dev/isgx --name test-container --network host crustio/crust-sworker:0.5.0
-  ```

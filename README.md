@@ -3,22 +3,14 @@ sWorker(storage worker) is an offchain storage work inspector of Crust MPoW prot
 
 <a href='https://web3.foundation/'><img width='220' alt='Funded by web3 foundation' src='docs/img/web3f_grants_badge.png'></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='https://builders.parity.io/'><img width='260' src='docs/img/sbp_grants_badge.png'></a>
 
-## Preparation work
+## Prerequisites:
 - Hardware requirements: 
-
   CPU must contain **SGX module**, and make sure the SGX function is turned on in the bios, please click [this page](https://github.com/crustio/crust/wiki/Check-TEE-supportive) to check if your machine supports SGX
   
 - Other configurations
-
   - **Secure Boot** in BIOS needs to be turned off
   - Need use ordinary account, **cannot support root account**
 
-## Dependent library and project
-- [Intel SGX](https://software.intel.com/en-us/sgx)
-- [Crust](https://github.com/crustio/crust)
-- [Crust API](https://github.com/crustio/crust-api)
-
-## Prerequisites:
 - Ensure that you have one of the following required operating systems:
   * Ubuntu\* 16.04 LTS Desktop 64bits
   * Ubuntu\* 16.04 LTS Server 64bits
@@ -37,20 +29,12 @@ sWorker(storage worker) is an offchain storage work inspector of Crust MPoW prot
   git clone https://github.com/crustio/crust-sworker.git
   ```
 
-- Install docker (for docker mode):
-  ```
-  sudo apt-get update
-  curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
-  ```
-
-## Building
+## Build
 
 ### Build from docker
-
-### Build from source code
 Please refer to [crust sWorker docker mode](https://github.com/crustio/crust-sworker/docs/Docker.md)
 
-#### Build directly
+### Build from source code
 - Prerequisites:
   ```
   sudo apt-get update
@@ -58,25 +42,10 @@ Please refer to [crust sWorker docker mode](https://github.com/crustio/crust-swo
   ```
   ***Note: This mode is just for Ubuntu\* 16.04***
 
-- Install crust sworker.
+- Install crust sworker
   ```
   sudo ./stripts/install.sh
   ```
-
-#### Build from package
-- Prerequisites:
-  ```
-  sudo apt-get update
-  sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
-  ```
-  ***Note: This mode is just for Ubuntu\* 16.04***
-
-- Package.
-  Run '***sudo ./scripts/package.sh***' to package whole project, you will get a ***crust-sworker.tar*** package.
-
-- Install crust-sworker.
-  * Run '***tar -xvf crust-sworker.tar***' to extract package.
-  * Go to the extract folder, run '***sudo ./scripts/install.sh***' to install sWorker application. Related dependencies will be installed on your machine. sWorker application will be installed on '***/opt/crust/crust-sworker***' directory.
 
 ## How to use
 
@@ -105,6 +74,7 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 ```
 /opt/crust/crust-sworker/0.5.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.0/etc/Config.json
 ```
+
 
 ### Crust sWorker executable file
 1. Run '**bin/crust-sworker -h, --help**' to show how to use ***crust-sworker***.
