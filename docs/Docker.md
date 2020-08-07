@@ -24,7 +24,7 @@
 - Install docker (for docker mode):
   ```
   sudo apt-get update
-  curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+  curl -fsSL https://get.docker.com | bash -s docker
   ```
 
 - Clone project
