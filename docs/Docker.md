@@ -32,7 +32,7 @@
   git clone https://github.com/crustio/crust-sworker.git
   ```
 
-re## Build
+## Build
 - Build crust sworker docker.
   ```
   sudo ./docker/build.sh
