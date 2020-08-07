@@ -51,6 +51,20 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len);
 std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size);
 std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size);
 char* unsigned_char_to_hex(unsigned char in);
+
+sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
+                           const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
+                           const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
+                           sgx_sealed_data_t *p_sealed_data);
+
+sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
+                              const sgx_attributes_t attribute_mask,
+                              const sgx_misc_select_t misc_mask,
+                              const uint32_t additional_MACtext_length,
+                              const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
+                              const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
+                              sgx_sealed_data_t *p_sealed_data);
+
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 

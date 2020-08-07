@@ -90,6 +90,12 @@ void srd_increase(const char *path)
                 break;
             }
             g_base_rand_buffer = (uint8_t *)enc_malloc(SRD_RAND_DATA_LENGTH);
+            if (g_base_rand_buffer == NULL)
+            {
+                log_err("Malloc memory failed!\n");
+                sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
+                return;
+            }
             memset(g_base_rand_buffer, 0, SRD_RAND_DATA_LENGTH);
             sgx_read_rand(g_base_rand_buffer, sizeof(g_base_rand_buffer));
             sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
@@ -106,10 +112,19 @@ void srd_increase(const char *path)
     ocall_create_dir(&crust_status, g_path.c_str());
 
     // Generate all M hashs and store file to disk
-    unsigned char *hashs = new unsigned char[SRD_RAND_DATA_NUM * HASH_LENGTH];
+    unsigned char *hashs = (unsigned char*)enc_malloc(SRD_RAND_DATA_NUM * HASH_LENGTH);
+    if (hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return;
+    }
     for (size_t i = 0; i < SRD_RAND_DATA_NUM; i++)
     {
-        seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
+        crust_status = seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return;
+        }
 
         sgx_sha256_hash_t out_hash256;
         sgx_sha256_msg((unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH, &out_hash256);
@@ -138,11 +153,21 @@ void srd_increase(const char *path)
 
     // Get g hash
     uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);
+    if (p_hash_u == NULL)
+    {
+        log_info("Seal random data failed! Malloc memory failed!\n");
+        return;
+    }
     memset(p_hash_u, 0, HASH_LENGTH);
     memcpy(p_hash_u, g_out_hash256, HASH_LENGTH);
 
     // ----- Update srd_path2hashs_m ----- //
     std::string hex_g_hash = hexstring_safe(p_hash_u, HASH_LENGTH);
+    if (hex_g_hash.compare("") == 0)
+    {
+        log_err("Hexstring failed!\n");
+        return;
+    }
     // Add new g_hash to srd_path2hashs_m
     // Because add this p_hash_u to the srd_path2hashs_m, so we cannot free p_hash_u
     sgx_thread_mutex_lock(&g_srd_mutex);

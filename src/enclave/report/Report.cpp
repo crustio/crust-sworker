@@ -94,7 +94,12 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     {
         g_hashs_num += it.second.size();
     }
-    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
+    unsigned char *hashs = (unsigned char *)enc_malloc(g_hashs_num * HASH_LENGTH);
+    if (hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     size_t hashs_len = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
@@ -166,6 +171,11 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         + reserved_str.size() 
         + files.size();
     uint8_t *sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
+    if (sigbuf == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(sigbuf, 0, sigbuf_len);
     uint8_t *p_sigbuf = sigbuf;
     // Public key
@@ -288,6 +298,11 @@ crust_status_t get_signed_order_report()
 
     org_data_len = sizeof(id_key_pair.pub_key) * 2 + files_str.size() + random_str.size();
     org_data = (uint8_t*)enc_malloc(org_data_len);
+    if (org_data == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        goto cleanup;
+    }
     memset(org_data, 0, org_data_len);
     p_org_data = org_data;
     // Copy pubkey

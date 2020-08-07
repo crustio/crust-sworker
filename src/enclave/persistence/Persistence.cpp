@@ -22,7 +22,12 @@ crust_status_t persist_add(std::string key, const uint8_t *value, size_t value_l
         return crust_status;
     }
 
-    uint8_t *p_sealed_data_r = (uint8_t*)malloc(sealed_data_size);
+    uint8_t *p_sealed_data_r = (uint8_t*)enc_malloc(sealed_data_size);
+    if (p_sealed_data_r == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(p_sealed_data_r, 0, sealed_data_size);
     memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
     free(p_sealed_data);
@@ -95,7 +100,12 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
         return crust_status;
     }
 
-    uint8_t *p_sealed_data_r = (uint8_t*)malloc(sealed_data_size);
+    uint8_t *p_sealed_data_r = (uint8_t*)enc_malloc(sealed_data_size);
+    if (p_sealed_data_r == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(p_sealed_data_r, 0, sealed_data_size);
     memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
     free(p_sealed_data);
@@ -143,11 +153,21 @@ crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
     }
 
     // Get unsealed data
-    sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)malloc(sealed_data_size);
+    sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)enc_malloc(sealed_data_size);
+    if (p_sealed_data_r == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(p_sealed_data_r, 0, sealed_data_size);
     memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
     uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
     uint8_t *p_unsealed_data = (uint8_t*)enc_malloc(unsealed_data_size);
+    if (p_unsealed_data == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        goto cleanup;
+    }
     memset(p_unsealed_data, 0, unsealed_data_size);
     sgx_status = sgx_unseal_data(p_sealed_data_r, NULL, NULL,
             p_unsealed_data, &unsealed_data_size);
@@ -188,6 +208,11 @@ crust_status_t persist_get_unsafe(std::string key, uint8_t **value, size_t *valu
     }
 
     uint8_t *p_data = (uint8_t*)enc_malloc(data_len);
+    if (p_data == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     memset(p_data, 0, data_len);
     memcpy(p_data, data, data_len);
 

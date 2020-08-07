@@ -309,7 +309,7 @@ char *base64_decode(const char *msg, size_t *sz)
     char *buf;
     size_t len = strlen(msg);
 
-    buf = (char *)malloc(len + 1);
+    buf = (char *)enc_malloc(len + 1);
     if (buf == NULL)
         return NULL;
     memset(buf, 0, len + 1);
@@ -444,7 +444,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
 
     count = certvec.size();
 
-    certar = (X509 **)malloc(sizeof(X509 *) * (count + 1));
+    certar = (X509 **)enc_malloc(sizeof(X509 *) * (count + 1));
     if (certar == NULL)
     {
         return CRUST_IAS_INTERNAL_ERROR;
@@ -529,7 +529,12 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
         goto cleanup;
     }
 
-    iasQuote = (sgx_quote_t *)malloc(sizeof(sgx_quote_t));
+    iasQuote = (sgx_quote_t *)enc_malloc(sizeof(sgx_quote_t));
+    if (iasQuote == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        goto cleanup;
+    }
     memset(iasQuote, 0, sizeof(sgx_quote_t));
     memcpy(iasQuote, p_decode_quote_body, qbsz);
     iasReportBody = &iasQuote->report_body;
@@ -560,6 +565,11 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     // Generate identity data for sig
     org_data_len = certchain_1.size() + ias_sig.size() + isv_body.size() + account_id_u_len;
     org_data = (uint8_t *)malloc(org_data_len);
+    if (org_data == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        goto cleanup;
+    }
     memset(org_data, 0, org_data_len);
     p_org_data = org_data;
 
@@ -731,7 +741,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
     crust_status_t crust_status = persist_get(ID_METADATA, &p_data, &data_len);
     if (CRUST_SUCCESS != crust_status || data_len == 0)
     {
-        meta_json =  json::JSON();
+        meta_json = json::JSON();
         goto cleanup;
     }
     meta_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_data + strlen(TEE_PRIVATE_TAG)), data_len));
@@ -1034,7 +1044,7 @@ crust_status_t id_set_chain_account_id(const char *account_id, size_t len)
         return CRUST_DOUBLE_SET_VALUE;
     }
 
-    char *buffer = (char *)malloc(len);
+    char *buffer = (char *)enc_malloc(len);
     if (buffer == NULL)
     {
         return CRUST_MALLOC_FAILED;

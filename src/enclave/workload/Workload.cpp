@@ -139,7 +139,12 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, size_t *s
     {
         g_hashs_num += it->second.size();
     }
-    unsigned char *hashs = (unsigned char *)malloc(g_hashs_num * HASH_LENGTH);
+    unsigned char *hashs = (unsigned char *)enc_malloc(g_hashs_num * HASH_LENGTH);
+    if (hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
     size_t hashs_len = 0;
 
     for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
