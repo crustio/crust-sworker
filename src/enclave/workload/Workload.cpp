@@ -53,6 +53,7 @@ Workload::~Workload()
 
 /**
  * @description: Print work report
+ * @return: Generated workload
  */
 std::string Workload::get_workload(void)
 {
@@ -81,7 +82,7 @@ std::string Workload::get_workload(void)
             // Get old hash
             uint8_t *p_meta = NULL;
             size_t meta_len = 0;
-            crust_status = persist_get((md_json[ID_FILE][i][FILE_HASH].ToString()+"_meta").c_str(), &p_meta, &meta_len);
+            crust_status = persist_get_unsafe((md_json[ID_FILE][i][FILE_HASH].ToString()+"_meta").c_str(), &p_meta, &meta_len);
             if (CRUST_SUCCESS == crust_status && p_meta != NULL)
             {
                 json::JSON org_file_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_meta), meta_len));

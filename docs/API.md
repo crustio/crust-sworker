@@ -23,7 +23,7 @@ Output:
   },
   "srd" : {
     "detail" : {
-      "/opt/crust/crust-sworker/0.5.0/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
+      "/opt/crust/crust-sworker/0.5.1/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
     },
     "disk_reserved" : 50,
     "remaining_task" : 1,
@@ -56,8 +56,8 @@ Output:
 {
   "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
   "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
-  "version" : "0.5.0",
-  "tee_version" : "0.5.0"
+  "version" : "0.5.1",
+  "tee_version" : "0.5.1"
 }
 ```
 
@@ -158,11 +158,11 @@ Output (500, sWorker has not been fully launched , this API does not support con
 
 Use 'storage/seal' to start storage related work 
 ------------------------------------------------
-This API is a websocket API.
-Websocket api: wss://<url:port>/api/v0/storage/seal
 ```
-{
-    "backup" : {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}},
+curl --location --request POST 'http://<url:port>/api/v0/storage/seal' \
+--header 'Content-Type: application/json' \
+--header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
+--data-raw '{
     "body" : {
         "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
         "links_num":2,
@@ -212,7 +212,7 @@ Websocket api: wss://<url:port>/api/v0/storage/seal
         ]
     },
     "path" : "/home/xxxx/xxxx/xxxxx"
-}
+}'
 ```
 
 Parameter:
@@ -252,13 +252,13 @@ Seal failed! Invoke ECALL failed
 
 Use 'storage/unseal' to unseal file block
 -----------------------------------------
-This API is a websocket API.
-Websocket api: wss://<url:port>/api/v0/storage/unseal
 ```
-{
-    "backup" : {\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}},
+curl --location --request POST 'http://<url:port>/api/v0/storage/delete' \
+--header 'Content-Type: application/json' \
+--header 'backup: {"address":"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX","encoded":"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36","encoding":{"content":["pkcs8","sr25519"],"type":"xsalsa20-poly1305","version":"2"},"meta":{"name":"Yang1","tags":[],"whenCreated":1580628430860}}' \
+--data-raw '{
     "path" : "/home/xxxx/xxxx/xxxxx"
-}
+}'
 ```
 
 Parameter:

@@ -25,4 +25,4 @@ build-all:
 
 .PHONY: clean
 clean:
-	@rm -rf $(Test_Target) $(Test_Objects) src buildenv.mk
+	@rm -rf $(Test_Target) $(Test_Objects) src test_app buildenv.mk

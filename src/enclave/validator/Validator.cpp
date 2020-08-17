@@ -302,23 +302,9 @@ void validate_meaningful_file()
         }
 
         std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
-        // Get file total block number
-        crust_status = persist_get((root_hash + "_meta"), &p_data, &data_len);
-        if (CRUST_SUCCESS != crust_status || 0 == data_len)
-        {
-            //log_err("Validate meaningful data failed! Get tree:%s metadata failed!\n", root_hash.c_str());
-            if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
-            {
-                wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
-                changed_idx2lost_um[file_idx] = true;
-            }
-            continue;
-        }
-        json::JSON tree_meta_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_data), data_len));
-        size_t file_block_num = tree_meta_json[FILE_BLOCK_NUM].ToInt();
-        free(p_data);
+        size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
-        crust_status = persist_get(root_hash, &p_data, &data_len);
+        crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
             //log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
@@ -330,7 +316,11 @@ void validate_meaningful_file()
             continue;
         }
         std::string tree_str(reinterpret_cast<char *>(p_data), data_len);
-        free(p_data);
+        if (p_data != NULL)
+        {
+            free(p_data);
+            p_data = NULL;
+        }
 
         // ----- Validate MerkleTree ----- //
         // Note: should store serialized tree structure as "links_num":x,"hash":"xxxxx","size":
