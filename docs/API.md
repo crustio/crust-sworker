@@ -23,7 +23,7 @@ Output:
   },
   "srd" : {
     "detail" : {
-      "/opt/crust/crust-sworker/0.5.0/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
+      "/opt/crust/crust-sworker/0.5.1/tee_base_path/test1" : {  "assigned" : 57,  "available" : 0, "total" : 457  }
     },
     "disk_reserved" : 50,
     "remaining_task" : 1,
@@ -56,8 +56,8 @@ Output:
 {
   "mrenclave" : "aad180124c8670b397a838f552a9136e7e3e7eba2f1c9c49ba16bf53c015b195",
   "pub_key" : "ad288767765f9402ed9a15ecba7fc56a5e39167f94eefe39c05f5f43862686c0b21328d489d3c7d0c4e19445d49a63c1cedbfad9e027166261ae04eb34868514",
-  "version" : "0.5.0",
-  "tee_version" : "0.5.0"
+  "version" : "0.5.1",
+  "tee_version" : "0.5.1"
 }
 ```
 

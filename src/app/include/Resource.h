@@ -1,4 +1,4 @@
-#define VERSION "0.5.0"
+#define VERSION "0.5.1"
 
 #define CRUST_INST_DIR      "/opt/crust/crust-sworker/" VERSION
 #define ENCLAVE_FILE_PATH   CRUST_INST_DIR "/etc/enclave.signed.so"
