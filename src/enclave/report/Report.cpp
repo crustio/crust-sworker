@@ -138,7 +138,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
             uint8_t *p_meta = NULL;
             size_t meta_len = 0;
             std::string hash_str = wl->checked_files[i][FILE_HASH].ToString();
-            crust_status = persist_get((hash_str + "_meta").c_str(), &p_meta, &meta_len);
+            crust_status = persist_get_unsafe((hash_str + "_meta").c_str(), &p_meta, &meta_len);
             if (CRUST_SUCCESS != crust_status || p_meta == NULL)
             {
                 log_err("Get file:%s meta failed!\n", hash_str.c_str());
@@ -146,7 +146,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
             std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
             json::JSON meta_json = json::JSON::Load(tree_meta);
             old_files_json[j][FILE_HASH] = meta_json[FILE_OLD_HASH].ToString();
-            old_files_json[j][FILE_SIZE] = meta_json[FILE_OLD_SIZE].ToInt();
+            old_files_json[j][FILE_SIZE] = wl->checked_files[i][FILE_OLD_SIZE].ToInt();
             j++;
             free(p_meta);
         }

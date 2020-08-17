@@ -73,6 +73,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     json::JSON file_entry_json;
     file_entry_json[FILE_HASH] = new_root_hash_str;
     file_entry_json[FILE_SIZE] = node_size;
+    file_entry_json[FILE_OLD_SIZE] = org_node_size;
+    file_entry_json[FILE_BLOCK_NUM] = block_num;
     // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
     file_entry_json[FILE_STATUS] = FILE_STATUS_UNCONFIRMED;
     crust_status = id_metadata_set_or_append(ID_FILE, file_entry_json, ID_APPEND);
@@ -82,7 +84,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     // Store new tree structure
-    crust_status = persist_set(new_root_hash_str, (const uint8_t*)new_tree.c_str(), new_tree.size());
+    crust_status = persist_set_unsafe(new_root_hash_str, (const uint8_t*)new_tree.c_str(), new_tree.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -92,9 +94,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     json::JSON tree_meta_json;
     tree_meta_json[FILE_OLD_HASH] = org_root_hash_str;
     tree_meta_json[FILE_OLD_SIZE] = org_node_size;
-    tree_meta_json[FILE_BLOCK_NUM] = block_num;
     std::string tree_meta_str = tree_meta_json.dump();
-    crust_status = persist_set((new_root_hash_str + "_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
+    crust_status = persist_set_unsafe((new_root_hash_str + "_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -180,7 +181,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
             goto sealend;
         }
         // Do seal
-        crust_status = seal_data_mrenclave(file_data_r, file_data_len, 
+        crust_status = seal_data_mrsigner(file_data_r, file_data_len, 
                 (sgx_sealed_data_t**)&p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
@@ -302,7 +303,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
     std::string new_root_hash_str = dir.substr(dir.find_last_of("/") + 1, dir.size());
     uint8_t *p_meta = NULL;
     size_t meta_len;
-    crust_status = persist_get((new_root_hash_str+"_meta"), &p_meta, &meta_len);
+    crust_status = persist_get_unsafe((new_root_hash_str+"_meta"), &p_meta, &meta_len);
     if (CRUST_SUCCESS != crust_status || p_meta == NULL)
     {
         return CRUST_STORAGE_UNSEAL_FILE_FAILED;

@@ -126,7 +126,6 @@ std::string ApiHandler::websocket_handler(std::string &path, std::string &data, 
         json::JSON tree_json = req_json["body"];
         std::string backup = req_json["backup"].ToString();
         std::string dir_path = req_json["path"].ToString();
-        this->block_left_num = this->block_num = req_json["block_num"].ToInt();
         remove_char(backup, '\\');
 
         // Get backup info

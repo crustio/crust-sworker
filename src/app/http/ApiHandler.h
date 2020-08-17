@@ -27,6 +27,7 @@
 #include "Srd.h"
 #include "Storage.h"
 #include "Data.h"
+#include "tbb/concurrent_unordered_map.h"
 #include "../enclave/include/Parameter.h"
 
 #include <boost/beast/core.hpp>
@@ -63,8 +64,6 @@ public:
 private:
     std::shared_ptr<WebServer> server = NULL;
     std::vector<uint8_t> root_hash_v;
-    long block_left_num;
-    long block_num;
     bool unseal_check_backup = false;
     MerkleTree *tree_root = NULL;
 };
@@ -73,6 +72,7 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
+extern tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 // Used to show validation status
 long change_srd_num = 0;
 
@@ -484,6 +484,197 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             storage_add_delete(hash);
             ret_info = "Deleting file task has beening added!";
             res.body() = ret_info;
+
+            goto postcleanup;
+        }
+
+        // ----- Storage seal file block ----- //
+        cur_path = urlendpoint->base + "/storage/seal";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            crust_status_t crust_status = CRUST_SUCCESS;
+            sgx_status_t sgx_status = SGX_SUCCESS;
+
+            p_log->info("Dealing with seal request...\n");
+
+            // Parse paramters
+            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON tree_json = req_json["body"];
+            std::string dir_path = req_json["path"].ToString();
+
+            // Check if body is validated
+            if (tree_json.size() == 0 || tree_json.size() == -1)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty body!";
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                res.result(402);
+                goto postcleanup;
+            }
+
+            // ----- Seal file ----- //
+            std::string content;
+            std::string org_root_hash_str = tree_json["hash"].ToString();
+            char *p_new_path = (char*)malloc(dir_path.size());
+            memset(p_new_path, 0, dir_path.size());
+            std::string org_tree_str = tree_json.dump();
+            remove_char(org_tree_str, '\\');
+            remove_char(org_tree_str, '\n');
+            remove_char(org_tree_str, ' ');
+            sgx_status = Ecall_seal_file(global_eid, &crust_status, org_tree_str.c_str(), org_tree_str.size(),
+                    dir_path.c_str(), p_new_path, dir_path.size());
+
+            if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
+            {
+                if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_SEAL_DATA_FAILED:
+                        ret_info = "Internal error: seal data failed!";
+                        break;
+                    case CRUST_STORAGE_FILE_NOTFOUND:
+                        ret_info = "Given file cannot be found!";
+                        break;
+                    default:
+                        ret_info = "Unexpected error!";
+                    }
+                }
+                else
+                {
+                    ret_info = "Invoke SGX api failed!";
+                }
+                p_log->err("Seal data failed!Error code:%lx(%s)\n", crust_status, ret_info.c_str());
+                res.body() = ret_info;
+                res.result(40);
+            }
+            else
+            {
+                p_log->info("Seal file successfully!\n");
+
+                std::string new_tree_str = sealed_tree_map[org_root_hash_str];
+                remove_char(new_tree_str, ' ');
+                remove_char(new_tree_str, '\n');
+                remove_char(new_tree_str, '\\');
+                json::JSON ret_json;
+                ret_json["body"] = new_tree_str;
+                ret_json["path"] = std::string(p_new_path, dir_path.size());
+                res.body() = ret_json.dump();
+                res.result(200);
+                sealed_tree_map.unsafe_erase(org_root_hash_str);
+            }
+
+            goto postcleanup;
+        }
+
+        // ----- Storage unseal file block ----- //
+        cur_path = urlendpoint->base + "/storage/unseal";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            p_log->info("Dealing with unseal request...\n");
+            // Parse parameters
+            json::JSON req_json;
+            req_json = json::JSON::Load(req.body());
+            std::string dir_path = req_json["path"].ToString();
+
+            // Get sub files' path
+            std::vector<std::string> files_str = get_sub_folders_and_files(dir_path.c_str());
+            std::vector<const char *> sub_files;
+            for (size_t i = 0; i < files_str.size(); i++)
+            {
+                sub_files.push_back(files_str[i].c_str());
+            }
+            if (sub_files.size() == 0)
+            {
+                ret_info = "Empty data directory!";
+                p_log->err("%s\n", ret_info.c_str());
+                res.result(402);
+                res.body() = ret_info;
+                goto postcleanup;
+            }
+
+            // ----- Unseal file ----- //
+            crust_status_t crust_status = CRUST_SUCCESS;
+            char *p_new_path = (char*)malloc(dir_path.size());
+            memset(p_new_path, 0, dir_path.size());
+            sgx_status_t sgx_status = Ecall_unseal_file(global_eid, &crust_status,
+                    const_cast<char**>(sub_files.data()), sub_files.size(), dir_path.c_str(), p_new_path, dir_path.size());
+
+            if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
+            {
+                if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_UNSEAL_DATA_FAILED:
+                        ret_info = "Internal error: unseal data failed!";
+                        break;
+                    case CRUST_STORAGE_UPDATE_FILE_FAILED:
+                        ret_info = "Update new file failed!";
+                        break;
+                    case CRUST_STORAGE_FILE_NOTFOUND:
+                        ret_info = "Given file cannot be found!";
+                        break;
+                    default:
+                        ret_info = "Unexpected error!";
+                    }
+                }
+                else
+                {
+                    ret_info = "Invoke SGX api failed!";
+                }
+                p_log->err("Unseal data failed!Error code:%lx(%s)\n", crust_status, ret_info.c_str());
+                res.body() = ret_info;
+                res.result(403);
+            }
+            else
+            {
+                p_log->info("Unseal data successfully!\n");
+                res.body() = std::string(p_new_path, dir_path.size());
+                res.result(200);
+            }
+
+            free(p_new_path);
 
             goto postcleanup;
         }
