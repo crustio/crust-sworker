@@ -1,0 +1,7 @@
+{
+    "srd_paths": [
+        "/data/srd",
+        "/opt/crust/srd"
+    ],
+    "srd_size": 4
+}
