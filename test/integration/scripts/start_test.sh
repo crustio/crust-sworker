@@ -42,16 +42,20 @@ testdir=$instdir/test_app
 errfile=$basedir/err.log
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
+testconfigfile=$testdir/etc/Config.json
+baseurl=$(cat $testconfigfile | jq ".base_url")
+baseurl=${baseurl:1:${#baseurl}-2}
 SYNCFILE=$basedir/SYNCFILE
 pad="$(printf '%0.1s' ' '{1..10})"
-
-export benchmarkfile
 
 trap "success_exit" EXIT
 
 . $basedir/utils.sh
 
 mkdir -p $datadir
+
+export baseurl
+export benchmarkfile
 
 
 printf "%s%s\n"   "$pad" '                             __                __            __ '
@@ -69,7 +73,7 @@ verbose INFO "starting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline &>$sworkerlog &
 pid=$!
 sleep 8
-curl -s http://localhost:12222/api/v0/workload 2>$errfile 1>/dev/null
+curl -s $baseurl/workload 2>$errfile 1>/dev/null
 if [ $? -ne 0 ]; then
     verbose ERROR "failed" t
     verbose ERROR "start crust sworker failed! Please check $errfile for details."

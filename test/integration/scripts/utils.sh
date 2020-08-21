@@ -68,35 +68,35 @@ function seal()
     local tree=$1
     local path=$2
 
-    curl -s -XPOST http://localhost:12222/api/v0/storage/seal --data-raw "{\"body\":$tree,\"path\":\"$path\"}"
+    curl -s -XPOST $baseurl/storage/seal --data-raw "{\"body\":$tree,\"path\":\"$path\"}"
 }
 
 function unseal()
 {
     local path=$1
 
-    curl -s -XPOST http://localhost:12222/api/v0/storage/unseal --data-raw "{\"path\":\"$path\"}"
+    curl -s -XPOST $baseurl/storage/unseal --data-raw "{\"path\":\"$path\"}"
 }
 
 function confirm()
 {
     local hash=$1
 
-    curl -s -XPOST http://localhost:12222/api/v0/storage/confirm --data-raw "{\"hash\":\"$hash\"}"
+    curl -s -XPOST $baseurl/storage/confirm --data-raw "{\"hash\":\"$hash\"}"
 }
 
 function delete()
 {
     local hash=$1
 
-    curl -s -XPOST http://localhost:12222/api/v0/storage/delete --data-raw "{\"hash\":\"$hash\"}"
+    curl -s -XPOST $baseurl/storage/delete --data-raw "{\"hash\":\"$hash\"}"
 }
 
 function srd()
 {
     local change=$1
 
-    curl -s -XPOST http://localhost:12222/api/v0/srd/change --data-raw "{\"change\":$change}"
+    curl -s -XPOST $baseurl/srd/change --data-raw "{\"change\":$change}"
 }
 
 function srd_disk_change()
@@ -104,22 +104,22 @@ function srd_disk_change()
     local paths_json=$1
     local op=$2
 
-    curl -s -XPOST http://localhost:12222/api/v0/srd/change_disk --data-raw "{\"paths\":[$paths_json],\"op\":\"$op\"}"
+    curl -s -XPOST $baseurl/srd/change_disk --data-raw "{\"paths\":[$paths_json],\"op\":\"$op\"}"
 }
 
 function validate_srd()
 {
-    curl -s http://localhost:12222/api/v0/validate/srd
+    curl -s $baseurl/validate/srd
 }
 
 function validate_file()
 {
-    curl -s http://localhost:12222/api/v0/validate/file
+    curl -s $baseurl/validate/file
 }
 
 function store_metadata()
 {
-    curl -s http://localhost:12222/api/v0/store_metadata
+    curl -s $baseurl/store_metadata
 }
 
 function verbose()
