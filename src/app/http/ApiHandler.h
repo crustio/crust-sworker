@@ -566,7 +566,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 p_log->err("Seal data failed!Error code:%lx(%s)\n", crust_status, ret_info.c_str());
                 res.body() = ret_info;
-                res.result(40);
+                res.result(403);
             }
             else
             {

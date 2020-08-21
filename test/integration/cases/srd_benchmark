@@ -1,0 +1,74 @@
+#!/bin/bash
+function get_exec_time()
+{
+    local cmd=$1
+    local start_time=$(date +%s%N)
+    eval $cmd &>/dev/null
+    local end_time=$(date +%s%N)
+    srd -${srd_size} &>/dev/null
+    sleep 15
+    echo $((end_time - start_time))
+}
+
+function check_path()
+{
+    local disk=""
+    local ret=0
+    declare -A disk_2_path_m
+    for disk in $(df -h | awk '{print $6}' | sed 1d | xargs -I {} findmnt {} -o SOURCE | grep -v SOURCE); do
+        disk_2_path_m[$disk]=""
+    done
+    for path in ${srd_paths[@]}; do
+        mkdir -p $path
+        disk=$(df $path | tail -n 1 | awk '{print $1}')
+        if [ x"${disk_2_path_m[$disk]}" != x"" ]; then
+            verbose WARN "$path is in same disk with ${disk_2_path_m[$disk]}"
+            ret=1
+        fi
+        disk_2_path_m[$path]=$path
+    done
+
+    return $ret
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+testdir=$instdir/test_app
+configfile=$instdir/config/config.json
+
+. $scriptdir/utils.sh
+
+declare -A ans
+paths=$(get_config "srd_paths")
+srd_paths=($(parse_json_array "$paths"))
+
+### Check path
+if ! check_path; then
+    verbose ERROR "check srd path failed!"
+    exit 1
+fi
+
+### Add disk
+srd_size=$(get_config "srd_size")
+if ! [[ $srd_size =~ ^[1-9][0-9]*$ ]]; then
+    verbose ERROR "srd size must be number type!"
+    exit 1
+fi
+i=1
+for path in ${srd_paths[@]}; do
+    srd_disk_change "\"$path\"" "add"
+    ans["$i"]=$(get_exec_time "srd $srd_size")
+    path_json=",\"$path\""
+    ((i++))
+done
+path_json=${path_json:1}
+
+### Restore environment
+srd_disk_change "$path_json" "delete"
+
+### Print srd information
+benchmark_output "srd(size:$srd_size) benchmark result:\n\n\t\tDISK NUM\t\tTIME\n" \
+    "1" "$(declare -p ans)"

@@ -1,5 +1,7 @@
 ######## Global Settings #########
-include ../buildenv.mk
+inst_dir=../../
+
+include $(inst_dir)/buildenv.mk
 
 define addTestFunctions
 	enc_cpp_fun="\\\nbool ecall_test_inner_apis()\n{\n\treturn test_utils();\n}"; \
@@ -17,7 +19,7 @@ test: build-all
 	@./src/$(Test_Target)
 
 build-all:
-	@cp -r ../src ./ && cp -r enclave src/ && cp ../buildenv.mk ./
+	@cp -r $(inst_dir)/src ./ && cp -r enclave src/ && cp $(inst_dir)/buildenv.mk ./
 	@cp *.cpp src/ && cp *.h src/
 	@$(call addTestFunctions)
 	@$(MAKE) -C src/ clean --no-print-directory
@@ -25,4 +27,4 @@ build-all:
 
 .PHONY: clean
 clean:
-	@rm -rf $(Test_Target) $(Test_Objects) src test_app buildenv.mk
+	@rm -rf $(Test_Target) $(Test_Objects) src buildenv.mk VERSION

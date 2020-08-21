@@ -1,0 +1,66 @@
+#!/bin/bash
+function get_ordered_data_array()
+{
+    local k_arry=($(ls $datadir | sed 's/\([0-9]\+\)/\1 /g' | grep k | sort -n -k 1 | sed 's/ //g'))
+    local m_arry=($(ls $datadir | sed 's/\([0-9]\+\)/\1 /g' | grep m | sort -n -k 1 | sed 's/ //g'))
+    local g_arry=($(ls $datadir | sed 's/\([0-9]\+\)/\1 /g' | grep g | sort -n -k 1 | sed 's/ //g'))
+    echo "${k_arry[@]} ${m_arry[@]} ${g_arry[@]}"
+}
+
+function success_exit()
+{
+    rm $TMPFILE
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+configfile=$instdir/config/config.json
+TMPFILE=$basedir/TMPFILE
+
+trap 'success_exit' EXIT
+
+. $scriptdir/utils.sh
+
+declare -A file_2_time_m
+
+data_arry=($(get_ordered_data_array))
+run_num=3
+i=0
+
+while [ $i -lt $run_num ]; do
+    for file in $(readlink -f $datadir/*); do
+        mt_json=($(crust_split $file $testfiledir 2>$TMPFILE))
+        if [ -s "$TMPFILE" ]; then
+            verbose ERROR "split file:$file failed!"
+            exit 1
+        else
+            start_time=$(date +%s%N)
+            ret_body=$(seal ${mt_json[0]} ${mt_json[1]} 2>$TMPFILE)
+            end_time=$(date +%s%N)
+            sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+            if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+                cost=$((end_time - start_time))
+                if [ x"${file_2_time_m[$(basename $file)]}" = x"" ]; then
+                    file_2_time_m[$(basename $file)]=$cost
+                else
+                    file_2_time_m[$(basename $file)]=$((cost + ${file_2_time_m[$(basename $file)]}))
+                fi
+            else
+                verbose ERROR "seal file:$file failed!"
+                exit 1
+            fi
+        fi
+    done
+    rm -rf $testfiledir/*
+    ((i++))
+done
+
+### Print seal time information
+benchmark_output "seal file benchmark result:\n\n\t\tSIZE\t\t\tTIME\n" \
+    $run_num "$(declare -p file_2_time_m)" "${data_arry[*]}"

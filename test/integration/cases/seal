@@ -1,0 +1,86 @@
+#!/bin/bash
+function seal_exit()
+{
+    if [ -s $TMPFILE ]; then
+        cat $TMPFILE
+    fi
+
+    rm $TMPFILE
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+configfile=$instdir/config/config.json
+TMPFILE=$basedir/TMPFILE
+
+trap 'seal_exit' EXIT
+
+. $scriptdir/utils.sh
+
+declare -A hash_2_use_m
+
+data_arry=($(ls $datadir))
+data_size=${#data_arry[@]}
+test_acc=10
+
+while [ $test_acc -gt 0 ]; do
+    # Randomly seal file
+    index=$(($RANDOM % $data_size))
+    mt_json=($(crust_split $datadir/${data_arry[$index]} $testfiledir 2>$TMPFILE))
+    if [ -s "$TMPFILE" ]; then
+        exit 1
+    else
+        ret_body=$(seal ${mt_json[0]} ${mt_json[1]} 2>$TMPFILE)
+        sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+        if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+            hash_2_use_m[$sealed_hash]=0
+        else
+            exit 1
+        fi
+    fi
+    # Randomly confirm
+    hash_arry=(${!hash_2_use_m[@]})
+    hash_arry_sz=${#hash_arry[@]}
+    if [ $hash_arry_sz -gt 0 ]; then
+        rand_tag=$((hash_arry_sz * 2))
+        check_idx=$((RANDOM % rand_tag))
+        if [ $hash_arry_sz -gt 0 ] && [ $check_idx -lt $hash_arry_sz ]; then
+            check_hash=${hash_arry[$check_idx]}
+            if [ ${hash_2_use_m[$check_hash]} -eq 0 ]; then
+                verbose INFO "Conforming file:$check_hash..."
+                confirm $check_hash &>$TMPFILE
+                if [ $? -ne 0 ]; then
+                    verbose ERROR "Confirm file:$check_hash failed"
+                    exit 1
+                else
+                    hash_2_use_m[$check_hash]=1
+                fi
+            fi
+        fi
+        # Randomly validate
+        if [ $((RANDOM % 2)) -eq 0 ]; then
+            validate_file &>/dev/null
+        fi
+    fi
+    ((test_acc--))
+done
+
+# Confirm rest file
+for hash in ${!hash_2_use_m[@]}; do
+    if [ ${hash_2_use_m[$hash]} -eq 0 ]; then
+        verbose INFO "Conforming file:$hash..."
+        confirm $hash &>$TMPFILE
+        if [ $? -ne 0 ]; then
+            verbose ERROR "Confirm file:$hash failed"
+            exit 1
+        else
+            hash_2_use_m[$hash]=1
+        fi
+    fi
+done
