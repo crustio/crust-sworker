@@ -8,6 +8,7 @@ ADD VERSION /crust-sworker/VERSION
 ADD Makefile /crust-sworker/Makefile
 ADD buildenv.mk /crust-sworker/buildenv.mk
 ADD docker/runner/start_sworker.sh /
+ADD docker/runner/upgrade.sh /
 
 RUN /crust-sworker/scripts/install.sh -d
 CMD /start_sworker.sh
