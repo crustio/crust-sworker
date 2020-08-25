@@ -1,6 +1,8 @@
 # crust sworker image
 FROM crustio/crust-sworker-env:0.5.0
 
+RUN apt-get install -y jq
+
 ADD scripts /crust-sworker/scripts
 ADD src /crust-sworker/src
 ADD test /crust-sworker/test
