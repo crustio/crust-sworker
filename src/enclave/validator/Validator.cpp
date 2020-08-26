@@ -315,11 +315,23 @@ void validate_meaningful_file()
             }
             continue;
         }
+        // Validate merkle tree
         std::string tree_str(reinterpret_cast<char *>(p_data), data_len);
         if (p_data != NULL)
         {
             free(p_data);
             p_data = NULL;
+        }
+        json::JSON tree_json = json::JSON::Load(tree_str);
+        if (root_hash.compare(tree_json[FILE_HASH].ToString()) != 0 || CRUST_SUCCESS != validate_merkletree_json(tree_json))
+        {
+            log_err("File:%s merkle tree is not valid!\n", root_hash.c_str());
+            if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+            {
+                wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                changed_idx2lost_um[file_idx] = true;
+            }
+            continue;
         }
 
         // ----- Validate MerkleTree ----- //
