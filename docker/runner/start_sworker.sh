@@ -22,10 +22,5 @@ else
     sleep 5
 fi
 
-echo "Run sworker upgrade shell in backend"
-touch /upgrade.log
-upgrate="/upgrade.sh $ARGS"
-nohup $upgrate &>/upgrade.log &
-
 echo "Run sworker with arguments: $ARGS"
 /opt/crust/crust-sworker/$version/bin/crust-sworker $ARGS
