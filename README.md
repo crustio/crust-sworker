@@ -75,7 +75,6 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 /opt/crust/crust-sworker/0.5.1/bin/crust-sworker -c /opt/crust/crust-sworker/0.5.1/etc/Config.json
 ```
 
-
 ### Crust sWorker executable file
 1. Run '**bin/crust-sworker -h, --help**' to show how to use ***crust-sworker***.
 1. Run '**bin/crust-sworker -c, --config \<config_file_path\>**' to use customized configure file, you can get your own configure file by referring ***etc/Config.json***.
