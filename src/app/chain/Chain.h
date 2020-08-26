@@ -32,6 +32,7 @@ public:
     bool post_tee_identity(std::string identity);
     bool post_tee_work_report(std::string work_report);
     bool is_online(void);
+    bool is_syncing(void);
     bool wait_for_running(void);
     ~Chain();
 };

@@ -125,6 +125,31 @@ bool Chain::is_online(void)
 }
 
 /**
+ * @description: test if chian is syncing
+ * @return: test result
+ */
+bool Chain::is_syncing(void)
+{
+    std::string path = this->url + "/system/health";
+    http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
+    if ((int)res.result() == 200)
+    {
+        return system_health_json["isSyncing"].ToBool();
+    }
+
+    if (res.body().size() != 0)
+    {
+        p_log->err("%s\n", res.body().c_str());
+    }
+    else
+    {
+        p_log->err("%s\n", "return body is null");
+    }
+
+    return true;
+}
+
+/**
  * @description: waiting for the crust chain to run
  * @return: success or not
  */
@@ -157,6 +182,20 @@ bool Chain::wait_for_running(void)
             p_log->info("Wait for the chain to execute after %lu blocks, now is %lu ...\n", start_block_height, block_header->number);
             sleep(3);
         }
+    }
+
+    while (true)
+    {
+        if (!this->is_syncing())
+        {
+            break;
+        }
+        else
+        {
+            crust::BlockHeader *block_header = this->get_block_header();
+            p_log->info("Wait for chain synchronization to complete, currently synchronized to the %lu block\n", block_header->number);
+            sleep(6);
+        }   
     }
 
     return true;
