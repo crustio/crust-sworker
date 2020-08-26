@@ -107,7 +107,6 @@ std::string Chain::get_block_hash(size_t block_number)
     return "";
 }
 
-
 /**
  * @description: test if chian is online
  * @return: test result
@@ -134,6 +133,7 @@ bool Chain::is_syncing(void)
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
     {
+        json::JSON system_health_json = json::JSON::Load(res.body());
         return system_health_json["isSyncing"].ToBool();
     }
 
