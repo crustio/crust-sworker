@@ -293,6 +293,15 @@ int process_run()
         }
 
         p_log->info("Restore enclave data successfully!\n");
+
+        if (!offline_chain_mode)
+        {
+            if (!crust::Chain::get_instance()->wait_for_running())
+            {
+                return_status = -1;
+                goto cleanup;
+            }
+        }
     }
 
     if (!offline_chain_mode)
