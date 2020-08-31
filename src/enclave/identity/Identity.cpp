@@ -971,7 +971,7 @@ crust_status_t id_restore_metadata()
     if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, 
                     reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
     {
-        log_warn("Restore srd info failed! Error code:%lx\n", crust_status);
+        log_warn("Wait for srd info, code:%lx\n", crust_status);
     }
     ocall_srd_info_unlock();
     // Restore meaningful files

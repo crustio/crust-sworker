@@ -73,7 +73,7 @@ bool WebsocketClient::websocket_init(std::string host, std::string port, std::st
     }
     catch(std::exception const& e)
     {
-        p_log->debug("Initialize websocket client failed! Error: %s\n", e.what());
+        // p_log->debug("Initialize websocket client failed! Error: %s\n", e.what());
         this->_ws = NULL;
         return false;
     }
