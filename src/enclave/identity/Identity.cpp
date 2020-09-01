@@ -945,7 +945,7 @@ crust_status_t id_restore_metadata()
     id_get_metadata(meta_json);
     if (meta_json.size() <= 0)
     {
-        log_warn("Get metadata failed, cannot restore metadata!\n");
+        log_warn("No metadata, this may be the first start\n");
         return CRUST_UNEXPECTED_ERROR;
     }
 

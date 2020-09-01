@@ -72,7 +72,7 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
             }
             p_log->info("SGX device is busy, trying again(%d time)...\n", tryout);
             tryout++;
-            sleep(1);
+            sleep(60);
         }
         else
         {
