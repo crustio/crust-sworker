@@ -19,6 +19,8 @@ function success_exit()
     fi
 
     rm $SYNCFILE
+    rm $TMPFILE
+    rm $TMPFILE2
 
     print_end
 }
@@ -40,12 +42,15 @@ datadir=$instdir/data
 casedir=$instdir/cases
 testdir=$instdir/test_app
 errfile=$basedir/err.log
+caseresfile=$instdir/case.log
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
 testconfigfile=$testdir/etc/Config.json
 baseurl=$(cat $testconfigfile | jq ".base_url")
 baseurl=${baseurl:1:${#baseurl}-2}
 SYNCFILE=$basedir/SYNCFILE
+TMPFILE=$instdir/TMPFILE
+TMPFILE2=$instdir/TMPFILE2
 pad="$(printf '%0.1s' ' '{1..10})"
 
 trap "success_exit" EXIT
@@ -99,10 +104,21 @@ verbose INFO "success" t
 ### Run test cases
 cd $casedir
 verbose INFO "starting benchmark cases:" n >> $benchmarkfile
+true > $caseresfile
 for script in `ls`; do
     true > $SYNCFILE
     setTimeWait "$(verbose INFO "running test case: $script..." h)" $SYNCFILE &
-    bash $script &>/dev/null
+    {
+        bash $script &>$TMPFILE2
+        if [ $? -ne 0 ]; then
+            verbose ERROR "case $script failed!" n
+            echo "Error:"
+            cat $TMPFILE2
+        else
+            verbose INFO "case $script successfully" n
+        fi
+        echo -e "\n"
+    } >> $caseresfile
     #bash $script
     checkRes $? "return" "success" "$SYNCFILE"
 done

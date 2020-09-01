@@ -155,6 +155,7 @@ cat << EOF > $TMPFILE
                     // Send signed validation report to crust chain
                     std::string work_str = get_g_enclave_workreport();
                     p_log->info("Sign validation report successfully!\\n%s\\n", work_str.c_str());
+                    res.body() = work_str;
                     // Delete space and line break
                     remove_char(work_str, '\\\\');
                     remove_char(work_str, '\\n');

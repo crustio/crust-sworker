@@ -32,17 +32,16 @@ test_acc=10
 while [ $test_acc -gt 0 ]; do
     # Randomly seal file
     index=$(($RANDOM % $data_size))
-    mt_json=($(crust_split $datadir/${data_arry[$index]} $testfiledir 2>$TMPFILE))
-    if [ -s "$TMPFILE" ]; then
+    seal_file $datadir/${data_arry[$index]} $testfiledir >$TMPFILE
+    if [ $? -ne 0 ]; then
         exit 1
+    fi
+    ret_body=$(cat $TMPFILE)
+    sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+        hash_2_use_m[$sealed_hash]=0
     else
-        ret_body=$(seal ${mt_json[0]} ${mt_json[1]} 2>$TMPFILE)
-        sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-        if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
-            hash_2_use_m[$sealed_hash]=0
-        else
-            exit 1
-        fi
+        exit 1
     fi
     # Randomly confirm
     hash_arry=(${!hash_2_use_m[@]})

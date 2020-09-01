@@ -63,12 +63,41 @@ function crust_split()
     mv $detdir $newdetdir
 }
 
+function get_workload()
+{
+    curl -s $baseurl/workload
+}
+
 function seal()
 {
     local tree=$1
     local path=$2
 
     curl -s -XPOST $baseurl/storage/seal --data-raw "{\"body\":$tree,\"path\":\"$path\"}"
+}
+
+function seal_file()
+{
+    local data_path=$1
+    local store_path=$2
+    local tmp_file=tmp_file
+
+    ### Split file
+    local mt_json=($(crust_split $data_path $store_path 2>$tmp_file))
+    if [ -s "$tmp_file" ]; then
+        rm $tmp_file
+        return 1
+    fi
+
+    ### Seal file block
+    seal ${mt_json[0]} ${mt_json[1]} >$tmp_file
+    if [ $? -ne 0 ]; then
+        rm $tmp_file
+        return 1
+    fi
+
+    cat $tmp_file
+    rm $tmp_file
 }
 
 function unseal()
@@ -85,7 +114,7 @@ function confirm()
     curl -s -XPOST $baseurl/storage/confirm --data-raw "{\"hash\":\"$hash\"}"
 }
 
-function delete()
+function delete_file()
 {
     local hash=$1
 
@@ -115,6 +144,11 @@ function validate_srd()
 function validate_file()
 {
     curl -s $baseurl/validate/file
+}
+
+function report_work()
+{
+    curl -s $baseurl/report/work
 }
 
 function store_metadata()
