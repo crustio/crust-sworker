@@ -198,7 +198,7 @@ int process_run()
     if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
     {
         // Restore data failed
-        p_log->info("Restore enclave data failed!Failed code:%lx.Starting a new enclave...\n", crust_status);
+        p_log->info("Starting a new enclave...(code:%lx)\n", crust_status);
         // Generate ecc key pair
         if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
         {
