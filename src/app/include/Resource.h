@@ -5,7 +5,7 @@
 
 #define HASH_LENGTH 32
 #define SEAL_BLOCK_MAX_SIZE 2097152 /* 2*1024*1024 */
-#define WEB_TIMEOUT 60
+#define WEB_TIMEOUT 1000
 #define ENCLAVE_MALLOC_TRYOUT 3
 
 // For db data
