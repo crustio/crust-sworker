@@ -102,7 +102,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     // Print sealed file information
-    log_info("Seal complete, file info; hash: %s -> size: %d, status: %s\n",
+    log_info("Seal complete, file info; hash: %s -> size: %ld, status: %s\n",
             file_entry_json[FILE_HASH].ToString().c_str(), 
             file_entry_json[FILE_SIZE].ToInt(), 
             file_entry_json[FILE_STATUS].ToString().c_str());

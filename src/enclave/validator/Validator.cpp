@@ -228,28 +228,8 @@ void validate_meaningful_file()
     sgx_thread_mutex_lock(&g_new_files_mutex);
     if (wl->new_files.size() > 0)
     {
-        if (wl->checked_files.size() > 0)
-        {
-            // If file has been existed in checked_files, don't insert it into checked_files
-            std::unordered_set<std::string> exist_s;
-            for (int i = wl->checked_files.size() - 1, j = 0; i >= 0 && j < ENC_MAX_THREAD_NUM; i--, j++)
-            {
-                exist_s.insert(wl->checked_files[i][FILE_HASH].ToString());
-            }
-            // Judge if new file has been existed in checked_files
-            for (int i = wl->new_files.size() - 1, j = 0; i >= 0 && j < ENC_MAX_THREAD_NUM; i--, j++)
-            {
-                if (exist_s.find(wl->new_files[i][FILE_HASH].ToString()) == exist_s.end())
-                {
-                    wl->checked_files.push_back(wl->new_files[i]);
-                }
-            }
-        }
-        else
-        {
-            // Insert new files to checked files
-            wl->checked_files.insert(wl->checked_files.end(), wl->new_files.begin(), wl->new_files.end());
-        }
+        // Insert new files to checked files
+        wl->checked_files.insert(wl->checked_files.end(), wl->new_files.begin(), wl->new_files.end());
         // Clear new files
         wl->new_files.clear();
     }
@@ -307,7 +287,7 @@ void validate_meaningful_file()
         crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status || 0 == data_len)
         {
-            //log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
+            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
             if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
             {
                 wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
@@ -370,7 +350,7 @@ void validate_meaningful_file()
             } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
-                //log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
+                log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
                 if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
                 {
                     wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
@@ -390,7 +370,7 @@ void validate_meaningful_file()
             {
                 if (CRUST_VALIDATE_KARST_OFFLINE == crust_status)
                 {
-                    //log_err("Get file block:%ld failed!\n", check_block_idx);
+                    log_err("Get file block:%ld failed!\n", check_block_idx);
                     wl->set_report_flag(false);
                     ocall_validate_close();
                     sgx_thread_mutex_unlock(&g_checked_files_mutex);
@@ -415,7 +395,7 @@ void validate_meaningful_file()
             }
             if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
             {
-                //log_err("Index:%ld block hash is not expected!\n", check_block_idx);
+                log_err("Index:%ld block hash is not expected!\n", check_block_idx);
                 //log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                 //log_err("Org hash : %s\n", leaf_hash.c_str());
                 if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
