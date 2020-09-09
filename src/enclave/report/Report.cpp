@@ -100,7 +100,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         log_err("Malloc memory failed!\n");
         return CRUST_MALLOC_FAILED;
     }
-    uint32_t hashs_len = 0;
+    size_t hashs_len = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
         for (auto g_hash : it.second)
@@ -118,7 +118,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     else
     {
         srd_workload = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, hashs_len, &srd_root);
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, &srd_root);
     }
     free(hashs);
     sgx_thread_mutex_unlock(&g_srd_mutex);
