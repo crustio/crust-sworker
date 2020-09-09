@@ -100,7 +100,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         log_err("Malloc memory failed!\n");
         return CRUST_MALLOC_FAILED;
     }
-    uint32_t hashs_len = 0;
+    size_t hashs_len = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
         for (auto g_hash : it.second)
