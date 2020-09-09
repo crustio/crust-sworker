@@ -118,7 +118,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     else
     {
         srd_workload = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, hashs_len, &srd_root);
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, &srd_root);
     }
     free(hashs);
     sgx_thread_mutex_unlock(&g_srd_mutex);
