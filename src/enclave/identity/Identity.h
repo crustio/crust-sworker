@@ -88,10 +88,8 @@ crust_status_t id_metadata_set_or_append(const char *key, T val,
     }
 
     std::string key_str(key);
-    std::string meta_str;
+    std::string meta_str(TEE_PRIVATE_TAG);
     json::JSON meta_json;
-    size_t meta_len = 0;
-    uint8_t *p_meta = NULL;
     crust_status_t crust_status = CRUST_SUCCESS;
     id_get_metadata(meta_json, false);
 
@@ -123,19 +121,8 @@ crust_status_t id_metadata_set_or_append(const char *key, T val,
         crust_status = CRUST_UNEXPECTED_ERROR;
         goto cleanup;
     }
-    meta_str = meta_json.dump();
-    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
-    p_meta = (uint8_t*)enc_malloc(meta_len);
-    if (p_meta == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    memset(p_meta, 0, meta_len);
-    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
-    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
-    free(p_meta);
+    meta_str.append(meta_json.dump());
+    crust_status = persist_set(ID_METADATA, reinterpret_cast<const uint8_t *>(meta_str.c_str()), meta_str.size());
 
 cleanup:
 

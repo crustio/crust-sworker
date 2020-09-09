@@ -10,3 +10,6 @@
 
 // For db data
 #define DB_SRD_INFO "srd_info"
+
+// For buffer pool
+#define BUFFER_AVAILABLE "buffer_available"

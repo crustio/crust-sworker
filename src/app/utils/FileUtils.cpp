@@ -293,6 +293,7 @@ std::vector<std::string> get_sub_folders_and_files(const char *path)
 
             dirs.push_back(std::string(ent->d_name));
         }
+        closedir(dir);
     }
 
     return dirs;

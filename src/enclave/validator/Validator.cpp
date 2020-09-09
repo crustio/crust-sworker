@@ -141,7 +141,7 @@ void validate_srd()
 
         // Get g_hash corresponding path
         hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
-        g_path = std::string(dir_path).append("/").append(unsigned_char_array_to_hex_string(p_g_hash, HASH_LENGTH));
+        g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
 
         // Get M hashs
         ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
@@ -152,7 +152,7 @@ void validate_srd()
             goto nextloop;
         }
 
-        m_hashs = (uint8_t*)enc_malloc(m_hashs_size);
+        m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
         if (m_hashs == NULL)
         {
             log_err("Malloc memory failed!\n");
@@ -179,7 +179,7 @@ void validate_srd()
 
         if (leaf_data == NULL)
         {
-            log_err("Get leaf file failed in '%s'.\n", unsigned_char_array_to_hex_string(p_g_hash, HASH_LENGTH).c_str());
+            log_err("Get leaf file failed in '%s'.\n", hexstring_safe(p_g_hash, HASH_LENGTH).c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -285,7 +285,7 @@ void validate_meaningful_file()
         size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
         crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
-        if (CRUST_SUCCESS != crust_status || 0 == data_len)
+        if (CRUST_SUCCESS != crust_status || p_data == NULL)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
             if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
@@ -421,24 +421,13 @@ void validate_meaningful_file()
     // Change file status
     if (changed_idx2lost_um.size() > 0)
     {
-        sgx_thread_mutex_lock(&g_metadata_mutex);
-        json::JSON metadata_json;
-        id_get_metadata(metadata_json, false);
-        json::JSON meaningful_files_json = metadata_json[ID_FILE];
         for (auto it : changed_idx2lost_um)
         {
-            if ((int)it.first < meaningful_files_json.size())
-            {
-                std::string org_status = meaningful_files_json[it.first][FILE_STATUS].ToString();
-                meaningful_files_json[it.first][FILE_STATUS] = it.second ? FILE_STATUS_LOST : FILE_STATUS_VALID;
-                log_info("File status changed, hash: %s status: %s -> %s\n",
-                        meaningful_files_json[it.first][FILE_HASH].ToString().c_str(),
-                        org_status.c_str(),
-                        meaningful_files_json[it.first][FILE_STATUS].ToString().c_str());
-            }
+            log_info("File status changed, hash: %s status: %s -> %s\n",
+                    wl->checked_files[it.first][FILE_HASH].ToString().c_str(),
+                    it.second ? FILE_STATUS_LOST : FILE_STATUS_VALID,
+                    wl->checked_files[it.first][FILE_STATUS].ToString().c_str());
         }
-        id_metadata_set_or_append(ID_FILE, meaningful_files_json, ID_UPDATE, false);
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
     }
 
     ocall_validate_close();

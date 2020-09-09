@@ -261,6 +261,7 @@ crust_status_t ocall_get_file(const char *file_path, unsigned char **p_file, siz
         ocall_file_data = (uint8_t*)realloc(ocall_file_data, ocall_file_data_len);
         if (ocall_file_data == NULL)
         {
+            in.close();
             return CRUST_MALLOC_FAILED;
         }
     }
@@ -314,6 +315,7 @@ crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_f
         _storage_buffer = (uint8_t*)realloc(_storage_buffer, _storage_buffer_len);
         if (_storage_buffer == NULL)
         {
+            in.close();
             return CRUST_MALLOC_FAILED;
         }
     }
@@ -689,11 +691,21 @@ void ocall_store_enclave_id_info(const char *info)
 
 /**
  * @description: Store enclave workload
- * @param wl -> Workload information
+ * @param data -> Workload information
+ * @param data_size -> Workload size
  */
-void ocall_store_workload(const char *wl)
+void ocall_store_workload(const char *data, size_t data_size, bool flag /*=true*/)
 {
-    set_g_enclave_workload(wl);
+    if (flag)
+    {
+        set_g_enclave_workload(std::string(data, data_size));
+    }
+    else
+    {
+        std::string str = get_g_enclave_workload();
+        str.append(data, data_size);
+        set_g_enclave_workload(str);
+    }
 }
 
 /**

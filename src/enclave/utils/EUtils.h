@@ -32,6 +32,8 @@ namespace json
 /* The length of hash */
 #define HASH_LENGTH 32
 
+typedef sgx_status_t (*p_ocall_store)(const char *data, size_t data_size, bool flag);
+
 
 #if defined(__cplusplus)
 extern "C"
@@ -76,6 +78,7 @@ void *enc_malloc(size_t size);
 void *enc_realloc(void *p, size_t size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
+void store_large_data(const char *data, size_t data_size, p_ocall_store p_func);
 
 #if defined(__cplusplus)
 }
