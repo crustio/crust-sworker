@@ -1,6 +1,7 @@
 #include "Persistence.h"
 #include "EUtils.h"
 #include "sgx_tseal.h"
+#include "EJson.h"
 
 using namespace std;
 
@@ -22,18 +23,8 @@ crust_status_t persist_add(std::string key, const uint8_t *value, size_t value_l
         return crust_status;
     }
 
-    uint8_t *p_sealed_data_r = (uint8_t*)enc_malloc(sealed_data_size);
-    if (p_sealed_data_r == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(p_sealed_data_r, 0, sealed_data_size);
-    memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
+    ocall_persist_add(&crust_status, key.c_str(), (uint8_t *)p_sealed_data, sealed_data_size);
     free(p_sealed_data);
-
-    ocall_persist_add(&crust_status, key.c_str(), p_sealed_data_r, sealed_data_size);
-    free(p_sealed_data_r);
 
     return crust_status;
 }
@@ -93,25 +84,60 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_sealed_data_t *p_sealed_data = NULL;
+    uint8_t *p_sealed_data_u = NULL;
     size_t sealed_data_size = 0;
     crust_status = seal_data_mrenclave(value, value_len, &p_sealed_data, &sealed_data_size);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
     }
+    p_sealed_data_u = (uint8_t *)p_sealed_data;
 
-    uint8_t *p_sealed_data_r = (uint8_t*)enc_malloc(sealed_data_size);
-    if (p_sealed_data_r == NULL)
+    if (sealed_data_size > OCALL_STORE_THRESHOLD)
     {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
+        // Data size larger than default size
+        size_t offset = 0;
+        uint32_t part_size = 0;
+        uint32_t index = 0;
+        while (sealed_data_size > offset)
+        {
+            part_size = std::min((uint32_t)(sealed_data_size - offset), (uint32_t)OCALL_STORE_THRESHOLD);
+            std::string cur_key = key + "_" + std::to_string(index);
+            ocall_persist_set(&crust_status, cur_key.c_str(), reinterpret_cast<const uint8_t *>(p_sealed_data_u + offset), part_size);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                log_err("Store part data to DB failed!\n");
+                goto cleanup;
+            }
+            offset += part_size;
+            index++;
+        }
+        std::string sum_key = key + "_sum";
+        json::JSON sum_json;
+        sum_json[PERSIST_SUM] = index;
+        sum_json[PERSIST_SIZE] = sealed_data_size;
+        std::string sum_str = sum_json.dump();
+        remove_char(sum_str, '\\');
+        remove_char(sum_str, '\n');
+        remove_char(sum_str, ' ');
+        ocall_persist_set(&crust_status, sum_key.c_str(), reinterpret_cast<const uint8_t *>(sum_str.c_str()), sum_str.size());
+        if (CRUST_SUCCESS != crust_status)
+        {
+            log_err("Store pieces information failed!\n");
+            goto cleanup;
+        }
     }
-    memset(p_sealed_data_r, 0, sealed_data_size);
-    memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
-    free(p_sealed_data);
+    else
+    {
+        ocall_persist_set(&crust_status, key.c_str(), (uint8_t *)p_sealed_data, sealed_data_size);
+    }
 
-    ocall_persist_set(&crust_status, key.c_str(), p_sealed_data_r, sealed_data_size);
-    free(p_sealed_data_r);
+
+cleanup:
+    if (p_sealed_data != NULL)
+    {
+        free(p_sealed_data);
+    }
 
     return crust_status;
 }
@@ -127,7 +153,33 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    ocall_persist_set(&crust_status, key.c_str(), value, value_len);
+    if (value_len > OCALL_STORE_THRESHOLD)
+    {
+        size_t offset = 0;
+        size_t part_size = 0;
+        uint32_t index = 0;
+        while (value_len > offset)
+        {
+            part_size = std::min(value_len - offset, (size_t)OCALL_STORE_THRESHOLD);
+            std::string cur_key = key + "_" + std::to_string(index);
+            ocall_persist_set(&crust_status, cur_key.c_str(), reinterpret_cast<const uint8_t *>(value + offset), part_size);
+            offset += part_size;
+            index++;
+        }
+        std::string sum_key = key + "_sum";
+        json::JSON sum_json;
+        sum_json[PERSIST_SUM] = index;
+        sum_json[PERSIST_SIZE] = value_len;
+        std::string sum_str = sum_json.dump();
+        remove_char(sum_str, '\\');
+        remove_char(sum_str, '\n');
+        remove_char(sum_str, ' ');
+        ocall_persist_set(&crust_status, sum_key.c_str(), reinterpret_cast<const uint8_t *>(sum_str.c_str()), sum_str.size());
+    }
+    else
+    {
+        ocall_persist_set(&crust_status, key.c_str(), value, value_len);
+    }
 
     return crust_status;
 }
@@ -143,24 +195,72 @@ crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
-    // Get sealed data
     uint8_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
-    ocall_persist_get(&crust_status, key.c_str(), &p_sealed_data, &sealed_data_size);
-    if (CRUST_SUCCESS != crust_status)
+    sgx_sealed_data_t *p_sealed_data_r = NULL;
+    uint8_t *p_sealed_data_u = NULL;
+
+    // Try to get sum information
+    std::string sum_key = key + "_sum";
+    uint8_t *p_sum_key = NULL;
+    size_t sum_key_len = 0;
+    ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
+    if (CRUST_SUCCESS == crust_status)
     {
-        return crust_status;
+        // Get sum info successfully, obtain sealed data from pieces
+        json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
+        // Set available flag
+        memcpy(p_sum_key, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+        // Allocate buffer for sealed data
+        sealed_data_size = sum_json[PERSIST_SIZE].ToInt();
+        uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
+        p_sealed_data_r = (sgx_sealed_data_t*)enc_malloc(sealed_data_size);
+        if (p_sealed_data_r == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(p_sealed_data_r, 0, sealed_data_size);
+        p_sealed_data_u = (uint8_t *)p_sealed_data_r;
+        // Get sealed data from pieces
+        size_t offset = 0;
+        for (uint32_t i = 0; i < piece_num; i++)
+        {
+            std::string cur_key = key + "_" + std::to_string(i);
+            uint8_t *p_part_data = NULL;
+            size_t part_data_size = 0;
+            ocall_persist_get(&crust_status, cur_key.c_str(), &p_part_data, &part_data_size);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                log_err("Get part data failed!Part key:%s\n", cur_key.c_str());
+                free(p_sealed_data_r);
+                return crust_status;
+            }
+            memcpy(p_sealed_data_u + offset, p_part_data, part_data_size);
+            memcpy(p_part_data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+            offset += part_data_size;
+        }
+    }
+    else
+    {
+        ocall_persist_get(&crust_status, key.c_str(), &p_sealed_data, &sealed_data_size);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return crust_status;
+        }
+        // Allocate buffer for sealed data
+        p_sealed_data_r = (sgx_sealed_data_t*)enc_malloc(sealed_data_size);
+        if (p_sealed_data_r == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(p_sealed_data_r, 0, sealed_data_size);
+        memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
+        memcpy(p_sealed_data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
     }
 
     // Get unsealed data
-    sgx_sealed_data_t *p_sealed_data_r = (sgx_sealed_data_t*)enc_malloc(sealed_data_size);
-    if (p_sealed_data_r == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(p_sealed_data_r, 0, sealed_data_size);
-    memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
     uint32_t unsealed_data_size = sgx_get_encrypt_txt_len(p_sealed_data_r);
     uint8_t *p_unsealed_data = (uint8_t*)enc_malloc(unsealed_data_size);
     if (p_unsealed_data == NULL)
@@ -198,23 +298,62 @@ cleanup:
 crust_status_t persist_get_unsafe(std::string key, uint8_t **value, size_t *value_len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    // Get sealed data
-    uint8_t *data = NULL;
-    size_t data_len = 0;
-    ocall_persist_get(&crust_status, key.c_str(), &data, &data_len);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        return crust_status;
-    }
 
-    uint8_t *p_data = (uint8_t*)enc_malloc(data_len);
-    if (p_data == NULL)
+    uint8_t *data = NULL;
+    uint8_t *p_data = NULL;
+    size_t data_len = 0;
+    // Try to get sum information
+    std::string sum_key = key + "_sum";
+    uint8_t *p_sum_key = NULL;
+    size_t sum_key_len = 0;
+    ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
+    if (CRUST_SUCCESS == crust_status)
     {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
+        // Get sum info successfully, obtain data from pieces
+        json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
+        // Set available flag
+        memcpy(p_sum_key, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+        // Allocate buffer for data
+        uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
+        data_len = sum_json[PERSIST_SIZE].ToInt();
+        p_data = (uint8_t *)enc_malloc(data_len);
+        if (p_data == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(p_data, 0, data_len);
+        // Get sealed data from pieces
+        size_t offset = 0;
+        for (uint32_t i = 0; i < piece_num; i++)
+        {
+            std::string cur_key = key + "_" + std::to_string(i);
+            uint8_t *p_part_data = NULL;
+            size_t part_data_size = 0;
+            ocall_persist_get(&crust_status, cur_key.c_str(), &p_part_data, &part_data_size);
+            memcpy(p_data + offset, p_part_data, part_data_size);
+            memcpy(p_part_data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+            offset += part_data_size;
+        }
     }
-    memset(p_data, 0, data_len);
-    memcpy(p_data, data, data_len);
+    else
+    {
+        ocall_persist_get(&crust_status, key.c_str(), &data, &data_len);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return crust_status;
+        }
+        // Allocate buffer for sealed data
+        p_data = (uint8_t *)enc_malloc(data_len);
+        if (p_data == NULL)
+        {
+            log_err("Malloc memory failed!\n");
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(p_data, 0, data_len);
+        memcpy(p_data, data, data_len);
+        memcpy(data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+    }
 
     *value = p_data;
     *value_len = data_len;

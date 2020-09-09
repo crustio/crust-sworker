@@ -94,13 +94,13 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     {
         g_hashs_num += it.second.size();
     }
-    unsigned char *hashs = (unsigned char *)enc_malloc(g_hashs_num * HASH_LENGTH);
+    uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
     if (hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
         return CRUST_MALLOC_FAILED;
     }
-    size_t hashs_len = 0;
+    uint32_t hashs_len = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
         for (auto g_hash : it.second)
@@ -118,7 +118,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     else
     {
         srd_workload = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)hashs_len, &srd_root);
+        sgx_sha256_msg(hashs, hashs_len, &srd_root);
     }
     free(hashs);
     sgx_thread_mutex_unlock(&g_srd_mutex);
@@ -249,7 +249,7 @@ crust_status_t get_signed_order_report()
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
-    size_t org_data_len = 0;
+    uint32_t org_data_len = 0;
     uint8_t *org_data = NULL;
     uint8_t *p_org_data = NULL;
     std::string order_str;
@@ -313,7 +313,7 @@ crust_status_t get_signed_order_report()
     org_data += files_str.size();
     // Copy random
     memcpy(org_data, random_str.c_str(), random_str.size());
-    sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
+    sgx_status = sgx_ecdsa_sign(p_org_data, org_data_len,
             &id_key_pair.pri_key, &ecc_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {

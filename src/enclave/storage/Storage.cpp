@@ -69,7 +69,6 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     ocall_store_sealed_merkletree(org_root_hash_str.c_str(), new_tree.c_str(), new_tree.size());
 
     // ----- Add corresponding metadata ----- //
-    // Store Meaningful file entry to enclave metadata
     json::JSON file_entry_json;
     file_entry_json[FILE_HASH] = new_root_hash_str;
     file_entry_json[FILE_SIZE] = node_size;
@@ -77,11 +76,6 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     file_entry_json[FILE_BLOCK_NUM] = block_num;
     // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
     file_entry_json[FILE_STATUS] = FILE_STATUS_UNCONFIRMED;
-    crust_status = id_metadata_set_or_append(ID_FILE, file_entry_json, ID_APPEND);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        return crust_status;
-    }
 
     // Store new tree structure
     crust_status = persist_set_unsafe(new_root_hash_str, (const uint8_t*)new_tree.c_str(), new_tree.size());
@@ -175,6 +169,11 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         memcpy(file_data_r, file_data, file_data_len);
         sgx_sha256_msg(file_data_r, file_data_len, &got_org_hash);
         p_org_hash = hex_string_to_bytes(old_hash_str.c_str(), old_hash_str.size());
+        if (p_org_hash == NULL)
+        {
+            crust_status = CRUST_MALLOC_FAILED;
+            goto sealend;
+        }
         if (memcmp(p_org_hash, &got_org_hash, HASH_LENGTH) != 0)
         {
             crust_status = CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
@@ -412,54 +411,9 @@ cleanup:
  */
 crust_status_t storage_confirm_file(const char *hash)
 {
-    sgx_thread_mutex_lock(&g_metadata_mutex);
-
     crust_status_t crust_status = CRUST_SUCCESS;
     json::JSON confirmed_file;
     Workload *wl = Workload::get_instance();
-
-    // ----- Find file entry by hash ----- //
-    // Get metadata
-    json::JSON meta_json_org;
-    id_get_metadata(meta_json_org, false);
-    if (!meta_json_org.hasKey(ID_FILE) 
-            || meta_json_org[ID_FILE].JSONType() != json::JSON::Class::Array)
-    {
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
-        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
-    }
-    // Do confirm
-    for (auto it = meta_json_org[ID_FILE].ArrayRange().object->rbegin(); 
-            it != meta_json_org[ID_FILE].ArrayRange().object->rend(); it++)
-    {
-        if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
-        {
-            if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
-            {
-                (*it)[FILE_STATUS] = FILE_STATUS_VALID;
-                confirmed_file = *it;
-            }
-            break;
-        }
-    }
-    // Update metadata
-    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_FILE, 
-                    meta_json_org[ID_FILE], ID_UPDATE, false)))
-    {
-        log_err("Confirm file failed!Update metadata failed!Error code:%lx\n", crust_status);
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
-        return crust_status;
-    }
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
-    // Print confirmed info
-    if (confirmed_file.hasKey(FILE_HASH))
-    {
-        log_info("Confirm file:%s successfully! Will be validated.\n", confirmed_file[FILE_HASH].ToString().c_str());
-    }
-    else
-    {
-        log_warn("Confirm file:%s failed(not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
-    }
 
     // ----- Confirm file items in checked_files ----- //
     sgx_thread_mutex_lock(&g_checked_files_mutex);
@@ -473,6 +427,7 @@ crust_status_t storage_confirm_file(const char *hash)
                 (*it)[FILE_STATUS] = FILE_STATUS_VALID;
             }
             is_confirmed = true;
+            confirmed_file = *it;
             break;
         }
     }
@@ -487,15 +442,27 @@ crust_status_t storage_confirm_file(const char *hash)
                 if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
                 {
                     (*it)[FILE_STATUS] = FILE_STATUS_VALID;
+                    is_confirmed = true;
+                    confirmed_file = *it;
+                    break;
                 }
             }
         }
         sgx_thread_mutex_unlock(&g_new_files_mutex);
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    // Print confirmed info
+    if (is_confirmed)
+    {
+        log_info("Confirm file:%s successfully! Will be validated.\n", confirmed_file[FILE_HASH].ToString().c_str());
+    }
+    else
+    {
+        log_warn("Confirm file:%s failed(not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
+    }
 
     // Report real-time order file
-    if (confirmed_file.hasKey(FILE_HASH))
+    if (is_confirmed)
     {
         wl->add_order_file(make_pair(confirmed_file[FILE_HASH].ToString(), confirmed_file[FILE_SIZE].ToInt()));
     }
@@ -511,46 +478,8 @@ crust_status_t storage_confirm_file(const char *hash)
 crust_status_t storage_delete_file(const char *hash)
 {
     // ----- Delete file items in metadata ----- //
-    sgx_thread_mutex_lock(&g_metadata_mutex);
     std::string deleted_file;
-    // Get meaningful file
-    json::JSON meta_json_org;
-    id_get_metadata(meta_json_org, false);
-    if (!meta_json_org.hasKey(ID_FILE))
-    {
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
-        return CRUST_STORAGE_FILE_NOTFOUND;
-    }
-    // Do delete
-    auto p_arry = meta_json_org[ID_FILE].ArrayRange();
-    for (auto it = p_arry.object->rbegin(); it != p_arry.object->rend(); it++)
-    {
-        if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
-        {
-            deleted_file = (*it)[FILE_HASH].ToString();
-            p_arry.object->erase((++it).base());
-            break;
-        }
-    }
-    // Update metadata
     crust_status_t crust_status = CRUST_SUCCESS;
-    if (CRUST_SUCCESS != (crust_status = id_metadata_set_or_append(ID_FILE, 
-                    meta_json_org[ID_FILE], ID_UPDATE, false)))
-    {
-        log_err("Delete file failed!Update metadata failed!Error code:%lx\n", crust_status);
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
-        return crust_status;
-    }
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
-    // Print deleted info
-    if (deleted_file.size() > 0)
-    {
-        log_info("Delete file:%s successfully!\n", deleted_file.c_str());
-    }
-    else
-    {
-        log_warn("Delete file:%s failed(not found)!\n", deleted_file.c_str());
-    }
 
     // ----- Delete file items in checked_files ----- //
     sgx_thread_mutex_lock(&g_checked_files_mutex);
@@ -560,6 +489,7 @@ crust_status_t storage_delete_file(const char *hash)
     {
         if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
         {
+            deleted_file = (*it)[FILE_HASH].ToString();
             wl->checked_files.erase((++it).base());
             is_deleted = true;
             break;
@@ -573,16 +503,27 @@ crust_status_t storage_delete_file(const char *hash)
         {
             if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
             {
+                deleted_file = (*it)[FILE_HASH].ToString();
                 wl->new_files.erase((++it).base());
+                is_deleted = true;
                 break;
             }
         }
         sgx_thread_mutex_unlock(&g_new_files_mutex);
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    // Print deleted info
+    if (is_deleted)
+    {
+        log_info("Delete file:%s successfully!\n", deleted_file.c_str());
+    }
+    else
+    {
+        log_warn("Delete file:%s failed(not found)!\n", deleted_file.c_str());
+    }
 
     // ----- Delete file related data ----- //
-    if (deleted_file.size() > 0)
+    if (is_deleted)
     {
         // Delete file tree structure
         persist_del(deleted_file);

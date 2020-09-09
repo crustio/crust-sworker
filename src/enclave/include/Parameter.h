@@ -5,12 +5,15 @@
 
 #define LEAF_SEPARATOR  "+leaf+"
 
+// For persistence
+#define OCALL_STORE_THRESHOLD 4194304 /* 4*1024*1024 */
+
 // For enclave metadata
 #define ID_METADATA "metadata"
 #define ID_FILE "files"
 #define ID_WORKLOAD "workload"
 #define ID_KEY_PAIR "id_key_pair"
-#define ID_REPORT_SLOG "report_slot"
+#define ID_REPORT_SLOT "report_slot"
 #define ID_CHAIN_ACCOUNT_ID "chain_account_id"
 
 // For meaningful file
@@ -66,9 +69,16 @@
 #define WL_FILE_OLD_HASH "old_hash"
 #define WL_FILE_OLD_SIZE "old_size"
 
+// For ocalls
+#define PERSIST_SUM "persist_sum"
+#define PERSIST_SIZE "persist_size"
+
 // Basic parameters
 #define HASH_LENGTH 32
 #define ENC_MAX_THREAD_NUM  15
 #define ENCLAVE_MALLOC_TRYOUT 3
+
+// For buffer pool
+#define BUFFER_AVAILABLE "buffer_available"
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

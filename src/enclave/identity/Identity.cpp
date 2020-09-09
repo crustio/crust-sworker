@@ -381,7 +381,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     uint8_t *p_account_id_u = hex_string_to_bytes(chain_account_id.c_str(), chain_account_id.size());
     size_t account_id_u_len = chain_account_id.size() / 2;
     uint8_t *org_data, *p_org_data = NULL;
-    size_t org_data_len = 0;
+    uint32_t org_data_len = 0;
 
 
     // ----- Verify IAS signature ----- //
@@ -602,22 +602,26 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
 
 cleanup:
     if (pkey != NULL)
-    {
         EVP_PKEY_free(pkey);
-    }
+
     cert_stack_free(stack);
-    free(certar);
+
+    if (certar != NULL)
+        free(certar);
+
     for (i = 0; i < count; ++i)
     {
         X509_free(certvec[i]);
     }
 
-    free(sig);
-    free(iasQuote);
+    if (sig != NULL)
+        free(sig);
+
+    if (iasQuote != NULL)
+        free(iasQuote);
+
     if (ecc_state != NULL)
-    {
         sgx_ecc256_close_context(ecc_state);
-    }
 
     if (p_org_data != NULL)
         free(p_org_data);
@@ -897,36 +901,31 @@ crust_status_t id_store_metadata()
     sgx_thread_mutex_lock(&g_metadata_mutex);
 
     // Get original metadata
+    Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
-    json::JSON meta_json;
-    size_t meta_len = 0;
-    uint8_t *p_meta = NULL;
     std::string hex_id_key_str = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
-    id_get_metadata(meta_json, false);
 
     // ----- Store metadata ----- //
-    meta_json[ID_WORKLOAD] = Workload::get_instance()->serialize_srd();
-    meta_json[ID_KEY_PAIR] = hex_id_key_str;
-    meta_json[ID_REPORT_SLOG] = report_slot;
-    meta_json[ID_CHAIN_ACCOUNT_ID] = g_chain_account_id;
-    std::string meta_str = meta_json.dump();
-    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
-    p_meta = (uint8_t*)enc_malloc(meta_len);
-    if (p_meta == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    memset(p_meta, 0, meta_len);
-    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
-    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
+    std::string meta_str(TEE_PRIVATE_TAG);
+    meta_str.append("{");
+    // Append srd
+    meta_str.append("\"").append(ID_WORKLOAD).append("\":")
+        .append(wl->serialize_srd()).append(",");
+    // Append id key pair
+    meta_str.append("\"").append(ID_KEY_PAIR).append("\":")
+        .append("\"").append(hex_id_key_str).append("\",");
+    // Append report slot
+    meta_str.append("\"").append(ID_REPORT_SLOT).append("\":")
+        .append("\"").append(std::to_string(report_slot)).append("\",");
+    // Append chain account id
+    meta_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
+        .append("\"").append(g_chain_account_id).append("\",");
+    // Append files
+    meta_str.append("\"").append(ID_FILE).append("\":")
+        .append(wl->serialize_file());
+    meta_str.append("}");
 
-
-cleanup:
-
-    if (p_meta != NULL)
-        free(p_meta);
+    crust_status = persist_set(ID_METADATA, reinterpret_cast<const uint8_t *>(meta_str.c_str()), meta_str.size());
 
     sgx_thread_mutex_unlock(&g_metadata_mutex);
 
@@ -996,7 +995,7 @@ crust_status_t id_restore_metadata()
     memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
     free(p_id_key);
     // Restore report slot
-    report_slot = meta_json[ID_REPORT_SLOG].ToInt();
+    report_slot = meta_json[ID_REPORT_SLOT].ToInt();
     // Restore chain account id
     g_chain_account_id = meta_json[ID_CHAIN_ACCOUNT_ID].ToString();
 
@@ -1044,14 +1043,12 @@ crust_status_t id_set_chain_account_id(const char *account_id, size_t len)
         return CRUST_DOUBLE_SET_VALUE;
     }
 
-    char *buffer = (char *)enc_malloc(len);
-    if (buffer == NULL)
+    if (account_id == NULL)
     {
-        return CRUST_MALLOC_FAILED;
+        return CRUST_UNEXPECTED_ERROR;
     }
-    memset(buffer, 0, len);
-    memcpy(buffer, account_id, len);
-    g_chain_account_id = string(buffer, len);
+
+    g_chain_account_id = string(account_id, len);
     g_is_set_account_id = true;
 
     return CRUST_SUCCESS;
@@ -1082,7 +1079,6 @@ size_t id_get_report_slot()
 void id_set_report_slot(size_t new_report_slot)
 {
     report_slot = new_report_slot;
-    id_metadata_set_or_append(ID_REPORT_SLOG, std::to_string(report_slot));
 }
 
 /**

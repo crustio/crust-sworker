@@ -148,7 +148,7 @@ int char_to_int(char input)
 char *hexstring(const void *vsrc, size_t len)
 {
     size_t i, bsz;
-    const unsigned char *src = (const unsigned char *)vsrc;
+    const uint8_t *src = (const uint8_t *)vsrc;
     char *bp;
 
     bsz = len * 2 + 1; /* Make room for NULL byte */
@@ -157,7 +157,7 @@ char *hexstring(const void *vsrc, size_t len)
         /* Allocate in 1K increments. Make room for the NULL byte. */
         size_t newsz = 1024 * (bsz / 1024) + ((bsz % 1024) ? 1024 : 0);
         _hex_buffer_size = newsz;
-        _hex_buffer = (char *)realloc(_hex_buffer, newsz);
+        _hex_buffer = (char *)enc_realloc(_hex_buffer, newsz);
         if (_hex_buffer == NULL)
         {
             return NULL;
@@ -166,9 +166,9 @@ char *hexstring(const void *vsrc, size_t len)
 
     for (i = 0, bp = _hex_buffer; i < len; ++i)
     {
-        *bp = (uint8_t)_hextable[src[i] >> 4];
+        *bp = _hextable[src[i] >> 4];
         ++bp;
-        *bp = (uint8_t)_hextable[src[i] & 0xf];
+        *bp = _hextable[src[i] & 0xf];
         ++bp;
     }
     _hex_buffer[len * 2] = 0;
@@ -185,7 +185,7 @@ char *hexstring(const void *vsrc, size_t len)
 std::string hexstring_safe(const void *vsrc, size_t len)
 {
     size_t i;
-    const unsigned char *src = (const unsigned char *)vsrc;
+    const uint8_t *src = (const uint8_t *)vsrc;
     char *hex_buffer = (char*)enc_malloc(len * 2);
     if (hex_buffer == NULL)
     {
@@ -196,9 +196,9 @@ std::string hexstring_safe(const void *vsrc, size_t len)
 
     for (i = 0, bp = hex_buffer; i < len; ++i)
     {
-        *bp = (uint8_t)_hextable[src[i] >> 4];
+        *bp = _hextable[src[i] >> 4];
         ++bp;
-        *bp = (uint8_t)_hextable[src[i] & 0xf];
+        *bp = _hextable[src[i] & 0xf];
         ++bp;
     }
 
@@ -232,7 +232,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
     }
     memset(target, 0, len / 2);
     p_target = target;
-    for (uint32_t i = 0; i < len; i+=2)
+    for (size_t i = 0; i < len; i+=2)
     {
         *(target++) = (uint8_t)(char_to_int(rsrc[0]) * 16 + char_to_int(rsrc[1]));
         rsrc += 2;
@@ -433,6 +433,11 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
     sgx_sha256_msg(children_hashs, tree->links_num * HASH_LENGTH, &parent_hash);
 
     parent_hash_org = hex_string_to_bytes(tree->hash, HASH_LENGTH * 2);
+    if (parent_hash_org == NULL)
+    {
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
+    }
     if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
     {
         crust_status = CRUST_INVALID_MERKLETREE;
@@ -500,6 +505,11 @@ crust_status_t validate_merkletree_json(json::JSON tree)
     sgx_sha256_msg(children_hashs, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH, &parent_hash);
 
     parent_hash_org = hex_string_to_bytes(tree[MT_HASH].ToString().c_str(), HASH_LENGTH * 2);
+    if (parent_hash_org == NULL)
+    {
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
+    }
     if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
     {
         crust_status = CRUST_INVALID_MERKLETREE;
@@ -574,10 +584,11 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
 
     if (root->links_num != 0)
     {
-        root->links = (MerkleTree**)malloc(root->links_num * sizeof(MerkleTree*));
+        root->links = (MerkleTree**)enc_malloc(root->links_num * sizeof(MerkleTree*));
         if (root->links == NULL)
         {
             log_err("Malloc memory failed!\n");
+            free(root->hash);
             return NULL;
         }
         for (uint32_t i = 0; i < root->links_num; i++)
@@ -623,10 +634,15 @@ void *enc_malloc(size_t size)
 void *enc_realloc(void *p, size_t size)
 {
     int tryout = 0;
+    if (p != NULL)
+    {
+        free(p);
+        p = NULL;
+    }
 
     while (tryout++ < ENCLAVE_MALLOC_TRYOUT && p == NULL)
     {
-        p = (void*)realloc(p, size);
+        p = (void*)enc_malloc(size);
     }
 
     return p;
@@ -706,5 +722,31 @@ void replace(std::string &data, std::string org_str, std::string det_str)
         }
         data.replace(spos, org_str.size(), det_str);
         epos = spos + det_str.size();
+    }
+}
+
+/**
+ * @description: Store large data
+ * @param data -> To be stored data
+ * @param p_func -> Store function
+ */
+void store_large_data(const char *data, size_t data_size, p_ocall_store p_func)
+{
+    if (data_size > OCALL_STORE_THRESHOLD)
+    {
+        size_t offset = 0;
+        size_t part_size = 0;
+        bool flag = true;
+        while (data_size > offset)
+        {
+            part_size = std::min(data_size - offset, (size_t)OCALL_STORE_THRESHOLD);
+            p_func(data + offset, part_size, flag);
+            offset += part_size;
+            flag = false;
+        }
+    }
+    else
+    {
+        p_func(data, data_size, true);
     }
 }

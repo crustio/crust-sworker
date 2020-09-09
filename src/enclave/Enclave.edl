@@ -2,6 +2,7 @@ enclave {
     include "sgx_tcrypto.h"
     include "sgx_dh.h"
     include "sgx_tseal.h"
+    include "stdbool.h"
     include "MerkleTree.h"
     include "CrustStatus.h"
 	include "IASReport.h"
@@ -77,7 +78,7 @@ enclave {
         void ocall_store_order_report([in, size=order_size] const char *p_order, size_t order_size);
         void ocall_store_identity([in, string] const char *id);
         void ocall_store_enclave_id_info([in, string] const char *info);
-        void ocall_store_workload([in, string] const char *wl);
+        void ocall_store_workload([in, size=data_size] const char *data, size_t data_size, bool flag);
         void ocall_store_workreport([in, string] const char *wr);
     };
 };

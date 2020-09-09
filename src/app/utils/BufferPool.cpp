@@ -1,5 +1,4 @@
 #include "BufferPool.h"
-#include "Log.h"
 
 BufferPool *BufferPool::buffer_pool = NULL;
 
@@ -34,6 +33,8 @@ BufferPool::BufferPool()
             p_log->err("Allocate persist buffer(num:%d) failed!", i);
             continue;
         }
+        memset(buf, 0, _buffer_size);
+        memcpy(buf, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
         this->buffers.push_back(std::make_pair(buf, _buffer_size));
     }
 }
@@ -60,11 +61,22 @@ BufferPool::~BufferPool()
 uint8_t *BufferPool::get_buffer(size_t buf_len)
 {
     _buffer_mutex.lock();
-    cur_index++;
-    if (cur_index >= this->buffers.size())
+    int tryout = 300;
+    // Get available buffer
+    do
     {
-        cur_index = cur_index % this->buffers.size();
-    }
+        if (cur_index >= this->buffers.size())
+        {
+            cur_index = cur_index % this->buffers.size();
+        }
+        if (memcmp(this->buffers[cur_index].first, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE)) == 0)
+        {
+            break;
+        }
+        cur_index++;
+        usleep(100000);
+    } while (tryout-- > 0);
+    // Check if buffer is enough
     if (buf_len > this->buffers[cur_index].second)
     {
         free(this->buffers[cur_index].first);

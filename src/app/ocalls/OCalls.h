@@ -63,7 +63,7 @@ extern "C"
     void ocall_store_enclave_id_info(const char *info);
     void ocall_store_order_report(const char *p_order, size_t order_size);
     void ocall_store_identity(const char *id);
-    void ocall_store_workload(const char *wl);
+    void ocall_store_workload(const char *data, size_t data_size, bool flag = true);
     void ocall_store_workreport(const char *wr);
 
 #if defined(__cplusplus)

@@ -346,9 +346,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     config_ofs.close();
                     res.body() = ret_info;
                     res.result(403);
+                    config_ofs.close();
                     goto postcleanup;
                 }
 
+                config_ofs.close();
                 ret_info = "Change karst url successfully!Will use new karst url next era!";
                 p_log->info("%s Set karst url to:%s\n", ret_info.c_str(), karst_url.c_str());
                 res.body() = ret_info;
@@ -582,6 +584,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_json.dump();
                 res.result(200);
                 sealed_tree_map.unsafe_erase(org_root_hash_str);
+            }
+
+            if (p_new_path != NULL)
+            {
+                free(p_new_path);
             }
 
             goto postcleanup;
