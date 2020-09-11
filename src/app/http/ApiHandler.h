@@ -192,20 +192,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             json::JSON n_files_json;
             if (files_json.JSONType() == json::JSON::Class::Object)
             {
-                char buf1[128];
-                char buf2[128];
+                char buf[128];
                 for (auto it = files_json.ObjectRange().begin(); it != files_json.ObjectRange().end(); it++)
                 {
-                    std::string item_str = it->second.ToString();
-                    remove_char(item_str, '\\');
-                    json::JSON item_json = json::JSON::Load(item_str);
-                    memset(buf1, 0, sizeof(buf1));
-                    memset(buf2, 0, sizeof(buf2));
-                    sprintf(buf1, "  \"hash\"        : \"%s\", \"size\"        : %ld, ",
-                            item_json["old_hash"].ToString().c_str(), item_json["old_size"].ToInt());
-                    sprintf(buf2, "  \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld",
+                    json::JSON item_json = it->second;
+                    memset(buf, 0, sizeof(buf));
+                    sprintf(buf, "  \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld  ",
                             (it->first).c_str(), item_json["sealed_size"].ToInt());
-                    std::string tmp_str = std::string("{") + JSON_NL + std::string(buf1) + JSON_NL + std::string(buf2) + JSON_NL + "}";
+                    std::string tmp_str = std::string("{") + std::string(buf) + "}";
                     std::string fstatus = item_json["status"].ToString();
                     n_files_json[fstatus]["detail"].append(tmp_str);
                     n_files_json[fstatus]["number"] = n_files_json[fstatus]["number"].ToInt() + 1;
