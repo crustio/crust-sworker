@@ -284,13 +284,13 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
     {
         for (int i = 0; i < it->second.size(); i++)
         {
-            uint8_t *g_hash = hex_string_to_bytes(it->second[i].ToString().c_str(), it->second[i].ToString().size());
+            std::string hex_g_hash = it->second[i].ToString();
+            uint8_t *g_hash = hex_string_to_bytes(hex_g_hash.c_str(), hex_g_hash.size());
             if (g_hash == NULL)
             {
                 clean_data();
                 return CRUST_UNEXPECTED_ERROR;
             }
-            free(g_hash);
             this->srd_path2hashs_m[it->first].push_back(g_hash);
         }
     }
