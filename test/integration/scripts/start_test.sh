@@ -3,26 +3,36 @@ function success_exit()
 {
     local cur_pid=$(ps -ef | grep -v grep | grep "\b${pid}\b" | awk '{print $2}')
     if [ x"$cur_pid" = x"$pid" ]; then
-        verbose INFO "test end! kill crust-sworker:$pid" n
         kill -9 $pid &>/dev/null
         wait $pid &>/dev/null
     fi
 
     ### Clean test data
     if [ x"$datadir" != x"" ]; then
-        rm -rf $datadir/*
+        rm -rf $datadir &>/dev/null
+    fi
+
+    ### Clean tmp dir
+    if [ x"$tmpdir" != x"" ]; then
+        rm -rf $tmpdir &>/dev/null
     fi
 
     ### Clean err file
     if [ ! -s "$errfile" ]; then
-        rm $errfile
+        rm $errfile &>/dev/null
     fi
 
-    rm $SYNCFILE
-    rm $TMPFILE
-    rm $TMPFILE2
+    rm $SYNCFILE &>/dev/null
+    rm $TMPFILE &>/dev/null
+    rm $TMPFILE2 &>/dev/null
 
     print_end
+}
+
+function kill_process()
+{
+    # Kill descendent processes
+    kill -- -$curpid
 }
 
 function print_end()
@@ -39,10 +49,14 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-casedir=$instdir/cases
+tmpdir=$instdir/tmp
+functionalitytestdir=$instdir/functionality
+benchmarktestdir=$instdir/benchmark
+performancetestdir=$instdir/performance
 testdir=$instdir/test_app
 errfile=$basedir/err.log
 caseresfile=$instdir/case.log
+testfiledir=$testdir/files
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
 testconfigfile=$testdir/etc/Config.json
@@ -51,13 +65,18 @@ baseurl=${baseurl:1:${#baseurl}-2}
 SYNCFILE=$basedir/SYNCFILE
 TMPFILE=$instdir/TMPFILE
 TMPFILE2=$instdir/TMPFILE2
+curpid=$$
 pad="$(printf '%0.1s' ' '{1..10})"
+casedir=""
 
 trap "success_exit" EXIT
+trap "kill_process" INT
 
 . $basedir/utils.sh
 
 mkdir -p $datadir
+mkdir -p $tmpdir
+mkdir -p $testfiledir
 
 export baseurl
 export benchmarkfile
@@ -70,12 +89,27 @@ printf "%s%s\n"   "$pad" ' (__  )| |/ |/ / /_/ / /  / ,< /  __/ /     / /_/  __(
 printf "%s%s\n\n" "$pad" '/____/ |__/|__/\____/_/  /_/|_|\___/_/      \__/\___/____/\__/  '
 
 
+run_type=$1
+if [ x"$run_type" = x"functionality" ]; then
+    casedir=$functionalitytestdir
+elif [ x"$run_type" = x"benchmark" ]; then
+    casedir=$benchmarktestdir
+    verbose INFO "starting $run_type cases:" n >> $benchmarkfile
+elif [ x"$run_type" = x"performance" ]; then
+    casedir=$performancetestdir
+else
+    verbose WARN "don't indicate type, use functionality default"
+    run_type="functionality"
+    casedir=$functionalitytestdir
+fi
+
+
 ### Start crust-sworker
 cd $testdir
 rm -rf tee_base_path
 rm -rf files/*
 verbose INFO "starting crust-sworker..." h
-./bin/crust-sworker -c etc/Config.json --offline &>$sworkerlog &
+./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
 pid=$!
 sleep 8
 curl -s $baseurl/workload 2>$errfile 1>/dev/null
@@ -103,23 +137,12 @@ verbose INFO "success" t
 
 ### Run test cases
 cd $casedir
-verbose INFO "starting benchmark cases:" n >> $benchmarkfile
+verbose INFO "starting $run_type cases:" n
 true > $caseresfile
 for script in `ls`; do
     true > $SYNCFILE
     setTimeWait "$(verbose INFO "running test case: $script..." h)" $SYNCFILE &
-    {
-        bash $script &>$TMPFILE2
-        if [ $? -ne 0 ]; then
-            verbose ERROR "case $script failed!" n
-            echo "Error:"
-            cat $TMPFILE2
-        else
-            verbose INFO "case $script successfully" n
-        fi
-        echo -e "\n"
-    } >> $caseresfile
-    #bash $script
+    bash $script &>> $caseresfile
     checkRes $? "return" "success" "$SYNCFILE"
 done
 cd - &>/dev/null

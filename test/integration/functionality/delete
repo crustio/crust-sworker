@@ -1,0 +1,135 @@
+#!/bin/bash
+function _store_meta()
+{
+    validate_file
+    store_metadata
+}
+
+function seal_exit()
+{
+    rm $TMPFILE
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+configfile=$instdir/config/config.json
+TMPFILE=$basedir/TMPFILE
+
+trap 'seal_exit' EXIT
+
+. $scriptdir/utils.sh
+
+declare -A hash_2_use_m
+
+data_arry=($(ls $datadir))
+data_size=${#data_arry[@]}
+acc=6
+
+# Seal some file
+while [ $acc -gt 0 ]; do
+    # Randomly seal file
+    index=$(($RANDOM % $data_size))
+    seal_file $datadir/${data_arry[$index]} $testfiledir &>$TMPFILE
+    if [ $? -ne 0 ]; then
+        echo "Seal file failed!"
+        exit 1
+    fi
+    ret_body=$(cat $TMPFILE)
+    sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+        hash_2_use_m[$sealed_hash]=0
+    else
+        echo "Seal file failed!"
+        exit 1
+    fi
+    ((acc--))
+done
+
+# Delete unconfirmed file
+acc=2
+for hash in ${!hash_2_use_m[@]}; do
+    delete_file $hash &>$TMPFILE
+    if [ $? -ne 0 ]; then
+        echo "delete file failed!"
+        exit 1
+    fi
+    hash_2_use_m[$hash]=1
+    _store_meta &>/dev/null
+    get_workload &>$TMPFILE
+    if [ $? -ne 0 ]; then
+        echo "get workload failed!"
+        exit 1
+    fi
+    if cat $TMPFILE | jq '.files | .unconfirmed' | grep $hash &>/dev/null; then
+        echo "delete file:$hash failed!Find hash in workload"
+        exit 1
+    fi
+    ((acc--))
+    if [ $acc -le 0 ]; then
+        break
+    fi
+done
+
+# Delete confirmed file sequently
+acc=0
+confirm_arry=()
+for hash in ${!hash_2_use_m[@]}; do
+    if [ ${hash_2_use_m[$hash]} -eq 0 ]; then
+        confirm_arry[$acc]=$hash
+        confirm $hash &>$TMPFILE &
+        ((acc++))
+    fi
+done
+sleep 3
+acc=2
+for hash in ${confirm_arry[@]}; do
+    delete_file $hash &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "delete file sequently failed!"
+        exit 1
+    fi
+    hash_2_use_m[$hash]=1
+    _store_meta &>/dev/null
+    get_workload &>$TMPFILE
+    if [ $? -ne 0 ]; then
+        echo "get workload failed!"
+        exit 1
+    fi
+    if cat $TMPFILE | jq '.files | .valid' | grep $hash &>/dev/null; then
+        echo "delete file:$hash failed!Find hash in workload"
+        exit 1
+    fi
+    ((acc--))
+    if [ $acc -le 0 ]; then
+        break
+    fi
+done
+
+# Delete confirmed file concurrently
+delete_arry=()
+acc=0
+for hash in ${confirm_arry[@]}; do
+    if [ ${hash_2_use_m[$hash]} -eq 0 ]; then
+        delete_file $hash &>/dev/null &
+        delete_arry[$acc]=$hash
+        ((acc++))
+    fi
+done
+_store_meta &>/dev/null
+get_workload &>$TMPFILE
+if [ $? -ne 0 ]; then
+    echo "get workload failed!"
+    exit 1
+fi
+for hash in ${delete_arry[@]}; do
+    if cat $TMPFILE | jq '.files | .valid' | grep $hash &>/dev/null; then
+        echo "delete file concurrently failed!"
+        exit 1
+    fi
+done

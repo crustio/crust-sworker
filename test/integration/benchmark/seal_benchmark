@@ -30,7 +30,7 @@ trap 'success_exit' EXIT
 declare -A file_2_time_m
 
 data_arry=($(get_ordered_data_array))
-run_num=3
+run_num=1
 i=0
 
 while [ $i -lt $run_num ]; do
@@ -62,5 +62,5 @@ while [ $i -lt $run_num ]; do
 done
 
 ### Print seal time information
-benchmark_output "seal file benchmark result:\n\n\t\tSIZE\t\t\tTIME\n" \
+benchmark_output "seal file benchmark result:\n\n(SIZE TIME)\n" \
     $run_num "$(declare -p file_2_time_m)" "${data_arry[*]}"

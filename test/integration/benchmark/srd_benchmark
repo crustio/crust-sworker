@@ -42,7 +42,7 @@ configfile=$instdir/config/config.json
 . $scriptdir/utils.sh
 
 declare -A ans
-paths=$(get_config "srd_paths")
+paths=$(get_config ".functionality|.srd_paths")
 srd_paths=($(parse_json_array "$paths"))
 
 ### Check path
@@ -52,23 +52,25 @@ if ! check_path; then
 fi
 
 ### Add disk
-srd_size=$(get_config "srd_size")
+srd_size=$(get_config ".functionality|.srd_size")
 if ! [[ $srd_size =~ ^[1-9][0-9]*$ ]]; then
     verbose ERROR "srd size must be number type!"
     exit 1
 fi
 i=1
+path_json="["
 for path in ${srd_paths[@]}; do
-    srd_disk_change "\"$path\"" "add"
+    srd_disk_change "[\"$path\"]" "add"
     ans["$i"]=$(get_exec_time "srd $srd_size")
     path_json=",\"$path\""
     ((i++))
 done
 path_json=${path_json:1}
+path_json="${path_json}]"
 
 ### Restore environment
 srd_disk_change "$path_json" "delete"
 
 ### Print srd information
-benchmark_output "srd(size:$srd_size) benchmark result:\n\n\t\tDISK NUM\t\tTIME\n" \
+benchmark_output "srd size:$srd_size benchmark result:\n\n(DISK_NUM TIME)\n" \
     "1" "$(declare -p ans)"

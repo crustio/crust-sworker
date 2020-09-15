@@ -1,0 +1,92 @@
+#!/bin/bash
+function report_exit()
+{
+    rm $TMPFILE
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+configfile=$instdir/config/config.json
+TMPFILE=$instdir/TMPFILE
+
+trap 'report_exit' EXIT
+
+. $scriptdir/utils.sh
+
+srd_num=$(get_config ".functionality|.srd_size")
+srd_paths=$(get_config ".functionality|.srd_paths")
+srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
+file_arry=($(get_config ".functionality|.file_arry"))
+tmp_num=0
+
+# Get workload
+get_workload &>$TMPFILE
+if [ $? -ne 0 ]; then
+    echo "Get workload failed!"
+    exit 1
+fi
+workload=$(cat $TMPFILE)
+
+# Delete previous srd
+srd -$(echo $workload | jq '.srd|.space' | sed 's/"//g' 2>/dev/null)
+# Make srd volunm
+srd_disk_change "$srd_paths" "add"
+while [ $tmp_num -lt $srd_num ]; do
+    if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
+        cur_turn=$srd_max_per_turn
+    else
+        cur_turn=$((srd_num - tmp_num))
+    fi
+    srd $cur_turn &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "srd failed!"
+        exit 1
+    fi
+    ((tmp_num+=cur_turn))
+done
+
+# Delete previous file
+if [ x"$(echo $workload | jq '.files | .valid | .number' | sed 's/"//g' 2>/dev/null)" != x"null" ]; then
+    for hash in $(echo $workload | jq '.files | .valid | .detail | .[] | .sealed_hash' | sed 's/"//g' 2>/dev/null); do
+        delete_file $hash &>/dev/null
+    done
+fi
+# Make file volunm
+for file in ${file_arry[@]}; do
+    seal_file $datadir/$file $testfiledir &>$TMPFILE
+    if [ $? -ne 0 ]; then
+        echo "seal file failed!"
+        exit 1
+    fi
+    sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    confirm $sealed_hash &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "confirm file failed!"
+        exit 1
+    fi
+done
+validate_file &>/dev/null
+
+# Report work report
+report_work &>$TMPFILE
+if [ $? -ne 0 ]; then
+    echo "get work report failed!"
+    exit 1
+fi
+# Get report info
+files_num=$(cat $TMPFILE | jq '.files | .[] | .hash' | wc -l 2>/dev/null)
+reserved=$(cat $TMPFILE | jq '.reserved' 2>/dev/null)
+if [ x"$reserved" != x"$((srd_num * 1024 * 1024 * 1024))" ]; then
+    echo "srd number is wrong!"
+    exit 1
+fi
+if [ x"$files_num" != x"${#file_arry[@]}" ]; then
+    echo "file number is wrong!"
+    exit 1
+fi
