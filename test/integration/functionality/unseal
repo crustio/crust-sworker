@@ -1,0 +1,111 @@
+#!/bin/bash
+function _seal()
+{
+    local datapath_l=$1
+    local storepath_l=$2
+    local curtmp=$TMPFILE.$RANDOM
+    seal_file $datapath_l $storepath_l &>$curtmp
+    if [ $? -ne 0 ]; then
+        echo "Seal file failed!"
+        rm $curtmp
+        exit 1
+    fi
+    local ret_body=$(cat $curtmp)
+    local sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+        (
+          flock -w 30 200
+          echo $sealed_hash >> $syncfile
+        ) 200>$LOCKFILE
+    else
+        echo "Seal file failed!"
+        rm $curtmp
+        exit 1
+    fi
+    rm $curtmp
+}
+
+function _unseal()
+{
+    local datapath_l=$1
+    local curtmp=$TMPFILE.$RANDOM
+    true > $syncfile
+    unseal $datapath_l &>$curtmp
+    if [ $? -ne 0 ]; then
+        echo "Unseal file failed!"
+        rm $curtmp
+        exit 1
+    fi
+    local ret_body=$(cat $curtmp)
+    if [ ! -e $ret_body ]; then
+        echo "Unseal file failed!Cannot find unsealed path."
+        rm $curtmp
+        exit 1
+    else
+        (
+          flock -w 30 200
+          echo $sealed_hash >> $syncfile
+        ) 200>$LOCKFILE
+    fi
+    rm $curtmp
+}
+
+function _store_meta()
+{
+    validate_file
+    store_metadata
+}
+
+function seal_exit()
+{
+    rm $LOCKFILE
+    rm $syncfile
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+configfile=$instdir/config/config.json
+TMPFILE=$basedir/TMPFILE
+LOCKFILE=$basedir/LOCKFILE
+syncfile=$basedir/syncfile
+
+trap 'seal_exit' EXIT
+
+. $scriptdir/utils.sh
+
+data_arry=($(ls $datadir))
+data_size=${#data_arry[@]}
+timeout=300
+acc=$data_size
+i=$acc
+
+true > $syncfile
+# Seal some file
+for file in ${data_arry[@]}; do
+    _seal $datadir/$file $testfiledir &
+    ((i--))
+    if [ $i -le 0 ]; then
+        break
+    fi
+done
+# Wait seal finish
+while [ $(cat $syncfile | wc -l) -ne $acc ] && [ $timeout -gt 0 ]; do
+    sleep 1
+    ((timeout--))
+done
+
+# Unseal file
+for file in $(cat $syncfile); do
+    _unseal $testfiledir/$file &
+done
+# Wait unseal finish
+while [ $(cat $syncfile | wc -l) -ne $acc ] && [ $timeout -gt 0 ]; do
+    sleep 1
+    ((timeout--))
+done

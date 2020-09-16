@@ -91,7 +91,7 @@ std::string Workload::get_workload(void)
     wl_str.append("\"").append(WL_SRD_ROOT_HASH).append("\":")
         .append("\"").append(hexstring_safe(srd_root, HASH_LENGTH)).append("\",");
     wl_str.append("\"").append(WL_SRD_SPACE).append("\":")
-        .append("\"").append(std::to_string(srd_workload / 1024 / 1024 / 1024)).append("\",");
+        .append(std::to_string(srd_workload / 1024 / 1024 / 1024)).append(",");
     wl_str.append("\"").append(WL_SRD_REMAINING_TASK).append("\":")
         .append("\"").append(std::to_string(get_srd_change())).append("\"}");
     wl_str.append("}");

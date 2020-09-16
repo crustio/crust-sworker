@@ -12,11 +12,11 @@ function crust_split()
         exit 1
     fi
     # Generated dir name
-    local detdir="dettmp.$$"
+    local detdir="dettmp.$(date +%N)"
     detdir=$storepath/$detdir
     mkdir -p $detdir
     local filename=$(basename $filepath)
-    mv $filepath $detdir
+    cp $filepath $detdir
     local oldfiledir=$(dirname $filepath)
     filepath=$detdir/$filename
 
@@ -59,8 +59,9 @@ function crust_split()
     local newdetdir="$(dirname $detdir)/$totalhash"
     echo "$mt_json $newdetdir"
     cd - &>/dev/null
-    mv $filepath $oldfiledir
+    rm $filepath
     mv $detdir $newdetdir
+    rm -rf $detdir &>/dev/null
 }
 
 function get_workload()
@@ -80,7 +81,7 @@ function seal_file()
 {
     local data_path=$1
     local store_path=$2
-    local tmp_file=tmp_file
+    local tmp_file=tmp_file.$RANDOM
 
     ### Split file
     local mt_json=($(crust_split $data_path $store_path 2>$tmp_file))
@@ -133,7 +134,7 @@ function srd_disk_change()
     local paths_json=$1
     local op=$2
 
-    curl -s -XPOST $baseurl/srd/change_disk --data-raw "{\"paths\":[$paths_json],\"op\":\"$op\"}"
+    curl -s -XPOST $baseurl/srd/change_disk --data-raw "{\"paths\":$paths_json,\"op\":\"$op\"}"
 }
 
 function validate_srd()
@@ -187,7 +188,7 @@ function verbose()
         *)
             content="${color}$time [$type] $info${nc}"
     esac
-    echo $opt $content
+    echo $opt "$content"
 }
 
 function benchmark_output()
@@ -199,6 +200,10 @@ function benchmark_output()
     local ans=0
     local c_sec=0
     local c_msec=0
+    local ta=($(echo $info | grep -Po '\(.*\)' | sed "s/(\|)//g"))
+    local sa=(8 12)
+    info=$(echo "$info" | sed "s@(.*)@$(print_space ${sa[0]})${ta[0]}$(print_space ${sa[1]})${ta[1]}@g")
+    sa[1]=$((${sa[1]}+${#ta[0]}))
     {
         verbose INFO "$info" n
         if [ ${#key_arry[@]} -gt 0 ]; then
@@ -206,14 +211,14 @@ function benchmark_output()
                 ans=$((${ans_m["$key"]} / $run_num))
                 c_sec=$(expr $ans / 1000000000)
                 c_msec=$(expr $ans % 1000000)
-                printf "\t\t%-10s%s\n" "$key" "--->  ${c_sec}.${c_msec}s"
+                printf "%-${sa[0]}s%-$((${sa[1]}/2))s%-$((${sa[1]}/2))s%s\n" ' ' "$key" "--->" "${c_sec}.${c_msec}s"
             done
         else
             for key in "${!ans_m[@]}"; do
                 ans=$((${ans_m["$key"]} / $run_num))
                 c_sec=$(expr $ans / 1000000000)
                 c_msec=$(expr $ans % 1000000)
-                printf "\t\t%-10s%s\n" "$key" "--->  ${c_sec}.${c_msec}s"
+                printf "%-${sa[0]}s%-$((${sa[1]}/2))s%-$((${sa[1]}/2))s%s\n" ' ' "$key" "--->" "${c_sec}.${c_msec}s"
             done
         fi
         echo -e "\n"
@@ -222,12 +227,17 @@ function benchmark_output()
 
 function get_config()
 {
-    local key=$1
+    local exp=$1
     if [ ! -s "$configfile" ]; then
         verbose ERROR "config file:$configfile isn't existed!" >&2
         return 1
     fi
-    cat $configfile | jq ".$key"
+    cat $configfile | jq "$exp" | sed ':a;N;s/\n//g;ta' | sed 's/^"\|"$//g'
+}
+
+function print_space()
+{
+    printf " %.0s" $(eval "echo {1..$1}")
 }
 
 function parse_json_array()

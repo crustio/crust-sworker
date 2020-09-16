@@ -1,7 +1,19 @@
 {
-    "srd_paths": [
-        "/data/srd",
-        "/opt/crust/srd"
-    ],
-    "srd_size": 4
+    "functionality" : {
+        "srd_paths": [
+            "/data/srd",
+            "/opt/crust/srd"
+        ],
+        "srd_size": 1000,
+        "srd_max_per_turn": 800,
+        "file_arry": "1m 2m 4m 8m"
+    },
+    "performance" : {
+        "srd_num" : 200000,
+        "srd_paths" : [
+            "/data/srd",
+            "/opt/crust/srd"
+        ],
+        "file_num" : 300000
+    }
 }

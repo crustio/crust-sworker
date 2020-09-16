@@ -334,6 +334,139 @@ function enc_validate_cpp_test()
 {
     sed -i -e "s/ocall_validate_init(/\/\/ocall_validate_init(/g" \
         -e "s/ocall_validate_close(/\/\/ocall_validate_close(/g" $enclave_validate_cpp
+    local spos=$(sed -n '/dir_path = chose_entry->first;/=' $enclave_validate_cpp)
+    local epos=$(sed -n '/\/\/ Compare leaf data/=' $enclave_validate_cpp)
+    ((epos += 7))
+    sed -i "$spos,$epos d" $enclave_validate_cpp
+
+    spos=$(sed -n '/Get block data/=' $enclave_validate_cpp)
+    epos=$(sed -n '/free(leaf_hash_u);/=' $enclave_validate_cpp | tail -n 1)
+    sed -i "$spos,$epos d" $enclave_validate_cpp
+}
+
+########## enc_srd_cpp_test ##########
+function enc_srd_cpp_test()
+{
+cat << EOF > $TMPFILE
+    crust_status_t crust_status = CRUST_SUCCESS;
+    sgx_sealed_data_t *p_sealed_data = NULL;
+    size_t sealed_data_size = 0;
+    Workload *wl = Workload::get_instance();
+    std::string path_str(path);
+
+    // Generate base random data
+    do
+    {
+        if (g_base_rand_buffer == NULL)
+        {
+            sgx_thread_mutex_lock(&g_base_rand_buffer_mutex);
+            if (g_base_rand_buffer != NULL)
+            {
+                sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
+                break;
+            }
+            g_base_rand_buffer = (uint8_t *)enc_malloc(SRD_RAND_DATA_LENGTH);
+            if (g_base_rand_buffer == NULL)
+            {
+                log_err("Malloc memory failed!\n");
+                sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
+                return;
+            }
+            memset(g_base_rand_buffer, 0, SRD_RAND_DATA_LENGTH);
+            sgx_read_rand(g_base_rand_buffer, sizeof(g_base_rand_buffer));
+            sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
+        }
+    } while (0);
+
+    // Generate current G hash index
+    size_t now_index = 0;
+    sgx_read_rand((unsigned char *)&now_index, 8);
+
+    // ----- Generate srd file ----- //
+
+    // Generate all M hashs and store file to disk
+    unsigned char *hashs = (unsigned char*)enc_malloc(SRD_RAND_DATA_NUM * HASH_LENGTH);
+    if (hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return;
+    }
+
+    // Generate G hashs
+    sgx_sha256_hash_t g_out_hash256;
+    sgx_sha256_msg(hashs, SRD_RAND_DATA_NUM * HASH_LENGTH, &g_out_hash256);
+    free(hashs);
+
+    // Get g hash
+    uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);
+    if (p_hash_u == NULL)
+    {
+        log_info("Seal random data failed! Malloc memory failed!\n");
+        return;
+    }
+    memset(p_hash_u, 0, HASH_LENGTH);
+    memcpy(p_hash_u, g_out_hash256, HASH_LENGTH);
+
+    // ----- Update srd_path2hashs_m ----- //
+    std::string hex_g_hash = hexstring_safe(p_hash_u, HASH_LENGTH);
+    if (hex_g_hash.compare("") == 0)
+    {
+        log_err("Hexstring failed!\n");
+        return;
+    }
+    // Add new g_hash to srd_path2hashs_m
+    // Because add this p_hash_u to the srd_path2hashs_m, so we cannot free p_hash_u
+    sgx_thread_mutex_lock(&g_srd_mutex);
+    wl->srd_path2hashs_m[path_str].push_back(p_hash_u);
+    size_t srd_total_num = 0;
+    for (auto it : wl->srd_path2hashs_m)
+    {
+        srd_total_num += it.second.size();
+    }
+    log_info("Seal random data -> %s, %luG success\n", hex_g_hash.c_str(), srd_total_num);
+    sgx_thread_mutex_unlock(&g_srd_mutex);
+
+    // ----- Update srd info ----- //
+    ocall_srd_info_lock();
+    size_t srd_info_len = 0;
+    uint8_t *p_srd_info = NULL;
+    json::JSON srd_info_json;
+    if (CRUST_SUCCESS == persist_get_unsafe(DB_SRD_INFO, &p_srd_info, &srd_info_len))
+    {
+        srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
+    }
+    srd_info_json[path_str]["assigned"] = srd_info_json[path_str]["assigned"].ToInt() + 1;
+    std::string srd_info_str = srd_info_json.dump();
+    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
+    {
+        log_warn("Set srd info failed! Error code:%lx\n", crust_status);
+    }
+    ocall_srd_info_unlock();
+EOF
+
+    local spos=$(sed -n '/void srd_increase(/=' $enclave_srd_cpp)
+    ((spos += 2))
+    local epos=$(sed -n "$spos,$ {/^\}/=}" $enclave_srd_cpp | head -n 1)
+    ((epos--))
+    sed -i "$spos,$epos d" $enclave_srd_cpp
+    sed -i "$((spos -= 1)) r $TMPFILE" $enclave_srd_cpp
+
+    sed -i "s/ocall_delete_folder_or_file(/\/\/ocall_delete_folder_or_file(/g" $enclave_srd_cpp
+}
+
+function enc_srd_h_test()
+{
+    sed -i "/^#define SRD_MAX_PER_TURN 64/ c #define SRD_MAX_PER_TURN 1000" $enclave_srd_h
+}
+
+function enc_storage_cpp_test()
+{
+    sed -i "s/ocall_replace_file(/\/\/ocall_replace_file(/g" $enclave_storage_cpp
+}
+
+function enc_parameter_h_test()
+{
+    sed -i "/#define OCALL_STORE_THRESHOLD/ c #define OCALL_STORE_THRESHOLD 1024" $enclave_parameter_h
 }
 
 ########## ocalls_cpp_test ##########
@@ -409,8 +542,8 @@ function InstallAPP()
     cp $basedir/VERSION $testdir
 
     # Modify config file
-    sed -i -e "/\"base_path\" :/c \\\t\"base_path\" : \"$testdir/<VERSION>/tee_base_path\"," \
-        -e "/\"srd_paths\" :/c \\\t\"srd_paths\" : []," $configfile
+    sed -i -e "/\"base_path\" :/c \\\t\"base_path\" : \"$testdir/tee_base_path\"," \
+        -e "/\"srd_paths\" :/c \\\t\"srd_paths\" : [\"$testdir/tee_base_path/srd\"]," $configfile
     sed -i "s/<VERSION>\///g" $configfile
 }
 
@@ -437,6 +570,10 @@ apihandler_h=$appdir/http/ApiHandler.h
 ocalls_cpp=$appdir/ocalls/OCalls.cpp
 enclave_report_cpp=$encdir/report/Report.cpp
 enclave_validate_cpp=$encdir/validator/Validator.cpp
+enclave_srd_cpp=$encdir/srd/Srd.cpp
+enclave_srd_h=$encdir/srd/Srd.h
+enclave_storage_cpp=$encdir/storage/Storage.cpp
+enclave_parameter_h=$encdir/include/Parameter.h
 testdir=$basedir/test_app
 configfile=$testdir/etc/Config.json
 TMPFILE=$basedir/tmp.$$
@@ -472,5 +609,9 @@ enclave_cpp_test
 enclave_edl_test
 enc_report_cpp_test
 enc_validate_cpp_test
+enc_srd_cpp_test
+enc_srd_h_test
+#enc_storage_cpp_test
+#enc_parameter_h_test
 
 InstallAPP
