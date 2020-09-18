@@ -494,13 +494,24 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
         *value_len = 0;
         return crust_status;
     }
+    
     *value_len = val.size();
-    // Get buffer
-    uint8_t *p_buffer = p_buf_pool->get_buffer(*value_len);
-    memcpy(p_buffer, val.c_str(), *value_len);
-    *value = p_buffer;
+    *value = (uint8_t*)malloc(*value_len);
+    memcpy(*value, val.c_str(), *value_len);
 
     return crust_status;
+}
+
+/**
+ * @description: Free app buffer
+ * @param value -> Pointer points to pointer to value
+ * @return: Get status
+ */
+crust_status_t ocall_free_outer_buffer(uint8_t **value)
+{
+    free(*value);
+    *value = NULL;
+    return CRUST_SUCCESS;
 }
 
 /**
