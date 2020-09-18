@@ -705,9 +705,9 @@ void ocall_store_enclave_id_info(const char *info)
  * @param data -> Workload information
  * @param data_size -> Workload size
  */
-void ocall_store_workload(const char *data, size_t data_size, bool flag /*=true*/)
+void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true*/)
 {
-    if (flag)
+    if (cover)
     {
         set_g_enclave_workload(std::string(data, data_size));
     }
@@ -723,7 +723,16 @@ void ocall_store_workload(const char *data, size_t data_size, bool flag /*=true*
  * @description: Store enclave workreport
  * @param wr -> Workreport information
  */
-void ocall_store_workreport(const char *wr)
+void ocall_store_workreport(const char *data, size_t data_size, bool cover /*=true*/)
 {
-    set_g_enclave_workreport(wr);
+    if (cover)
+    {
+        set_g_enclave_workreport(std::string(data, data_size));
+    }
+    else
+    {
+        std::string str = get_g_enclave_workload();
+        str.append(data, data_size);
+        set_g_enclave_workreport(str);
+    }
 }

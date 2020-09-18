@@ -10,7 +10,7 @@
 #include <string>
 #include <mutex>
 
-#define CRUST_LOG_BUF_SIZE  1048576 /* 1024*1024 */
+#define CRUST_LOG_BUF_SIZE  33554432 /* 32*1024*1024 */
 #define CRUST_LOG_INFO_TAG "INFO"
 #define CRUST_LOG_WARN_TAG "WARN"
 #define CRUST_LOG_ERR_TAG "ERROR"

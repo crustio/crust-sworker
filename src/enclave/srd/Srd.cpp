@@ -65,6 +65,16 @@ void srd_change()
     {
         ocall_srd_change(srd_change_num);
     }
+
+    // Update srd info
+    crust_status_t crust_status = CRUST_SUCCESS;
+    ocall_srd_info_lock();
+    std::string srd_info_str = Workload::get_instance()->get_srd_info().dump();
+    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
+    {
+        log_warn("Set srd info failed! Error code:%lx\n", crust_status);
+    }
+    ocall_srd_info_unlock();
 }
 
 /**
@@ -182,25 +192,7 @@ void srd_increase(const char *path)
     sgx_thread_mutex_unlock(&g_srd_mutex);
 
     // ----- Update srd info ----- //
-    ocall_srd_info_lock();
-    size_t srd_info_len = 0;
-    uint8_t *p_srd_info = NULL;
-    json::JSON srd_info_json;
-    if (CRUST_SUCCESS == persist_get_unsafe(DB_SRD_INFO, &p_srd_info, &srd_info_len))
-    {
-        srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
-    }
-    srd_info_json[path_str]["assigned"] = srd_info_json[path_str]["assigned"].ToInt() + 1;
-    std::string srd_info_str = srd_info_json.dump();
-    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
-    {
-        log_warn("Set srd info failed! Error code:%lx\n", crust_status);
-    }
-    if (p_srd_info != NULL)
-    {
-        free(p_srd_info);
-    }
-    ocall_srd_info_unlock();
+    wl->set_srd_info(path_str, 1);
 }
 
 /**
@@ -277,18 +269,6 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
     }
 
     // ----- Delete corresponding items ----- //
-    // Get srd info
-    uint8_t *p_srd_info = NULL;
-    size_t srd_info_len = 0;
-    if (CRUST_SUCCESS != persist_get_unsafe(DB_SRD_INFO, &p_srd_info, &srd_info_len))
-    {
-        log_err("Get srd info failed!\n");
-    }
-    json::JSON srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
-    if (p_srd_info != NULL)
-    {
-        free(p_srd_info);
-    }
     // Do delete
     for (auto path_2_hash : del_path2hashs_m)
     {
@@ -310,18 +290,9 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
             // Add hash pointer to hashs_v
             hashs_json.append(del_hash);
         }
-        // --- Reduce assigned space in srd info --- //
-        srd_info_json[del_dir]["assigned"] = srd_info_json[del_dir]["assigned"].ToInt() - path_2_hash.second.size();
+        // Reduce assigned space in srd info
+        wl->set_srd_info(del_dir, -(long)(path_2_hash.second.size()));
     }
-    // Update srd info
-    ocall_srd_info_lock();
-    std::string srd_info_str = srd_info_json.dump();
-    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, 
-                    reinterpret_cast<const uint8_t*>(srd_info_str.c_str()), srd_info_str.size())))
-    {
-        log_err("Delete punish g: set srd info failed! Error code:%lx\n", crust_status);
-    }
-    ocall_srd_info_unlock();
 
     return change_num;
 }
@@ -339,19 +310,6 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
     json::JSON del_hashs_json = json::JSON::Load(std::string(hashs, hashs_len));
-
-    // Get srd info
-    uint8_t *p_srd_info = NULL;
-    size_t srd_info_len = 0;
-    if (CRUST_SUCCESS != (crust_status = persist_get_unsafe(DB_SRD_INFO, &p_srd_info, &srd_info_len)))
-    {
-        log_warn("Get srd info failed! Error code:%lx\n", crust_status);
-    }
-    json::JSON srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
-    if (p_srd_info != NULL)
-    {
-        free(p_srd_info);
-    }
 
     for (auto it = del_hashs_json.ObjectRange().begin(); it != del_hashs_json.ObjectRange().end(); it++)
     {
@@ -376,13 +334,13 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
             }
             else
             {
-                srd_info_json[it->first]["assigned"] = srd_info_json[it->first]["assigned"].ToInt() - 1;
+                wl->set_srd_info(it->first, -1);
             }
         }
     }
 
     // Update srd info
-    std::string srd_info_str = srd_info_json.dump();
+    std::string srd_info_str = wl->get_srd_info().dump();
     if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
     {
         log_warn("Update srd info failed! Error code:%lx\n", crust_status);

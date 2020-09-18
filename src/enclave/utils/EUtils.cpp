@@ -210,6 +210,16 @@ std::string hexstring_safe(const void *vsrc, size_t len)
 }
 
 /**
+ * @description: Byte vector to string
+ * @param bytes -> Byte vector
+ * @return: Hexstring of byte vector
+ */
+std::string byte_vec_to_string(std::vector<uint8_t> bytes)
+{
+    return hexstring_safe(bytes.data(), bytes.size());
+}
+
+/**
  * @description: Convert hexstring to bytes array, note that
  * the size of got data is half of len
  * @param src -> Source char*
@@ -729,24 +739,29 @@ void replace(std::string &data, std::string org_str, std::string det_str)
  * @description: Store large data
  * @param data -> To be stored data
  * @param p_func -> Store function
+ * @param mutex -> Mutex lock to sync data
  */
-void store_large_data(const char *data, size_t data_size, p_ocall_store p_func)
+void store_large_data(std::string data, p_ocall_store p_func, sgx_thread_mutex_t &mutex)
 {
+    sgx_thread_mutex_lock(&mutex);
+    size_t data_size = data.size();
+    const char *p_data = data.c_str();
     if (data_size > OCALL_STORE_THRESHOLD)
     {
         size_t offset = 0;
         size_t part_size = 0;
-        bool flag = true;
+        bool cover = true;
         while (data_size > offset)
         {
             part_size = std::min(data_size - offset, (size_t)OCALL_STORE_THRESHOLD);
-            p_func(data + offset, part_size, flag);
+            p_func(p_data + offset, part_size, cover);
             offset += part_size;
-            flag = false;
+            cover = false;
         }
     }
     else
     {
-        p_func(data, data_size, true);
+        p_func(p_data, data_size, true);
     }
+    sgx_thread_mutex_unlock(&mutex);
 }

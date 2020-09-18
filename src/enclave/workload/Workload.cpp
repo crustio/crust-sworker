@@ -97,7 +97,7 @@ std::string Workload::get_workload(void)
     wl_str.append("}");
 
     // Store workload
-    store_large_data(wl_str.c_str(), wl_str.size(), ocall_store_workload);
+    store_large_data(wl_str, ocall_store_workload, Workload::get_instance()->ocall_wl_mutex);
 
     return wl_str;
 }
@@ -336,4 +336,25 @@ void Workload::set_report_flag(bool flag)
 bool Workload::get_report_flag()
 {
     return this->report_files;
+}
+
+/**
+ * @description: Set srd info
+ * @param path -> Changed path
+ * @param change -> Change number
+ */
+void Workload::set_srd_info(std::string path, long change)
+{
+    sgx_thread_mutex_lock(&this->srd_info_mutex);
+    this->srd_info_json[path]["assigned"] = this->srd_info_json[path]["assigned"].ToInt() + change;
+    sgx_thread_mutex_unlock(&this->srd_info_mutex);
+}
+
+/**
+ * @description: Get srd info
+ * @return: Return srd info json
+ */
+json::JSON Workload::get_srd_info()
+{
+    return this->srd_info_json;
 }
