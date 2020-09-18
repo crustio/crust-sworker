@@ -63,6 +63,7 @@ enclave {
         crust_status_t ocall_persist_del_keys([in, string] const char *key, [in, size=keys_len] const char *keys, size_t keys_len);
         crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
         crust_status_t ocall_persist_get([in, string] const char *key, [out] uint8_t **value, [out] size_t *value_len);
+        crust_status_t ocall_free_outer_buffer([in, out] uint8_t **value);
 
         crust_status_t ocall_validate_init();
         crust_status_t ocall_validate_get_file([in, string] const char *root_hash, [in, string] const char *leaf_hash, [out] uint8_t **p_sealed_data, [out] size_t *sealed_data_size);

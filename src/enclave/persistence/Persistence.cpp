@@ -185,6 +185,53 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
 }
 
 /**
+ * @description: Get value by key from ocall
+ * @param crust_status -> status
+ * @param key -> Pointer to key
+ * @param value -> Pointer points to value
+ * @param value_len -> Pointer to value length
+ */
+void inner_ocall_persist_get(crust_status_t* crust_status, const char *key, uint8_t **value, size_t *value_len)
+{
+    uint8_t *temp_value = NULL;
+    size_t temp_value_len = 0;
+
+    ocall_persist_get(crust_status, key, &temp_value, &temp_value_len);
+    if (CRUST_SUCCESS != *crust_status)
+    {
+        *value = NULL;
+        *value_len = 0;
+        return;
+    }
+
+    *value = (uint8_t*)enc_malloc(temp_value_len);
+    if(*value == NULL)
+    {
+        ocall_free_outer_buffer(crust_status, &temp_value);
+        if (CRUST_SUCCESS != *crust_status)
+        {
+            return;
+        }
+
+        *crust_status = CRUST_MALLOC_FAILED;
+        return;
+    }
+
+    memset(*value, 0, temp_value_len);
+    memcpy(*value, temp_value, temp_value_len);
+    *value_len = temp_value_len;
+
+    ocall_free_outer_buffer(crust_status, &temp_value);
+    if (CRUST_SUCCESS != *crust_status)
+    {
+        free(*value);
+        *value = NULL;
+        *value_len = 0;
+        return;
+    }
+}
+
+/**
  * @description: Get value by key
  * @param key -> Pointer to key
  * @param value -> Pointer points to value
@@ -204,13 +251,13 @@ crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
     std::string sum_key = key + "_sum";
     uint8_t *p_sum_key = NULL;
     size_t sum_key_len = 0;
-    ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
+    inner_ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
     if (CRUST_SUCCESS == crust_status)
     {
         // Get sum info successfully, obtain sealed data from pieces
         json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
         // Set available flag
-        memcpy(p_sum_key, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+        free(p_sum_key);
         // Allocate buffer for sealed data
         sealed_data_size = sum_json[PERSIST_SIZE].ToInt();
         uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
@@ -229,7 +276,7 @@ crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
             std::string cur_key = key + "_" + std::to_string(i);
             uint8_t *p_part_data = NULL;
             size_t part_data_size = 0;
-            ocall_persist_get(&crust_status, cur_key.c_str(), &p_part_data, &part_data_size);
+            inner_ocall_persist_get(&crust_status, cur_key.c_str(), &p_part_data, &part_data_size);
             if (CRUST_SUCCESS != crust_status)
             {
                 log_err("Get part data failed!Part key:%s\n", cur_key.c_str());
@@ -237,13 +284,13 @@ crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
                 return crust_status;
             }
             memcpy(p_sealed_data_u + offset, p_part_data, part_data_size);
-            memcpy(p_part_data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+            free(p_part_data);
             offset += part_data_size;
         }
     }
     else
     {
-        ocall_persist_get(&crust_status, key.c_str(), &p_sealed_data, &sealed_data_size);
+        inner_ocall_persist_get(&crust_status, key.c_str(), &p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
             return crust_status;
@@ -257,7 +304,7 @@ crust_status_t persist_get(std::string key, uint8_t **value, size_t *value_len)
         }
         memset(p_sealed_data_r, 0, sealed_data_size);
         memcpy(p_sealed_data_r, p_sealed_data, sealed_data_size);
-        memcpy(p_sealed_data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+        free(p_sealed_data);
     }
 
     // Get unsealed data
@@ -306,13 +353,13 @@ crust_status_t persist_get_unsafe(std::string key, uint8_t **value, size_t *valu
     std::string sum_key = key + "_sum";
     uint8_t *p_sum_key = NULL;
     size_t sum_key_len = 0;
-    ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
+    inner_ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
     if (CRUST_SUCCESS == crust_status)
     {
         // Get sum info successfully, obtain data from pieces
         json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
         // Set available flag
-        memcpy(p_sum_key, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+        free(p_sum_key);
         // Allocate buffer for data
         uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
         data_len = sum_json[PERSIST_SIZE].ToInt();
@@ -330,15 +377,15 @@ crust_status_t persist_get_unsafe(std::string key, uint8_t **value, size_t *valu
             std::string cur_key = key + "_" + std::to_string(i);
             uint8_t *p_part_data = NULL;
             size_t part_data_size = 0;
-            ocall_persist_get(&crust_status, cur_key.c_str(), &p_part_data, &part_data_size);
+            inner_ocall_persist_get(&crust_status, cur_key.c_str(), &p_part_data, &part_data_size);
             memcpy(p_data + offset, p_part_data, part_data_size);
-            memcpy(p_part_data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+            free(p_part_data);
             offset += part_data_size;
         }
     }
     else
     {
-        ocall_persist_get(&crust_status, key.c_str(), &data, &data_len);
+        inner_ocall_persist_get(&crust_status, key.c_str(), &data, &data_len);
         if (CRUST_SUCCESS != crust_status)
         {
             return crust_status;
@@ -352,7 +399,7 @@ crust_status_t persist_get_unsafe(std::string key, uint8_t **value, size_t *valu
         }
         memset(p_data, 0, data_len);
         memcpy(p_data, data, data_len);
-        memcpy(data, BUFFER_AVAILABLE, strlen(BUFFER_AVAILABLE));
+        free(data);
     }
 
     *value = p_data;

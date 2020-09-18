@@ -3,7 +3,6 @@
 #include "DataBase.h"
 #include "FileUtils.h"
 #include "Config.h"
-#include "BufferPool.h"
 #include "tbb/concurrent_unordered_map.h"
 #include <exception>
 
@@ -20,8 +19,6 @@ uint8_t *_sealed_data_buf = NULL;
 size_t _sealed_data_size = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
-// Buffer pool
-BufferPool *p_buf_pool = BufferPool::get_instance();
 // Used to temporarily store sealed serialized MerkleTree
 tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
@@ -494,18 +491,28 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
         *value_len = 0;
         return crust_status;
     }
-    // Get buffer
-    uint8_t *p_buffer = p_buf_pool->get_buffer(val.size());
-    if (p_buffer == NULL)
-    {
-        *value_len = 0;
-        return CRUST_MALLOC_FAILED;
-    }
-    memcpy(p_buffer, val.c_str(), val.size());
-    *value = p_buffer;
+    
     *value_len = val.size();
+    *value = (uint8_t*)malloc(*value_len);
+    memcpy(*value, val.c_str(), *value_len);
 
     return crust_status;
+}
+
+/**
+ * @description: Free app buffer
+ * @param value -> Pointer points to pointer to value
+ * @return: Get status
+ */
+crust_status_t ocall_free_outer_buffer(uint8_t **value)
+{
+    if(*value != NULL)
+    {
+        free(*value);
+        *value = NULL;
+    }
+    
+    return CRUST_SUCCESS;
 }
 
 /**
