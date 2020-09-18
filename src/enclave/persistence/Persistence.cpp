@@ -184,6 +184,13 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
     return crust_status;
 }
 
+/**
+ * @description: Get value by key from ocall
+ * @param crust_status -> status
+ * @param key -> Pointer to key
+ * @param value -> Pointer points to value
+ * @param value_len -> Pointer to value length
+ */
 void inner_ocall_persist_get(crust_status_t* crust_status, const char *key, uint8_t **value, size_t *value_len)
 {
     uint8_t *temp_value = NULL;

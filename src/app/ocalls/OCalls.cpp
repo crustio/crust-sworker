@@ -506,8 +506,12 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
  */
 crust_status_t ocall_free_outer_buffer(uint8_t **value)
 {
-    free(*value);
-    *value = NULL;
+    if(*value != NULL)
+    {
+        free(*value);
+        *value = NULL;
+    }
+    
     return CRUST_SUCCESS;
 }
 
