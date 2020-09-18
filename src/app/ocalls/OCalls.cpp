@@ -3,7 +3,6 @@
 #include "DataBase.h"
 #include "FileUtils.h"
 #include "Config.h"
-#include "BufferPool.h"
 #include "tbb/concurrent_unordered_map.h"
 #include <exception>
 
@@ -20,8 +19,6 @@ uint8_t *_sealed_data_buf = NULL;
 size_t _sealed_data_size = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
-// Buffer pool
-BufferPool *p_buf_pool = BufferPool::get_instance();
 // Used to temporarily store sealed serialized MerkleTree
 tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
