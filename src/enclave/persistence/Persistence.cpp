@@ -198,6 +198,19 @@ void inner_ocall_persist_get(crust_status_t* crust_status, const char *key, uint
     }
 
     *value = (uint8_t*)enc_malloc(temp_value_len);
+    if(*value == NULL)
+    {
+        ocall_free_outer_buffer(crust_status, &temp_value);
+        if (CRUST_SUCCESS != *crust_status)
+        {
+            return;
+        }
+
+        *crust_status = CRUST_MALLOC_FAILED;
+        return;
+    }
+
+    memset(*value, 0, temp_value_len);
     memcpy(*value, temp_value, temp_value_len);
     *value_len = temp_value_len;
 
