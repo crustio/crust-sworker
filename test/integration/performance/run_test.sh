@@ -6,7 +6,7 @@ function _seal()
     while true; do
         sleep 3
         if [ $file_num_g -lt $total_num ]; then
-            local num=$((16 + $RANDOM % 64))
+            local num=90
             while [ $num -ge 0 ]; do
                 _seal_r
                 ((num--))
@@ -265,8 +265,13 @@ function kill_process()
 function seal_exit()
 {
     rm $TMPFILE
+<<<<<<< HEAD
     rm -rf $sealtmpdir/*
     rm -rf $testfiledir/*
+=======
+    rm -rf $sealtmpdir
+    rm -rf $testfiledir
+>>>>>>> yaoz/add_test_cases
     rm -rf $ptmpdir
 }
 
@@ -299,6 +304,10 @@ deletelockfile=$ptmpdir/deletelockfile
 # Control sig num
 sigShowInfo=28
 
+<<<<<<< HEAD
+=======
+trap 'kill_process' INT
+>>>>>>> yaoz/add_test_cases
 trap 'seal_exit' EXIT
 trap 'show_info' $sigShowInfo
 
@@ -310,12 +319,22 @@ mkdir -p $ptmpdir
 
 declare -A name2pid_m
 
+<<<<<<< HEAD
 verbose INFO "current pid: $$ " n
 
 #data_arry=($(ls $datadir))
 data_arry=(1m)
 data_size=${#data_arry[@]}
 
+=======
+spid=$1
+pid=$$
+data_arry=(1m)
+data_size=${#data_arry[@]}
+
+verbose INFO "current pid: $pid " n
+
+>>>>>>> yaoz/add_test_cases
 # Randomly seal file
 _seal &
 name2pid_m[_sealpid]=$!
@@ -339,5 +358,15 @@ _workreport &
 name2pid_m[_workreport]=$!
 
 while true; do
+<<<<<<< HEAD
+=======
+    if [[ $spid =~ ^[1-9][0-9]*$ ]]; then
+       if ! ps -ef | grep $spid | awk '{print $2}' | grep $spid &>/dev/null; then
+           show_info
+           kill_process
+           break
+       fi
+    fi
+>>>>>>> yaoz/add_test_cases
     sleep 5
 done

@@ -23,6 +23,7 @@ crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
 extern bool g_start_server_success;
 extern std::mutex g_start_server_mutex;
+extern std::mutex srd_info_mutex;
 extern bool g_init_upgrade;
 
 /**
@@ -270,7 +271,10 @@ int process_run()
         {
             std::string srd_info;
             long srd_assigned_total = 0;
-            if (CRUST_SUCCESS == db->get(DB_SRD_INFO, srd_info) && srd_info.size() > 0)
+            srd_info_mutex.lock();
+            crust_status = db->get(DB_SRD_INFO, srd_info);
+            srd_info_mutex.unlock();
+            if (CRUST_SUCCESS == crust_status && srd_info.size() > 0)
             {
                 json::JSON srd_json = json::JSON::Load(srd_info);
                 for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)

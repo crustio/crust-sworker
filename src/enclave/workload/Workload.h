@@ -43,10 +43,22 @@ public:
     void set_report_flag(bool flag);
     bool get_report_flag();
 
+    void set_srd_info(std::string path, long change);
+    json::JSON get_srd_info();
+
+    // Workreport mutex
+    sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    // Workload mutex
+    sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+
 private:
     Workload();
     // True indicates report files this turn, false means not report
     bool report_files;
+    // Srd info
+    json::JSON srd_info_json;
+    // Srd info mutex
+    sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */

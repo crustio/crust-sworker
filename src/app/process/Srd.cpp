@@ -132,8 +132,12 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
 {
     crust::DataBase *db = crust::DataBase::get_instance();
     std::string disk_info_str;
+    crust_status_t crust_status = CRUST_SUCCESS;
 
-    if (CRUST_SUCCESS != db->get(DB_SRD_INFO, disk_info_str))
+    srd_info_mutex.lock();
+    crust_status = db->get(DB_SRD_INFO, disk_info_str);
+    srd_info_mutex.unlock();
+    if (CRUST_SUCCESS != crust_status)
     {
         p_log->err("Srd info not found!Decrease srd space failed!\n");
         return disk_info_str;
@@ -292,13 +296,17 @@ void srd_change(long change)
 
         // Check and stop upgrade
         std::string upgrade_info;
+        crust_status_t crust_status = CRUST_SUCCESS;
         if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
         {
             upgrade_json = json::JSON::Load(upgrade_info);
             // Get assigned total srd
             long srd_assigned_total = 0;
             std::string srd_str;
-            if (CRUST_SUCCESS == db->get(DB_SRD_INFO, srd_str) && srd_str.size() > 0)
+            srd_info_mutex.lock();
+            crust_status = db->get(DB_SRD_INFO, srd_str);
+            srd_info_mutex.unlock();
+            if (CRUST_SUCCESS == crust_status && srd_str.size() > 0)
             {
                 json::JSON srd_json = json::JSON::Load(srd_str);
                 for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)
@@ -352,11 +360,11 @@ void srd_check_reserved(void)
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
         srd_info_mutex.lock();
-        if (CRUST_SUCCESS != (crust_status = db->get(DB_SRD_INFO, srd_info_str)))
+        crust_status = db->get(DB_SRD_INFO, srd_info_str);
+        srd_info_mutex.unlock();
+        if (CRUST_SUCCESS != crust_status)
         {
             //p_log->debug("Srd info not found!Check srd reserved failed!\n");
-            // Unlock srd_info
-            srd_info_mutex.unlock();
             sleep(10);
             continue;
         }
@@ -379,8 +387,6 @@ void srd_check_reserved(void)
                 del_info_json[sit->first] = del_space;
             }
         }
-        // Unlock srd_info
-        srd_info_mutex.unlock();
 
         // Do update
         if (is_changed)

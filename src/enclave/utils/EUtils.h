@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include "sgx_thread.h"
 #include "Enclave_t.h"
 #include "Parameter.h"
 
@@ -32,7 +33,7 @@ namespace json
 /* The length of hash */
 #define HASH_LENGTH 32
 
-typedef sgx_status_t (*p_ocall_store)(const char *data, size_t data_size, bool flag);
+typedef sgx_status_t (*p_ocall_store)(const char *data, size_t data_size, bool cover);
 
 
 #if defined(__cplusplus)
@@ -53,6 +54,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len);
 std::string unsigned_char_array_to_hex_string(const unsigned char *in, size_t size);
 std::vector<unsigned char> unsigned_char_array_to_unsigned_char_vector(const unsigned char *in, size_t size);
 char* unsigned_char_to_hex(unsigned char in);
+std::string byte_vec_to_string(std::vector<uint8_t> bytes);
 
 sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
                            const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
@@ -78,7 +80,7 @@ void *enc_malloc(size_t size);
 void *enc_realloc(void *p, size_t size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
-void store_large_data(const char *data, size_t data_size, p_ocall_store p_func);
+void store_large_data(std::string data, p_ocall_store p_func, sgx_thread_mutex_t &mutex);
 
 #if defined(__cplusplus)
 }

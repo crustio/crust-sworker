@@ -1,4 +1,12 @@
 #!/bin/bash
+function usage()
+{
+cat << EOF
+    start_test argument:
+        argument: functionality, benchmark or performance
+EOF
+}
+
 function success_exit()
 {
     local cur_pid=$(ps -ef | grep -v grep | grep "\b${pid}\b" | awk '{print $2}')
@@ -98,9 +106,8 @@ elif [ x"$run_type" = x"benchmark" ]; then
 elif [ x"$run_type" = x"performance" ]; then
     casedir=$performancetestdir
 else
-    verbose WARN "don't indicate type, use functionality default"
-    run_type="functionality"
-    casedir=$functionalitytestdir
+    usage
+    exit 1
 fi
 
 
@@ -142,7 +149,7 @@ true > $caseresfile
 for script in `ls`; do
     true > $SYNCFILE
     setTimeWait "$(verbose INFO "running test case: $script..." h)" $SYNCFILE &
-    bash $script &>> $caseresfile
+    bash $script $pid &>> $caseresfile
     checkRes $? "return" "success" "$SYNCFILE"
 done
 cd - &>/dev/null

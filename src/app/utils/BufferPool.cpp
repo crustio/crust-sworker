@@ -82,12 +82,8 @@ uint8_t *BufferPool::get_buffer(size_t buf_len)
         free(this->buffers[cur_index].first);
         this->buffers[cur_index].first = (uint8_t*)malloc(buf_len);
         this->buffers[cur_index].second = buf_len;
-        memset(this->buffers[cur_index].first, 0, buf_len);
     }
-    else
-    {
-        memset(this->buffers[cur_index].first, 0, this->buffers[cur_index].second);
-    }
+    memset(this->buffers[cur_index].first, 0, this->buffers[cur_index].second);
     _buffer_mutex.unlock();
     return this->buffers[cur_index].first;
 }
