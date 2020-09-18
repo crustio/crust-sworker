@@ -70,7 +70,18 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
 
     // ----- Add corresponding metadata ----- //
     json::JSON file_entry_json;
-    file_entry_json[FILE_HASH] = new_root_hash_str;
+    uint8_t *new_root_hash_u = hex_string_to_bytes(new_root_hash_str.c_str(), new_root_hash_str.size());
+    if (new_root_hash_u == NULL)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    uint8_t *org_root_hash_u = hex_string_to_bytes(org_root_hash_str.c_str(), org_root_hash_str.size());
+    if (org_root_hash_u == NULL)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    file_entry_json[FILE_HASH] = vector<uint8_t>(new_root_hash_u, new_root_hash_u + HASH_LENGTH);
+    file_entry_json[FILE_OLD_HASH] = vector<uint8_t>(org_root_hash_u, org_root_hash_u + HASH_LENGTH);
     file_entry_json[FILE_SIZE] = node_size;
     file_entry_json[FILE_OLD_SIZE] = org_node_size;
     file_entry_json[FILE_BLOCK_NUM] = block_num;
@@ -97,7 +108,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
 
     // Print sealed file information
     log_info("Seal complete, file info; hash: %s -> size: %ld, status: %s\n",
-            file_entry_json[FILE_HASH].ToString().c_str(), 
+            byte_vec_to_string(file_entry_json[FILE_HASH].ToBytes()).c_str(),
             file_entry_json[FILE_SIZE].ToInt(), 
             file_entry_json[FILE_STATUS].ToString().c_str());
 
@@ -420,7 +431,7 @@ crust_status_t storage_confirm_file(const char *hash)
     bool is_confirmed = false;
     for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
     {
-        if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
+        if (byte_vec_to_string((*it)[FILE_HASH].ToBytes()).compare(hash) == 0)
         {
             if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
             {
@@ -437,7 +448,7 @@ crust_status_t storage_confirm_file(const char *hash)
         sgx_thread_mutex_lock(&g_new_files_mutex);
         for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
         {
-            if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
+            if (byte_vec_to_string((*it)[FILE_HASH].ToBytes()).compare(hash) == 0)
             {
                 if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
                 {
@@ -454,17 +465,17 @@ crust_status_t storage_confirm_file(const char *hash)
     // Print confirmed info
     if (is_confirmed)
     {
-        log_info("Confirm file:%s successfully! Will be validated.\n", confirmed_file[FILE_HASH].ToString().c_str());
+        log_info("Confirm file:%s successfully! Will be validated.\n", byte_vec_to_string(confirmed_file[FILE_HASH].ToBytes()).c_str());
     }
     else
     {
-        log_warn("Confirm file:%s failed(not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
+        log_warn("Confirm file:%s failed(not found)!\n", byte_vec_to_string(confirmed_file[FILE_HASH].ToBytes()).c_str());
     }
 
     // Report real-time order file
     if (is_confirmed)
     {
-        wl->add_order_file(make_pair(confirmed_file[FILE_HASH].ToString(), confirmed_file[FILE_SIZE].ToInt()));
+        wl->add_order_file(make_pair(byte_vec_to_string(confirmed_file[FILE_HASH].ToBytes()), confirmed_file[FILE_SIZE].ToInt()));
     }
 
     return crust_status;
@@ -487,9 +498,10 @@ crust_status_t storage_delete_file(const char *hash)
     bool is_deleted = false;
     for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
     {
-        if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
+        std::string hash_str = byte_vec_to_string((*it)[FILE_HASH].ToBytes());
+        if (hash_str.compare(hash) == 0)
         {
-            deleted_file = (*it)[FILE_HASH].ToString();
+            deleted_file = hash_str;
             wl->checked_files.erase((++it).base());
             is_deleted = true;
             break;
@@ -501,9 +513,10 @@ crust_status_t storage_delete_file(const char *hash)
         sgx_thread_mutex_lock(&g_new_files_mutex);
         for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
         {
-            if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
+            std::string hash_str = byte_vec_to_string((*it)[FILE_HASH].ToBytes());
+            if (hash_str.compare(hash) == 0)
             {
-                deleted_file = (*it)[FILE_HASH].ToString();
+                deleted_file = hash_str;
                 wl->new_files.erase((++it).base());
                 is_deleted = true;
                 break;

@@ -73,6 +73,7 @@ std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
 extern tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
+extern std::mutex srd_info_mutex;
 // Used to show validation status
 long change_srd_num = 0;
 
@@ -156,7 +157,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust::DataBase *db = crust::DataBase::get_instance();
             // Get srd info
             std::string srd_detail;
-            if (CRUST_SUCCESS != (crust_status = db->get(DB_SRD_INFO, srd_detail)))
+            srd_info_mutex.lock();
+            crust_status = db->get(DB_SRD_INFO, srd_detail);
+            srd_info_mutex.unlock();
+            if (CRUST_SUCCESS != crust_status)
             {
                 p_log->warn("Srd info not found!Get workload srd info failed!\n");
             }

@@ -494,11 +494,16 @@ crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value
         *value_len = 0;
         return crust_status;
     }
-    *value_len = val.size();
     // Get buffer
-    uint8_t *p_buffer = p_buf_pool->get_buffer(*value_len);
-    memcpy(p_buffer, val.c_str(), *value_len);
+    uint8_t *p_buffer = p_buf_pool->get_buffer(val.size());
+    if (p_buffer == NULL)
+    {
+        *value_len = 0;
+        return CRUST_MALLOC_FAILED;
+    }
+    memcpy(p_buffer, val.c_str(), val.size());
     *value = p_buffer;
+    *value_len = val.size();
 
     return crust_status;
 }
@@ -694,9 +699,9 @@ void ocall_store_enclave_id_info(const char *info)
  * @param data -> Workload information
  * @param data_size -> Workload size
  */
-void ocall_store_workload(const char *data, size_t data_size, bool flag /*=true*/)
+void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true*/)
 {
-    if (flag)
+    if (cover)
     {
         set_g_enclave_workload(std::string(data, data_size));
     }
@@ -712,7 +717,16 @@ void ocall_store_workload(const char *data, size_t data_size, bool flag /*=true*
  * @description: Store enclave workreport
  * @param wr -> Workreport information
  */
-void ocall_store_workreport(const char *wr)
+void ocall_store_workreport(const char *data, size_t data_size, bool cover /*=true*/)
 {
-    set_g_enclave_workreport(wr);
+    if (cover)
+    {
+        set_g_enclave_workreport(std::string(data, data_size));
+    }
+    else
+    {
+        std::string str = get_g_enclave_workload();
+        str.append(data, data_size);
+        set_g_enclave_workreport(str);
+    }
 }
