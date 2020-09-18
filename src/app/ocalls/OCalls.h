@@ -65,6 +65,7 @@ extern "C"
     void ocall_store_identity(const char *id);
     void ocall_store_workload(const char *data, size_t data_size, bool flag = true);
     void ocall_store_workreport(const char *wr);
+    crust_status_t ocall_free_outer_buffer(uint8_t **value);
 
 #if defined(__cplusplus)
 }
