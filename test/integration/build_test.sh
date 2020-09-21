@@ -427,21 +427,7 @@ cat << EOF > $TMPFILE
     sgx_thread_mutex_unlock(&g_srd_mutex);
 
     // ----- Update srd info ----- //
-    ocall_srd_info_lock();
-    size_t srd_info_len = 0;
-    uint8_t *p_srd_info = NULL;
-    json::JSON srd_info_json;
-    if (CRUST_SUCCESS == persist_get_unsafe(DB_SRD_INFO, &p_srd_info, &srd_info_len))
-    {
-        srd_info_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_srd_info), srd_info_len));
-    }
-    srd_info_json[path_str]["assigned"] = srd_info_json[path_str]["assigned"].ToInt() + 1;
-    std::string srd_info_str = srd_info_json.dump();
-    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
-    {
-        log_warn("Set srd info failed! Error code:%lx\n", crust_status);
-    }
-    ocall_srd_info_unlock();
+    wl->set_srd_info(path_str, 1);
 EOF
 
     local spos=$(sed -n '/void srd_increase(/=' $enclave_srd_cpp)

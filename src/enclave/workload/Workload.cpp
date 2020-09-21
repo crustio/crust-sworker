@@ -86,8 +86,14 @@ std::string Workload::get_workload(void)
     }
     wl_str.append("},");
     // Srd info
+    std::string srd_detail = this->get_srd_info().dump();
+    remove_char(srd_detail, '\n');
+    remove_char(srd_detail, '\\');
+    remove_char(srd_detail, ' ');
     this->get_srd_info(&srd_root, &srd_workload, md_json);
     wl_str.append("\"").append(WL_SRD).append("\":{");
+    wl_str.append("\"").append(WL_SRD_DETAIL).append("\":")
+        .append(srd_detail).append(",");
     wl_str.append("\"").append(WL_SRD_ROOT_HASH).append("\":")
         .append("\"").append(hexstring_safe(srd_root, HASH_LENGTH)).append("\",");
     wl_str.append("\"").append(WL_SRD_SPACE).append("\":")
@@ -187,43 +193,32 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t 
  * @param locked -> Indicates whether to get lock, default value is true
  * @return: Serialized workload
  */
-std::string Workload::serialize_srd(bool locked /*=true*/)
+void Workload::serialize_srd(std::string &sered_srd)
 {
-    if (locked)
-    {
-        sgx_thread_mutex_lock(&g_srd_mutex);
-    }
-
-    // Store srd_path2hashs_m
-    std::string ans;
+    sgx_thread_mutex_lock(&g_srd_mutex);
 
     size_t i = 0;
-    ans.append("{");
+    sered_srd.append("{");
     for (auto it = this->srd_path2hashs_m.begin(); it != this->srd_path2hashs_m.end(); it++, i++)
     {
-        ans.append("\"").append(it->first).append("\":[");
+        sered_srd.append("\"").append(it->first).append("\":[");
         for (size_t j = 0; j < it->second.size(); j++)
         {
-            ans.append("\"").append(hexstring_safe(it->second[j], HASH_LENGTH)).append("\"");
+            sered_srd.append("\"").append(hexstring_safe(it->second[j], HASH_LENGTH)).append("\"");
             if (j != it->second.size() - 1)
             {
-                ans.append(",");
+                sered_srd.append(",");
             }
         }
-        ans.append("]");
+        sered_srd.append("]");
         if (i != this->srd_path2hashs_m.size() - 1)
         {
-            ans.append(",");
+            sered_srd.append(",");
         }
     }
-    ans.append("}");
+    sered_srd.append("}");
 
-    if (locked)
-    {
-        sgx_thread_mutex_unlock(&g_srd_mutex);
-    }
-
-    return ans;
+    sgx_thread_mutex_unlock(&g_srd_mutex);
 }
 
 /**
@@ -231,32 +226,26 @@ std::string Workload::serialize_srd(bool locked /*=true*/)
  * @param locked -> Indicates whether to get lock, default value is true
  * @return: Serialized file info
  */
-std::string Workload::serialize_file(bool locked /*=true*/)
+void Workload::serialize_file(std::string &sered_file)
 {
-    if (locked)
-    {
-        sgx_thread_mutex_lock(&g_checked_files_mutex);
-    }
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
 
-    std::string ans;
-
-    ans.append("[");
+    sered_file.append("[");
     for (size_t i = 0; i < this->checked_files.size(); i++)
     {
-        ans.append(this->checked_files[i].dump());
+        std::string file_str = this->checked_files[i].dump();
+        remove_char(file_str, '\n');
+        remove_char(file_str, '\\');
+        remove_char(file_str, ' ');
+        sered_file.append(file_str);
         if (i != this->checked_files.size() - 1)
         {
-            ans.append(",");
+            sered_file.append(",");
         }
     }
-    ans.append("]");
+    sered_file.append("]");
 
-    if (locked)
-    {
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
-    }
-
-    return ans;
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 }
 
 /**
@@ -293,6 +282,11 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
             }
             this->srd_path2hashs_m[it->first].push_back(g_hash);
         }
+    }
+    // Restore srd info
+    for (auto it : this->srd_path2hashs_m)
+    {
+        this->srd_info_json[it.first]["assigned"] = it.second.size();
     }
 
     return crust_status;
@@ -347,6 +341,10 @@ void Workload::set_srd_info(std::string path, long change)
 {
     sgx_thread_mutex_lock(&this->srd_info_mutex);
     this->srd_info_json[path]["assigned"] = this->srd_info_json[path]["assigned"].ToInt() + change;
+    if (this->srd_info_json[path]["assigned"].ToInt() < 0)
+    {
+        this->srd_info_json[path]["assigned"] = 0;
+    }
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 }
 

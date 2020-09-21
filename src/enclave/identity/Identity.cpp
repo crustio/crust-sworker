@@ -909,8 +909,9 @@ crust_status_t id_store_metadata()
     std::string meta_str(TEE_PRIVATE_TAG);
     meta_str.append("{");
     // Append srd
-    meta_str.append("\"").append(ID_WORKLOAD).append("\":")
-        .append(wl->serialize_srd()).append(",");
+    meta_str.append("\"").append(ID_WORKLOAD).append("\":");
+    wl->serialize_srd(meta_str);
+    meta_str.append(",");
     // Append id key pair
     meta_str.append("\"").append(ID_KEY_PAIR).append("\":")
         .append("\"").append(hex_id_key_str).append("\",");
@@ -921,8 +922,8 @@ crust_status_t id_store_metadata()
     meta_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
         .append("\"").append(g_chain_account_id).append("\",");
     // Append files
-    meta_str.append("\"").append(ID_FILE).append("\":")
-        .append(wl->serialize_file());
+    meta_str.append("\"").append(ID_FILE).append("\":");
+    wl->serialize_file(meta_str);
     meta_str.append("}");
 
     crust_status = persist_set(ID_METADATA, reinterpret_cast<const uint8_t *>(meta_str.c_str()), meta_str.size());
@@ -960,19 +961,12 @@ crust_status_t id_restore_metadata()
         }
     }
     // Restore srd info
-    ocall_srd_info_lock();
-    json::JSON srd_info_json;
-    for (auto it : wl->srd_path2hashs_m)
-    {
-        srd_info_json[it.first]["assigned"] = it.second.size();
-    }
-    std::string srd_info_str = srd_info_json.dump();
+    std::string srd_info_str = wl->get_srd_info().dump();
     if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, 
                     reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
     {
         log_warn("Wait for srd info, code:%lx\n", crust_status);
     }
-    ocall_srd_info_unlock();
     // Restore meaningful files
     wl->checked_files.clear();
     if (meta_json.hasKey(ID_FILE)
@@ -1004,7 +998,8 @@ crust_status_t id_restore_metadata()
     just_after_restart = true; 
 
     // Show workload
-    std::string wl_str = wl->get_workload();
+    json::JSON wl_json = json::JSON::Load(wl->get_workload());
+    std::string wl_str = wl_json.dump();
     replace(wl_str, "\"{", "{");
     replace(wl_str, "}\"", "  }");
     remove_char(wl_str, '\\');

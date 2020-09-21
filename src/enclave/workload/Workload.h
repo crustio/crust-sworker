@@ -31,8 +31,8 @@ public:
     static Workload *get_instance();
     ~Workload();
     std::string get_workload(void);
-    std::string serialize_srd(bool locked = true);
-    std::string serialize_file(bool locked =true);
+    void serialize_srd(std::string &sered_srd);
+    void serialize_file(std::string &sered_file);
     crust_status_t restore_srd(json::JSON g_hashs);
     crust_status_t get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json);
     void clean_data();

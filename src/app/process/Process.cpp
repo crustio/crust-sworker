@@ -109,7 +109,11 @@ bool initialize_enclave()
 bool initialize_components(void)
 {
     // Create path
-    create_directory(p_config->base_path);
+    if (!create_directory(p_config->base_path))
+    {
+        p_log->err("Create base path failed!!\n");
+        return false;
+    }
 
     // Init crust
     if (crust::Chain::get_instance() == NULL)

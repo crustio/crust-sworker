@@ -121,6 +121,10 @@ void srd_increase(const char *path)
     // Create directory
     std::string g_path = get_g_path(path, now_index);
     ocall_create_dir(&crust_status, g_path.c_str());
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return;
+    }
 
     // Generate all M hashs and store file to disk
     uint8_t *hashs = (uint8_t *)enc_malloc(SRD_RAND_DATA_NUM * HASH_LENGTH);
@@ -272,7 +276,6 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
     // Do delete
     for (auto path_2_hash : del_path2hashs_m)
     {
-        json::JSON hashs_json;
         std::string del_dir = path_2_hash.first;
         for (auto del_hash : path_2_hash.second)
         {
@@ -287,8 +290,6 @@ size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_de
             {
                 change_num++;
             }
-            // Add hash pointer to hashs_v
-            hashs_json.append(del_hash);
         }
         // Reduce assigned space in srd info
         wl->set_srd_info(del_dir, -(long)(path_2_hash.second.size()));

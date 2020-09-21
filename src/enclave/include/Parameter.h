@@ -60,6 +60,7 @@
 
 // For workload
 #define WL_SRD "srd"
+#define WL_SRD_DETAIL "detail"
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
 #define WL_SRD_REMAINING_TASK "remaining_task"

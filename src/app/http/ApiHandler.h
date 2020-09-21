@@ -153,17 +153,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (path.compare(cur_path) == 0)
         {
             sgx_status_t sgx_status = SGX_SUCCESS;
-            crust_status_t crust_status = CRUST_SUCCESS;
-            crust::DataBase *db = crust::DataBase::get_instance();
             // Get srd info
-            std::string srd_detail;
-            srd_info_mutex.lock();
-            crust_status = db->get(DB_SRD_INFO, srd_detail);
-            srd_info_mutex.unlock();
-            if (CRUST_SUCCESS != crust_status)
-            {
-                p_log->warn("Srd info not found!Get workload srd info failed!\n");
-            }
             if (SGX_SUCCESS != Ecall_get_workload(global_eid))
             {
                 p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
@@ -174,7 +164,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = "Get workload failed!";
                 goto getcleanup;
             }
-            wl_json["srd"]["detail"] = json::JSON::Load(srd_detail);
             wl_json["srd"]["disk_reserved"] = get_reserved_space();
             size_t tmp_size = 0;
             json::JSON disk_json = get_increase_srd_info(tmp_size);
