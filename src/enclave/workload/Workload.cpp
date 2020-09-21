@@ -354,5 +354,9 @@ void Workload::set_srd_info(std::string path, long change)
  */
 json::JSON Workload::get_srd_info()
 {
-    return this->srd_info_json;
+    sgx_thread_mutex_lock(&this->srd_info_mutex);
+    json::JSON srd_info = this->srd_info_json;
+    sgx_thread_mutex_unlock(&this->srd_info_mutex);
+
+    return srd_info;
 }

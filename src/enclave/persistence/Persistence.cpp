@@ -5,6 +5,8 @@
 
 using namespace std;
 
+void inner_ocall_persist_get(crust_status_t* crust_status, const char *key, uint8_t **value, size_t *value_len);
+
 /**
  * @description: Add value by key
  * @param key -> Pointer to key
@@ -129,6 +131,24 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
     }
     else
     {
+        // Delete old data
+        std::string sum_key = key + "_sum";
+        uint8_t *p_sum_key = NULL;
+        size_t sum_key_len = 0;
+        inner_ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
+        if (CRUST_SUCCESS == crust_status)
+        {
+            json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
+            free(p_sum_key);
+            uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
+            for (uint32_t i = 0; i < piece_num; i++)
+            {
+                std::string del_key = key + "_" + std::to_string(i);
+                persist_del(del_key);
+            }
+            persist_del(sum_key);
+        }
+        // Set new data
         ocall_persist_set(&crust_status, key.c_str(), (uint8_t *)p_sealed_data, sealed_data_size);
     }
 
@@ -178,6 +198,24 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
     }
     else
     {
+        // Delete old data
+        std::string sum_key = key + "_sum";
+        uint8_t *p_sum_key = NULL;
+        size_t sum_key_len = 0;
+        inner_ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
+        if (CRUST_SUCCESS == crust_status)
+        {
+            json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
+            free(p_sum_key);
+            uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
+            for (uint32_t i = 0; i < piece_num; i++)
+            {
+                std::string del_key = key + "_" + std::to_string(i);
+                persist_del(del_key);
+            }
+            persist_del(sum_key);
+        }
+        // Set new data
         ocall_persist_set(&crust_status, key.c_str(), value, value_len);
     }
 
