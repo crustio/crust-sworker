@@ -6,7 +6,7 @@ function _seal()
     while true; do
         sleep 3
         if [ $file_num_g -lt $total_num ]; then
-            local num=90
+            local num=1000
             while [ $num -ge 0 ]; do
                 _seal_r
                 ((num--))

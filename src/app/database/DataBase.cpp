@@ -24,7 +24,10 @@ DataBase *DataBase::get_instance()
 
         leveldb::Options options;
         options.create_if_missing = true;
-        create_directory(Config::get_instance()->db_path);
+        if (!create_directory(Config::get_instance()->db_path))
+        {
+            return NULL;
+        }
         leveldb::Status s = leveldb::DB::Open(options, Config::get_instance()->db_path.c_str(), &database->db);
         if (!s.ok())
         {

@@ -281,7 +281,7 @@ void validate_meaningful_file()
             continue;
         }
 
-        std::string root_hash = byte_vec_to_string(wl->checked_files[file_idx][FILE_HASH].ToBytes());
+        std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
         size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
         crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
@@ -424,7 +424,7 @@ void validate_meaningful_file()
         for (auto it : changed_idx2lost_um)
         {
             log_info("File status changed, hash: %s status: %s -> %s\n",
-                    byte_vec_to_string(wl->checked_files[it.first][FILE_HASH].ToBytes()).c_str(),
+                    wl->checked_files[it.first][FILE_HASH].ToString().c_str(),
                     it.second ? FILE_STATUS_LOST : FILE_STATUS_VALID,
                     wl->checked_files[it.first][FILE_STATUS].ToString().c_str());
         }

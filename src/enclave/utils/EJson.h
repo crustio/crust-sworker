@@ -8,7 +8,6 @@
 #include <cctype>
 #include <string>
 #include <deque>
-#include <vector>
 #include <map>
 #include <type_traits>
 #include <initializer_list>
@@ -19,7 +18,6 @@ namespace json
 {
 
 using std::deque;
-using std::vector;
 using std::enable_if;
 using std::initializer_list;
 using std::is_convertible;
@@ -28,6 +26,8 @@ using std::is_integral;
 using std::is_same;
 using std::map;
 using std::string;
+
+const uint32_t _hash_length = 32;
 
 namespace
 {
@@ -103,7 +103,7 @@ class JSON
         BackingData() : Int(0) {}
 
         deque<JSON> *List;
-        vector<uint8_t> *ByteList;
+        uint8_t *HashList;
         map<string, JSON> *Map;
         string *String;
         double Float;
@@ -117,7 +117,7 @@ public:
         Null,
         Object,
         Array,
-        ByteArray,
+        Hash,
         String,
         Floating,
         Integral,
@@ -193,10 +193,9 @@ public:
                 new deque<JSON>(other.Internal.List->begin(),
                                 other.Internal.List->end());
             break;
-        case Class::ByteArray:
-            Internal.ByteList =
-                new vector<uint8_t>(other.Internal.ByteList->begin(),
-                                other.Internal.ByteList->end());
+        case Class::Hash:
+            Internal.HashList = new uint8_t[_hash_length];
+            memcpy(Internal.HashList, other.Internal.HashList, _hash_length);
             break;
         case Class::String:
             Internal.String =
@@ -223,10 +222,9 @@ public:
                 new deque<JSON>(other.Internal.List->begin(),
                                 other.Internal.List->end());
             break;
-        case Class::ByteArray:
-            Internal.ByteList =
-                new vector<uint8_t>(other.Internal.ByteList->begin(),
-                                other.Internal.ByteList->end());
+        case Class::Hash:
+            Internal.HashList = new uint8_t[_hash_length];
+            memcpy(Internal.HashList, other.Internal.HashList, _hash_length);
             break;
         case Class::String:
             Internal.String =
@@ -246,8 +244,8 @@ public:
         case Class::Array:
             delete Internal.List;
             break;
-        case Class::ByteArray:
-            delete Internal.ByteList;
+        case Class::Hash:
+            delete Internal.HashList;
             break;
         case Class::Object:
             delete Internal.Map;
@@ -329,10 +327,11 @@ public:
     }
 
     template <typename T>
-    typename enable_if<is_same<T, vector<uint8_t>>::value, JSON &>::type operator=(T v)
+    typename enable_if<is_same<T, uint8_t*>::value, JSON &>::type operator=(T v)
     {
-        SetType(Class::ByteArray);
-        Internal.ByteList = new vector<uint8_t>(v.begin(), v.end());
+        SetType(Class::Hash);
+        Internal.HashList = new uint8_t[_hash_length];
+        memcpy(Internal.HashList, v, _hash_length);
         return *this;
     }
 
@@ -374,8 +373,8 @@ public:
     {
         if (Type == Class::Array)
             return (int)Internal.List->size();
-        else if (Type == Class::ByteArray)
-            return (int)Internal.ByteList->size();
+        else if (Type == Class::Hash)
+            return _hash_length;
         else
             return -1;
     }
@@ -393,8 +392,8 @@ public:
             return (int)Internal.Map->size();
         else if (Type == Class::Array)
             return (int)Internal.List->size();
-        else if (Type == Class::ByteArray)
-            return (int)Internal.ByteList->size();
+        else if (Type == Class::Hash)
+            return _hash_length;
         else
             return -1;
     }
@@ -412,18 +411,12 @@ public:
     string ToString(bool &ok) const
     {
         ok = (Type == Class::String);
-        return ok ? std::move(json_escape(*Internal.String)) : string("");
-    }
-
-    vector<uint8_t> ToBytes() const
-    {
-        bool b;
-        return std::move(ToBytes(b));
-    }
-    vector<uint8_t> ToBytes(bool &ok) const
-    {
-        ok = (Type == Class::ByteArray);
-        return ok ? *Internal.ByteList : vector<uint8_t>();
+        if (Type == Class::String)
+            return std::move(json_escape(*Internal.String));
+        else if (Type == Class::Hash)
+            return _hexstring(Internal.HashList, _hash_length);
+        else
+            return string("");
     }
 
     double ToFloat() const
@@ -525,9 +518,9 @@ public:
             s += "]";
             return s;
         }
-        case Class::ByteArray:
+        case Class::Hash:
         {
-            return "\"" + _hexstring(Internal.ByteList->data(), Internal.ByteList->size()) + "\"";
+            return "\"" + _hexstring(Internal.HashList, _hash_length) + "\"";
         }
         case Class::String:
             return "\"" + json_escape(*Internal.String) + "\"";
@@ -564,8 +557,8 @@ private:
         case Class::Array:
             Internal.List = new deque<JSON>();
             break;
-        case Class::ByteArray:
-            Internal.ByteList = new vector<uint8_t>();
+        case Class::Hash:
+            Internal.HashList = new uint8_t[_hash_length];
             break;
         case Class::String:
             Internal.String = new string();
@@ -599,8 +592,8 @@ private:
         case Class::Array:
             delete Internal.List;
             break;
-        case Class::ByteArray:
-            delete Internal.ByteList;
+        case Class::Hash:
+            delete Internal.HashList;
             break;
         case Class::String:
             delete Internal.String;

@@ -26,7 +26,10 @@ json::JSON get_valid_srd_path(json::JSON srd_paths)
         std::string path = srd_paths[i].ToString();
 
         // Create path
-        create_directory(path);
+        if (!create_directory(path))
+        {
+            continue;
+        }
 
         struct statfs disk_info;
         if (statfs(path.c_str(), &disk_info) == -1)
@@ -85,20 +88,22 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     else
     {
         // Create path
-        create_directory(p_config->srd_path);
-        // Calculate free disk
-        disk_info_json[p_config->srd_path]["available"] = get_avail_space_under_dir_g(p_config->srd_path);
-        disk_info_json[p_config->srd_path]["total"] = get_total_space_under_dir_g(p_config->srd_path);
-        if (disk_info_json[p_config->srd_path]["available"].ToInt() <= srd_reserved_space)
+        if (create_directory(p_config->srd_path))
         {
-            disk_info_json[p_config->srd_path]["available"] = 0;
+            // Calculate free disk
+            disk_info_json[p_config->srd_path]["available"] = get_avail_space_under_dir_g(p_config->srd_path);
+            disk_info_json[p_config->srd_path]["total"] = get_total_space_under_dir_g(p_config->srd_path);
+            if (disk_info_json[p_config->srd_path]["available"].ToInt() <= srd_reserved_space)
+            {
+                disk_info_json[p_config->srd_path]["available"] = 0;
+            }
+            else
+            {
+                disk_info_json[p_config->srd_path]["available"] = disk_info_json[p_config->srd_path]["available"].ToInt() - srd_reserved_space;
+            }
+            total_avail = disk_info_json[p_config->srd_path]["available"].ToInt();
+            disk_info_json[p_config->srd_path]["left"] = disk_info_json[p_config->srd_path]["available"].ToInt();
         }
-        else
-        {
-            disk_info_json[p_config->srd_path]["available"] = disk_info_json[p_config->srd_path]["available"].ToInt() - srd_reserved_space;
-        }
-        total_avail = disk_info_json[p_config->srd_path]["available"].ToInt();
-        disk_info_json[p_config->srd_path]["left"] = disk_info_json[p_config->srd_path]["available"].ToInt();
     }
     true_srd_capacity = std::min(total_avail, true_srd_capacity);
 
