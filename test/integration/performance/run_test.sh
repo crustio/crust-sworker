@@ -1,14 +1,23 @@
 #!/bin/bash
 function _seal()
 {
+    echo 0 > $sealsyncfile
     file_num_g=0
     local total_num=$(get_config ".performance|.file_num")
     while true; do
         sleep 3
         if [ $file_num_g -lt $total_num ]; then
             local num=1000
-            while [ $num -ge 0 ]; do
-                _seal_r
+            while [ $num -ge 0 ] && [ $(cat $sealsyncfile) -lt 10 ]; do
+                (
+                  flock -w 30 202
+                  if [ $(cat $sealsyncfile) -lt 10 ]; then
+                      _seal_r &
+                      local cur_num=$(cat $sealsyncfile)
+                      ((cur_num++))
+                      echo $cur_num > $sealsyncfile
+                  fi
+                ) 202>$seallockfile
                 ((num--))
             done
         fi
@@ -295,6 +304,8 @@ srdresfile=$ptmpdir/srd_info
 deletefilethres=3
 deletetime=100
 deletelockfile=$ptmpdir/deletelockfile
+seallockfile=$ptmpdir/seallockfile
+sealsyncfile=$ptmpdir/sealsyncfile
 
 # Control sig num
 sigShowInfo=28

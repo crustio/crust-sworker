@@ -87,6 +87,8 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     file_entry_json[FILE_BLOCK_NUM] = block_num;
     // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
     file_entry_json[FILE_STATUS] = FILE_STATUS_UNCONFIRMED;
+    free(new_root_hash_u);
+    free(org_root_hash_u);
 
     // Store new tree structure
     crust_status = persist_set_unsafe(new_root_hash_str, (const uint8_t*)new_tree.c_str(), new_tree.size());

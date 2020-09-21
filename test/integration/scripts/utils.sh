@@ -81,6 +81,7 @@ function seal_file()
 {
     local data_path=$1
     local store_path=$2
+    store_path=${store_path}.$RANDOM
     local tmp_file=tmp_file.$RANDOM
 
     ### Split file

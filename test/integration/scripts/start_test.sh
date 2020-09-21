@@ -114,7 +114,7 @@ fi
 ### Start crust-sworker
 cd $testdir
 rm -rf tee_base_path
-rm -rf files/*
+rm -rf files
 verbose INFO "starting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
 pid=$!
