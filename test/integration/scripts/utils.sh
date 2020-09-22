@@ -5,11 +5,11 @@ function crust_split()
     local storepath=$2
     if [ ! -s "$filepath" ]; then
         verbose ERROR "File path is invalid!"
-        exit 1
+        return 1
     fi
     if [ ! -e "$storepath" ]; then
         verbose ERROR "Store path is not existed!"
-        exit 1
+        return 1
     fi
     # Generated dir name
     local detdir="dettmp.$(date +%N)"
@@ -56,7 +56,7 @@ function crust_split()
     done
     totalhash=$(echo $totalhash | xxd -r -p | sha256sum | awk '{print $1}')
     mt_json="$mt_json],\"hash\":\"${totalhash}\"}"
-    local newdetdir="$(dirname $detdir)/$totalhash"
+    local newdetdir="$(dirname $detdir)/${totalhash}.${RANDOM}$(date +%N)"
     echo "$mt_json $newdetdir"
     cd - &>/dev/null
     rm $filepath
@@ -81,15 +81,15 @@ function seal_file()
 {
     local data_path=$1
     local store_path=$2
-    store_path=${store_path}.$RANDOM
-    local tmp_file=tmp_file.$RANDOM
+    local tmp_file=tmp_file.${RANDOM}$(date +%N)
 
     ### Split file
-    local mt_json=($(crust_split $data_path $store_path 2>$tmp_file))
-    if [ -s "$tmp_file" ]; then
+    crust_split $data_path $store_path &>$tmp_file
+    if [ $? -ne 0 ]; then
         rm $tmp_file
         return 1
     fi
+    local mt_json=($(cat $tmp_file))
 
     ### Seal file block
     seal ${mt_json[0]} ${mt_json[1]} >$tmp_file

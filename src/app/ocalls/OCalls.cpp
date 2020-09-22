@@ -732,7 +732,7 @@ void ocall_store_workreport(const char *data, size_t data_size, bool cover /*=tr
     }
     else
     {
-        std::string str = get_g_enclave_workload();
+        std::string str = get_g_enclave_workreport();
         str.append(data, data_size);
         set_g_enclave_workreport(str);
     }
