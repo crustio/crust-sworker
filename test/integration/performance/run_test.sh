@@ -5,19 +5,10 @@ function _seal()
     file_num_g=0
     local total_num=$(get_config ".performance|.file_num")
     while true; do
-        sleep 3
         if [ $file_num_g -lt $total_num ]; then
-            local num=1000
-            while [ $num -ge 0 ] && [ $(cat $sealsyncfile) -lt 10 ]; do
-                (
-                  flock -w 30 202
-                  if [ $(cat $sealsyncfile) -lt 10 ]; then
-                      _seal_r &
-                      local cur_num=$(cat $sealsyncfile)
-                      ((cur_num++))
-                      echo $cur_num > $sealsyncfile
-                  fi
-                ) 202>$seallockfile
+            local num=800
+            while [ $num -ge 0 ]; do
+                _seal_r
                 ((num--))
             done
         fi
@@ -32,16 +23,17 @@ function _seal_r()
         rm -rf $file_path &>/dev/null
         return 1
     fi
-    seal_file $file_path $testfiledir &>$TMPFILE
+    local tmpfile=${TMPFILE}${RANDOM}$(date +%N)
+    seal_file $file_path $testfiledir &>$tmpfile
     if [ $? -eq 0 ]; then
-        local ret_body=$(cat $TMPFILE)
+        local ret_body=$(cat $tmpfile)
         local sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
         #verbose INFO "sealing hash:$sealed_hash..." h
         if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
             #verbose INFO "success" t
             echo 0 > $sealtmpdir/$sealed_hash
-            ((file_num_g++))
             res_inc "seal" "success" $sealresfile
+            ((file_num_g++))
         else
             #verbose ERROR "failed" t
             res_inc "seal" "failed" $sealresfile
@@ -50,6 +42,7 @@ function _seal_r()
         res_inc "seal" "failed" $sealresfile
     fi
     rm -rf $file_path
+    rm -rf $tmpfile
 }
 
 function _unseal()
@@ -124,6 +117,7 @@ function _validate
         validate_file &>/dev/null
         validate_srd &>/dev/null
         store_metadata &>/dev/null
+        res_inc "confirm" "success" $validateresfile
     done
 }
 
@@ -195,14 +189,17 @@ function _delete_r()
 
 function _workreport()
 {
+    local lfile=workreport
+    local tag=0
     while true; do
         sleep $((20 + $RANDOM % 10))
-        report_work &>/dev/null
+        report_work &>$instdir/${lfile}.$tag
         if [ $? -eq 0 ]; then
             res_inc "report" "success" $reportresfile
         else
             res_inc "report" "failed" $reportresfile
         fi
+        ((tag=(tag+1)%2))
     done
 }
 
@@ -215,6 +212,7 @@ cat << EOF >$TMPFILE
     "confirm":{"success":$(get_success $confirmresfile),"failed":$(get_failed $confirmresfile)},
     "delete":{"success":$(get_success $deleteresfile),"failed":$(get_failed $deleteresfile)},
     "srd":{"success":$(get_success $srdresfile),"failed":$(get_failed $srdresfile)},
+    "validate":{"success":$(get_success $validateresfile),"failed":$(get_failed $validateresfile)},
     "workreport":{"success":$(get_success $reportresfile),"failed":$(get_failed $reportresfile)}
 }
 EOF
@@ -300,12 +298,17 @@ unsealresfile=$ptmpdir/unseal_info
 reportresfile=$ptmpdir/report_info
 deleteresfile=$ptmpdir/delete_info
 confirmresfile=$ptmpdir/confirm_info
+validateresfile=$ptmpdir/validate_info
 srdresfile=$ptmpdir/srd_info
 deletefilethres=3
 deletetime=100
 deletelockfile=$ptmpdir/deletelockfile
+<<<<<<< HEAD
 seallockfile=$ptmpdir/seallockfile
 sealsyncfile=$ptmpdir/sealsyncfile
+=======
+sealsyncdir=$ptmpdir/sealsyncdir
+>>>>>>> dev
 
 # Control sig num
 sigShowInfo=28
@@ -319,6 +322,7 @@ trap 'show_info' $sigShowInfo
 mkdir -p $sealtmpdir
 mkdir -p $confirmtmpdir
 mkdir -p $ptmpdir
+mkdir -p $sealsyncdir
 
 declare -A name2pid_m
 
