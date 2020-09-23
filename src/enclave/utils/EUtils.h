@@ -80,7 +80,7 @@ void *enc_malloc(size_t size);
 void *enc_realloc(void *p, size_t size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
-void store_large_data(std::string data, p_ocall_store p_func, sgx_thread_mutex_t &mutex);
+void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex);
 
 #if defined(__cplusplus)
 }

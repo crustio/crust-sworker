@@ -738,14 +738,13 @@ void replace(std::string &data, std::string org_str, std::string det_str)
 /**
  * @description: Store large data
  * @param data -> To be stored data
+ * @param data_size -> To be stored data size
  * @param p_func -> Store function
  * @param mutex -> Mutex lock to sync data
  */
-void store_large_data(std::string data, p_ocall_store p_func, sgx_thread_mutex_t &mutex)
+void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex)
 {
     sgx_thread_mutex_lock(&mutex);
-    size_t data_size = data.size();
-    const char *p_data = data.c_str();
     if (data_size > OCALL_STORE_THRESHOLD)
     {
         size_t offset = 0;
@@ -754,14 +753,14 @@ void store_large_data(std::string data, p_ocall_store p_func, sgx_thread_mutex_t
         while (data_size > offset)
         {
             part_size = std::min(data_size - offset, (size_t)OCALL_STORE_THRESHOLD);
-            p_func(p_data + offset, part_size, cover);
+            p_func(reinterpret_cast<const char *>(data + offset), part_size, cover);
             offset += part_size;
             cover = false;
         }
     }
     else
     {
-        p_func(p_data, data_size, true);
+        p_func(reinterpret_cast<const char *>(data), data_size, true);
     }
     sgx_thread_mutex_unlock(&mutex);
 }
