@@ -239,7 +239,10 @@ void validate_meaningful_file()
     ocall_validate_init(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
-        wl->set_report_flag(false);
+        if(wl->checked_files.size() != 0)
+        {
+            wl->set_report_flag(false);
+        }
         ocall_validate_close();
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
         return;

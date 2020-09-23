@@ -73,14 +73,23 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
     id_set_report_slot((block_height - 1)/ERA_LENGTH + 1);
 
+
+    Workload *wl = Workload::get_instance();
     // The first report after restart will not be processed
     if (id_just_after_restart())
     {
         id_set_just_after_restart(false);
+        wl->set_report_flag(true);
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
 
-    Workload *wl = Workload::get_instance();
+    // Have files and no karst
+    if (!wl->get_report_flag())
+    {
+        wl->set_report_flag(true);
+        return CRUST_NO_KARST;
+    }
+
     ecc_key_pair id_key_pair = id_get_key_pair();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status;
@@ -125,27 +134,24 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     
     // ----- Get files info ----- //
     std::string old_files = "[";
-    if (wl->get_report_flag())
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (uint32_t i = 0; i < wl->checked_files.size(); i++)
     {
-        sgx_thread_mutex_lock(&g_checked_files_mutex);
-        for (uint32_t i = 0; i < wl->checked_files.size(); i++)
+        if (wl->checked_files[i][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) != 0)
         {
-            if (wl->checked_files[i][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) != 0)
-            {
-                continue;
-            }
-
-            old_files.append("{\"").append(FILE_HASH).append("\":")
-                .append("\"").append(wl->checked_files[i][FILE_OLD_HASH].ToString()).append("\",");
-            old_files.append("\"").append(FILE_SIZE).append("\":")
-                .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
-            if (i != wl->checked_files.size() - 1)
-            {
-                old_files.append(",");
-            }
+            continue;
         }
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+        old_files.append("{\"").append(FILE_HASH).append("\":")
+            .append("\"").append(wl->checked_files[i][FILE_OLD_HASH].ToString()).append("\",");
+        old_files.append("\"").append(FILE_SIZE).append("\":")
+            .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
+        if (i != wl->checked_files.size() - 1)
+        {
+            old_files.append(",");
+        }
     }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
     old_files.append("]");
 
     // ----- Create signature data ----- //

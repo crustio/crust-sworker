@@ -5,6 +5,7 @@ sgx_thread_mutex_t g_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_new_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_order_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_report_flag_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 Workload *Workload::workload = NULL;
 
@@ -320,7 +321,9 @@ void Workload::add_order_file(std::pair<std::string, size_t> file)
  */
 void Workload::set_report_flag(bool flag)
 {
+    sgx_thread_mutex_lock(&g_report_flag_mutex);
     this->report_files = flag;
+    sgx_thread_mutex_unlock(&g_report_flag_mutex);
 }
 
 /**
@@ -329,7 +332,10 @@ void Workload::set_report_flag(bool flag)
  */
 bool Workload::get_report_flag()
 {
-    return this->report_files;
+    sgx_thread_mutex_lock(&g_report_flag_mutex);
+    bool flag = this->report_files;
+    sgx_thread_mutex_unlock(&g_report_flag_mutex);
+    return flag;
 }
 
 /**

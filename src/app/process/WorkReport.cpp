@@ -107,6 +107,10 @@ void work_report_loop(void)
                 {
                     p_log->info("Can't generate work report for the first time after restart\n");
                 }
+                else if (crust_status == CRUST_NO_KARST)
+                {
+                    p_log->info("Can't generate work report. You have meaningful files, please start karst\n");
+                }
                 else
                 {
                     p_log->err("Get signed validation report failed! Error code: %x\n", crust_status);
