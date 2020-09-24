@@ -748,7 +748,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
         meta_json = json::JSON();
         goto cleanup;
     }
-    meta_json = json::JSON::Load(std::string(reinterpret_cast<char*>(p_data + strlen(TEE_PRIVATE_TAG)), data_len));
+    meta_json = json::JSON::Load(p_data + strlen(TEE_PRIVATE_TAG), data_len);
     if (meta_json.size() == 0)
     {
         goto cleanup;
@@ -905,28 +905,116 @@ crust_status_t id_store_metadata()
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string hex_id_key_str = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
 
-    // ----- Store metadata ----- //
-    std::string meta_str(TEE_PRIVATE_TAG);
-    meta_str.append("{");
-    // Append srd
-    meta_str.append("\"").append(ID_WORKLOAD).append("\":");
-    wl->serialize_srd(meta_str);
-    meta_str.append(",");
-    // Append id key pair
-    meta_str.append("\"").append(ID_KEY_PAIR).append("\":")
-        .append("\"").append(hex_id_key_str).append("\",");
-    // Append report slot
-    meta_str.append("\"").append(ID_REPORT_SLOT).append("\":")
-        .append("\"").append(std::to_string(report_slot)).append("\",");
-    // Append chain account id
-    meta_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
-        .append("\"").append(g_chain_account_id).append("\",");
-    // Append files
-    meta_str.append("\"").append(ID_FILE).append("\":");
-    wl->serialize_file(meta_str);
-    meta_str.append("}");
+    // Calculate metadata volumn
+    size_t meta_len = 0;
+    for (auto it : wl->srd_path2hashs_m)
+    {
+        meta_len += it.second.size() * (64 + 3);
+    }
+    meta_len += wl->srd_path2hashs_m.size() * (128 + 4);
+    meta_len += strlen(TEE_PRIVATE_TAG) + 5
+        + strlen(ID_WORKLOAD) + 5
+        + strlen(ID_KEY_PAIR) + 5
+        + strlen(ID_REPORT_SLOT) + 5
+        + strlen(ID_CHAIN_ACCOUNT_ID) + 5
+        + strlen(ID_FILE) + 5;
+    size_t file_item_len = strlen(FILE_HASH) + 3 + 64 + 3
+        + strlen(FILE_OLD_HASH) + 3 + 64 + 3
+        + strlen(FILE_SIZE) + 3 + 14 + 1
+        + strlen(FILE_OLD_SIZE) + 3 + 14 + 1
+        + strlen(FILE_BLOCK_NUM) + 3 + 14 + 4
+        + strlen(FILE_STATUS) + 16 + 4
+        + 2;
+    meta_len += wl->checked_files.size() * file_item_len;
+    uint8_t *meta_buf = (uint8_t *)enc_malloc(meta_len);
+    if (meta_buf == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(meta_buf, 0, meta_len);
+    size_t offset = 0;
 
-    crust_status = persist_set(ID_METADATA, reinterpret_cast<const uint8_t *>(meta_str.c_str()), meta_str.size());
+    // ----- Store metadata ----- //
+    memcpy(meta_buf, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
+    offset += strlen(TEE_PRIVATE_TAG);
+    memcpy(meta_buf + offset, "{", 1);
+    offset += 1;
+    // Append srd
+    std::string wl_title;
+    wl_title.append("\"").append(ID_WORKLOAD).append("\":{");
+    memcpy(meta_buf + offset, wl_title.c_str(), wl_title.size());
+    offset += wl_title.size();
+    size_t i = 0;
+    for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end(); it++, i++)
+    {
+        std::string path_title;
+        path_title.append("\"").append(it->first).append("\":[");
+        memcpy(meta_buf + offset, path_title.c_str(), path_title.size());
+        offset += path_title.size();
+        for (size_t j = 0; j < it->second.size(); j++)
+        {
+            std::string hash_str;
+            hash_str.append("\"").append(hexstring_safe(it->second[j], HASH_LENGTH)).append("\"");
+            memcpy(meta_buf + offset, hash_str.c_str(), hash_str.size());
+            offset += hash_str.size();
+            if (j != it->second.size() - 1)
+            {
+                memcpy(meta_buf + offset, ",", 1);
+                offset += 1;
+            }
+        }
+        memcpy(meta_buf + offset, "]", 1);
+        offset += 1;
+        if (i != wl->srd_path2hashs_m.size() - 1)
+        {
+            memcpy(meta_buf + offset, ",", 1);
+            offset += 1;
+        }
+    }
+    memcpy(meta_buf + offset, "},", 2);
+    offset += 2;
+    // Append id key pair
+    std::string key_pair_str;
+    key_pair_str.append("\"").append(ID_KEY_PAIR).append("\":")
+        .append("\"").append(hex_id_key_str).append("\",");
+    memcpy(meta_buf + offset, key_pair_str.c_str(), key_pair_str.size());
+    offset += key_pair_str.size();
+    // Append report slot
+    std::string report_slot_str;
+    report_slot_str.append("\"").append(ID_REPORT_SLOT).append("\":")
+        .append("\"").append(std::to_string(report_slot)).append("\",");
+    memcpy(meta_buf + offset, report_slot_str.c_str(), report_slot_str.size());
+    offset += report_slot_str.size();
+    // Append chain account id
+    std::string account_id_str;
+    account_id_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
+        .append("\"").append(g_chain_account_id).append("\",");
+    memcpy(meta_buf + offset, account_id_str.c_str(), account_id_str.size());
+    offset += account_id_str.size();
+    // Append files
+    std::string file_title;
+    file_title.append("\"").append(ID_FILE).append("\":[");
+    memcpy(meta_buf + offset, file_title.c_str(), file_title.size());
+    offset += file_title.size();
+    for (size_t i = 0; i < wl->checked_files.size(); i++)
+    {
+        std::string file_str = wl->checked_files[i].dump();
+        remove_char(file_str, '\n');
+        remove_char(file_str, '\\');
+        remove_char(file_str, ' ');
+        memcpy(meta_buf + offset, file_str.c_str(), file_str.size());
+        offset += file_str.size();
+        if (i != wl->checked_files.size() - 1)
+        {
+            memcpy(meta_buf + offset, ",", 1);
+            offset += 1;
+        }
+    }
+    memcpy(meta_buf + offset, "]}", 2);
+    offset += 2;
+
+    crust_status = persist_set(ID_METADATA, meta_buf, offset);
+    free(meta_buf);
 
     sgx_thread_mutex_unlock(&g_metadata_mutex);
 
@@ -968,14 +1056,13 @@ crust_status_t id_restore_metadata()
         log_warn("Wait for srd info, code:%lx\n", crust_status);
     }
     // Restore meaningful files
-    wl->checked_files.clear();
     if (meta_json.hasKey(ID_FILE)
             && meta_json[ID_FILE].JSONType() == json::JSON::Class::Array)
     {
-        json::JSON m_files = meta_json[ID_FILE];
-        for (int i = 0; i < m_files.size(); i++)
+        wl->checked_files.resize(meta_json[ID_FILE].size());
+        for (int i = 0; i < meta_json[ID_FILE].size(); i++)
         {
-            wl->checked_files.push_back(m_files[i]);
+            wl->checked_files[i] = meta_json[ID_FILE][i];
         }
     }
     // Restore id key pair

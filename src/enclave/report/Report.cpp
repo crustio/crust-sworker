@@ -73,7 +73,6 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
     id_set_report_slot((block_height - 1)/ERA_LENGTH + 1);
 
-
     Workload *wl = Workload::get_instance();
     // The first report after restart will not be processed
     if (id_just_after_restart())
@@ -95,41 +94,11 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     sgx_status_t sgx_status;
     // ----- Get srd info ----- //
     sgx_thread_mutex_lock(&g_srd_mutex);
-    size_t srd_workload;
-    sgx_sha256_hash_t srd_root;
-    // Get hashs for hashing
-    size_t g_hashs_num = 0;
+    size_t srd_workload = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
-        g_hashs_num += it.second.size();
+        srd_workload += it.second.size() * 1024 * 1024 * 1024;
     }
-    uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
-    if (hashs == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    size_t hashs_len = 0;
-    for (auto it : wl->srd_path2hashs_m)
-    {
-        for (auto g_hash : it.second)
-        {
-            memcpy(hashs + hashs_len, g_hash, HASH_LENGTH);
-            hashs_len += HASH_LENGTH;
-        }
-    }
-    // Generate srd information
-    if (hashs_len == 0)
-    {
-        srd_workload = 0;
-        memset(srd_root, 0, HASH_LENGTH);
-    }
-    else
-    {
-        srd_workload = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)hashs_len, &srd_root);
-    }
-    free(hashs);
     sgx_thread_mutex_unlock(&g_srd_mutex);
     
     // ----- Get files info ----- //
@@ -142,14 +111,14 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
             continue;
         }
 
+        if (old_files.size() != 1)
+        {
+            old_files.append(",");
+        }
         old_files.append("{\"").append(FILE_HASH).append("\":")
             .append("\"").append(wl->checked_files[i][FILE_OLD_HASH].ToString()).append("\",");
         old_files.append("\"").append(FILE_SIZE).append("\":")
             .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
-        if (i != wl->checked_files.size() - 1)
-        {
-            old_files.append(",");
-        }
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
     old_files.append("]");
@@ -225,7 +194,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     wr_str.append("\"").append(WORKREPORT_SIG).append("\":")
         .append("\"").append(hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t))).append("\"");
     wr_str.append("}");
-    store_large_data(wr_str, ocall_store_workreport, wl->ocall_wr_mutex);
+    store_large_data(reinterpret_cast<const uint8_t *>(wr_str.c_str()), wr_str.size(), ocall_store_workreport, wl->ocall_wr_mutex);
 
     // Reset meaningful data
     wl->set_report_flag(true);

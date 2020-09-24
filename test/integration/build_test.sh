@@ -326,7 +326,7 @@ EOF
 function enc_report_cpp_test()
 {
     local pos=$(sed -n '/crust_status_t get_signed_work_report(/=' $enclave_report_cpp)
-    sed -i "$((pos+2)),$((pos+21))d" $enclave_report_cpp
+    sed -i "$((pos+2)),$((pos+13))d" $enclave_report_cpp
 }
 
 ########## enc_validate_cpp_test ##########

@@ -13,7 +13,7 @@ datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
 configfile=$instdir/config/config.json
-TMPFILE=$instdir/TMPFILE
+TMPFILE=$instdir/TMPFILE.$RANDOM
 
 trap 'report_exit' EXIT
 
@@ -65,6 +65,7 @@ for file in ${file_arry[@]}; do
         exit 1
     fi
     sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    sealed_hash=${sealed_hash::64}
     confirm $sealed_hash &>/dev/null
     if [ $? -ne 0 ]; then
         echo "confirm file failed!"
@@ -82,11 +83,12 @@ fi
 # Get report info
 files_num=$(cat $TMPFILE | jq '.files | .[] | .hash' | wc -l 2>/dev/null)
 reserved=$(cat $TMPFILE | jq '.reserved' 2>/dev/null)
-if [ x"$reserved" != x"$((srd_num * 1024 * 1024 * 1024))" ]; then
-    echo "srd number is wrong!"
+reserved_e=$((srd_num * 1024 * 1024 * 1024))
+if [ x"$reserved" != x"$reserved_e" ]; then
+    echo "srd number is wrong!expect:${reserved_e}, real:${reserved}"
     exit 1
 fi
 if [ x"$files_num" != x"${#file_arry[@]}" ]; then
-    echo "file number is wrong!"
+    echo "file number is wrong!expect:${#file_arry[@]}, real:${files_num}"
     exit 1
 fi

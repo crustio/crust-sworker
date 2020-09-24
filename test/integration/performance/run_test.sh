@@ -303,12 +303,6 @@ srdresfile=$ptmpdir/srd_info
 deletefilethres=3
 deletetime=100
 deletelockfile=$ptmpdir/deletelockfile
-<<<<<<< HEAD
-seallockfile=$ptmpdir/seallockfile
-sealsyncfile=$ptmpdir/sealsyncfile
-=======
-sealsyncdir=$ptmpdir/sealsyncdir
->>>>>>> dev
 
 # Control sig num
 sigShowInfo=28
@@ -322,7 +316,6 @@ trap 'show_info' $sigShowInfo
 mkdir -p $sealtmpdir
 mkdir -p $confirmtmpdir
 mkdir -p $ptmpdir
-mkdir -p $sealsyncdir
 
 declare -A name2pid_m
 

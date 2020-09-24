@@ -104,7 +104,7 @@ std::string Workload::get_workload(void)
     wl_str.append("}");
 
     // Store workload
-    store_large_data(wl_str, ocall_store_workload, Workload::get_instance()->ocall_wl_mutex);
+    store_large_data(reinterpret_cast<const uint8_t *>(wl_str.c_str()), wl_str.size(), ocall_store_workload, Workload::get_instance()->ocall_wl_mutex);
 
     return wl_str;
 }
