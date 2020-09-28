@@ -13,7 +13,6 @@ typedef struct _enclave_task_t {
 std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_restore_metadata", 0},
     {"Ecall_gen_key_pair", 0},
-    {"Ecall_set_chain_account_id", 0},
     {"Ecall_cmp_chain_account_id", 0},
     {"Ecall_get_quote_report", 0},
     {"Ecall_verify_iasreport", 0},
@@ -337,27 +336,6 @@ sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *st
 }
 
 /**
- * @description: A wrapper function, Set crust account id
- * @param status -> Pointer to set result status
- * @param account_id (in) -> Pointer to account id
- * @param len -> Account id length
- */
-sgx_status_t Ecall_set_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_set_chain_account_id(eid, status, account_id, len);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
  * @description: A wrapper function, Get signed validation report
  * @param status -> Pointer to get result status
  * @param block_hash (in) -> block hash
@@ -381,7 +359,7 @@ sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *
 /**
  * @description: A wrapper function, generate ecc key pair and store it in enclave
  */
-sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status)
+sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status, const char *account_id, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -389,7 +367,7 @@ sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status)
         return ret;
     }
 
-    ret = ecall_gen_key_pair(eid, status);
+    ret = ecall_gen_key_pair(eid, status, account_id, len);
 
     free_enclave(__FUNCTION__);
 

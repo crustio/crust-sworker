@@ -204,26 +204,15 @@ int process_run()
     {
         // Restore data failed
         p_log->info("Starting a new enclave...(code:%lx)\n", crust_status);
+
         // Generate ecc key pair
-        if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status) || SGX_SUCCESS != sgx_status)
+        if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status, p_config->chain_account_id.c_str(), p_config->chain_account_id.size()) || SGX_SUCCESS != sgx_status)
         {
             p_log->err("Generate key pair failed!\n");
             return_status = -1;
             goto cleanup;
         }
         p_log->info("Generate key pair successfully!\n");
-
-        // Store crust info in enclave
-        // TODO: Get srd from other node
-        crust_status_t crust_status = CRUST_SUCCESS;
-        if (SGX_SUCCESS != Ecall_set_chain_account_id(global_eid, &crust_status,
-                p_config->chain_address.c_str(), p_config->chain_address.size())
-            || CRUST_SUCCESS != crust_status)
-        {
-            p_log->err("Store backup information to enclave failed!Error code:%lx\n", crust_status);
-            return_status = -1;
-            goto cleanup;
-        }
 
         // Send identity to chain and send work report
         if (!offline_chain_mode)
@@ -260,7 +249,7 @@ int process_run()
     {
         // Compare crust account it in configure file and recovered file
         if (SGX_SUCCESS != Ecall_cmp_chain_account_id(global_eid, &crust_status,
-                p_config->chain_address.c_str(), p_config->chain_address.size())
+                p_config->chain_account_id.c_str(), p_config->chain_account_id.size())
             || CRUST_SUCCESS != crust_status)
         {
             p_log->err("Configure chain account id doesn't equal to recovered one!\n");

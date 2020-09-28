@@ -111,17 +111,6 @@ crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
 }
 
 /**
- * @description: Set crust account id
- * @param account_id (in) -> Pointer to account id
- * @param len -> Account id length
- * @return: Set status
- */
-crust_status_t ecall_set_chain_account_id(const char *account_id, size_t len)
-{
-    return id_set_chain_account_id(account_id, len);
-}
-
-/**
  * @description: Get signed work report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
@@ -153,9 +142,9 @@ crust_status_t ecall_get_signed_order_report()
  * @description: Generate ecc key pair and store it in enclave
  * @return: Generate status
  */
-sgx_status_t ecall_gen_key_pair()
+sgx_status_t ecall_gen_key_pair(const char *account_id, size_t len)
 {
-    return id_gen_key_pair();
+    return id_gen_key_pair(account_id, len);
 }
 
 /**
