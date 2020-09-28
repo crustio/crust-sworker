@@ -637,9 +637,11 @@ cleanup:
 
 /**
  * @description: Generate ecc key pair and store it in enclave
+ * @param account_id (in) -> Pointer to account id
+ * @param len -> Account id length
  * @return: Generate status
  */
-sgx_status_t id_gen_key_pair()
+sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
 {
     if (g_is_set_id_key_pair)
     {
@@ -652,7 +654,7 @@ sgx_status_t id_gen_key_pair()
     sgx_ec256_private_t pri_key;
     memset(&pub_key, 0, sizeof(pub_key));
     memset(&pri_key, 0, sizeof(pri_key));
-    sgx_status_t se_ret;
+    
     sgx_ecc_state_handle_t ecc_state = NULL;
     se_ret = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != se_ret)
@@ -676,6 +678,9 @@ sgx_status_t id_gen_key_pair()
     memcpy(&id_key_pair.pri_key, &pri_key, sizeof(pri_key));
 
     g_is_set_id_key_pair = true;
+
+    // Set chain account id
+    se_ret = id_set_chain_account_id(account_id, len);
 
     return SGX_SUCCESS;
 }
