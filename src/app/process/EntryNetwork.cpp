@@ -201,7 +201,6 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
     ias_report.push_back(ias_cer.c_str());
     ias_report.push_back(ias_sig.c_str());
     ias_report.push_back(ias_quote_body.c_str());
-    ias_report.push_back(p_config->chain_account_id.c_str()); //[3]
 
     p_log->debug("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
     json::JSON ias_body_json = json::JSON::Load(ias_res.body());

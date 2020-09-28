@@ -377,7 +377,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
     vector<string> response(IASReport, IASReport + size);
 
-    string chain_account_id = response[3];
+    string chain_account_id = g_chain_account_id;
     uint8_t *p_account_id_u = hex_string_to_bytes(chain_account_id.c_str(), chain_account_id.size());
     size_t account_id_u_len = chain_account_id.size() / 2;
     uint8_t *org_data, *p_org_data = NULL;
@@ -643,6 +643,7 @@ cleanup:
  */
 sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
 {
+    
     if (g_is_set_id_key_pair)
     {
         log_err("Identity key pair has been generated!\n");
@@ -654,7 +655,7 @@ sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
     sgx_ec256_private_t pri_key;
     memset(&pub_key, 0, sizeof(pub_key));
     memset(&pri_key, 0, sizeof(pri_key));
-    
+    sgx_status_t se_ret;
     sgx_ecc_state_handle_t ecc_state = NULL;
     se_ret = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != se_ret)
@@ -677,11 +678,15 @@ sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
     memcpy(&id_key_pair.pub_key, &pub_key, sizeof(pub_key));
     memcpy(&id_key_pair.pri_key, &pri_key, sizeof(pri_key));
 
-    g_is_set_id_key_pair = true;
-
     // Set chain account id
-    se_ret = id_set_chain_account_id(account_id, len);
+    crust_status_t crust_status = id_set_chain_account_id(account_id, len);
+    if (crust_status != CRUST_SUCCESS)
+    {
+        log_err("Set chain account id error: %d\n", crust_status);
+        return SGX_ERROR_UNEXPECTED;
+    }
 
+    g_is_set_id_key_pair = true;
     return SGX_SUCCESS;
 }
 
