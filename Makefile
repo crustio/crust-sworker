@@ -6,8 +6,11 @@ build:
 test:
 	@$(MAKE) -C test/unit test --no-print-directory
 
-integration_test:
-	@$(MAKE) -C test/integration test --no-print-directory
+build_test:
+	@$(MAKE) -C test/integration build --no-print-directory
+
+functionality_test:
+	@$(MAKE) -C test/integration functionality_test --no-print-directory
 
 clean:
 	@$(MAKE) -C src/ clean --no-print-directory

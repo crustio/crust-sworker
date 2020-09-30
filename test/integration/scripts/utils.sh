@@ -292,7 +292,7 @@ function print_title()
     local info=$1
     local len=${#info}
     local sp=40
-    local time="[$(date "+%Y/%m/%d %T.%3N")]"
+    local time="[$(date "+%Y/%m/%d %T.%3N")] [INFO] "
     printf "%s #####%$((sp/2))s%-$((sp/2))s#####\n" "$time" "`echo $info | cut -c 1-$(($len/2))`" "`echo $info | cut -c $(($len/2+1))-$len`"
 }
 
