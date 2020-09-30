@@ -7,7 +7,7 @@ function _store_meta()
 
 function seal_exit()
 {
-    rm $TMPFILE
+    rm -rf $tmpdir
 }
 
 ########## MAIN BODY ##########
@@ -19,14 +19,19 @@ datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
 configfile=$instdir/config/config.json
-TMPFILE=$basedir/TMPFILE
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+
+mkdir -p $tmpdir
 
 trap 'seal_exit' EXIT
 
 . $scriptdir/utils.sh
 
-declare -A hash_2_use_m
+print_title "start srd case"
 
+
+declare -A hash_2_use_m
 data_arry=($(ls $datadir))
 data_size=${#data_arry[@]}
 
@@ -34,8 +39,21 @@ srd_num=$(get_config ".functionality|.srd_size")
 srd_paths=$(get_config ".functionality|.srd_paths")
 srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
 tmp_num=0
+real_max_per_turn=0
 
-srd_disk_change "$srd_paths" "add"
+# Get current available max per turn
+srd_paths_test=($(echo $srd_paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
+for path in ${srd_paths_test[@]}; do
+    tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
+    tmp=${tmp%[a-zA-Z]*}
+    ((real_max_per_turn += tmp))
+done
+if [ $srd_max_per_turn -gt $real_max_per_turn ]; then
+    srd_max_per_turn=$real_max_per_turn
+fi
+
+# Srd task
+srd_disk_change "$srd_paths" "add" &>/dev/null
 while [ $tmp_num -lt $srd_num ]; do
     if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
         cur_turn=$srd_max_per_turn
@@ -52,6 +70,6 @@ done
 _store_meta &>/dev/null
 get_workload &>$TMPFILE
 if [ x"$(cat $TMPFILE | jq '.srd|.space')" != x"$srd_num" ]; then
-    echo "srd failed!Wrong result."
+    echo "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.space')"
     exit 1
 fi

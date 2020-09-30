@@ -244,6 +244,15 @@ crust_status_t ecall_delete_file(const char *hash)
 }
 
 /**
+ * @description: Set work report result
+ * @param flag -> Report result
+ */
+void ecall_handle_report_result()
+{
+    Workload::get_instance()->handle_report_result();
+}
+
+/**
  * @description: Get enclave id information
  */
 void ecall_id_get_info()

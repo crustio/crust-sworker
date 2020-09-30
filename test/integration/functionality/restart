@@ -1,0 +1,80 @@
+#!/bin/bash
+function restart_exit()
+{
+    local cur_sworkerpid=$(ps -ef | grep -v grep | grep "\b${sworkerpid}\b" | awk '{print $2}')
+    if [ x"$cur_sworkerpid" = x"$sworkerpid" ]; then
+        kill -9 $sworkerpid &>/dev/null
+        wait $sworkerpid &>/dev/null
+    fi
+    rm -rf $tmpdir
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+configfile=$instdir/config/config.json
+testconfigfile=$testdir/etc/Config.json
+errfile=$scriptdir/err.log
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+sworkerlog=$instdir/sworker.log
+
+trap "restart_exit" EXIT
+
+mkdir -p $tmpdir
+
+. $scriptdir/utils.sh
+
+print_title "start restart case"
+
+
+### Restart crust-sworker
+store_metadata &>/dev/null
+kill -9 $sworkerpid &>/dev/null
+wait $sworkerpid &>/dev/null
+sleep 3
+cd $testdir
+verbose INFO "Restarting crust-sworker..." h
+./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
+sworkerpid=$!
+sleep 20
+curl -s $baseurl/workload 2>$errfile 1>/dev/null
+if [ $? -ne 0 ] ; then
+    verbose ERROR "failed" t
+    verbose ERROR "start crust sworker failed! Please check $errfile for details."
+    kill -9 $sworkerpid
+    exit 1
+fi
+if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
+    verbose ERROR "failed" t
+    exit 1
+fi
+verbose INFO "success" t
+cd - &>/dev/null
+
+# Re-test
+res=0
+get_workload &>/dev/null
+res=$(($?|$res))
+report_work &>/dev/null
+res=$(($?|$res))
+srd 100 &>/dev/null
+res=$(($?|$res))
+srd -50 &>/dev/null
+res=$(($?|$res))
+store_metadata &>/dev/null
+res=$(($?|$res))
+get_workload &>/dev/null
+res=$(($?|$res))
+report_work &>/dev/null
+res=$(($?|$res))
+
+if [ $res -ne 0 ]; then
+    echo "Test failed after restart!"
+    exit 1
+fi

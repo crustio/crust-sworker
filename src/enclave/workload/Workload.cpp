@@ -71,13 +71,14 @@ std::string Workload::get_workload(void)
     wl_str.append("\"").append(WL_FILES).append("\":{");
     if (md_json.hasKey(ID_FILE) && md_json[ID_FILE].size() > 0)
     {
-        for (int i = 0; i < md_json[ID_FILE].size(); i++)
+        for (long i = 0; i < md_json[ID_FILE].size(); i++)
         {
+            std::string status = md_json[ID_FILE][i][FILE_STATUS].ToString();
             std::string tmp_str = "{";
             tmp_str.append("\"").append(WL_FILE_SEALED_SIZE).append("\":")
                 .append(std::to_string(md_json[ID_FILE][i][FILE_SIZE].ToInt())).append(",");
             tmp_str.append("\"").append(WL_FILE_STATUS).append("\":")
-                .append("\"").append(md_json[ID_FILE][i][FILE_STATUS].ToString()).append("\"}");
+                .append("\"").append(g_file_status[status[CURRENT_STATUS]]).append("\"}");
             wl_str.append("\"").append(md_json[ID_FILE][i][FILE_HASH].ToString()).append("\":").append(tmp_str);
             if (i != md_json[ID_FILE].size() - 1)
             {
@@ -365,4 +366,42 @@ json::JSON Workload::get_srd_info()
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 
     return srd_info;
+}
+
+/**
+ * @description: Set upgrade flag
+ * @param flag -> Upgrade flag
+ */
+void Workload::set_upgrade(bool flag)
+{
+    this->upgrade = flag;
+}
+
+/**
+ * @description: Get upgrade flag
+ * @return: Upgrade flag
+ */
+bool Workload::is_upgrade()
+{
+    return this->upgrade;
+}
+
+/**
+ * @description: Handle workreport result
+ * @param report_res -> Workreport result
+ */
+void Workload::handle_report_result()
+{
+    // Set file status by report result
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (auto i : this->reported_files_idx)
+    {
+        if (i < this->checked_files.size())
+        {
+            auto status = &this->checked_files[i][FILE_STATUS];
+            status->set_char(ORIGIN_STATUS, status->get_char(WAITING_STATUS));
+        }
+    }
+    this->reported_files_idx.clear();
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
 }

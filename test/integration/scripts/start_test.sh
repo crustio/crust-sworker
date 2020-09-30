@@ -2,27 +2,24 @@
 function usage()
 {
 cat << EOF
-    start_test argument:
-        argument: functionality, benchmark or performance
+    start_test [option] [args]:
+        -t: run type:functionality, benchmark or performance
+        -c: case name
+        -p: parent pid
 EOF
 }
 
 function success_exit()
 {
-    local cur_pid=$(ps -ef | grep -v grep | grep "\b${pid}\b" | awk '{print $2}')
-    if [ x"$cur_pid" = x"$pid" ]; then
-        kill -9 $pid &>/dev/null
-        wait $pid &>/dev/null
+    local cur_sworkerpid=$(ps -ef | grep -v grep | grep "\b${sworkerpid}\b" | awk '{print $2}')
+    if [ x"$cur_sworkerpid" = x"$sworkerpid" ]; then
+        kill -9 $sworkerpid &>/dev/null
+        wait $sworkerpid &>/dev/null
     fi
 
     ### Clean test data
     if [ x"$datadir" != x"" ]; then
         rm -rf $datadir &>/dev/null
-    fi
-
-    ### Clean tmp dir
-    if [ x"$tmpdir" != x"" ]; then
-        rm -rf $tmpdir &>/dev/null
     fi
 
     ### Clean err file
@@ -34,17 +31,26 @@ function success_exit()
     rm $TMPFILE &>/dev/null
     rm $TMPFILE2 &>/dev/null
 
-    print_end
+    if [ x"$killed" = x"false" ]; then
+        print_end
+    fi
 }
 
 function kill_process()
 {
     # Kill descendent processes
-    kill -- -$curpid
+    print_end
+    killed=true
+    if [ x"$parent_sworkerpid" != x"" ] && [[ $parent_sworkerpid =~ ^[1-9][0-9]*$ ]]; then
+        kill -- -$parent_sworkerpid
+    else
+        kill -- -$cursworkerpid
+    fi
 }
 
 function print_end()
 {
+    printf "%s%s\n"   "$pad" '                                         '
     printf "%s%s\n"   "$pad" '   __            __                    __'
     printf "%s%s\n"   "$pad" '  / /____  _____/ /_   ___  ____  ____/ /'
     printf "%s%s\n"   "$pad" ' / __/ _ \/ ___/ __/  / _ \/ __ \/ __  / '
@@ -57,7 +63,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-tmpdir=$instdir/tmp
 functionalitytestdir=$instdir/functionality
 benchmarktestdir=$instdir/benchmark
 performancetestdir=$instdir/performance
@@ -68,14 +73,14 @@ testfiledir=$testdir/files
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
 testconfigfile=$testdir/etc/Config.json
-baseurl=$(cat $testconfigfile | jq ".base_url")
-baseurl=${baseurl:1:${#baseurl}-2}
+baseurl=$(cat $testconfigfile | jq ".base_url" | sed 's/"//g')
 SYNCFILE=$basedir/SYNCFILE
 TMPFILE=$instdir/TMPFILE
 TMPFILE2=$instdir/TMPFILE2
-curpid=$$
+cursworkerpid=$$
 pad="$(printf '%0.1s' ' '{1..10})"
 casedir=""
+killed=false
 
 trap "success_exit" EXIT
 trap "kill_process" INT
@@ -83,7 +88,6 @@ trap "kill_process" INT
 . $basedir/utils.sh
 
 mkdir -p $datadir
-mkdir -p $tmpdir
 mkdir -p $testfiledir
 
 export baseurl
@@ -97,7 +101,15 @@ printf "%s%s\n"   "$pad" ' (__  )| |/ |/ / /_/ / /  / ,< /  __/ /     / /_/  __(
 printf "%s%s\n\n" "$pad" '/____/ |__/|__/\____/_/  /_/|_|\___/_/      \__/\___/____/\__/  '
 
 
-run_type=$1
+while getopts "t:p:c:" opt &>/dev/null; do
+    case $opt in
+        t)  run_type=$OPTARG;;
+        p)  parent_sworkerpid=$OPTARG;;
+        c)  case_name=$OPTARG;;
+        *)  ;;
+    esac
+done
+
 if [ x"$run_type" = x"functionality" ]; then
     casedir=$functionalitytestdir
 elif [ x"$run_type" = x"benchmark" ]; then
@@ -110,6 +122,11 @@ else
     exit 1
 fi
 
+if ! ls $casedir | grep "\b${case_name}\b" &>/dev/null; then
+    verbose ERROR "no $case_name case!"
+    exit 1
+fi
+
 
 ### Start crust-sworker
 cd $testdir
@@ -118,17 +135,22 @@ rm -rf files
 mkdir files
 verbose INFO "starting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
-pid=$!
+sworkerpid=$!
 sleep 8
 curl -s $baseurl/workload 2>$errfile 1>/dev/null
-if [ $? -ne 0 ]; then
+if [ $? -ne 0 ] ; then
     verbose ERROR "failed" t
     verbose ERROR "start crust sworker failed! Please check $errfile for details."
-    kill -9 $pid
+    kill -9 $sworkerpid
+    exit 1
+fi
+if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
+    verbose ERROR "failed" t
     exit 1
 fi
 verbose INFO "success" t
 cd - &>/dev/null
+export sworkerpid
 
 ### Prepare test data
 verbose INFO "creating test data..." h
@@ -147,10 +169,16 @@ verbose INFO "success" t
 cd $casedir
 verbose INFO "starting $run_type cases:" n
 true > $caseresfile
-for script in `ls`; do
+testcase_arry=($(ls | grep -v "restart"))
+testcase_arry[${#testcase_arry[@]}]="restart"
+disown -r
+for script in ${testcase_arry[@]}; do
+    if [ x"$case_name" != x"" ] && [ x"$case_name" != x"$script" ]; then
+        continue
+    fi
     true > $SYNCFILE
     setTimeWait "$(verbose INFO "running test case: $script..." h)" $SYNCFILE &
-    bash $script $pid &>> $caseresfile
+    bash $script $sworkerpid &>> $caseresfile
     checkRes $? "return" "success" "$SYNCFILE"
 done
 cd - &>/dev/null

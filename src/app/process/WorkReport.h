@@ -14,6 +14,7 @@
 #include "CrustStatus.h"
 #include "FormatUtils.h"
 #include "Data.h"
+#include "Storage.h"
 
 #define REPORT_BLOCK_HEIGHT_BASE 300
 #define BLOCK_INTERVAL 6

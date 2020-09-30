@@ -86,7 +86,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     file_entry_json[FILE_OLD_SIZE] = org_node_size;
     file_entry_json[FILE_BLOCK_NUM] = block_num;
     // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
-    file_entry_json[FILE_STATUS] = FILE_STATUS_UNCONFIRMED;
+    file_entry_json[FILE_STATUS] = "000";
     free(new_root_hash_u);
     free(org_root_hash_u);
 
@@ -109,10 +109,9 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     // Print sealed file information
-    log_info("Seal complete, file info; hash: %s -> size: %ld, status: %s\n",
+    log_info("Seal complete, file info; hash: %s -> size: %ld, status: unconfirmed\n",
             file_entry_json[FILE_HASH].ToString().c_str(),
-            file_entry_json[FILE_SIZE].ToInt(), 
-            file_entry_json[FILE_STATUS].ToString().c_str());
+            file_entry_json[FILE_SIZE].ToInt());
 
     // Add new file to buffer
     Workload::get_instance()->add_new_file(file_entry_json);
@@ -435,9 +434,10 @@ crust_status_t storage_confirm_file(const char *hash)
     {
         if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
         {
-            if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
+            auto status = &(*it)[FILE_STATUS];
+            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED)
             {
-                (*it)[FILE_STATUS] = FILE_STATUS_VALID;
+                status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
             }
             is_confirmed = true;
             confirmed_file = *it;
@@ -452,9 +452,10 @@ crust_status_t storage_confirm_file(const char *hash)
         {
             if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
             {
-                if ((*it)[FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
+                auto status = &(*it)[FILE_STATUS];
+                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED)
                 {
-                    (*it)[FILE_STATUS] = FILE_STATUS_VALID;
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
                     is_confirmed = true;
                     confirmed_file = *it;
                     break;
@@ -498,13 +499,13 @@ crust_status_t storage_delete_file(const char *hash)
     sgx_thread_mutex_lock(&g_checked_files_mutex);
     Workload *wl = Workload::get_instance();
     bool is_deleted = false;
-    for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
+    for (size_t i = 0; i < wl->checked_files.size(); i++)
     {
-        std::string hash_str = (*it)[FILE_HASH].ToString();
+        std::string hash_str = wl->checked_files[i][FILE_HASH].ToString();
         if (hash_str.compare(hash) == 0)
         {
+            wl->checked_files[i][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             deleted_file = hash_str;
-            wl->checked_files.erase((++it).base());
             is_deleted = true;
             break;
         }

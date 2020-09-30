@@ -62,6 +62,8 @@ sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, crust_status_t *status, co
 
 sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash);
 
+sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid);
+
 sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status);
 
 sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid);
