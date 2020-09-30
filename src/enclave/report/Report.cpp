@@ -94,47 +94,165 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     sgx_status_t sgx_status;
     // ----- Get srd info ----- //
     sgx_thread_mutex_lock(&g_srd_mutex);
-    size_t srd_workload = 0;
+	size_t srd_workload;
+    sgx_sha256_hash_t srd_root;
+    // Get hashs for hashing
+    size_t g_hashs_num = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
-        srd_workload += it.second.size() * 1024 * 1024 * 1024;
+        g_hashs_num += it.second.size();
     }
+    uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
+    if (hashs == NULL)
+    {
+        log_err("Malloc memory failed!\n");
+        return CRUST_MALLOC_FAILED;
+    }
+    size_t hashs_len = 0;
+    for (auto it : wl->srd_path2hashs_m)
+    {
+        for (auto g_hash : it.second)
+        {
+            memcpy(hashs + hashs_len, g_hash, HASH_LENGTH);
+            hashs_len += HASH_LENGTH;
+        }
+    }
+    // Generate srd information
+    if (hashs_len == 0)
+    {
+        srd_workload = 0;
+        memset(srd_root, 0, HASH_LENGTH);
+    }
+    else
+    {
+        srd_workload = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)hashs_len, &srd_root);
+    }
+    free(hashs);
     sgx_thread_mutex_unlock(&g_srd_mutex);
     
     // ----- Get files info ----- //
-    std::string old_files = "[";
     sgx_thread_mutex_lock(&g_checked_files_mutex);
+    // Deleted invalid file item
+    size_t files_buffer_len = 0;
+    for (auto it = wl->checked_files.begin(); it != wl->checked_files.end();)
+    {
+        std::string status = (*it)[FILE_STATUS].ToString();
+        if (status[CURRENT_STATUS] == FILE_STATUS_VALID)
+        {
+            files_buffer_len += HASH_LENGTH;
+        }
+        if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST)
+                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
+                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNCONFIRMED))
+        {
+            it = wl->checked_files.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+    }
+    // Clear reported_files_idx
+    wl->reported_files_idx.clear();
+    // Generate files information
+    sgx_sha256_hash_t files_root;
+    long long files_size = 0;
+    size_t files_offset = 0;
+    uint8_t *files_buffer = (uint8_t *)enc_malloc(files_buffer_len);
+    if (files_buffer == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(files_buffer, 0, files_buffer_len);
+    std::string added_files = "[";
+    std::string deleted_files = "[";
+    size_t files_acc = 0;
     for (uint32_t i = 0; i < wl->checked_files.size(); i++)
     {
-        if (wl->checked_files[i][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) != 0)
+        auto status = &wl->checked_files[i][FILE_STATUS];
+        // Write current status to waiting status
+        status->set_char(WAITING_STATUS, status->get_char(CURRENT_STATUS));
+        // Calculate old files size
+        if (status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
         {
-            continue;
+            files_size += wl->checked_files[i][FILE_OLD_SIZE].ToInt();
         }
-
-        if (old_files.size() != 1)
+        // Calculate files(valid) root hash
+        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
-            old_files.append(",");
+            memcpy(files_buffer + files_offset, wl->checked_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
+            files_offset += HASH_LENGTH;
         }
-        old_files.append("{\"").append(FILE_HASH).append("\":")
-            .append("\"").append(wl->checked_files[i][FILE_OLD_HASH].ToString()).append("\",");
-        old_files.append("\"").append(FILE_SIZE).append("\":")
-            .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
+        // Generate report files queue
+        if (files_acc < WORKREPORT_FILE_LIMIT)
+        {
+            if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNCONFIRMED)
+                    || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
+                    || (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
+                    || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
+            {
+                std::string file_str;
+                file_str.append("{\"").append(FILE_HASH).append("\":")
+                    .append("\"").append(wl->checked_files[i][FILE_OLD_HASH].ToString()).append("\",");
+                file_str.append("\"").append(FILE_SIZE).append("\":")
+                    .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
+                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST || status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+                {
+                    if (deleted_files.size() != 1)
+                    {
+                        deleted_files.append(",");
+                    }
+                    deleted_files.append(file_str);
+                    // Update new files size
+                    files_size -= wl->checked_files[i][FILE_OLD_SIZE].ToInt();
+                }
+                else if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                {
+                    if (added_files.size() != 1)
+                    {
+                        added_files.append(",");
+                    }
+                    added_files.append(file_str);
+                    // Update new files size
+                    files_size += wl->checked_files[i][FILE_OLD_SIZE].ToInt();
+                }
+                wl->reported_files_idx.insert(i);
+                files_acc++;
+            }
+        }
     }
+    added_files.append("]");
+    deleted_files.append("]");
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
-    old_files.append("]");
+    sgx_sha256_msg(files_buffer, (uint32_t)files_offset, &files_root);
+    free(files_buffer);
 
     // ----- Create signature data ----- //
     sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_ec256_signature_t sgx_sig; 
     std::string wr_str;
     uint8_t *block_hash_u = NULL;
+    std::string pre_pub_key = "";
+    size_t pre_pub_key_size = 0;
+    if (wl->is_upgrade())
+    {
+        pre_pub_key_size = sizeof(wl->pre_pub_key);
+        pre_pub_key = hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key));
+    }
     std::string block_height_str = std::to_string(block_height);
     std::string reserved_str = std::to_string(srd_workload);
+    std::string files_size_str = std::to_string(files_size);
     size_t sigbuf_len = sizeof(id_key_pair.pub_key) 
-        + block_height_str.size() 
-        + HASH_LENGTH 
-        + reserved_str.size() 
-        + old_files.size();
+        + pre_pub_key_size
+        + block_height_str.size()
+        + HASH_LENGTH
+        + reserved_str.size()
+        + files_size_str.size()
+        + sizeof(sgx_sha256_hash_t)
+        + sizeof(sgx_sha256_hash_t)
+        + added_files.size()
+        + deleted_files.size();
     uint8_t *sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
     if (sigbuf == NULL)
     {
@@ -143,9 +261,15 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
     memset(sigbuf, 0, sigbuf_len);
     uint8_t *p_sigbuf = sigbuf;
-    // Public key
+    // Current public key
     memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     sigbuf += sizeof(id_key_pair.pub_key);
+    // Previous public key
+    if (wl->is_upgrade())
+    {
+        memcpy(sigbuf, &wl->pre_pub_key, pre_pub_key_size);
+        sigbuf += pre_pub_key_size;
+    }
     // Block height
     memcpy(sigbuf, block_height_str.c_str(), block_height_str.size());
     sigbuf += block_height_str.size();
@@ -159,11 +283,24 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     memcpy(sigbuf, block_hash_u, HASH_LENGTH);
     sigbuf += HASH_LENGTH;
     free(block_hash_u);
-    // Reserve
+    // Reserved
     memcpy(sigbuf, reserved_str.c_str(), reserved_str.size());
     sigbuf += reserved_str.size();
-    // Files
-    memcpy(sigbuf, old_files.c_str(), old_files.size());
+    // Files size
+    memcpy(sigbuf, files_size_str.c_str(), files_size_str.size());
+    sigbuf += files_size_str.size();
+    // Reserved root
+    memcpy(sigbuf, srd_root, sizeof(sgx_sha256_hash_t));
+    sigbuf += sizeof(sgx_sha256_hash_t);
+    // Files root
+    memcpy(sigbuf, files_root, sizeof(sgx_sha256_hash_t));
+    sigbuf += sizeof(sgx_sha256_hash_t);
+    // Added files
+    memcpy(sigbuf, added_files.c_str(), added_files.size());
+    sigbuf += added_files.size();
+    // Deleted files
+    memcpy(sigbuf, deleted_files.c_str(), deleted_files.size());
+    sigbuf += deleted_files.size();
 
     // Sign work report
     sgx_status = sgx_ecc256_open_context(&ecc_state);
@@ -183,14 +320,24 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     wr_str.append("{");
     wr_str.append("\"").append(WORKREPORT_PUB_KEY).append("\":")
         .append("\"").append(hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key))).append("\",");
+    wr_str.append("\"").append(WORKREPORT_PRE_PUB_KEY).append("\":")
+        .append("\"").append(pre_pub_key).append("\",");
     wr_str.append("\"").append(WORKREPORT_BLOCK_HEIGHT).append("\":")
         .append("\"").append(block_height_str).append("\",");
     wr_str.append("\"").append(WORKREPORT_BLOCK_HASH).append("\":")
         .append("\"").append(block_hash, HASH_LENGTH * 2).append("\",");
     wr_str.append("\"").append(WORKREPORT_RESERVED).append("\":")
         .append(std::to_string(srd_workload)).append(",");
-    wr_str.append("\"").append(WORKREPORT_FILES).append("\":")
-        .append(old_files).append(",");
+    wr_str.append("\"").append(WORKREPORT_FILES_SIZE).append("\":")
+        .append(std::to_string(files_size)).append(",");
+    wr_str.append("\"").append(WORKREPORT_RESERVED_ROOT).append("\":")
+        .append("\"").append(hexstring_safe(srd_root, HASH_LENGTH)).append("\",");
+    wr_str.append("\"").append(WORKREPORT_FILES_ROOT).append("\":")
+        .append("\"").append(hexstring_safe(files_root, HASH_LENGTH)).append("\",");
+    wr_str.append("\"").append(WORKREPORT_FILES_ADDED).append("\":")
+        .append(added_files).append(",");
+    wr_str.append("\"").append(WORKREPORT_FILES_DELETED).append("\":")
+        .append(deleted_files).append(",");
     wr_str.append("\"").append(WORKREPORT_SIG).append("\":")
         .append("\"").append(hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t))).append("\"");
     wr_str.append("}");

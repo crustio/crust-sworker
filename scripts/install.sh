@@ -214,6 +214,8 @@ printf "%s%s\n\n" "$pad" '/____/ |__/|__/\____/_/  /_/|_|\___/_/     /_/_/ /_/__
 
 verbose INFO "Version -----------------$newversion-------------------"
 
+disown -r
+
 # check previous crust-sworker
 checkOldCrustTee
 

@@ -14,6 +14,7 @@ extern "C"
 
 void storage_add_confirm(std::string hash);
 void storage_add_delete(std::string hash);
+void report_add_callback();
 
 #if defined(__cplusplus)
 }

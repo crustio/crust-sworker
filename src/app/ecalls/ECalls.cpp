@@ -22,6 +22,7 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_get_signed_order_report", 0},
     {"Ecall_confirm_file", 0},
     {"Ecall_delete_file", 0},
+    {"Ecall_handle_report_result", 0},
     {"Ecall_seal_file", 1},
     {"Ecall_unseal_file", 1},
     {"Ecall_srd_decrease", 1},
@@ -576,6 +577,25 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, con
     }
 
     ret = ecall_delete_file(eid, status, hash);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Delete file
+ * @param flag -> Report result
+ */
+sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_handle_report_result(eid);
 
     free_enclave(__FUNCTION__);
 

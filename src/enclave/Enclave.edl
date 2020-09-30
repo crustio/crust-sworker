@@ -33,6 +33,7 @@ enclave {
         public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
         public crust_status_t ecall_confirm_file([in, string] const char *hash);
         public crust_status_t ecall_delete_file([in, string] const char *hash);
+        public void ecall_handle_report_result();
 
         public void ecall_id_get_info();
         public void ecall_get_workload();

@@ -97,6 +97,7 @@ void work_report_loop(void)
                     else
                     {
                         p_log->info("Send work report to crust chain successfully!\n");
+                        report_add_callback();
                     }
                 }
                 else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)

@@ -1,0 +1,196 @@
+#!/bin/bash
+function _test_add_file()
+{
+    local num=$1
+    test_add_file $num &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "add file failed!!"
+        exit 1
+    fi
+}
+
+function _test_valid_file()
+{
+    local num=$1
+    test_valid_file $num &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "valid file failed!"
+        exit 1
+    fi
+}
+
+function _test_lost_file()
+{
+    local num=$1
+    test_lost_file $num &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "valid file failed!"
+        exit 1
+    fi
+}
+
+function _test_delete_file()
+{
+    local num=$1
+    test_delete_file $num &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "valid file failed!"
+        exit 1
+    fi
+}
+
+function _report()
+{
+    local not_report=$1
+    report_work &>$TMPFILE
+    if [ $? -ne 0 ]; then
+        echo "report work failed!"
+        exit 1
+    fi
+    if [ x"$not_report" = x"" ]; then
+        report_work_result &>/dev/null
+        if [ $? -ne 0 ]; then
+            echo "report work result failed!"
+            exit 1
+        fi
+    fi
+    files_size=$(cat $TMPFILE | jq '.files_size')
+    files_size_added=0
+    files_size_deleted=0
+    for size in $(cat $TMPFILE | jq '.added_files|.[]|.size'); do
+        ((files_size_added += $size))
+    done
+    for size in $(cat $TMPFILE | jq '.deleted_files|.[]|.size'); do
+        ((files_size_deleted += $size))
+    done
+    echo "$files_size" "$files_size_added" "$files_size_deleted"
+}
+
+function report_exit()
+{
+    rm -rf $tmpdir
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+testdir=$instdir/test_app
+configfile=$instdir/config/config.json
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+
+mkdir -p $tmpdir
+
+. $scriptdir/utils.sh
+
+trap 'report_exit' EXIT
+
+print_title "start workreport2 case"
+
+
+rnum=0
+# Test round 1
+_test_add_file 2000
+_test_valid_file 1500
+cres=($(_report))
+expected=${cres[1]}
+real=${cres[0]}
+echo "round$((++rnum)): add file. expected:$expected, real:$real"
+if [ ${cres[0]} -ne ${cres[1]} ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 2
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}))
+real=${cres[0]}
+echo "round$((++rnum)): add file. expected:$expected, real:$real"
+if [ $expected -ne $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 3
+_test_delete_file 500
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+echo "round$((++rnum)): delete file. expected:$expected, real:$real"
+if [ $expected -ne $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 4
+_test_lost_file 500
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+echo "round$((++rnum)): lost file. expected:$expected, real:$real"
+if [ $expected -ne $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 5
+_test_valid_file 500
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+echo "round$((++rnum)): valid file. expected:$expected, real:$real"
+if [ $expected -ne $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 6
+_test_add_file 1000
+_test_valid_file 500
+_test_lost_file 500
+cres=($(_report))
+pres=(${cres[@]})
+_test_delete_file 1000
+_report 1 &>/dev/null
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+echo "round$((++rnum)): report failed,report again. expected:$expected, real:$real"
+if [ $expected -ne $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 7
+_test_lost_file 500
+_report &>/dev/null
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+echo "round$((++rnum)): cheat: inform reporting while not!expected:$expected, real:$real"
+if [ $expected -eq $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi
+pres=(${cres[@]})
+
+# Test round 8
+_test_valid_file 500
+cres=($(_report 1))
+pres=(${cres[@]})
+cres=($(_report))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+echo "round$((++rnum)): cheat: inform not report while do!expected:$expected, real:$real"
+if [ $expected -eq $real ]; then
+    echo "test failed!expected:$expected, real:$real"
+    exit 1
+fi

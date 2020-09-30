@@ -3,7 +3,7 @@ function _seal()
 {
     local datapath_l=$1
     local storepath_l=$2
-    local curtmp=$TMPFILE.$RANDOM
+    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
     seal_file $datapath_l $storepath_l &>$curtmp
     if [ $? -ne 0 ]; then
         echo "Seal file failed!"
@@ -33,9 +33,7 @@ function _store_meta()
 
 function seal_exit()
 {
-    rm $TMPFILE
-    rm $LOCKFILE
-    rm $syncfile
+    rm -rf $tmpdir
 }
 
 ########## MAIN BODY ##########
@@ -47,13 +45,19 @@ datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
 configfile=$instdir/config/config.json
-TMPFILE=$basedir/TMPFILE
-LOCKFILE=$basedir/LOCKFILE
-syncfile=$basedir/syncfile
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+LOCKFILE=$tmpdir/LOCKFILE
+syncfile=$tmpdir/syncfile
+
+mkdir -p $tmpdir
 
 trap 'seal_exit' EXIT
 
 . $scriptdir/utils.sh
+
+print_title "start seal case"
+
 
 data_arry=($(ls $datadir))
 data_size=${#data_arry[@]}

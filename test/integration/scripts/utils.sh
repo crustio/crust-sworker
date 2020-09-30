@@ -81,7 +81,12 @@ function seal_file()
 {
     local data_path=$1
     local store_path=$2
-    local tmp_file=tmp_file.${RANDOM}$(date +%N)
+    local tmp_file=""
+    if [ x"$tmpdir" = x"" ]; then
+        tmp_file=tmp_file.${RANDOM}$(date +%N)
+    else
+        tmp_file=$tmpdir/tmp_file.${RANDOM}$(date +%N)
+    fi
 
     ### Split file
     crust_split $data_path $store_path &>$tmp_file
@@ -153,9 +158,50 @@ function report_work()
     curl -s $baseurl/report/work
 }
 
+function report_work_result()
+{
+    curl -s $baseurl/report/result
+}
+
 function store_metadata()
 {
     curl -s $baseurl/store_metadata
+}
+
+function test_add_file()
+{
+    local file_num=$1
+    if [ x"$file_num" = x"" ]; then
+        file_num=1000
+    fi
+    curl -s -XGET $baseurl/test/add_file --data-raw "{\"file_num\":$file_num}"
+}
+
+function test_valid_file()
+{
+    local file_num=$1
+    if [ x"$file_num" = x"" ]; then
+        file_num=1000
+    fi
+    curl -s -XGET $baseurl/test/valid_file --data-raw "{\"file_num\":$file_num}"
+}
+
+function test_lost_file()
+{
+    local file_num=$1
+    if [ x"$file_num" = x"" ]; then
+        file_num=1000
+    fi
+    curl -s -XGET $baseurl/test/lost_file --data-raw "{\"file_num\":$file_num}"
+}
+
+function test_delete_file()
+{
+    local file_num=$1
+    if [ x"$file_num" = x"" ]; then
+        file_num=1000
+    fi
+    curl -s -XGET $baseurl/test/delete_file --data-raw "{\"file_num\":$file_num}"
 }
 
 function verbose()
@@ -239,6 +285,15 @@ function get_config()
 function print_space()
 {
     printf " %.0s" $(eval "echo {1..$1}")
+}
+
+function print_title()
+{
+    local info=$1
+    local len=${#info}
+    local sp=40
+    local time="[$(date "+%Y/%m/%d %T.%3N")]"
+    printf "%s #####%$((sp/2))s%-$((sp/2))s#####\n" "$time" "`echo $info | cut -c 1-$(($len/2))`" "`echo $info | cut -c $(($len/2+1))-$len`"
 }
 
 function parse_json_array()

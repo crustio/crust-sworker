@@ -588,7 +588,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
         status = CRUST_SIGN_PUBKEY_FAILED;
         goto cleanup;
     }
-    
+
     // Get tee identity and store it outside of tee
     id_json[IAS_CERT] = certchain_1;
     id_json[IAS_SIG] = ias_sig;
@@ -924,16 +924,16 @@ crust_status_t id_store_metadata()
     meta_len += wl->srd_path2hashs_m.size() * (128 + 4);
     meta_len += strlen(TEE_PRIVATE_TAG) + 5
         + strlen(ID_WORKLOAD) + 5
-        + strlen(ID_KEY_PAIR) + 5
-        + strlen(ID_REPORT_SLOT) + 5
-        + strlen(ID_CHAIN_ACCOUNT_ID) + 5
-        + strlen(ID_FILE) + 5;
-    size_t file_item_len = strlen(FILE_HASH) + 3 + 64 + 3
-        + strlen(FILE_OLD_HASH) + 3 + 64 + 3
-        + strlen(FILE_SIZE) + 3 + 14 + 1
-        + strlen(FILE_OLD_SIZE) + 3 + 14 + 1
-        + strlen(FILE_BLOCK_NUM) + 3 + 14 + 4
-        + strlen(FILE_STATUS) + 16 + 4
+        + strlen(ID_KEY_PAIR) + 3 + 256 + 3
+        + strlen(ID_REPORT_SLOT) + 3 + 20 + 1
+        + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
+        + strlen(ID_FILE) + 3;
+    size_t file_item_len = strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
+        + strlen(FILE_OLD_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
+        + strlen(FILE_SIZE) + 3 + 12 + 1
+        + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
+        + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+        + strlen(FILE_STATUS) + 3 + 3 + 3
         + 2;
     meta_len += wl->checked_files.size() * file_item_len;
     uint8_t *meta_buf = (uint8_t *)enc_malloc(meta_len);
@@ -1093,14 +1093,6 @@ crust_status_t id_restore_metadata()
     g_is_set_id_key_pair = true;
     g_is_set_account_id = true;
     just_after_restart = true; 
-
-    // Show workload
-    json::JSON wl_json = json::JSON::Load(wl->get_workload());
-    std::string wl_str = wl_json.dump();
-    replace(wl_str, "\"{", "{");
-    replace(wl_str, "}\"", "  }");
-    remove_char(wl_str, '\\');
-    log_info("Workload:\n%s\n", wl_str.c_str());
 
     return CRUST_SUCCESS;
 }

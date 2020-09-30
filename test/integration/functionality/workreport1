@@ -1,7 +1,7 @@
 #!/bin/bash
 function report_exit()
 {
-    rm $TMPFILE
+    rm -rf $tmpdir
 }
 
 ########## MAIN BODY ##########
@@ -13,17 +13,29 @@ datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
 configfile=$instdir/config/config.json
-TMPFILE=$instdir/TMPFILE.$RANDOM
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+
+mkdir -p $tmpdir
 
 trap 'report_exit' EXIT
 
 . $scriptdir/utils.sh
 
+print_title "start workreport1 case"
+
+
 srd_num=$(get_config ".functionality|.srd_size")
 srd_paths=$(get_config ".functionality|.srd_paths")
 srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
 file_arry=($(get_config ".functionality|.file_arry"))
+added_fn_e=${#file_arry[@]}
 tmp_num=0
+
+
+# Ignore previous infact
+report_work &>/dev/null
+report_work_result &>/dev/null
 
 # Get workload
 get_workload &>$TMPFILE
@@ -34,9 +46,9 @@ fi
 workload=$(cat $TMPFILE)
 
 # Delete previous srd
-srd -$(echo $workload | jq '.srd|.space' | sed 's/"//g' 2>/dev/null)
+srd -$(echo $workload | jq '.srd|.space' | sed 's/"//g' 2>/dev/null) &>/dev/null
 # Make srd volunm
-srd_disk_change "$srd_paths" "add"
+srd_disk_change "$srd_paths" "add" &>/dev/null
 while [ $tmp_num -lt $srd_num ]; do
     if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
         cur_turn=$srd_max_per_turn
@@ -52,9 +64,13 @@ while [ $tmp_num -lt $srd_num ]; do
 done
 
 # Delete previous file
+deleted_fn_e=0
 if [ x"$(echo $workload | jq '.files | .valid | .number' | sed 's/"//g' 2>/dev/null)" != x"null" ]; then
     for hash in $(echo $workload | jq '.files | .valid | .detail | .[] | .sealed_hash' | sed 's/"//g' 2>/dev/null); do
         delete_file $hash &>/dev/null
+        if [ $? -eq 0 ]; then
+            ((deleted_fn_e++))
+        fi
     done
 fi
 # Make file volunm
@@ -81,14 +97,22 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 # Get report info
-files_num=$(cat $TMPFILE | jq '.files | .[] | .hash' | wc -l 2>/dev/null)
+ret=0
+added_fn=$(cat $TMPFILE | jq '.added_files | .[] | .hash' | wc -l 2>/dev/null)
+deleted_fn=$(cat $TMPFILE | jq '.deleted_files | .[] | .hash' | wc -l 2>/dev/null)
 reserved=$(cat $TMPFILE | jq '.reserved' 2>/dev/null)
 reserved_e=$((srd_num * 1024 * 1024 * 1024))
 if [ x"$reserved" != x"$reserved_e" ]; then
     echo "srd number is wrong!expect:${reserved_e}, real:${reserved}"
-    exit 1
+    ret=1
 fi
-if [ x"$files_num" != x"${#file_arry[@]}" ]; then
-    echo "file number is wrong!expect:${#file_arry[@]}, real:${files_num}"
-    exit 1
+if [ x"$added_fn" != x"$added_fn_e" ]; then
+    echo "added file number is wrong!expect:$added_fn_e, real:$added_fn"
+    ret=1
 fi
+if [ x"$deleted_fn" != x"$deleted_fn_e" ]; then
+    echo "deleted file number is wrong!expect:$deleted_fn_e, real:$deleted_fn"
+    ret=1
+fi
+
+exit $ret
