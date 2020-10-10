@@ -300,12 +300,9 @@ int process_run()
         }
     }
 
-    if (!offline_chain_mode)
-    {
-        // Check block height and post report to chain
-        g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
-                std::async(std::launch::async, &work_report_loop)), &work_report_loop));
-    }
+    // Check block height and post report to chain
+    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
+             std::async(std::launch::async, &work_report_loop)), &work_report_loop));
 
     // Start thread to check srd reserved
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
