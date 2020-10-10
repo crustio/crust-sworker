@@ -437,6 +437,8 @@ public:
             return std::move(json_escape(*Internal.String));
         else if (Type == Class::Hash)
             return _hexstring(Internal.HashList, _hash_length);
+        else if (Type == Class::Integral)
+            return std::to_string(Internal.Int);
         else
             return string("");
     }

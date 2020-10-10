@@ -1,4 +1,5 @@
 #include "EntryNetwork.h"
+#include "ECalls.h"
 #include "HttpClient.h"
 
 namespace http = boost::beast::http;   // from <boost/beast/http.hpp>

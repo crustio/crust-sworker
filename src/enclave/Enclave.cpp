@@ -244,6 +244,26 @@ crust_status_t ecall_delete_file(const char *hash)
 }
 
 /**
+ * @description: Generate upgrade data
+ * @return: Generate result
+ */
+crust_status_t ecall_gen_upgrade_data(size_t block_height)
+{
+    return id_gen_upgrade_data(block_height);
+}
+
+/**
+ * @description: Restore from upgrade data
+ * @param meta -> Metadata from old version
+ * @param meta_len -> Metadata length
+ * @return: Restore result
+ */
+crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len)
+{
+    return id_restore_from_upgrade(meta, meta_len);
+}
+
+/**
  * @description: Set work report result
  * @param flag -> Report result
  */

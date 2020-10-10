@@ -42,8 +42,9 @@ public:
     ~Workload();
     std::string get_workload(void);
     void serialize_srd(std::string &sered_srd);
-    void serialize_file(std::string &sered_file);
+    crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
     crust_status_t restore_srd(json::JSON g_hashs);
+    void restore_file(json::JSON file_json);
     crust_status_t get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json);
     void clean_data();
 
@@ -55,8 +56,9 @@ public:
 
     void set_srd_info(std::string path, long change);
     json::JSON get_srd_info();
+    json::JSON gen_workload_info();
 
-    void set_upgrade(bool flag);
+    void set_upgrade(bool flag, sgx_ec256_public_t pub_key);
     bool is_upgrade();
 
     void handle_report_result();
@@ -65,6 +67,8 @@ public:
     sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     // Workload mutex
     sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    // Upgrade mutex
+    sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 private:
     Workload();

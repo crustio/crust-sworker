@@ -5,10 +5,12 @@
 /* Indicates whether the current work report is validated */
 sgx_thread_mutex_t g_validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 int validated_proof = 0;
+std::string g_work_report;
 
 extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_order_files_mutex;
+extern sgx_thread_mutex_t g_gen_work_report;
 
 /**
  * @description: add validated proof
@@ -53,12 +55,21 @@ bool report_has_validated_proof() {
 }
 
 /**
+ * @description: Get generated work report
+ * @return: Generated work report
+ */
+std::string get_generated_work_report()
+{
+    return g_work_report;
+}
+
+/**
  * @description: Get signed validation report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
  * @return: sign status
  */
-crust_status_t get_signed_work_report(const char *block_hash, size_t block_height)
+crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked /*=true*/)
 {
     // Judge whether the current data is validated 
     if (!report_has_validated_proof())
@@ -89,9 +100,35 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         return CRUST_NO_KARST;
     }
 
+    if (locked)
+    {
+        sgx_thread_mutex_lock(&g_gen_work_report);
+    }
+
     ecc_key_pair id_key_pair = id_get_key_pair();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status;
+    size_t hashs_len = 0;
+    size_t files_buffer_len = 0;
+    sgx_sha256_hash_t files_root;
+    long long files_size = 0;
+    size_t files_offset = 0;
+    uint8_t *files_buffer = NULL;
+    std::string added_files;
+    std::string deleted_files;
+    size_t files_acc = 0;
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_ec256_signature_t sgx_sig; 
+    std::string wr_str;
+    uint8_t *block_hash_u = NULL;
+    std::string pre_pub_key;
+    size_t pre_pub_key_size = 0;
+    std::string block_height_str;
+    std::string reserved_str;
+    std::string files_size_str;
+    size_t sigbuf_len = 0;
+    uint8_t *sigbuf = NULL;
+    uint8_t *p_sigbuf = NULL;
     // ----- Get srd info ----- //
     sgx_thread_mutex_lock(&g_srd_mutex);
 	size_t srd_workload;
@@ -106,9 +143,9 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     if (hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
+        crust_status =  CRUST_MALLOC_FAILED;
+        goto cleanup;
     }
-    size_t hashs_len = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
         for (auto g_hash : it.second)
@@ -134,7 +171,6 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     // ----- Get files info ----- //
     sgx_thread_mutex_lock(&g_checked_files_mutex);
     // Deleted invalid file item
-    size_t files_buffer_len = 0;
     for (auto it = wl->checked_files.begin(); it != wl->checked_files.end();)
     {
         std::string status = (*it)[FILE_STATUS].ToString();
@@ -156,18 +192,19 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     // Clear reported_files_idx
     wl->reported_files_idx.clear();
     // Generate files information
-    sgx_sha256_hash_t files_root;
-    long long files_size = 0;
-    size_t files_offset = 0;
-    uint8_t *files_buffer = (uint8_t *)enc_malloc(files_buffer_len);
-    if (files_buffer == NULL)
+    if (files_buffer_len != 0)
     {
-        return CRUST_MALLOC_FAILED;
+        files_buffer = (uint8_t *)enc_malloc(files_buffer_len);
+        if (files_buffer == NULL)
+        {
+            crust_status = CRUST_MALLOC_FAILED;
+            goto cleanup;
+        }
+        memset(files_buffer, 0, files_buffer_len);
     }
-    memset(files_buffer, 0, files_buffer_len);
-    std::string added_files = "[";
-    std::string deleted_files = "[";
-    size_t files_acc = 0;
+    added_files = "[";
+    deleted_files = "[";
+    files_acc = 0;
     for (uint32_t i = 0; i < wl->checked_files.size(); i++)
     {
         auto status = &wl->checked_files[i][FILE_STATUS];
@@ -225,25 +262,26 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     added_files.append("]");
     deleted_files.append("]");
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
-    sgx_sha256_msg(files_buffer, (uint32_t)files_offset, &files_root);
-    free(files_buffer);
+    if (files_offset == 0)
+    {
+        memset(&files_root, 0, sizeof(sgx_sha256_hash_t));
+    }
+    else
+    {
+        sgx_sha256_msg(files_buffer, (uint32_t)files_offset, &files_root);
+        free(files_buffer);
+    }
 
     // ----- Create signature data ----- //
-    sgx_ecc_state_handle_t ecc_state = NULL;
-    sgx_ec256_signature_t sgx_sig; 
-    std::string wr_str;
-    uint8_t *block_hash_u = NULL;
-    std::string pre_pub_key = "";
-    size_t pre_pub_key_size = 0;
     if (wl->is_upgrade())
     {
         pre_pub_key_size = sizeof(wl->pre_pub_key);
         pre_pub_key = hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key));
     }
-    std::string block_height_str = std::to_string(block_height);
-    std::string reserved_str = std::to_string(srd_workload);
-    std::string files_size_str = std::to_string(files_size);
-    size_t sigbuf_len = sizeof(id_key_pair.pub_key) 
+    block_height_str = std::to_string(block_height);
+    reserved_str = std::to_string(srd_workload);
+    files_size_str = std::to_string(files_size);
+    sigbuf_len = sizeof(id_key_pair.pub_key) 
         + pre_pub_key_size
         + block_height_str.size()
         + HASH_LENGTH
@@ -253,14 +291,16 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         + sizeof(sgx_sha256_hash_t)
         + added_files.size()
         + deleted_files.size();
-    uint8_t *sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
+    sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
+    p_sigbuf = NULL;
     if (sigbuf == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
     }
     memset(sigbuf, 0, sigbuf_len);
-    uint8_t *p_sigbuf = sigbuf;
+    p_sigbuf = sigbuf;
     // Current public key
     memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
     sigbuf += sizeof(id_key_pair.pub_key);
@@ -325,7 +365,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     wr_str.append("\"").append(WORKREPORT_BLOCK_HEIGHT).append("\":")
         .append("\"").append(block_height_str).append("\",");
     wr_str.append("\"").append(WORKREPORT_BLOCK_HASH).append("\":")
-        .append("\"").append(block_hash, HASH_LENGTH * 2).append("\",");
+        .append("\"").append(std::string(block_hash, HASH_LENGTH * 2)).append("\",");
     wr_str.append("\"").append(WORKREPORT_RESERVED).append("\":")
         .append(std::to_string(srd_workload)).append(",");
     wr_str.append("\"").append(WORKREPORT_FILES_SIZE).append("\":")
@@ -342,12 +382,21 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         .append("\"").append(hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t))).append("\"");
     wr_str.append("}");
     store_large_data(reinterpret_cast<const uint8_t *>(wr_str.c_str()), wr_str.size(), ocall_store_workreport, wl->ocall_wr_mutex);
+    g_work_report = wr_str;
 
     // Reset meaningful data
     wl->set_report_flag(true);
 
+    // Set report height
+    id_set_report_height(block_height);
+
 
 cleanup:
+    if (locked)
+    {
+        sgx_thread_mutex_unlock(&g_gen_work_report);
+    }
+
     if (ecc_state != NULL)
     {
         sgx_ecc256_close_context(ecc_state);

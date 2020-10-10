@@ -6,7 +6,6 @@
 
 #include <sgx_eid.h>
 #include <sgx_uae_service.h>
-#include "ECalls.h"
 
 #include "Common.h"
 #include "Config.h"

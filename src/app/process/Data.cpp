@@ -12,6 +12,8 @@ std::string g_enclave_workload = "";
 std::string g_enclave_workreport = "";
 // New karst url
 std::string g_new_karst_url = "";
+// Upgrade data
+std::string g_upgrade_data = "";
 
 std::string get_g_sworker_identity()
 {
@@ -71,4 +73,14 @@ std::string get_g_new_karst_url()
 void set_g_new_karst_url(std::string karst_url)
 {
     g_new_karst_url = karst_url;
+}
+
+std::string get_g_upgrade_data()
+{
+    return g_upgrade_data;
+}
+
+void set_g_upgrade_data(std::string data)
+{
+    g_upgrade_data = data;
 }
