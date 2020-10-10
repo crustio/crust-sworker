@@ -1,6 +1,8 @@
 #include "WorkReport.h"
 
 extern sgx_enclave_id_t global_eid;
+extern bool offline_chain_mode;
+
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
