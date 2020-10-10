@@ -23,9 +23,16 @@
 #define FILE_OLD_HASH "old_hash"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_STATUS "status"
-#define FILE_STATUS_LOST "lost"
-#define FILE_STATUS_VALID "valid"
-#define FILE_STATUS_UNCONFIRMED "unconfirmed"
+#define FILE_STATUS_UNCONFIRMED '0'
+#define FILE_STATUS_VALID '1'
+#define FILE_STATUS_LOST '2'
+#define FILE_STATUS_DELETED '3'
+// Current status
+#define CURRENT_STATUS 0
+// Wait to sync status
+#define WAITING_STATUS 1
+// Old status
+#define ORIGIN_STATUS 2
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
@@ -46,11 +53,17 @@
 
 // For work report
 #define WORKREPORT_PUB_KEY "pub_key"
+#define WORKREPORT_PRE_PUB_KEY "pre_pub_key"
 #define WORKREPORT_BLOCK_HEIGHT "block_height"
 #define WORKREPORT_BLOCK_HASH "block_hash"
 #define WORKREPORT_RESERVED "reserved"
-#define WORKREPORT_FILES "files"
+#define WORKREPORT_FILES_SIZE "files_size"
+#define WORKREPORT_RESERVED_ROOT "reserved_root"
+#define WORKREPORT_FILES_ROOT "files_root"
+#define WORKREPORT_FILES_ADDED "added_files"
+#define WORKREPORT_FILES_DELETED "deleted_files"
 #define WORKREPORT_SIG "sig"
+#define WORKREPORT_FILE_LIMIT 1000
 
 // For order report
 #define ORDERREPORT_FILES "files"

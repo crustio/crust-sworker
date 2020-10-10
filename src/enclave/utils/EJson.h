@@ -13,6 +13,8 @@
 #include <initializer_list>
 #include "EUtils.h"
 
+#define HASH_TAG "$&JT&$"
+
 
 namespace json
 {
@@ -350,6 +352,25 @@ public:
         return Internal.List->operator[](index);
     }
 
+    char get_char(size_t index)
+    {
+        if (Type != Class::String || index >= Internal.String->size())
+            return '\0';
+
+        return Internal.String->operator[](index);
+    }
+
+    void set_char(size_t index, char c)
+    {
+        if (Type != Class::String || index > Internal.String->size())
+            return;
+
+        if (index == Internal.String->size())
+            Internal.String->push_back(c);
+        else
+            Internal.String->operator[](index) = c;
+    }
+
     JSON &at(const string &key)
     {
         return operator[](key);
@@ -418,6 +439,17 @@ public:
             return _hexstring(Internal.HashList, _hash_length);
         else
             return string("");
+    }
+
+    uint8_t *ToBytes()
+    {
+        bool b;
+        return ToBytes(b);
+    }
+    uint8_t *ToBytes(bool &ok)
+    {
+        ok = (Type == Class::Hash);
+        return ok ? Internal.HashList : NULL;
     }
 
     double ToFloat() const
@@ -521,7 +553,7 @@ public:
         }
         case Class::Hash:
         {
-            return "\"" + _hexstring(Internal.HashList, _hash_length) + "\"";
+            return "\"" HASH_TAG + _hexstring(Internal.HashList, _hash_length) + "\"";
         }
         case Class::String:
             return "\"" + json_escape(*Internal.String) + "\"";
@@ -827,7 +859,7 @@ JSON parse_array(const uint8_t *p_data, size_t &offset)
 
 JSON parse_string(const string &str, size_t &offset)
 {
-    JSON String;
+    JSON ans;
     string val;
     for (char c = str[++offset]; c != '\"'; c = str[++offset])
     {
@@ -886,13 +918,24 @@ JSON parse_string(const string &str, size_t &offset)
             val += c;
     }
     ++offset;
-    String = val;
-    return std::move(String);
+    if (memcmp(val.c_str(), HASH_TAG, strlen(HASH_TAG)) == 0)
+    {
+        val = val.substr(strlen(HASH_TAG), val.size());
+        uint8_t *p_hash = hex_string_to_bytes(val.c_str(), val.size());
+        if (p_hash != NULL)
+        {
+            ans = p_hash;
+            free(p_hash);
+            return std::move(ans);
+        }
+    }
+    ans = val;
+    return std::move(ans);
 }
 
 JSON parse_string(const uint8_t *p_data, size_t &offset)
 {
-    JSON String;
+    JSON ans;
     string val;
     for (char c = p_data[++offset]; c != '\"'; c = p_data[++offset])
     {
@@ -951,8 +994,19 @@ JSON parse_string(const uint8_t *p_data, size_t &offset)
             val += c;
     }
     ++offset;
-    String = val;
-    return std::move(String);
+    if (memcmp(val.c_str(), HASH_TAG, strlen(HASH_TAG)) == 0)
+    {
+        val = val.substr(strlen(HASH_TAG), val.size());
+        uint8_t *p_hash = hex_string_to_bytes(val.c_str(), val.size());
+        if (p_hash != NULL)
+        {
+            ans = p_hash;
+            free(p_hash);
+            return std::move(ans);
+        }
+    }
+    ans = val;
+    return std::move(ans);
 }
 
 JSON parse_number(const string &str, size_t &offset)

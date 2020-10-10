@@ -362,6 +362,8 @@ crust_env_file=$realsworkerdir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
 
 
+disown -r
+
 . $scriptdir/utils.sh
 
 #trap "success_exit" INT

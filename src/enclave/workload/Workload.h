@@ -18,6 +18,14 @@
 #include "Srd.h"
 #include "Parameter.h"
 
+// Show information
+std::unordered_map<char, std::string> g_file_status = {
+    {FILE_STATUS_UNCONFIRMED, "unconfirmed"},
+    {FILE_STATUS_VALID, "valid"},
+    {FILE_STATUS_LOST, "lost"},
+    {FILE_STATUS_DELETED, "deleted"}
+};
+
 class Workload
 {
 public:
@@ -26,6 +34,8 @@ public:
     std::vector<json::JSON> checked_files;
     std::vector<json::JSON> new_files;
     std::vector<std::pair<std::string, size_t>> order_files;
+    std::set<size_t> reported_files_idx;
+    sgx_ec256_public_t pre_pub_key;
     
     static Workload *workload;
     static Workload *get_instance();
@@ -46,6 +56,11 @@ public:
     void set_srd_info(std::string path, long change);
     json::JSON get_srd_info();
 
+    void set_upgrade(bool flag);
+    bool is_upgrade();
+
+    void handle_report_result();
+
     // Workreport mutex
     sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     // Workload mutex
@@ -59,6 +74,8 @@ private:
     json::JSON srd_info_json;
     // Srd info mutex
     sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    // Is upgrade
+    bool upgrade = false;
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */

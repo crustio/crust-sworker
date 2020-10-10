@@ -243,8 +243,8 @@ void validate_meaningful_file()
         {
             wl->set_report_flag(false);
         }
-        ocall_validate_close();
         sgx_thread_mutex_unlock(&g_checked_files_mutex);
+        ocall_validate_close();
         return;
     }
 
@@ -279,7 +279,9 @@ void validate_meaningful_file()
         }
 
         // If new file hasn't been confirmed, skip this validation
-        if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_UNCONFIRMED) == 0)
+        auto status = &wl->checked_files[file_idx][FILE_STATUS];
+        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED 
+                || status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
@@ -291,9 +293,9 @@ void validate_meaningful_file()
         if (CRUST_SUCCESS != crust_status || p_data == NULL)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
-            if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                 changed_idx2lost_um[file_idx] = true;
             }
             continue;
@@ -309,9 +311,9 @@ void validate_meaningful_file()
         if (root_hash.compare(tree_json[FILE_HASH].ToString()) != 0 || CRUST_SUCCESS != validate_merkletree_json(tree_json))
         {
             log_err("File:%s merkle tree is not valid!\n", root_hash.c_str());
-            if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                 changed_idx2lost_um[file_idx] = true;
             }
             continue;
@@ -354,9 +356,9 @@ void validate_meaningful_file()
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
                 log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
-                if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                     changed_idx2lost_um[file_idx] = true;
                 }
                 checked_ret = false;
@@ -375,13 +377,13 @@ void validate_meaningful_file()
                 {
                     log_err("Get file block:%ld failed!\n", check_block_idx);
                     wl->set_report_flag(false);
-                    ocall_validate_close();
                     sgx_thread_mutex_unlock(&g_checked_files_mutex);
+                    ocall_validate_close();
                     return;
                 }
-                if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                     changed_idx2lost_um[file_idx] = true;
                 }
                 checked_ret = false;
@@ -398,12 +400,12 @@ void validate_meaningful_file()
             }
             if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
             {
-                log_err("Index:%ld block hash is not expected!\n", check_block_idx);
-                //log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
-                //log_err("Org hash : %s\n", leaf_hash.c_str());
-                if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_VALID) == 0)
+                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_LOST;
+                    log_err("Index:%ld block hash is not expected!\n", check_block_idx);
+                    //log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
+                    //log_err("Org hash : %s\n", leaf_hash.c_str());
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                     changed_idx2lost_um[file_idx] = true;
                 }
                 checked_ret = false;
@@ -414,9 +416,9 @@ void validate_meaningful_file()
             spos = epos;
         }
         // Set lost file back
-        if (wl->checked_files[file_idx][FILE_STATUS].ToString().compare(FILE_STATUS_LOST) == 0 && checked_ret)
+        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && checked_ret)
         {
-            wl->checked_files[file_idx][FILE_STATUS] = FILE_STATUS_VALID;
+            status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
             changed_idx2lost_um[file_idx] = false;
         }
     }
@@ -428,8 +430,8 @@ void validate_meaningful_file()
         {
             log_info("File status changed, hash: %s status: %s -> %s\n",
                     wl->checked_files[it.first][FILE_HASH].ToString().c_str(),
-                    it.second ? FILE_STATUS_LOST : FILE_STATUS_VALID,
-                    wl->checked_files[it.first][FILE_STATUS].ToString().c_str());
+                    (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]).c_str(),
+                    g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)].c_str());
         }
     }
 

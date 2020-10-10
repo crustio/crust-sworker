@@ -114,7 +114,7 @@ function _validate
 {
     while true; do
         sleep 10
-        validate_file &>/dev/null
+        #validate_file &>/dev/null
         validate_srd &>/dev/null
         store_metadata &>/dev/null
         res_inc "confirm" "success" $validateresfile
@@ -196,6 +196,7 @@ function _workreport()
         report_work &>$instdir/${lfile}.$tag
         if [ $? -eq 0 ]; then
             res_inc "report" "success" $reportresfile
+            report_work_result &>/dev/null
         else
             res_inc "report" "failed" $reportresfile
         fi
@@ -327,14 +328,14 @@ data_size=${#data_arry[@]}
 verbose INFO "current pid: $pid " n
 
 # Randomly seal file
-_seal &
-name2pid_m[_sealpid]=$!
+#_seal &
+#name2pid_m[_sealpid]=$!
 # Randomly unseal
 _unseal &
 name2pid_m[_unseal]=$!
 # Randomly srd
-_srd &
-name2pid_m[_srdpid]=$!
+#_srd &
+#name2pid_m[_srdpid]=$!
 # Randomly confirm
 _confirm &
 name2pid_m[_confirmpid]=$!

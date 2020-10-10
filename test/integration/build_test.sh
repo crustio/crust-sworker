@@ -32,25 +32,61 @@ void ecall_store_metadata()
         log_err("Store enclave data failed!Error code:%lx\n", crust_status);
     }
 }
+
+void ecall_test_add_file(long file_num)
+{
+    Workload::get_instance()->test_add_file(file_num);
+}
+
+void ecall_test_valid_file(uint32_t file_num)
+{
+    Workload::get_instance()->test_valid_file(file_num);
+}
+
+void ecall_test_lost_file(uint32_t file_num)
+{
+    Workload::get_instance()->test_lost_file(file_num);
+}
+
+void ecall_test_delete_file(uint32_t file_num)
+{
+    Workload::get_instance()->test_delete_file(file_num);
+}
 EOF
 }
 
 ########## enclave_edl_test ##########
 function enclave_edl_test()
 {
+cat << EOF > $TMPFILE
+		public void ecall_validate_srd();
+		public void ecall_validate_file();
+		public void ecall_store_metadata();
+
+        public void ecall_test_add_file(long file_num);
+        public void ecall_test_valid_file(uint32_t file_num);
+        public void ecall_test_lost_file(uint32_t file_num);
+        public void ecall_test_delete_file(uint32_t file_num);
+EOF
+    
     local pos=$(sed -n '/ecall_get_workload()/=' $enclave_edl)
-    sed -i -e "$pos a \\\t\tpublic void ecall_validate_srd();" \
-        -e "$pos a \\\t\tpublic void ecall_validate_file();" \
-        -e "$pos a \\\t\tpublic void ecall_store_metadata();" $enclave_edl
+    sed -i "$pos r $TMPFILE" $enclave_edl
 }
 
 ########## ecalls_cpp_test ##########
 function ecalls_cpp_test()
 {
+cat << EOF >$TMPFILE
+	{"Ecall_validate_srd", 0},
+	{"Ecall_validate_file", 0},
+	{"Ecall_store_metadata", 0},
+	{"Ecall_test_add_file", 1},
+	{"Ecall_test_valid_file", 1},
+	{"Ecall_test_lost_file", 1},
+	{"Ecall_test_delete_file", 1},
+EOF
     local pos=$(sed -n '/{"Ecall_delete_file", 0},/=' $ecalls_cpp)
-    sed -i -e "$pos a \\\t{\"Ecall_validate_srd\", 0}," \
-        -e "$pos a \\\t{\"Ecall_validate_file\", 0}," \
-        -e "$pos a \\\t{\"Ecall_store_metadata\", 0}," $ecalls_cpp
+    sed -i "$pos r $TMPFILE" $ecalls_cpp
 
 cat << EOF >>$ecalls_cpp
 
@@ -98,16 +134,85 @@ sgx_status_t Ecall_store_metadata(sgx_enclave_id_t eid)
 
     return ret;
 }
+
+sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_test_add_file(eid, file_num);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+sgx_status_t Ecall_test_valid_file(sgx_enclave_id_t eid, uint32_t file_num)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_test_valid_file(eid, file_num);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_test_lost_file(eid, file_num);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_test_delete_file(eid, file_num);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
 EOF
 }
 
 ########## ecalls_h_test ##########
 function ecalls_h_test()
 {
+cat << EOF > $TMPFILE
+sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid);
+sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid);
+sgx_status_t Ecall_store_metadata(sgx_enclave_id_t eid);
+
+sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num);
+sgx_status_t Ecall_test_valid_file(sgx_enclave_id_t eid, uint32_t file_num);
+sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num);
+sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num);
+EOF
+
     local pos=$(sed -n '/std::string show_enclave_thread_info();/=' $ecalls_h)
-    sed -i -e "$pos a sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid);" \
-        -e "$pos a sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid);" \
-        -e "$pos a sgx_status_t Ecall_store_metadata(sgx_enclave_id_t eid);" $ecalls_h
+    sed -i "$((pos+1)) r $TMPFILE" $ecalls_h
 }
 
 ########## process_cpp_test ##########
@@ -154,12 +259,7 @@ cat << EOF > $TMPFILE
                 {
                     // Send signed validation report to crust chain
                     std::string work_str = get_g_enclave_workreport();
-                    p_log->info("Sign validation report successfully!\\n%s\\n", work_str.c_str());
                     res.body() = work_str;
-                    // Delete space and line break
-                    remove_char(work_str, '\\\\');
-                    remove_char(work_str, '\\n');
-                    remove_char(work_str, ' ');
                 }
                 else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
                 {
@@ -197,6 +297,19 @@ cat << EOF > $TMPFILE
             goto getcleanup;
         }
 
+        cur_path = urlendpoint->base + "/report/result";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Confirm new file
+            report_add_callback();
+            ret_info = "Reporting result task has beening added!";
+            res.body() = ret_info;
+
+            goto getcleanup;
+        }
+
         cur_path = urlendpoint->base + "/validate/srd";
         if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
         {
@@ -213,6 +326,42 @@ cat << EOF > $TMPFILE
         if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
         {
             Ecall_store_metadata(global_eid);
+        }
+
+        cur_path = urlendpoint->base + "/test/add_file";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            json::JSON req_json = json::JSON::Load(req.body());
+            long file_num = req_json["file_num"].ToInt();
+            Ecall_test_add_file(global_eid, file_num);
+            res.body() = "Add file successfully!";
+        }
+
+        cur_path = urlendpoint->base + "/test/valid_file";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            json::JSON req_json = json::JSON::Load(req.body());
+            long file_num = req_json["file_num"].ToInt();
+            Ecall_test_valid_file(global_eid, file_num);
+            res.body() = "Validate file successfully!";
+        }
+
+        cur_path = urlendpoint->base + "/test/lost_file";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            json::JSON req_json = json::JSON::Load(req.body());
+            uint32_t file_num = req_json["file_num"].ToInt();
+            Ecall_test_lost_file(global_eid, file_num);
+            res.body() = "Lost file successfully!";
+        }
+
+        cur_path = urlendpoint->base + "/test/delete_file";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            json::JSON req_json = json::JSON::Load(req.body());
+            uint32_t file_num = req_json["file_num"].ToInt();
+            Ecall_test_delete_file(global_eid, file_num);
+            res.body() = "Delete file successfully!";
         }
 EOF
 
@@ -440,6 +589,124 @@ EOF
     sed -i "s/ocall_delete_folder_or_file(/\/\/ocall_delete_folder_or_file(/g" $enclave_srd_cpp
 }
 
+function enc_wl_h_test()
+{
+cat << EOF > $TMPFILE
+
+    void test_add_file(long file_num);
+    void test_valid_file(uint32_t file_num);
+    void test_lost_file(uint32_t file_num);
+    void test_delete_file(uint32_t file_num);
+EOF
+
+    local spos=$(sed -n '/handle_report_result(/=' $enclave_workload_h)
+    ((spos++))
+    sed -i "$spos r $TMPFILE" $enclave_workload_h
+}
+
+function enc_wl_cpp_test()
+{
+cat << EOF >> $enclave_workload_cpp
+
+void Workload::test_add_file(long file_num)
+{
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    long acc = 0;
+    for (long i = 0; i < file_num; i++)
+    {
+        uint8_t *n_u = new uint8_t[32];
+        sgx_read_rand(n_u, HASH_LENGTH);
+        sgx_sha256_hash_t hash;
+        sgx_sha256_hash_t old_hash;
+        sgx_sha256_msg(n_u, HASH_LENGTH, &hash);
+        sgx_sha256_msg(reinterpret_cast<uint8_t *>(&hash), HASH_LENGTH, &old_hash);
+        json::JSON file_entry_json;
+        file_entry_json[FILE_HASH] = reinterpret_cast<uint8_t *>(hash);
+        file_entry_json[FILE_OLD_HASH] = reinterpret_cast<uint8_t *>(old_hash);
+        file_entry_json[FILE_SIZE] = 10000;
+        file_entry_json[FILE_OLD_SIZE] = 9999;
+        file_entry_json[FILE_BLOCK_NUM] = 1000;
+        // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
+        file_entry_json[FILE_STATUS] = "000";
+        free(n_u);
+        this->checked_files.push_back(file_entry_json);
+        acc++;
+    }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+}
+
+void Workload::test_valid_file(uint32_t file_num)
+{
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
+    {
+        uint32_t index = 0;
+        sgx_read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(uint32_t));
+        index = index % this->checked_files.size();
+        auto status = &this->checked_files[index][FILE_STATUS];
+        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED
+                || status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
+        {
+            status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
+            i++;
+            j = 0;
+        }
+        else
+        {
+            j++;
+        }
+    }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+}
+
+void Workload::test_lost_file(uint32_t file_num)
+{
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
+    {
+        uint32_t index = 0;
+        sgx_read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(uint32_t));
+        index = index % this->checked_files.size();
+        auto status = &this->checked_files[index][FILE_STATUS];
+        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+        {
+            status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+            i++;
+            j = 0;
+        }
+        else
+        {
+            j++;
+        }
+    }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+}
+
+void Workload::test_delete_file(uint32_t file_num)
+{
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
+    {
+        uint32_t index = 0;
+        sgx_read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(uint32_t));
+        index = index % this->checked_files.size();
+        auto status = &this->checked_files[index][FILE_STATUS];
+        if (status->get_char(CURRENT_STATUS) != FILE_STATUS_DELETED)
+        {
+            status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+            i++;
+            j = 0;
+        }
+        else
+        {
+            j++;
+        }
+    }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+}
+EOF
+}
+
 function enc_srd_h_test()
 {
     sed -i "/^#define SRD_MAX_PER_TURN 64/ c #define SRD_MAX_PER_TURN 1000" $enclave_srd_h
@@ -560,6 +827,8 @@ enclave_srd_cpp=$encdir/srd/Srd.cpp
 enclave_srd_h=$encdir/srd/Srd.h
 enclave_storage_cpp=$encdir/storage/Storage.cpp
 enclave_parameter_h=$encdir/include/Parameter.h
+enclave_workload_cpp=$encdir/workload/Workload.cpp
+enclave_workload_h=$encdir/workload/Workload.h
 testdir=$basedir/test_app
 configfile=$testdir/etc/Config.json
 TMPFILE=$basedir/tmp.$$
@@ -597,6 +866,8 @@ enc_report_cpp_test
 enc_validate_cpp_test
 enc_srd_cpp_test
 enc_srd_h_test
+enc_wl_cpp_test
+enc_wl_h_test
 #enc_storage_cpp_test
 #enc_parameter_h_test
 

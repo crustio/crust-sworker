@@ -7,7 +7,7 @@ function _store_meta()
 
 function seal_exit()
 {
-    rm $TMPFILE
+    rm -rf $tmpdir
 }
 
 ########## MAIN BODY ##########
@@ -19,14 +19,19 @@ datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
 configfile=$instdir/config/config.json
-TMPFILE=$basedir/TMPFILE
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+
+mkdir -p $tmpdir
 
 trap 'seal_exit' EXIT
 
 . $scriptdir/utils.sh
 
-declare -A hash_2_use_m
+print_title "start delete case"
 
+
+declare -A hash_2_use_m
 data_arry=($(ls $datadir))
 data_size=${#data_arry[@]}
 acc=6
