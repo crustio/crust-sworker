@@ -32,8 +32,7 @@ using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 
 crust::Log *p_log = crust::Log::get_instance();
 
-bool g_start_server_success = true;
-std::mutex g_start_server_mutex;
+int g_start_server_success = -1;
 
 // Return a reasonable mime type based on the extension of a file.
 beast::string_view mime_type(beast::string_view path)
@@ -847,12 +846,10 @@ void start_webservice(void)
     // Create and launch a server
     if (! std::make_shared<WebServer>(ioc, ctx, tcp::endpoint{address, port}, doc_root)->run())
     {
-        g_start_server_success = false;
-        g_start_server_mutex.unlock();
+        g_start_server_success = 0;
         return;
     }
-
-    g_start_server_mutex.unlock();
+    g_start_server_success = 1;
 
     // Capture SIGINT and SIGTERM to perform a clean shutdown
     //net::signal_set signals(ioc, SIGINT, SIGTERM);
