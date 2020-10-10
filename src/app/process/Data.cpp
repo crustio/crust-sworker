@@ -1,7 +1,7 @@
 #include "Data.h"
 
-// Store TEE identity
-std::string g_tee_identity = "";
+// Store sworker identity
+std::string g_sworker_identity = "";
 // Store order report
 std::string g_order_report = "";
 // Store enclave identity information
@@ -13,14 +13,14 @@ std::string g_enclave_workreport = "";
 // New karst url
 std::string g_new_karst_url = "";
 
-std::string get_g_tee_identity()
+std::string get_g_sworker_identity()
 {
-    return g_tee_identity;
+    return g_sworker_identity;
 }
 
-void set_g_tee_identity(std::string identity)
+void set_g_sworker_identity(std::string identity)
 {
-    g_tee_identity = identity;
+    g_sworker_identity = identity;
 }
 
 std::string get_g_order_report()

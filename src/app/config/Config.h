@@ -25,7 +25,7 @@ class Config
 {
 public:
     // base information
-    std::string base_path;              /* TEE base path */
+    std::string base_path;              /* sworker base path */
     json::JSON srd_paths;               /* Srd paths */
     std::string srd_path;               /* srd validation files base path */
     std::string db_path;                /* DB path */

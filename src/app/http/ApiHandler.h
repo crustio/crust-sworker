@@ -222,7 +222,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             Ecall_id_get_info(global_eid);
             json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
             id_json["version"] = VERSION;
-            id_json["tee_version"] = TEE_VERSION;
+            id_json["sworker_version"] = SWORKER_VERSION;
             res.body() = id_json.dump();
             goto getcleanup;
         }

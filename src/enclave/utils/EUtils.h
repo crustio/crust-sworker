@@ -17,7 +17,7 @@ namespace json
 }
 
 // Data tag to enclave only data
-#define TEE_PRIVATE_TAG  "&+CRUSTTEEPRIVATE+&"
+#define SWORKER_PRIVATE_TAG  "&+CRUSTSWORKERPRIVATE+&"
 
 /* The size of a srd disk leaf file */
 #define SRD_RAND_DATA_LENGTH 1048576

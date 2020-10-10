@@ -684,12 +684,12 @@ void ocall_srd_change(long change)
 }
 
 /**
- * @description: Store tee identity
+ * @description: Store sworker identity
  * @param id -> Pointer to identity
  */
 void ocall_store_identity(const char *id)
 {
-    set_g_tee_identity(id);
+    set_g_sworker_identity(id);
 }
 
 /**

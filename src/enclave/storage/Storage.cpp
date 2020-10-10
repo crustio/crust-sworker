@@ -374,7 +374,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
         }
 
         // Check if data is private data
-        if (memcmp(p_decrypted_data, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG)) == 0)
+        if (memcmp(p_decrypted_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)
         {
             crust_status = CRUST_MALWARE_DATA_BLOCK;
             goto cleanup;

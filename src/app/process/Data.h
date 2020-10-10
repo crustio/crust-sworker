@@ -9,8 +9,8 @@ extern "C"
 {
 #endif
 
-std::string get_g_tee_identity();
-void set_g_tee_identity(std::string identity);
+std::string get_g_sworker_identity();
+void set_g_sworker_identity(std::string identity);
 std::string get_g_order_report();
 void set_g_order_report(std::string order_report);
 std::string get_g_enclave_id_info();

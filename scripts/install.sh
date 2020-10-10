@@ -1,5 +1,5 @@
 #!/bin/bash
-function checkOldCrustTee()
+function checkOldCrustSworker()
 {
     verbose INFO "Checking old crust sworker..." h
     local ret=0
@@ -215,7 +215,7 @@ printf "%s%s\n\n" "$pad" '/____/ |__/|__/\____/_/  /_/|_|\___/_/     /_/_/ /_/__
 verbose INFO "Version -----------------$newversion-------------------"
 
 # check previous crust-sworker
-checkOldCrustTee
+checkOldCrustSworker
 
 # Install Dependencies
 if [ "$DOCKERMODLE" == "0" ]; then

@@ -7,8 +7,8 @@ define setMaxThreadNum
 	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" app/ecalls/ECalls.h; \
 	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" $$enclave_para; \
 	cat $$app_para | grep "#define VERSION" | awk '{print $$3}' | sed 's/"//g' > ../VERSION; \
-	tee_version=$$(cat $$enclave_para | grep "#define TEE_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
-	echo "TEE=$$tee_version" >> ../VERSION
+	sworker_version=$$(cat $$enclave_para | grep "#define SWORKER_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
+	echo "SWORKER=$$sworker_version" >> ../VERSION
 endef
 
 ifneq ($(TFLAG), 1)

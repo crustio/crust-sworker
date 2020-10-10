@@ -528,8 +528,8 @@ function InstallAPP()
     cp $basedir/VERSION $testdir
 
     # Modify config file
-    sed -i -e "/\"base_path\" :/c \\\t\"base_path\" : \"$testdir/tee_base_path\"," \
-        -e "/\"srd_paths\" :/c \\\t\"srd_paths\" : [\"$testdir/tee_base_path/srd\"]," $configfile
+    sed -i -e "/\"base_path\" :/c \\\t\"base_path\" : \"$testdir/sworker_base_path\"," \
+        -e "/\"srd_paths\" :/c \\\t\"srd_paths\" : [\"$testdir/sworker_base_path/srd\"]," $configfile
     sed -i "s/<VERSION>\///g" $configfile
 }
 

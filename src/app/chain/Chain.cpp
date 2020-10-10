@@ -202,15 +202,15 @@ bool Chain::wait_for_running(void)
 }
 
 /**
- * @description: post tee identity to chain chain
- * @param identity -> tee identity
+ * @description: post sworker identity to chain chain
+ * @param identity -> sworker identity
  * @return: success or fail
  */
-bool Chain::post_tee_identity(std::string identity)
+bool Chain::post_sworker_identity(std::string identity)
 {
     for(int i = 0; i < 3; i++)
     {
-        std::string path = this->url + "/tee/identity";
+        std::string path = this->url + "/swork/identity";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
         json::JSON obj = json::JSON::Load(identity);
@@ -238,15 +238,15 @@ bool Chain::post_tee_identity(std::string identity)
 }
 
 /**
- * @description: post tee work report to chain
- * @param work_report -> tee work report
+ * @description: post swork work report to chain
+ * @param work_report -> swork work report
  * @return: success or fail
  */
-bool Chain::post_tee_work_report(std::string work_report)
+bool Chain::post_sworker_work_report(std::string work_report)
 {
     for(int i = 0; i < 3; i++)
     {
-        std::string path = this->url + "/tee/workreport";
+        std::string path = this->url + "/swork/workreport";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
         json::JSON obj = json::JSON::Load(work_report);

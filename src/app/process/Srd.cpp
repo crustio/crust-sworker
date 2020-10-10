@@ -427,9 +427,9 @@ void set_reserved_space(size_t reserved)
 }
 
 /**
- * @description: Get old TEE's reserved space from url
- * @param url -> Indicates old TEE url
- * @return: Old TEE srd reserved space
+ * @description: Get old sworker's reserved space from url
+ * @param url -> Indicates old sworker url
+ * @return: Old sworker srd reserved space
  */
 long get_old_reserved_space(std::string url)
 {

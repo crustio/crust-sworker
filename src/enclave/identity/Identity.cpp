@@ -589,7 +589,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
         goto cleanup;
     }
     
-    // Get tee identity and store it outside of tee
+    // Get sworker identity and store it outside of sworker
     id_json[IAS_CERT] = certchain_1;
     id_json[IAS_SIG] = ias_sig;
     id_json[IAS_ISV_BODY] = isv_body;
@@ -758,7 +758,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
         meta_json = json::JSON();
         goto cleanup;
     }
-    meta_json = json::JSON::Load(p_data + strlen(TEE_PRIVATE_TAG), data_len);
+    meta_json = json::JSON::Load(p_data + strlen(SWORKER_PRIVATE_TAG), data_len);
     if (meta_json.size() == 0)
     {
         goto cleanup;
@@ -814,7 +814,7 @@ crust_status_t id_metadata_set_by_new(json::JSON meta_json)
     }
 
     meta_str = meta_json_org.dump();
-    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
+    meta_len = meta_str.size() + strlen(SWORKER_PRIVATE_TAG);
     p_meta = (uint8_t*)enc_malloc(meta_len);
     if (p_meta == NULL)
     {
@@ -822,8 +822,8 @@ crust_status_t id_metadata_set_by_new(json::JSON meta_json)
         goto cleanup;
     }
     memset(p_meta, 0, meta_len);
-    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
-    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
+    memcpy(p_meta, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
+    memcpy(p_meta + strlen(SWORKER_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
     crust_status = persist_set(ID_METADATA, p_meta, meta_len);
     free(p_meta);
 
@@ -881,7 +881,7 @@ crust_status_t id_metadata_del_by_key(std::string key)
     p_obj.object->erase(key);
 
     meta_str = meta_json_org.dump();
-    meta_len = meta_str.size() + strlen(TEE_PRIVATE_TAG);
+    meta_len = meta_str.size() + strlen(SWORKER_PRIVATE_TAG);
     p_meta = (uint8_t*)enc_malloc(meta_len);
     if (p_meta == NULL)
     {
@@ -889,8 +889,8 @@ crust_status_t id_metadata_del_by_key(std::string key)
         goto cleanup;
     }
     memset(p_meta, 0, meta_len);
-    memcpy(p_meta, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
-    memcpy(p_meta + strlen(TEE_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
+    memcpy(p_meta, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
+    memcpy(p_meta + strlen(SWORKER_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
     crust_status = persist_set(ID_METADATA, p_meta, meta_len);
     free(p_meta);
 
@@ -922,7 +922,7 @@ crust_status_t id_store_metadata()
         meta_len += it.second.size() * (64 + 3);
     }
     meta_len += wl->srd_path2hashs_m.size() * (128 + 4);
-    meta_len += strlen(TEE_PRIVATE_TAG) + 5
+    meta_len += strlen(SWORKER_PRIVATE_TAG) + 5
         + strlen(ID_WORKLOAD) + 5
         + strlen(ID_KEY_PAIR) + 5
         + strlen(ID_REPORT_SLOT) + 5
@@ -945,8 +945,8 @@ crust_status_t id_store_metadata()
     size_t offset = 0;
 
     // ----- Store metadata ----- //
-    memcpy(meta_buf, TEE_PRIVATE_TAG, strlen(TEE_PRIVATE_TAG));
-    offset += strlen(TEE_PRIVATE_TAG);
+    memcpy(meta_buf, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
+    offset += strlen(SWORKER_PRIVATE_TAG);
     memcpy(meta_buf + offset, "{", 1);
     offset += 1;
     // Append srd
