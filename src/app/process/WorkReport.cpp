@@ -26,6 +26,7 @@ void work_report_loop(void)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
+    size_t offline_base_height = REPORT_BLOCK_HEIGHT_BASE;
     //int order_report_interval = 0;
 
     while (true)
@@ -54,7 +55,19 @@ void work_report_loop(void)
         */
 
         // ----- Report work report ----- //
-        crust::BlockHeader *block_header = p_chain->get_block_header();
+        crust::BlockHeader *block_header = NULL;
+        if (!offline_chain_mode)
+        {
+            block_header = p_chain->get_block_header();
+        }
+        else
+        {
+            block_header = new crust::BlockHeader();
+            block_header->hash = "0000000000000000000000000000000000000000000000000000000000000000";
+            block_header->number = offline_base_height;
+            offline_base_height += REPORT_BLOCK_HEIGHT_BASE;
+        }
+
         if (block_header == NULL)
         {
             p_log->warn("Cannot get block header!\n");
@@ -62,15 +75,22 @@ void work_report_loop(void)
         }
         if (0 == block_header->number % REPORT_BLOCK_HEIGHT_BASE)
         {
-            size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address+Config::get_instance()->base_url);
-            p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
-            sleep(wait_time);
-
-            // Get confirmed block hash
-            block_header->hash = p_chain->get_block_hash(block_header->number);
-            if (block_header->hash == "")
+            if (!offline_chain_mode)
             {
-                goto loop;
+                size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address+Config::get_instance()->base_url);
+                p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
+                sleep(wait_time);
+
+                // Get confirmed block hash
+                block_header->hash = p_chain->get_block_hash(block_header->number);
+                if (block_header->hash == "")
+                {
+                    goto loop;
+                }
+            }
+            else
+            {
+                sleep(60);
             }
 
             // Get signed validation report
@@ -86,17 +106,25 @@ void work_report_loop(void)
                     // Send signed validation report to crust chain
                     std::string work_str = get_g_enclave_workreport();
                     p_log->info("Sign validation report successfully!\n%s\n", work_str.c_str());
-                    // Delete space and line break
-                    remove_char(work_str, '\\');
-                    remove_char(work_str, '\n');
-                    remove_char(work_str, ' ');
-                    if (!p_chain->post_sworker_work_report(work_str))
+
+                    if (!offline_chain_mode)
                     {
-                        p_log->err("Send work report to crust chain failed!\n");
+                        // Delete space and line break
+                        remove_char(work_str, '\\');
+                        remove_char(work_str, '\n');
+                        remove_char(work_str, ' ');
+                        if (!p_chain->post_sworker_work_report(work_str))
+                        {
+                            p_log->err("Send work report to crust chain failed!\n");
+                        }
+                        else
+                        {
+                            p_log->info("Send work report to crust chain successfully!\n");
+                            report_add_callback();
+                        }
                     }
                     else
                     {
-                        p_log->info("Send work report to crust chain successfully!\n");
                         report_add_callback();
                     }
                 }
