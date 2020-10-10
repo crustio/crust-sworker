@@ -191,6 +191,80 @@ crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t 
 }
 
 /**
+ * @description: Generate workload info
+ * @return: Workload info in json format
+ */
+json::JSON Workload::gen_workload_info()
+{
+    // Generate srd information
+    long g_num = 0;
+    sgx_sha256_hash_t srd_root;
+    json::JSON ans;
+    if (this->srd_path2hashs_m.size() == 0)
+    {
+        memset(&srd_root, 0, sizeof(sgx_sha256_hash_t));
+        ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
+    }
+    else
+    {
+        for (auto it : this->srd_path2hashs_m)
+        {
+            g_num += it.second.size();
+        }
+        uint8_t *g_hashs = (uint8_t *)enc_malloc(g_num * HASH_LENGTH);
+        if (g_hashs == NULL)
+        {
+            return ans;
+        }
+        memset(g_hashs, 0, g_num * HASH_LENGTH);
+        size_t g_hashs_len = 0;
+        for (auto it : this->srd_path2hashs_m)
+        {
+            for (auto g_hash : it.second)
+            {
+                memcpy(g_hashs + g_hashs_len, g_hash, HASH_LENGTH);
+                g_hashs_len += HASH_LENGTH;
+            }
+        }
+        ans[WL_SRD_SPACE] = g_num * 1024 * 1024 * 1024;
+        sgx_sha256_msg(g_hashs, (uint32_t)g_hashs_len, &srd_root);
+        free(g_hashs);
+        ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
+    }
+
+    // Generate file information
+    sgx_sha256_hash_t file_root;
+    if (this->checked_files.size() == 0)
+    {
+        memset(&file_root, 0, sizeof(sgx_sha256_hash_t));
+        ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
+    }
+    else
+    {
+        uint8_t *f_hashs = (uint8_t *)enc_malloc(this->checked_files.size() * HASH_LENGTH);
+        memset(f_hashs, 0, this->checked_files.size() * HASH_LENGTH);
+        size_t f_hashs_len = 0;
+        for (size_t i = 0; i < this->checked_files.size(); i++)
+        {
+            std::string f_hash = this->checked_files[i][FILE_HASH].ToString();
+            uint8_t *f_hash_u = hex_string_to_bytes(f_hash.c_str(), f_hash.size());
+            if (f_hash_u == NULL)
+            {
+                return ans;
+            }
+            memcpy(f_hashs + f_hashs_len, f_hash_u, HASH_LENGTH);
+            free(f_hash_u);
+            f_hashs_len += HASH_LENGTH;
+        }
+        sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
+        free(f_hashs);
+        ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
+    }
+
+    return ans;
+}
+
+/**
  * @description: Serialize workload for sealing
  * @param locked -> Indicates whether to get lock, default value is true
  * @return: Serialized workload
@@ -228,26 +302,49 @@ void Workload::serialize_srd(std::string &sered_srd)
  * @param locked -> Indicates whether to get lock, default value is true
  * @return: Serialized file info
  */
-void Workload::serialize_file(std::string &sered_file)
+crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
 
-    sered_file.append("[");
+    size_t file_item_len = strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
+        + strlen(FILE_OLD_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
+        + strlen(FILE_SIZE) + 3 + 12 + 1
+        + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
+        + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+        + strlen(FILE_STATUS) + 3 + 3 + 3
+        + 2;
+    size_t buffer_size = this->checked_files.size() * file_item_len;
+    *p_data = (uint8_t *)enc_malloc(buffer_size);
+    if (*p_data == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(*p_data, 0, buffer_size);
+    size_t offset = 0;
+
+    memcpy(*p_data + offset, "[", 1);
+    offset += 1;
     for (size_t i = 0; i < this->checked_files.size(); i++)
     {
         std::string file_str = this->checked_files[i].dump();
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
         remove_char(file_str, ' ');
-        sered_file.append(file_str);
         if (i != this->checked_files.size() - 1)
         {
-            sered_file.append(",");
+            file_str.append(",");
         }
+        memcpy(*p_data + offset, file_str.c_str(), file_str.size());
+        offset += file_str.size();
     }
-    sered_file.append("]");
+    memcpy(*p_data + offset, "]", 1);
+    offset += 1;
+
+    *data_size = offset;
 
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -292,6 +389,18 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
     }
 
     return crust_status;
+}
+
+/**
+ * @description: Restore file from json
+ * @param file_json -> File json
+ */
+void Workload::restore_file(json::JSON file_json)
+{
+    for (int i = 0; i < file_json.size(); i++)
+    {
+        this->checked_files.push_back(file_json[i]);
+    }
 }
 
 /**
@@ -372,9 +481,11 @@ json::JSON Workload::get_srd_info()
  * @description: Set upgrade flag
  * @param flag -> Upgrade flag
  */
-void Workload::set_upgrade(bool flag)
+void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 {
-    this->upgrade = flag;
+    this->upgrade = true;
+    memcpy(&this->pre_pub_key, &pub_key, sizeof(sgx_ec256_public_t));
+    id_metadata_set_or_append(ID_PRE_PUB_KEY, hexstring_safe(&pub_key, sizeof(pub_key)));
 }
 
 /**

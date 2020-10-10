@@ -21,6 +21,8 @@ std::string get_g_enclave_workreport();
 void set_g_enclave_workreport(std::string workreport);
 std::string get_g_new_karst_url();
 void set_g_new_karst_url(std::string karst_url);
+std::string get_g_upgrade_data();
+void set_g_upgrade_data(std::string data);
 
 #if defined(__cplusplus)
 }

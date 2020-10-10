@@ -228,7 +228,7 @@ std::string byte_vec_to_string(std::vector<uint8_t> bytes)
  */
 uint8_t *hex_string_to_bytes(const void *src, size_t len)
 {
-    if (len % 2 != 0)
+    if (len % 2 != 0 || len == 0)
     {
         return NULL;
     }

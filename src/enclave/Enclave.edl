@@ -35,6 +35,9 @@ enclave {
         public crust_status_t ecall_delete_file([in, string] const char *hash);
         public void ecall_handle_report_result();
 
+        public crust_status_t ecall_gen_upgrade_data(size_t block_height);
+        public crust_status_t ecall_restore_from_upgrade([in, size=meta_len] const char *meta, size_t meta_len);
+
         public void ecall_id_get_info();
         public void ecall_get_workload();
     };
@@ -75,11 +78,16 @@ enclave {
         void ocall_srd_change(long change)
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_srd_set_change);
 
+        crust_status_t ocall_upload_workreport([in, string] const char *data);
+        crust_status_t ocall_entry_network();
+        crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
+
         void ocall_store_sealed_merkletree([in, string] const char *org_root_hash, [in, size=tree_len] const char *tree_data, size_t tree_len);
         void ocall_store_order_report([in, size=order_size] const char *p_order, size_t order_size);
         void ocall_store_identity([in, string] const char *id);
         void ocall_store_enclave_id_info([in, string] const char *info);
         void ocall_store_workload([in, size=data_size] const char *data, size_t data_size, bool cover);
         void ocall_store_workreport([in, size=data_size] const char *data, size_t data_size, bool cover);
+        void ocall_store_upgrade_data([in, size=data_size] const char *data, size_t data_size, bool cover);
     };
 };

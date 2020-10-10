@@ -12,13 +12,22 @@
 #include <map>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
+#include <exception>
+
+#include "CrustStatus.h"
 #include "FileUtils.h"
 #include "FormatUtils.h"
+#include "FileUtils.h"
+#include "Config.h"
 #include "Common.h"
 #include "Log.h"
-#include "CrustStatus.h"
-#include "WebsocketClient.h"
 #include "Data.h"
+#include "WebsocketClient.h"
+#include "Srd.h"
+#include "DataBase.h"
+#include "Chain.h"
+#include "EntryNetwork.h"
+#include "tbb/concurrent_unordered_map.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -65,8 +74,13 @@ extern "C"
     void ocall_store_identity(const char *id);
     void ocall_store_workload(const char *data, size_t data_size, bool cover = true);
     void ocall_store_workreport(const char *data, size_t data_size, bool cover = true);
+    void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover = true);
 
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
+
+    crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size);
+    crust_status_t ocall_upload_workreport(const char *work_report);
+    crust_status_t ocall_entry_network();
 
 #if defined(__cplusplus)
 }

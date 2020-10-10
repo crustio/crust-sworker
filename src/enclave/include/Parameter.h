@@ -14,6 +14,8 @@
 #define ID_WORKLOAD "workload"
 #define ID_KEY_PAIR "id_key_pair"
 #define ID_REPORT_SLOT "report_slot"
+#define ID_PRE_PUB_KEY "pre_pub_key"
+#define ID_REPORT_HEIGHT "report_height"
 #define ID_CHAIN_ACCOUNT_ID "chain_account_id"
 
 // For meaningful file
@@ -82,6 +84,7 @@
 #define WL_FILE_STATUS "status"
 #define WL_FILE_OLD_HASH "old_hash"
 #define WL_FILE_OLD_SIZE "old_size"
+#define WL_FILE_ROOT_HASH "file_root_hash"
 
 // For ocalls
 #define PERSIST_SUM "persist_sum"
@@ -92,7 +95,13 @@
 #define ENC_MAX_THREAD_NUM  15
 #define ENCLAVE_MALLOC_TRYOUT 3
 
-// For buffer pool
-#define BUFFER_AVAILABLE "buffer_available"
+// For upgrade
+#define UPGRADE_WORK_REPORT "work_report"
+#define UPGRADE_SRD "upgrade_srd"
+#define UPGRADE_SRD_ROOT "upgrade_srd_root"
+#define UPGRADE_FILE "upgrade_file"
+#define UPGRADE_FILE_ROOT "upgrade_file_root"
+#define UPGRADE_MRENCLAVE "upgrade_mrenclave"
+#define UPGRADE_SIG "upgrade_sig"
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

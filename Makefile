@@ -1,4 +1,4 @@
-.PHONY: build test clean
+.PHONY: build test build_test functionality_test clean
 
 build:
 	@$(MAKE) -C src/ all --no-print-directory

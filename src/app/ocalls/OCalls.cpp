@@ -1,10 +1,4 @@
 #include "OCalls.h"
-#include "Srd.h"
-#include "DataBase.h"
-#include "FileUtils.h"
-#include "Config.h"
-#include "tbb/concurrent_unordered_map.h"
-#include <exception>
 
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -649,6 +643,80 @@ void ocall_validate_close()
 }
 
 /**
+ * @description: Get block hash by height
+ * @param block_height -> Block height from enclave
+ * @param block_hash -> Pointer to got block hash
+ * @param hash_size -> Block hash size
+ * @return: Get result
+ * */
+crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size)
+{
+    std::string hash = crust::Chain::get_instance()->get_block_hash(block_height);
+
+    if (hash.compare("") == 0)
+    {
+        return CRUST_UPGRADE_GET_BLOCK_HASH_FAILED;
+    }
+
+    memcpy(block_hash, hash.c_str(), hash_size);
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: For upgrade, send work report
+ * @param work_report -> Work report
+ * @return: Send result
+ * */
+crust_status_t ocall_upload_workreport(const char *work_report)
+{
+    std::string work_str(work_report);
+    remove_char(work_str, '\\');
+    remove_char(work_str, '\n');
+    remove_char(work_str, ' ');
+    if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
+    {
+        p_log->err("Send work report to crust chain failed!\n");
+        return CRUST_UPGRADE_SEND_WORKREPORT_FAILED;
+    }
+
+    p_log->info("Send work report to crust chain successfully!\n");
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Entry network
+ * @return: Entry result
+ * */
+crust_status_t ocall_entry_network()
+{
+    std::string tee_identity_result;
+    Config *p_config = Config::get_instance();
+
+    // Entry network
+    p_log->info("Entrying network...\n");
+    if (!entry_network(p_config, tee_identity_result))
+    {
+        return CRUST_ENTRY_NETWORK_FAILED;
+    }
+    p_log->info("Entry network application successfully! TEE identity: %s\n", tee_identity_result.c_str());
+    // Send identity to crust chain
+    if (!crust::Chain::get_instance()->wait_for_running())
+    {
+        return CRUST_SEND_IDENTITY_FAILED;
+    }
+    if (!crust::Chain::get_instance()->post_sworker_identity(tee_identity_result))
+    {
+        p_log->err("Send identity to crust chain failed!\n");
+        return CRUST_SEND_IDENTITY_FAILED;
+    }
+    p_log->info("Send identity to crust chain successfully!\n");
+
+    return CRUST_SUCCESS;
+}
+
+/**
  * @description: Store order report from enclave
  * @param p_order -> Poniter to order buffer
  * @param order_size -> Order buffer size
@@ -735,5 +803,23 @@ void ocall_store_workreport(const char *data, size_t data_size, bool cover /*=tr
         std::string str = get_g_enclave_workreport();
         str.append(data, data_size);
         set_g_enclave_workreport(str);
+    }
+}
+
+/**
+ * @description: Store upgrade data
+ * @param data -> Upgrade data
+ * */
+void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
+{
+    if (cover)
+    {
+        set_g_upgrade_data(std::string(data, data_size));
+    }
+    else
+    {
+        std::string str = get_g_upgrade_data();
+        str.append(data, data_size);
+        set_g_upgrade_data(str);
     }
 }

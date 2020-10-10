@@ -23,6 +23,8 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_confirm_file", 0},
     {"Ecall_delete_file", 0},
     {"Ecall_handle_report_result", 0},
+    {"Ecall_gen_upgrade_data", 0},
+    {"Ecall_restore_from_upgrade", 0},
     {"Ecall_seal_file", 1},
     {"Ecall_unseal_file", 1},
     {"Ecall_srd_decrease", 1},
@@ -577,6 +579,44 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, con
     }
 
     ret = ecall_delete_file(eid, status, hash);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Generate upgrade metadata
+ * @param status -> Pointer to generate result status
+ */
+sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_gen_upgrade_data(eid, status, block_height);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Generate upgrade metadata
+ * @param status -> Pointer to metadata
+ */
+sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_restore_from_upgrade(eid, status, meta, meta_len);
 
     free_enclave(__FUNCTION__);
 

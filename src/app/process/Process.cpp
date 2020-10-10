@@ -21,8 +21,7 @@ std::vector<std::pair<std::shared_ptr<std::future<void>>, task_func_t>> g_tasks_
 
 crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
-extern bool g_start_server_success;
-extern std::mutex g_start_server_mutex;
+extern int g_start_server_success;
 extern std::mutex srd_info_mutex;
 extern bool g_init_upgrade;
 
@@ -123,17 +122,17 @@ bool initialize_components(void)
     }
 
     // Start http service
-    g_start_server_mutex.lock();
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
             std::async(std::launch::async, &start_webservice)), &start_webservice));
-    g_start_server_mutex.lock();
-    if (!g_start_server_success)
+    while (g_start_server_success == -1)
+    {
+        sleep(1);
+    }
+    if (g_start_server_success == 0)
     {
         p_log->err("Start web service failed!\n");
-        g_start_server_mutex.unlock();
         return false;
     }
-    g_start_server_mutex.unlock();
 
     // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)
