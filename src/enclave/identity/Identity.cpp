@@ -1119,7 +1119,7 @@ crust_status_t id_restore_metadata()
         }
         memcpy(&pre_pub_key, pre_pub_key_u, sizeof(sgx_ec256_public_t));
         free(pre_pub_key_u);
-        wl->set_upgrade(true, pre_pub_key);
+        wl->set_upgrade(pre_pub_key);
     }
     // Restore chain account id
     g_chain_account_id = meta_json[ID_CHAIN_ACCOUNT_ID].ToString();
@@ -1727,7 +1727,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size)
         }
 
         // ----- Send current version's work report ----- //
-        wl->set_upgrade(true, sgx_pub_key);
+        wl->set_upgrade(sgx_pub_key);
         if (CRUST_SUCCESS != (crust_status = get_signed_work_report(block_hash_str.c_str(), std::atoi(block_height_str.c_str()))))
         {
             goto cleanup;

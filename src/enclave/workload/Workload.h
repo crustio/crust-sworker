@@ -58,7 +58,7 @@ public:
     json::JSON get_srd_info();
     json::JSON gen_workload_info();
 
-    void set_upgrade(bool flag, sgx_ec256_public_t pub_key);
+    void set_upgrade(sgx_ec256_public_t pub_key);
     bool is_upgrade();
 
     void handle_report_result();

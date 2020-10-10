@@ -481,9 +481,9 @@ json::JSON Workload::get_srd_info()
  * @description: Set upgrade flag
  * @param flag -> Upgrade flag
  */
-void Workload::set_upgrade(bool flag, sgx_ec256_public_t pub_key)
+void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 {
-    this->upgrade = flag;
+    this->upgrade = true;
     memcpy(&this->pre_pub_key, &pub_key, sizeof(sgx_ec256_public_t));
     id_metadata_set_or_append(ID_PRE_PUB_KEY, hexstring_safe(&pub_key, sizeof(pub_key)));
 }
