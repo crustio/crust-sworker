@@ -80,7 +80,7 @@ void Config::show(void)
         printf("    'srd path %d' : '%s',\n", i + 1, this->srd_paths[i].ToString().c_str());
     }
     printf("    'srd init capacity' : %lu,\n", this->srd_capacity);
-    printf("    'tee base url' : '%s',\n", this->base_url.c_str());
+    printf("    'base url' : '%s',\n", this->base_url.c_str());
     printf("    'karst url' : '%s',\n", this->karst_url.c_str());
 
     printf("    'chain config' : {\n");

@@ -130,7 +130,7 @@ fi
 
 ### Start crust-sworker
 cd $testdir
-rm -rf tee_base_path
+rm -rf sworker_base_path
 rm -rf files
 mkdir files
 verbose INFO "starting crust-sworker..." h

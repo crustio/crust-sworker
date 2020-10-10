@@ -9,10 +9,10 @@ crust::Log *p_log = crust::Log::get_instance();
 /**
  * @description: Entry network off-chain node sends quote to onchain node to verify identity
  * @param p_config -> configurations
- * @param tee_identity_out -> tee identity result
+ * @param sworker_identity_out -> sworker identity result
  * @return: Success or failure
  */
-bool entry_network(Config *p_config, std::string &tee_identity_out)
+bool entry_network(Config *p_config, std::string &sworker_identity_out)
 {
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
@@ -246,16 +246,16 @@ bool entry_network(Config *p_config, std::string &tee_identity_out)
 
     // Verify IAS report in enclave
     crust_status_t crust_status;
-    // Ecall_verify_iasreport will store tee identity to g_tee_identity by ocall
-    // You can get this identity by accessing g_tee_identity
+    // Ecall_verify_iasreport will store sworker identity to g_sworker_identity by ocall
+    // You can get this identity by accessing g_sworker_identity
     sgx_status_t status_ret = Ecall_verify_iasreport(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
     if (SGX_SUCCESS == status_ret)
     {
         if (CRUST_SUCCESS == crust_status)
         {
-            json::JSON tmp_json = json::JSON::Load(get_g_tee_identity());
+            json::JSON tmp_json = json::JSON::Load(get_g_sworker_identity());
             tmp_json["account_id"] = p_config->chain_address;
-            tee_identity_out = tmp_json.dump();
+            sworker_identity_out = tmp_json.dump();
             entry_status = true;
             p_log->info("Verify IAS report in enclave successfully!\n");
         }

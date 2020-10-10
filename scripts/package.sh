@@ -35,7 +35,7 @@ trap "success_exit" EXIT
 
 # Write version
 getVERSION > $instdir/VERSION
-echo "TEE=$(getTEEVERSION)" >> $instdir/VERSION
+echo "SWORKER=$(getSWORKERVERSION)" >> $instdir/VERSION
 
 newversion=$(cat $instdir/VERSION | head -n 1)
 verbose INFO "Start packaging sworker, version is $newversion..."

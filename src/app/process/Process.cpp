@@ -164,7 +164,7 @@ int process_run()
     pid_t worker_pid = getpid();
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
-    std::string tee_identity_result = "";
+    std::string sworker_identity_result = "";
     int return_status = 1;
     p_log->info("WorkerPID = %d\n", worker_pid);
 
@@ -219,12 +219,12 @@ int process_run()
         {
             // Entry network
             p_log->info("Entrying network...\n");
-            if (!entry_network(p_config, tee_identity_result))
+            if (!entry_network(p_config, sworker_identity_result))
             {
                 goto cleanup;
                 return_status = -1;
             }
-            p_log->info("Entry network application successfully! TEE identity: %s\n", tee_identity_result.c_str());
+            p_log->info("Entry network application successfully! Identity: %s\n", sworker_identity_result.c_str());
 
             // Send identity to crust chain
             if (!crust::Chain::get_instance()->wait_for_running())
@@ -233,7 +233,7 @@ int process_run()
                 goto cleanup;
             }
 
-            if (!crust::Chain::get_instance()->post_tee_identity(tee_identity_result))
+            if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity_result))
             {
                 p_log->err("Send identity to crust chain failed!\n");
                 return_status = -1;

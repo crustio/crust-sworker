@@ -110,12 +110,12 @@ function getVERSION()
 }
 
 # Be careful about this function
-function getTEEVERSION()
+function getSWORKERVERSION()
 {
     local basedir=$(cd `dirname $0`;pwd)
     local srcdir=$(cd $basedir/../src;pwd)
-    local tee_para="$srcdir/enclave/include/Parameter.h"
-    echo $(cat $tee_para | grep "#define TEE_VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null) 
+    local sworker_para="$srcdir/enclave/include/Parameter.h"
+    echo $(cat $sworker_para | grep "#define SWORKER_VERSION" | awk '{print $3}' | sed 's/"//g' 2>/dev/null) 
 }
 
 # color

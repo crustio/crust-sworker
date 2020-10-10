@@ -40,7 +40,7 @@ int SGX_CDECL main(int argc, char *argv[])
         else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
         {
             printf("Release version: %s\
-                  \nTEE     version: %s\n", VERSION, TEE_VERSION);
+                  \nSWorker     version: %s\n", VERSION, SWORKER_VERSION);
             return 0;
         }
         else if (strcmp(argv[i], "--offline") == 0)

@@ -29,8 +29,8 @@ public:
     static Chain *get_instance();
     BlockHeader *get_block_header(void);
     std::string get_block_hash(size_t block_number);
-    bool post_tee_identity(std::string identity);
-    bool post_tee_work_report(std::string work_report);
+    bool post_sworker_identity(std::string identity);
+    bool post_sworker_work_report(std::string work_report);
     bool is_online(void);
     bool is_syncing(void);
     bool wait_for_running(void);

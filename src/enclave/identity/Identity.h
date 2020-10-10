@@ -88,7 +88,7 @@ crust_status_t id_metadata_set_or_append(const char *key, T val,
     }
 
     std::string key_str(key);
-    std::string meta_str(TEE_PRIVATE_TAG);
+    std::string meta_str(SWORKER_PRIVATE_TAG);
     json::JSON meta_json;
     crust_status_t crust_status = CRUST_SUCCESS;
     id_get_metadata(meta_json, false);
