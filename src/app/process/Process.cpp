@@ -224,7 +224,7 @@ int process_run()
                 goto cleanup;
                 return_status = -1;
             }
-            p_log->info("Entry network application successfully! SWORKER identity: %s\n", sworker_identity_result.c_str());
+            p_log->info("Entry network application successfully! Identity: %s\n", sworker_identity_result.c_str());
 
             // Send identity to crust chain
             if (!crust::Chain::get_instance()->wait_for_running())

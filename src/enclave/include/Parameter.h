@@ -1,7 +1,7 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
-#define SWORKER_VERSION "0.5.1"
+#define SWORKER_VERSION "0.6.0"
 
 #define LEAF_SEPARATOR  "+leaf+"
 

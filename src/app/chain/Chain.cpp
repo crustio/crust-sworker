@@ -238,8 +238,8 @@ bool Chain::post_sworker_identity(std::string identity)
 }
 
 /**
- * @description: post swork work report to chain
- * @param work_report -> swork work report
+ * @description: post sworker work report to chain
+ * @param work_report -> sworker work report
  * @return: success or fail
  */
 bool Chain::post_sworker_work_report(std::string work_report)
