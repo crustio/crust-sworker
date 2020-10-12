@@ -29,7 +29,7 @@ void work_report_loop(void)
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
     size_t offline_base_height = REPORT_BLOCK_HEIGHT_BASE;
-    size_t aim_block_height = REPORT_BLOCK_HEIGHT_BASE;
+    size_t target_block_height = REPORT_BLOCK_HEIGHT_BASE;
 
     // Generate aim block height
     if (!offline_chain_mode)
@@ -37,11 +37,11 @@ void work_report_loop(void)
         crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header == NULL)
         {
-            p_log->warn("Cannot get block header! Set aim block height %d\n", aim_block_height);
+            p_log->warn("Cannot get block header! Set aim block height %d\n", target_block_height);
         }
         else
         {
-            aim_block_height = (block_header->number / REPORT_BLOCK_HEIGHT_BASE + 1) * REPORT_BLOCK_HEIGHT_BASE;
+            target_block_height = (block_header->number / REPORT_BLOCK_HEIGHT_BASE + 1) * REPORT_BLOCK_HEIGHT_BASE;
         }
     }
 
@@ -58,7 +58,7 @@ void work_report_loop(void)
                 goto loop;
             }
 
-            if (block_header->number < aim_block_height)
+            if (block_header->number < target_block_height)
             {
                 goto loop;
             }
@@ -77,7 +77,7 @@ void work_report_loop(void)
                 goto loop;
             }
 
-            aim_block_height = block_header->number + REPORT_BLOCK_HEIGHT_BASE;
+            target_block_height = block_header->number + REPORT_BLOCK_HEIGHT_BASE;
         }
         else
         {
