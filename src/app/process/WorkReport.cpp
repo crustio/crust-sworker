@@ -31,17 +31,18 @@ void work_report_loop(void)
     size_t offline_base_height = REPORT_BLOCK_HEIGHT_BASE;
     size_t target_block_height = REPORT_BLOCK_HEIGHT_BASE;
 
-    // Generate aim block height
+    // Generate target block height
     if (!offline_chain_mode)
     {
         crust::BlockHeader *block_header = p_chain->get_block_header();
         if (block_header == NULL)
         {
-            p_log->warn("Cannot get block header! Set aim block height %d\n", target_block_height);
+            p_log->warn("Cannot get block header! Set target block height %d\n", target_block_height);
         }
         else
         {
             target_block_height = (block_header->number / REPORT_BLOCK_HEIGHT_BASE + 1) * REPORT_BLOCK_HEIGHT_BASE;
+            p_log->info("Set target block height %d\n", target_block_height);
         }
     }
 
