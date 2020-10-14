@@ -101,7 +101,7 @@ void work_report_loop(void)
 
         // Get signed validation report
         if (SGX_SUCCESS != Ecall_get_signed_work_report(global_eid, &crust_status,
-                                                        block_header->hash.c_str(), block_header->number))
+                block_header->hash.c_str(), block_header->number))
         {
             p_log->err("Get signed work report failed!\n");
         }
