@@ -1,7 +1,7 @@
 #include "App.h"
 
 bool offline_chain_mode = false;
-bool g_init_upgrade = false;
+bool g_upgrade_flag = false;
 extern std::string config_file_path;
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -34,7 +34,7 @@ int SGX_CDECL main(int argc, char *argv[])
         }
         else if (strcmp(argv[i], "--upgrade") == 0)
         {
-            g_init_upgrade = true;
+            g_upgrade_flag = true;
             i++;
         }
         else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)

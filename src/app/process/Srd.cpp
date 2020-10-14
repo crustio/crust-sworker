@@ -203,13 +203,11 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
 void srd_change(long change)
 {
     Config *p_config = Config::get_instance();
-    crust::DataBase *db = crust::DataBase::get_instance();
 
     if (change > 0)
     {
         size_t true_increase = change;
         json::JSON disk_info_json = get_increase_srd_info(true_increase);
-        json::JSON upgrade_json;
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
@@ -220,25 +218,6 @@ void srd_change(long change)
         if (true_increase == 0)
         {
             //p_log->warn("No available space for srd!\n");
-            // Check if upgrading
-            std::string upgrade_info;
-            if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
-            {
-                // Check if srd upgrade can be reset
-                upgrade_json = json::JSON::Load(upgrade_info);
-                upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = upgrade_json[SRD_UPGRADE_INFO_TIMEOUT].ToInt() + 1;
-                if (upgrade_json[SRD_UPGRADE_INFO_TIMEOUT].ToInt() > SRD_UPGRADE_TIMEOUT)
-                {
-                    // If timeout, reset srd reserved space and delete SRD_UPGRADE_INFO
-                    set_reserved_space(DEFAULT_SRD_RESERVED);
-                    db->del(SRD_UPGRADE_INFO);
-                    upgrade_json = json::JSON();
-                }
-                else
-                {
-                    db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
-                }
-            }
             return;
         }
         // Print disk info
@@ -299,34 +278,6 @@ void srd_change(long change)
             }
         }
 
-        // Check and stop upgrade
-        std::string upgrade_info;
-        crust_status_t crust_status = CRUST_SUCCESS;
-        if (CRUST_SUCCESS == db->get(SRD_UPGRADE_INFO, upgrade_info) && upgrade_info.size() > 0)
-        {
-            upgrade_json = json::JSON::Load(upgrade_info);
-            // Get assigned total srd
-            long srd_assigned_total = 0;
-            std::string srd_str;
-            srd_info_mutex.lock();
-            crust_status = db->get(DB_SRD_INFO, srd_str);
-            srd_info_mutex.unlock();
-            if (CRUST_SUCCESS == crust_status && srd_str.size() > 0)
-            {
-                json::JSON srd_json = json::JSON::Load(srd_str);
-                for (auto it = srd_json.ObjectRange().begin(); it != srd_json.ObjectRange().end(); it++)
-                {
-                    srd_assigned_total += it->second["assigned"].ToInt();
-                }
-                if (srd_assigned_total >= upgrade_json[SRD_UPGRADE_INFO_SRD].ToInt())
-                {
-                    // If srd upgrade finished, reset srd reserved space and delete SRD_UPGRADE_INFO
-                    set_reserved_space(DEFAULT_SRD_RESERVED);
-                    db->del(SRD_UPGRADE_INFO);
-                }
-            }
-        }
-
         p_config->change_srd_capacity(true_increase);
         p_log->info("Increase %dG srd files success, the srd workload will change gradually in next validation loops\n", true_increase);
     }
@@ -361,6 +312,11 @@ void srd_check_reserved(void)
 
     while (true)
     {
+        if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+        {
+            break;
+        }
+
         std::string srd_info_str;
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
@@ -424,43 +380,4 @@ size_t get_reserved_space()
 void set_reserved_space(size_t reserved)
 {
     g_srd_reserved_space = reserved;
-}
-
-/**
- * @description: Get old sworker's reserved space from url
- * @param url -> Indicates old sworker url
- * @return: Old sworker srd reserved space
- */
-long get_old_reserved_space(std::string url)
-{
-    long srd_reserved_space = 0;
-    HttpClient *client = new HttpClient();
-    http::response<http::string_body> res = client->Get(url + "/workload");
-    json::JSON res_json = json::JSON::Load(res.body());
-    if (!res_json.hasKey("srd") || !res_json["srd"].hasKey("disk_reserved"))
-    {
-        srd_reserved_space = -1;
-    }
-    else
-    {
-        srd_reserved_space = res_json["srd"]["disk_reserved"].ToInt();
-    }
-
-    delete client;
-
-    return srd_reserved_space;
-}
-
-/**
- * @description: Initialize srd upgrade
- * @param srd_num -> Upgrade initial srd space
- */
-void srd_init_upgrade(int srd_num)
-{
-    crust::DataBase *db = crust::DataBase::get_instance();
-    json::JSON upgrade_json;
-    upgrade_json[SRD_UPGRADE_INFO_TIMEOUT] = 0;
-    upgrade_json[SRD_UPGRADE_INFO_SRD] = srd_num;
-    db->set(SRD_UPGRADE_INFO, upgrade_json.dump());
-    set_reserved_space(DEFAULT_SRD_RESERVED - 10);
 }

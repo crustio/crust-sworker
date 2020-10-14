@@ -17,6 +17,7 @@
 #include <boost/make_unique.hpp>
 #include <boost/optional.hpp>
 #include <boost/function.hpp>
+#include <boost/make_shared.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <functional>
@@ -56,6 +57,7 @@ public:
 
     // Start accepting incoming connections
     bool run();
+    void stop();
     void set_api_handler(ApiHandler *api_handler);
 
 private:
@@ -65,6 +67,7 @@ private:
 };
 
 void start_webservice(void);
+void stop_webservice(void);
 
 /*  Load a signed certificate into the ssl context, and configure
     the context for use with a WebServer.

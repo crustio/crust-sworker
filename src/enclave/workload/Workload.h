@@ -61,6 +61,9 @@ public:
     void set_upgrade(sgx_ec256_public_t pub_key);
     bool is_upgrade();
 
+    void set_upgrade_status(enc_upgrade_status_t status);
+    enc_upgrade_status_t get_upgrade_status();
+
     void handle_report_result();
 
     // Workreport mutex
@@ -80,6 +83,8 @@ private:
     sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     // Is upgrade
     bool upgrade = false;
+    // Upgrade status 
+    enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE;
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <algorithm>
 #include <mutex>
+#include <set>
 #include <exception>
 #include <sgx_report.h>
 #include <sgx_key_exchange.h>
@@ -27,6 +28,7 @@
 #include "Srd.h"
 #include "Storage.h"
 #include "Data.h"
+#include "Chain.h"
 #include "tbb/concurrent_unordered_map.h"
 #include "../enclave/include/Parameter.h"
 
@@ -89,6 +91,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     crust::Log *p_log = crust::Log::get_instance();
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->base_url);
     std::string cur_path;
+    // Upgrade block service set
+    std::set<std::string> upgrade_block_s = {
+        "/workload",
+        "/srd/change",
+        "/storage/confirm",
+        "/storage/delete",
+        "/storage/seal",
+        "/storage/unseal",
+    };
 
     // Returns a bad request response
     auto const bad_request =
@@ -117,12 +128,40 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     // Build the path to the requested file
     std::string path = std::string(req.target().data(), req.target().size());
-    p_log->info("Request url:%s\n", path.c_str());
     std::map<std::string, std::string> params = get_params(path);
     size_t epos = path.find('\?');
     if (epos != std::string::npos)
     {
         path = path.substr(0, epos);
+    }
+
+    // Choose service according to upgrade status
+    std::string route_tag = path.substr(path.find(urlendpoint->base), path.size());
+    if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+    {
+        p_log->err("This process will exit!\n");
+        http::response<http::string_body> res{
+            std::piecewise_construct,
+            std::make_tuple("Stop service!"),
+            std::make_tuple(http::status::ok, req.version())};
+        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        res.set(http::field::content_type, "application/text");
+        res.body() = "No service will be provided because of upgrade complete!";
+        res.result(600);
+        return send(std::move(res));
+    }
+    if (UPGRADE_STATUS_NONE != get_g_upgrade_status() && upgrade_block_s.find(route_tag) != upgrade_block_s.end())
+    {
+        p_log->warn("Upgrade is doing, %s request cannot be applied!\n", route_tag.c_str());
+        http::response<http::string_body> res{
+            std::piecewise_construct,
+            std::make_tuple("Current service is closed due to upgrade!"),
+            std::make_tuple(http::status::ok, req.version())};
+        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        res.set(http::field::content_type, "application/text");
+        res.body() = "Current service is closed due to upgrade!";
+        res.result(601);
+        return send(std::move(res));
     }
 
 
@@ -227,6 +266,181 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
+        // ----- Inform upgrade ----- //
+        cur_path = urlendpoint->base + "/upgrade/start";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            if (UPGRADE_STATUS_NONE != get_g_upgrade_status())
+            {
+                ret_info = "Another upgrading is still running!";
+                res.result(300);
+                res.body() = ret_info;
+                goto getcleanup;
+            }
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto getcleanup;
+            }
+
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            crust_status_t crust_status = CRUST_SUCCESS;
+            crust::BlockHeader *block_header = crust::Chain::get_instance()->get_block_header();
+            if (block_header == NULL)
+            {
+                ret_info = "Chain is not running!Get block header failed!";
+                res.result(402);
+                p_log->err("%s\n", ret_info.c_str());
+            }
+            else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header->number)))
+            {
+                ret_info = "Invoke SGX API failed!";
+                res.result(403);
+                p_log->err("%sError code:%lx\n", ret_info.c_str(), sgx_status);
+            }
+            else
+            {
+                if (CRUST_SUCCESS == crust_status)
+                {
+                    ret_info = "Receive upgrade inform successfully!";
+                    // Set upgrade status
+                    set_g_upgrade_status(UPGRADE_STATUS_PROCESS);
+                    // Give current tasks some time to go into enclave queue.
+                    sleep(10);
+                    p_log->info("%s\n", ret_info.c_str());
+                }
+                else
+                {
+                    char *p_res = (char *)malloc(128);
+                    memset(p_res, 0, 128);
+                    sprintf(p_res, "Not ready for upgrade!Error code:%lx", (long unsigned int)crust_status);
+                    ret_info = std::string(ret_info);
+                    free(p_res);
+                    res.result(405);
+                }
+            }
+            res.body() = ret_info;
+
+            goto getcleanup;
+        }
+
+        // ----- Get metadata ----- //
+        cur_path = urlendpoint->base + "/upgrade/metadata";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            if (UPGRADE_STATUS_COMPLETE != get_g_upgrade_status())
+            {
+                ret_info = "Metadata is still collecting!";
+                res.result(300);
+                res.body() = ret_info;
+                goto getcleanup;
+            }
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto getcleanup;
+            }
+
+            std::string upgrade_data = get_g_upgrade_data();
+            p_log->info("Generate upgrade data:%s\n", upgrade_data.c_str());
+            res.body() = upgrade_data;
+
+            goto getcleanup;
+        }
+
+        // ----- Inform that new version is already ----- //
+        // Use to inform current sworker upgrade result
+        cur_path = urlendpoint->base + "/upgrade/complete";
+        if (path.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            // Get backup info
+            if (req.find("backup") == req.end())
+            {
+                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
+                res.result(400);
+            }
+            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
+            {
+                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
+                res.result(401);
+            }
+            if (int(res.result()) != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+                res.body() = ret_info;
+                goto getcleanup;
+            }
+
+            json::JSON req_json = json::JSON::Load(req.body());
+            bool upgrade_ret = req_json["success"].ToBool();
+            if (!upgrade_ret)
+            {
+                p_log->err("Upgrade failed!Current version will restore work.\n");
+                set_g_upgrade_status(UPGRADE_STATUS_NONE);
+                Ecall_disable_upgrade(global_eid);
+            }
+            else
+            {
+                // Store old metadata to ID_METADATA_OLD
+                crust::DataBase *db = crust::DataBase::get_instance();
+                crust_status_t crust_status = CRUST_SUCCESS;
+                std::string metadata_old;
+                if (CRUST_SUCCESS != (crust_status = db->get(ID_METADATA, metadata_old)))
+                {
+                    p_log->warn("Upgrade: get old metadata failed!Error code:%lx\n", crust_status);
+                }
+                else
+                {
+                    if (CRUST_SUCCESS != (crust_status = db->set(ID_METADATA_OLD, metadata_old)))
+                    {
+                        p_log->warn("Upgrade: store old metadata failed!Error code:%lx\n", crust_status);
+                    }
+                }
+                if (CRUST_SUCCESS != (crust_status = db->del(ID_METADATA)))
+                {
+                    p_log->warn("Upgrade: delete old metadata failed!Error code:%lx\n", crust_status);
+                }
+                else
+                {
+                    p_log->info("Upgrade: clean old version's data successfully!\n");
+                }
+                // Set upgrade exit flag
+                set_g_upgrade_status(UPGRADE_STATUS_EXIT);
+            }
+
+            goto getcleanup;
+        }
+
 
     getcleanup:
 
@@ -269,80 +483,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             p_log->info("%s %s debug.\n", ret_info.c_str(), debug_flag ? "Open" : "Close");
             res.result(200);
             res.body() = ret_info;
-        }
-
-        // --- Change karst url API --- //
-        cur_path = urlendpoint->base + "/karst/change_url";
-        if (path.compare(cur_path) == 0)
-        {
-            res.result(200);
-            std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
-            // Check input parameters
-            json::JSON req_json = json::JSON::Load(req.body());
-            std::string karst_url = req_json["karst_url"].ToString();
-
-            if (karst_url.size() == 0)
-            {
-                ret_info = "Invalid karst url";
-                p_log->info("%s\n", ret_info.c_str());
-                res.body() =ret_info;
-                res.result(402);
-                goto postcleanup;
-            }
-            else
-            {
-                // Get original config
-                std::string config_path = p_config->get_config_path();
-                std::ifstream config_ifs(config_path);
-                std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
-                json::JSON config_json = json::JSON::Load(config_str);
-                config_json["karst_url"] = karst_url;
-                // Write new config
-                std::ofstream config_ofs;
-                config_ofs.open(config_path);
-                config_str = config_json.dump();
-                try
-                {
-                    config_ofs.write(config_str.c_str(), config_str.size());
-                    config_ofs.close();
-                    // Chain Config karst_url
-                    set_g_new_karst_url(karst_url);
-                }
-                catch (std::exception e)
-                {
-                    ret_info = "Change karst url failed!";
-                    p_log->err("%s Error: %s\n", ret_info.c_str(), e.what());
-                    config_ofs.close();
-                    res.body() = ret_info;
-                    res.result(403);
-                    config_ofs.close();
-                    goto postcleanup;
-                }
-
-                config_ofs.close();
-                ret_info = "Change karst url successfully!Will use new karst url next era!";
-                p_log->info("%s Set karst url to:%s\n", ret_info.c_str(), karst_url.c_str());
-                res.body() = ret_info;
-            }
-            goto postcleanup;
         }
 
         // --- Srd change API --- //

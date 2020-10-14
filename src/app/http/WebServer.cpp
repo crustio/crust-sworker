@@ -32,6 +32,9 @@ using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 
 crust::Log *p_log = crust::Log::get_instance();
 
+std::shared_ptr<net::io_context> p_ioc = NULL;
+pid_t g_webservice_pid;
+
 int g_start_server_success = -1;
 
 // Return a reasonable mime type based on the extension of a file.
@@ -761,6 +764,11 @@ WebServer::WebServer(
     }
 }
 
+void WebServer::stop()
+{
+    this->ioc_.stop();
+}
+
 // Start accepting incoming connections
 bool WebServer::run()
 {
@@ -824,6 +832,12 @@ void WebServer::set_api_handler(ApiHandler *api_handler)
     this->api_handler = api_handler;
 }
 
+void stop_webservice(void)
+{
+    p_ioc->stop();
+    kill(g_webservice_pid, SIGINT);
+}
+
 void start_webservice(void)
 {
     // Check command line arguments.
@@ -835,7 +849,9 @@ void start_webservice(void)
     auto const threads = std::max<int>(1, WEBSOCKET_THREAD_NUM);
 
     // The io_context is required for all I/O
-    net::io_context ioc{threads};
+    //net::io_context ioc{threads};
+    std::shared_ptr<net::io_context> ioc = std::make_shared<net::io_context>(threads);
+    p_ioc = ioc;
 
     // The SSL context is required, and holds certificates
     ssl::context ctx{ssl::context::tlsv12};
@@ -844,7 +860,7 @@ void start_webservice(void)
     load_server_certificate(ctx);
 
     // Create and launch a server
-    if (! std::make_shared<WebServer>(ioc, ctx, tcp::endpoint{address, port}, doc_root)->run())
+    if (! std::make_shared<WebServer>(*ioc, ctx, tcp::endpoint{address, port}, doc_root)->run())
     {
         g_start_server_success = 0;
         return;
@@ -870,10 +886,12 @@ void start_webservice(void)
         v.emplace_back(
         [&ioc]
         {
-            ioc.run();
+            ioc->run();
         });
     }
-    ioc.run();
+    ioc->run();
+
+    g_webservice_pid = getpid();
 
     // (If we get here, it means we got a SIGINT or SIGTERM)
     

@@ -318,8 +318,13 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
         sched_check(SCHED_SRD_CHECK_RESERVED, g_srd_mutex);
 
         std::vector<uint8_t*> *p_entry = &wl->srd_path2hashs_m[it->first];
-        for (int i = it->second.ToInt(); i > 0; i--)
+        for (size_t i = it->second.ToInt(); i > 0; i--)
         {
+            if (i >= p_entry->size())
+            {
+                continue;
+            }
+
             std::string hex_g_hash = hexstring_safe(p_entry->back(), HASH_LENGTH);
             if (p_entry->back() != NULL)
             {

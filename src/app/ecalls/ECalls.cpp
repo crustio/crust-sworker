@@ -2,6 +2,8 @@
 #include "tbb/concurrent_vector.h"
 #include "tbb/concurrent_unordered_map.h"
 
+extern sgx_enclave_id_t global_eid;
+
 // Enclave task structure
 typedef struct _enclave_task_t {
     // Task id to task running number mapping
@@ -25,6 +27,8 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_handle_report_result", 0},
     {"Ecall_gen_upgrade_data", 0},
     {"Ecall_restore_from_upgrade", 0},
+    {"Ecall_enable_upgrade", 0},
+    {"Ecall_disable_upgrade", 0},
     {"Ecall_seal_file", 1},
     {"Ecall_unseal_file", 1},
     {"Ecall_srd_decrease", 1},
@@ -58,6 +62,15 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
             "Ecall_get_signed_work_report",
         }
     },
+};
+// Upgrade blocks task set1
+std::unordered_set<std::string> g_upgrade_block_task = {
+    "Ecall_seal_file",
+    "Ecall_unseal_file",
+    "Ecall_srd_decrease",
+    "Ecall_srd_increase",
+    "Ecall_confirm_file",
+    "Ecall_delete_file",
 };
 // Task info, invoked enclave function to enclave task_info mapping
 tbb::concurrent_unordered_map<std::string, enclave_task_t> g_running_task_um;
@@ -107,6 +120,14 @@ void task_sleep(int priority)
 sgx_status_t try_get_enclave(const char *name)
 {
     std::string tname(name);
+    if (UPGRADE_STATUS_COMPLETE == get_g_upgrade_status())
+    {
+        if (tname.compare("Ecall_disable_upgrade") != 0)
+        {
+            return SGX_ERROR_SERVICE_UNAVAILABLE;
+        }
+    }
+
     std::thread::id tid = std::this_thread::get_id();
     std::stringstream ss;
     ss << tid;
@@ -221,6 +242,21 @@ void free_enclave(const char *name)
 
     // Decrease corresponding invoked ecall
     g_invoked_ecalls_um[tname]--;
+}
+
+/**
+ * @description: Get blocking upgrade ecalls' number
+ * @return: Blocking ecalls' number
+ */
+int get_upgrade_ecalls_num()
+{
+    int block_task_num = 0;
+    for (auto task : g_upgrade_block_task)
+    {
+        block_task_num += g_invoked_ecalls_um[task];
+    }
+
+    return block_task_num;
 }
 
 /**
@@ -608,7 +644,7 @@ sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status
  * @description: Generate upgrade metadata
  * @param status -> Pointer to metadata
  */
-sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len)
+sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len, size_t total_size, bool transfer_end)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -616,7 +652,44 @@ sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *st
         return ret;
     }
 
-    ret = ecall_restore_from_upgrade(eid, status, meta, meta_len);
+    ret = ecall_restore_from_upgrade(eid, status, meta, meta_len, total_size, transfer_end);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Enable upgrade
+ * @param block_height -> Current block height
+ */
+sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_enable_upgrade(eid, status, block_height);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Disable upgrade
+ */
+sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_disable_upgrade(eid);
 
     free_enclave(__FUNCTION__);
 

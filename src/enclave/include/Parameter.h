@@ -13,7 +13,6 @@
 #define ID_FILE "files"
 #define ID_WORKLOAD "workload"
 #define ID_KEY_PAIR "id_key_pair"
-#define ID_REPORT_SLOT "report_slot"
 #define ID_PRE_PUB_KEY "pre_pub_key"
 #define ID_REPORT_HEIGHT "report_height"
 #define ID_CHAIN_ACCOUNT_ID "chain_account_id"
@@ -66,6 +65,7 @@
 #define WORKREPORT_FILES_DELETED "deleted_files"
 #define WORKREPORT_SIG "sig"
 #define WORKREPORT_FILE_LIMIT 1000
+#define WORKREPORT_REPORT_INTERVAL 10
 
 // For order report
 #define ORDERREPORT_FILES "files"
@@ -103,5 +103,11 @@
 #define UPGRADE_FILE_ROOT "upgrade_file_root"
 #define UPGRADE_MRENCLAVE "upgrade_mrenclave"
 #define UPGRADE_SIG "upgrade_sig"
+
+typedef enum _enc_upgrade_status_t {
+    ENC_UPGRADE_STATUS_NONE,
+    ENC_UPGRADE_STATUS_PROCESS,
+    ENC_UPGRADE_STATUS_SUCCESS,
+} enc_upgrade_status_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

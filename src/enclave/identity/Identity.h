@@ -64,8 +64,6 @@ sgx_status_t id_gen_sgx_measurement();
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len);
 crust_status_t id_set_chain_account_id(const char *account_id, size_t len);
 ecc_key_pair id_get_key_pair();
-size_t id_get_report_slot();
-void id_set_report_slot(size_t new_report_slot);
 bool id_just_after_restart();
 void id_set_just_after_restart(bool in);
 void id_get_info();
@@ -142,7 +140,7 @@ crust_status_t id_restore_metadata();
 size_t id_get_report_height();
 void id_set_report_height(size_t height);
 crust_status_t id_gen_upgrade_data(size_t block_height);
-crust_status_t id_restore_from_upgrade(const char *data, size_t data_size);
+crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end);
 bool get_upgrade_flag();
 void set_upgrade_flag(bool upgrade_flag);
 

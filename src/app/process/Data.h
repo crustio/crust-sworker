@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 #include <string>
+#include <mutex>
+
+#include "Resource.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -23,6 +26,8 @@ std::string get_g_new_karst_url();
 void set_g_new_karst_url(std::string karst_url);
 std::string get_g_upgrade_data();
 void set_g_upgrade_data(std::string data);
+upgrade_status_t get_g_upgrade_status();
+void set_g_upgrade_status(upgrade_status_t upgrade_status);
 
 #if defined(__cplusplus)
 }

@@ -13,6 +13,7 @@
 #include "FormatUtils.h"
 #include "DataBase.h"
 #include "Log.h"
+#include "Data.h"
 
 // Indicates minimal srd reserved space
 #define MIN_SRD_RESERVED 30
@@ -37,8 +38,6 @@ void srd_change(long change);
 void srd_check_reserved(void);
 void set_reserved_space(size_t reserved);
 size_t get_reserved_space();
-long get_old_reserved_space(std::string url);
-void srd_init_upgrade(int srd_num);
 
 #if defined(__cplusplus)
 }
