@@ -318,13 +318,9 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
         sched_check(SCHED_SRD_CHECK_RESERVED, g_srd_mutex);
 
         std::vector<uint8_t*> *p_entry = &wl->srd_path2hashs_m[it->first];
-        for (size_t i = it->second.ToInt(); i > 0; i--)
+        size_t real_deleted_num = std::min((size_t)it->second.ToInt(), p_entry->size());
+        for (size_t i = real_deleted_num; i > 0; i--)
         {
-            if (i >= p_entry->size())
-            {
-                continue;
-            }
-
             std::string hex_g_hash = hexstring_safe(p_entry->back(), HASH_LENGTH);
             if (p_entry->back() != NULL)
             {

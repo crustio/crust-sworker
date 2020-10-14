@@ -451,9 +451,9 @@ int process_run()
     while (true)
     {
         // Check if work threads still running
-        std::future_status f_status;
         if (UPGRADE_STATUS_EXIT != get_g_upgrade_status())
         {
+            std::future_status f_status;
             for (auto task : g_tasks_v)
             {
                 f_status = task.first->wait_for(std::chrono::seconds(0));

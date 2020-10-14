@@ -2,8 +2,6 @@
 #include "tbb/concurrent_vector.h"
 #include "tbb/concurrent_unordered_map.h"
 
-extern sgx_enclave_id_t global_eid;
-
 // Enclave task structure
 typedef struct _enclave_task_t {
     // Task id to task running number mapping
