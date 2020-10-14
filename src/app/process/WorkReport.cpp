@@ -64,9 +64,19 @@ void work_report_loop(void)
                 goto loop;
             }
 
+            size_t cut_wait_time = (block_header->number - (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
             block_header->number = (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
 
             size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address + Config::get_instance()->base_url);
+            if (cut_wait_time >= wait_time)
+            {
+                wait_time = 0;
+            }
+            else
+            {
+                wait_time = wait_time - cut_wait_time;
+            }
+
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
             sleep(wait_time);
 
