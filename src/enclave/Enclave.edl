@@ -36,7 +36,9 @@ enclave {
         public void ecall_handle_report_result();
 
         public crust_status_t ecall_gen_upgrade_data(size_t block_height);
-        public crust_status_t ecall_restore_from_upgrade([in, size=meta_len] const char *meta, size_t meta_len);
+        public crust_status_t ecall_restore_from_upgrade([in, size=meta_len] const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
+        public crust_status_t ecall_enable_upgrade(size_t block_height);
+        public void ecall_disable_upgrade();
 
         public void ecall_id_get_info();
         public void ecall_get_workload();
@@ -79,7 +81,9 @@ enclave {
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_srd_set_change);
 
         crust_status_t ocall_upload_workreport([in, string] const char *data);
-        crust_status_t ocall_entry_network();
+        crust_status_t ocall_entry_network()
+            allow(ecall_get_quote_report, ecall_verify_iasreport);
+
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
 
         void ocall_store_sealed_merkletree([in, string] const char *org_root_hash, [in, size=tree_len] const char *tree_data, size_t tree_len);

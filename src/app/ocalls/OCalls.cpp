@@ -691,22 +691,22 @@ crust_status_t ocall_upload_workreport(const char *work_report)
  * */
 crust_status_t ocall_entry_network()
 {
-    std::string tee_identity_result;
+    std::string sworker_identity_result;
     Config *p_config = Config::get_instance();
 
     // Entry network
     p_log->info("Entrying network...\n");
-    if (!entry_network(p_config, tee_identity_result))
+    if (!entry_network(p_config, sworker_identity_result))
     {
         return CRUST_ENTRY_NETWORK_FAILED;
     }
-    p_log->info("Entry network application successfully! TEE identity: %s\n", tee_identity_result.c_str());
+    p_log->info("Entry network application successfully! sworker identity: %s\n", sworker_identity_result.c_str());
     // Send identity to crust chain
     if (!crust::Chain::get_instance()->wait_for_running())
     {
         return CRUST_SEND_IDENTITY_FAILED;
     }
-    if (!crust::Chain::get_instance()->post_sworker_identity(tee_identity_result))
+    if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity_result))
     {
         p_log->err("Send identity to crust chain failed!\n");
         return CRUST_SEND_IDENTITY_FAILED;

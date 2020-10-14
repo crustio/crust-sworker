@@ -50,7 +50,8 @@ void report_reduce_validated_proof()
  * @description: Has validated proof
  * @return: true or false
  */
-bool report_has_validated_proof() {
+bool report_has_validated_proof()
+{
     return validated_proof > 0;
 }
 
@@ -78,11 +79,10 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
 
     // Judge whether block height is expired
-    if (block_height == 0 || (block_height - 1)/ERA_LENGTH < id_get_report_slot())
+    if (block_height == 0 || block_height - id_get_report_height() < ERA_LENGTH)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
-    id_set_report_slot((block_height - 1)/ERA_LENGTH + 1);
 
     Workload *wl = Workload::get_instance();
     // The first report after restart will not be processed

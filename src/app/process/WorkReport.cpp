@@ -48,6 +48,11 @@ void work_report_loop(void)
 
     while (true)
     {
+        if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+        {
+            break;
+        }
+
         // ----- Report work report ----- //
         crust::BlockHeader *block_header = NULL;
         if (!offline_chain_mode)

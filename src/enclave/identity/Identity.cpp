@@ -16,20 +16,21 @@ bool g_is_set_account_id = false;
 bool g_is_set_id_key_pair = false;
 // TODO:Indicate if entry network successful
 bool g_is_entry_network = false;
-// Used to help upgrade
-size_t g_report_height = 0;
 // Current code measurement
 sgx_measurement_t current_mr_enclave;
 // True is for stopping report work report
 bool g_upgrade_flag = false;
 // Used to check current block head out-of-date
-size_t report_slot = 0;
+size_t g_report_height = 0;
 // Used to indicate whether it is the first report after restart
 bool just_after_restart = 0;
 // Protect metadata 
 sgx_thread_mutex_t g_metadata_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 // Upgrade generate metadata 
 sgx_thread_mutex_t g_gen_work_report = SGX_THREAD_MUTEX_INITIALIZER;
+// Upgrade buffer
+uint8_t *g_upgrade_buffer = NULL;
+size_t g_upgrade_buffer_offset = 0;
 
 extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
@@ -918,6 +919,11 @@ cleanup:
  */
 crust_status_t id_store_metadata()
 {
+    if (ENC_UPGRADE_STATUS_SUCCESS == Workload::get_instance()->get_upgrade_status())
+    {
+        return CRUST_SUCCESS;
+    }
+
     sgx_thread_mutex_lock(&g_metadata_mutex);
 
     // Get original metadata
@@ -935,7 +941,7 @@ crust_status_t id_store_metadata()
     meta_len += strlen(SWORKER_PRIVATE_TAG) + 5
         + strlen(ID_WORKLOAD) + 5
         + strlen(ID_KEY_PAIR) + 3 + 256 + 3
-        + strlen(ID_REPORT_SLOT) + 3 + 20 + 1
+        + strlen(ID_REPORT_HEIGHT) + 3 + 20 + 1
         + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
         + (wl->is_upgrade() ? strlen(ID_PRE_PUB_KEY) + 3 + sizeof(wl->pre_pub_key) * 2 + 3 : 0)
         + strlen(ID_FILE) + 3;
@@ -1000,12 +1006,12 @@ crust_status_t id_store_metadata()
         .append("\"").append(hex_id_key_str).append("\",");
     memcpy(meta_buf + offset, key_pair_str.c_str(), key_pair_str.size());
     offset += key_pair_str.size();
-    // Append report slot
-    std::string report_slot_str;
-    report_slot_str.append("\"").append(ID_REPORT_SLOT).append("\":")
-        .append("\"").append(std::to_string(report_slot)).append("\",");
-    memcpy(meta_buf + offset, report_slot_str.c_str(), report_slot_str.size());
-    offset += report_slot_str.size();
+    // Append report height
+    std::string report_height_str;
+    report_height_str.append("\"").append(ID_REPORT_HEIGHT).append("\":")
+        .append(std::to_string(id_get_report_height())).append(",");
+    memcpy(meta_buf + offset, report_height_str.c_str(), report_height_str.size());
+    offset += report_height_str.size();
     // Append chain account id
     std::string account_id_str;
     account_id_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
@@ -1106,7 +1112,7 @@ crust_status_t id_restore_metadata()
     memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
     free(p_id_key);
     // Restore report slot
-    report_slot = meta_json[ID_REPORT_SLOT].ToInt();
+    id_set_report_height(meta_json[ID_REPORT_HEIGHT].ToInt());
     // Restore previous public key
     if (meta_json.hasKey(ID_PRE_PUB_KEY))
     {
@@ -1182,24 +1188,6 @@ ecc_key_pair id_get_key_pair()
 }
 
 /**
- * @description: Get current work report slot
- * @return: Current work report slot
- */
-size_t id_get_report_slot()
-{
-    return report_slot;
-}
-
-/**
- * @description: Set current work report slot
- * @param new_report_slot -> new report slot
- */
-void id_set_report_slot(size_t new_report_slot)
-{
-    report_slot = new_report_slot;
-}
-
-/**
  * @description: Get last report height
  * @return: Last report height
  */
@@ -1215,7 +1203,6 @@ size_t id_get_report_height()
 void id_set_report_height(size_t height)
 {
     g_report_height = height;
-    id_metadata_set_or_append(ID_REPORT_HEIGHT, std::to_string(g_report_height));
 }
 
 /**
@@ -1298,6 +1285,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     uint8_t *p_sigbuf = NULL;
     size_t sigbuf_len = 0;
     char *report_hash = NULL;
+    size_t report_height = 0;
     size_t upgrade_buffer_len = 0;
     uint8_t *upgrade_buffer = NULL;
     uint8_t *p_upgrade_buffer = NULL;
@@ -1305,9 +1293,14 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // ----- Generate work report ----- //
     // Current era has reported, wait for next era
-    if (block_height - id_get_report_height() < ERA_LENGTH)
+    if (block_height - id_get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+    }
+    report_height = id_get_report_height();
+    while (block_height - report_height > ERA_LENGTH)
+    {
+        report_height += ERA_LENGTH;
     }
     // Start upgrade process
     report_hash = (char *)enc_malloc(HASH_LENGTH * 2);
@@ -1317,13 +1310,13 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         goto cleanup;
     }
     memset(report_hash, 0, HASH_LENGTH * 2);
-    ocall_get_block_hash(&crust_status, block_height, report_hash, HASH_LENGTH * 2);
+    ocall_get_block_hash(&crust_status, report_height, report_hash, HASH_LENGTH * 2);
     if (CRUST_SUCCESS != crust_status)
     {
         crust_status = CRUST_UPGRADE_GET_BLOCK_HASH_FAILED;
         goto cleanup;
     }
-    if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash, block_height, false)))
+    if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash, report_height, false)))
     {
         log_err("Fatal error! Get signed work report failed! Error code:%lx\n", crust_status);
         crust_status = CRUST_UPGRADE_GEN_WORKREPORT_FAILED;
@@ -1467,6 +1460,11 @@ cleanup:
         free(report_hash);
     }
 
+    if (CRUST_SUCCESS == crust_status)
+    {
+        wl->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
+    }
+
     return crust_status;
 }
 
@@ -1475,9 +1473,27 @@ cleanup:
  * @param data -> Upgrade data
  * @return: Restore status
  */
-crust_status_t id_restore_from_upgrade(const char *data, size_t data_size)
+crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end)
 {
-    json::JSON upgrade_json = json::JSON::Load(reinterpret_cast<const uint8_t *>(data), data_size);
+    if (g_upgrade_buffer_offset == 0)
+    {
+        g_upgrade_buffer = (uint8_t *)enc_malloc(total_size);
+        if (g_upgrade_buffer == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(g_upgrade_buffer, 0, total_size);
+    }
+    memcpy(g_upgrade_buffer + g_upgrade_buffer_offset, data, data_size);
+    g_upgrade_buffer_offset += data_size;
+    if (!transfer_end)
+    {
+        return CRUST_UPGRADE_NEED_LEFT_DATA;
+    }
+    json::JSON upgrade_json = json::JSON::Load(reinterpret_cast<const uint8_t *>(g_upgrade_buffer), g_upgrade_buffer_offset);
+    free(g_upgrade_buffer);
+    g_upgrade_buffer = NULL;
+    g_upgrade_buffer_offset = 0;
     json::JSON wr_json = upgrade_json[UPGRADE_WORK_REPORT];
     std::string work_report = upgrade_json[UPGRADE_WORK_REPORT].dump();
     remove_char(work_report, '\n');
@@ -1728,6 +1744,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size)
 
         // ----- Send current version's work report ----- //
         wl->set_upgrade(sgx_pub_key);
+        report_add_validated_proof();
         if (CRUST_SUCCESS != (crust_status = get_signed_work_report(block_hash_str.c_str(), std::atoi(block_height_str.c_str()))))
         {
             goto cleanup;

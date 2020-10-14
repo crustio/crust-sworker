@@ -397,6 +397,7 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
  */
 void Workload::restore_file(json::JSON file_json)
 {
+    this->checked_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
         this->checked_files.push_back(file_json[i]);
@@ -485,7 +486,6 @@ void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 {
     this->upgrade = true;
     memcpy(&this->pre_pub_key, &pub_key, sizeof(sgx_ec256_public_t));
-    id_metadata_set_or_append(ID_PRE_PUB_KEY, hexstring_safe(&pub_key, sizeof(pub_key)));
 }
 
 /**
@@ -495,6 +495,24 @@ void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 bool Workload::is_upgrade()
 {
     return this->upgrade;
+}
+
+/**
+ * @description: Set is_upgrading flag
+ * @param flag -> Is upgrading
+ */
+void Workload::set_upgrade_status(enc_upgrade_status_t status)
+{
+    this->upgrade_status = status;
+}
+
+/**
+ * @description: Get is_upgrading flag
+ * @return: Is upgrading
+ * */
+enc_upgrade_status_t Workload::get_upgrade_status()
+{
+    return this->upgrade_status;
 }
 
 /**

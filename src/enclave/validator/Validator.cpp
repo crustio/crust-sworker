@@ -30,6 +30,11 @@ void srd_random_delete(long punish_num, std::map<std::string, std::set<size_t>> 
  */
 void validate_srd()
 {
+    if (ENC_UPGRADE_STATUS_SUCCESS == Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
     crust_status_t crust_status = CRUST_SUCCESS;
 
     Workload *wl = Workload::get_instance();
@@ -216,6 +221,11 @@ void validate_srd()
  */
 void validate_meaningful_file()
 {
+    if (ENC_UPGRADE_STATUS_SUCCESS == Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
     uint8_t *p_data = NULL;
     size_t data_len = 0;
     crust_status_t crust_status = CRUST_SUCCESS;

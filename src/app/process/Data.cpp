@@ -14,6 +14,10 @@ std::string g_enclave_workreport = "";
 std::string g_new_karst_url = "";
 // Upgrade data
 std::string g_upgrade_data = "";
+// Upgrade status
+upgrade_status_t g_upgrade_status = UPGRADE_STATUS_NONE;
+// Upgrade status mutex
+std::mutex g_upgrade_status_mutex;
 
 std::string get_g_sworker_identity()
 {
@@ -83,4 +87,20 @@ std::string get_g_upgrade_data()
 void set_g_upgrade_data(std::string data)
 {
     g_upgrade_data = data;
+}
+
+upgrade_status_t get_g_upgrade_status()
+{
+    g_upgrade_status_mutex.lock();
+    upgrade_status_t status = g_upgrade_status;
+    g_upgrade_status_mutex.unlock();
+
+    return status;
+}
+
+void set_g_upgrade_status(upgrade_status_t upgrade_status)
+{
+    g_upgrade_status_mutex.lock();
+    g_upgrade_status = upgrade_status;
+    g_upgrade_status_mutex.unlock();
 }

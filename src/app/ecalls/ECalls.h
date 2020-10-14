@@ -13,6 +13,7 @@
 #include <sgx_eid.h>
 #include "Enclave_u.h"
 #include "Log.h"
+#include "Data.h"
 #include "CrustStatus.h"
 #include "Json.hpp"
 
@@ -70,8 +71,12 @@ sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid);
 
 sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid);
 
+sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
+sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid);
 sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
-sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len);
+sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
+
+int get_upgrade_ecalls_num();
 
 std::string show_enclave_thread_info();
 
