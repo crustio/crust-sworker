@@ -21,7 +21,6 @@ enclave {
         public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
 
         public crust_status_t ecall_get_signed_work_report([in, string] const char *block_hash, size_t block_height); 
-        public crust_status_t ecall_get_signed_order_report();
         
         public crust_status_t ecall_restore_metadata();
 		public sgx_status_t ecall_get_quote_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
@@ -87,7 +86,6 @@ enclave {
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
 
         void ocall_store_sealed_merkletree([in, string] const char *org_root_hash, [in, size=tree_len] const char *tree_data, size_t tree_len);
-        void ocall_store_order_report([in, size=order_size] const char *p_order, size_t order_size);
         void ocall_store_identity([in, string] const char *id);
         void ocall_store_enclave_id_info([in, string] const char *info);
         void ocall_store_workload([in, size=data_size] const char *data, size_t data_size, bool cover);

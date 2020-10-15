@@ -250,8 +250,7 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
     }
     catch(std::exception const& e)
     {
-        p_log->debug("Http request error: ");
-        std::cerr << e.what() << std::endl;
+        p_log->debug("Http request error: %s\n", e.what());
         res.result(404);
         return res;
     }
@@ -334,8 +333,7 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
     }
     catch(std::exception const& e)
     {
-        p_log->debug("Http request error: ");
-        std::cerr << e.what() << std::endl;
+        p_log->debug("Http request error: %s\n", e.what());
         res.result(404);
         return res;
     }

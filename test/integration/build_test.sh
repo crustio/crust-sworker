@@ -277,26 +277,6 @@ cat << EOF > $TMPFILE
             goto getcleanup;
         }
 
-        cur_path = urlendpoint->base + "/report/order";
-        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
-        {
-            crust_status_t crust_status = CRUST_SUCCESS;
-            if(SGX_SUCCESS != Ecall_get_signed_order_report(global_eid, &crust_status)
-                || CRUST_SUCCESS != crust_status)
-            {
-                if (CRUST_REPORT_NO_ORDER_FILE != crust_status)
-                {
-                    p_log->err("Get signed order report failed! Error code: %x\\n", crust_status);
-                }
-            }
-            else
-            {
-                p_log->info("Get order report:%s\\n", get_g_order_report().c_str());
-            }
-            set_g_order_report("");
-            goto getcleanup;
-        }
-
         cur_path = urlendpoint->base + "/report/result";
         if (path.compare(cur_path) == 0)
         {
@@ -497,9 +477,6 @@ function enc_validate_cpp_test()
 function enc_srd_cpp_test()
 {
 cat << EOF > $TMPFILE
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_sealed_data_t *p_sealed_data = NULL;
-    size_t sealed_data_size = 0;
     Workload *wl = Workload::get_instance();
     std::string path_str(path);
 

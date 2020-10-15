@@ -69,7 +69,7 @@ App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*
 	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp) \
 	$(wildcard app/ecalls/*.cpp)
 	
-App_Include_Paths := -I$(SGX_SDK)/include -Iapp -Iapp/include -Iapp/utils -Iapp/http \
+App_Include_Paths := -I$(SGX_SDK)/include -Iapp -Ienclave/include -Iapp/include -Iapp/utils -Iapp/http \
 	-Iapp/config -Iapp/ocalls -Iapp/ecalls -Iapp/process -Iapp/chain -Iapp/log -Iapp/database
 
 App_C_Flags := -fPIC -Wno-attributes -fopenmp $(App_Include_Paths) 

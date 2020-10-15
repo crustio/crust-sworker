@@ -2,8 +2,6 @@
 
 // Store sworker identity
 std::string g_sworker_identity = "";
-// Store order report
-std::string g_order_report = "";
 // Store enclave identity information
 std::string g_enclave_id_info = "";
 // Store enclave workload information
@@ -27,16 +25,6 @@ std::string get_g_sworker_identity()
 void set_g_sworker_identity(std::string identity)
 {
     g_sworker_identity = identity;
-}
-
-std::string get_g_order_report()
-{
-    return g_order_report;
-}
-
-void set_g_order_report(std::string order_report)
-{
-    g_order_report = order_report;
 }
 
 std::string get_g_enclave_id_info()

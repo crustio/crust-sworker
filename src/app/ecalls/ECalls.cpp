@@ -19,7 +19,6 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_gen_sgx_measurement", 0},
     {"Ecall_main_loop", 0},
     {"Ecall_get_signed_work_report", 0},
-    {"Ecall_get_signed_order_report", 0},
     {"Ecall_confirm_file", 0},
     {"Ecall_delete_file", 0},
     {"Ecall_handle_report_result", 0},
@@ -44,7 +43,6 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
             "Ecall_seal_file", 
             "Ecall_unseal_file", 
             "Ecall_get_signed_work_report",
-            "Ecall_get_signed_order_report",
             "Ecall_confirm_file",
         }
     },
@@ -515,25 +513,6 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
     }
 
     ret = ecall_unseal_file(eid, status, files, files_num, p_dir, p_new_path, path_len);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: Get signed order report
- * @param status -> Pointer to get result status
- */
-sgx_status_t Ecall_get_signed_order_report(sgx_enclave_id_t eid, crust_status_t *status)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_get_signed_order_report(eid, status);
 
     free_enclave(__FUNCTION__);
 

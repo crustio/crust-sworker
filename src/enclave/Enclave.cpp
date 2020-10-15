@@ -141,19 +141,6 @@ crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block
 }
 
 /**
- * @description: Get signed order report
- * @return: Get status
- */
-crust_status_t ecall_get_signed_order_report()
-{
-    sched_add(SCHED_GET_ORDERREPORT);
-    crust_status_t ret = get_signed_order_report();
-    sched_del(SCHED_GET_ORDERREPORT);
-
-    return ret;
-}
-
-/**
  * @description: Generate ecc key pair and store it in enclave
  * @return: Generate status
  */

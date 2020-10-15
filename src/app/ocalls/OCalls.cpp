@@ -717,16 +717,6 @@ crust_status_t ocall_entry_network()
 }
 
 /**
- * @description: Store order report from enclave
- * @param p_order -> Poniter to order buffer
- * @param order_size -> Order buffer size
- */
-void ocall_store_order_report(const char *p_order, size_t order_size)
-{
-    set_g_order_report(std::string(p_order, order_size));
-}
-
-/**
  * @description: Lock srd info
  */
 void ocall_srd_info_lock()
