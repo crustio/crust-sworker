@@ -407,7 +407,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 p_log->err("Upgrade failed!Current version will restore work.\n");
                 set_g_upgrade_status(UPGRADE_STATUS_NONE);
-                Ecall_disable_upgrade(global_eid);
             }
             else
             {
@@ -417,18 +416,18 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 std::string metadata_old;
                 if (CRUST_SUCCESS != (crust_status = db->get(ID_METADATA, metadata_old)))
                 {
-                    p_log->warn("Upgrade: get old metadata failed!Error code:%lx\n", crust_status);
+                    p_log->warn("Upgrade: get old metadata failed!Status code:%lx\n", crust_status);
                 }
                 else
                 {
                     if (CRUST_SUCCESS != (crust_status = db->set(ID_METADATA_OLD, metadata_old)))
                     {
-                        p_log->warn("Upgrade: store old metadata failed!Error code:%lx\n", crust_status);
+                        p_log->warn("Upgrade: store old metadata failed!Status code:%lx\n", crust_status);
                     }
                 }
                 if (CRUST_SUCCESS != (crust_status = db->del(ID_METADATA)))
                 {
-                    p_log->warn("Upgrade: delete old metadata failed!Error code:%lx\n", crust_status);
+                    p_log->warn("Upgrade: delete old metadata failed!Status code:%lx\n", crust_status);
                 }
                 else
                 {

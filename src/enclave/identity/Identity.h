@@ -132,16 +132,11 @@ cleanup:
     return crust_status;
 }
 
-json::JSON id_metadata_get_by_key(std::string key);
-crust_status_t id_metadata_del_by_key(std::string key);
-crust_status_t id_metadata_set_by_new(json::JSON meta_json);
 crust_status_t id_store_metadata();
 crust_status_t id_restore_metadata();
 size_t id_get_report_height();
 void id_set_report_height(size_t height);
 crust_status_t id_gen_upgrade_data(size_t block_height);
 crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end);
-bool get_upgrade_flag();
-void set_upgrade_flag(bool upgrade_flag);
 
 #endif

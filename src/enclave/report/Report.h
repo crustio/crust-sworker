@@ -20,7 +20,6 @@
 # define ERA_LENGTH 300
 
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked = true);
-crust_status_t get_signed_order_report();
 std::string get_generated_work_report();
 
 void report_add_validated_proof();

@@ -181,11 +181,11 @@ bool do_upgrade()
             }
             if (tryout % 15 == 0)
             {
-                p_log->warn("Inform old version upgrade failed!Warn:%s, status:%d, try again...\n", res_inform.body().c_str(), res_inform.result());
+                p_log->info("Old version not ready for upgrade!Message:%s, status:%d, try again...\n", res_inform.body().c_str(), res_inform.result());
             }
             if (--tryout < 0)
             {
-                p_log->warn("Upgrade tryout failed!Error:%s\n", res_inform.body().c_str());
+                p_log->warn("Upgrade tryout!Message:%s\n", res_inform.body().c_str());
                 goto cleanup;
             }
             sleep(start_wait_time);
@@ -280,7 +280,7 @@ cleanup:
         http::response<http::string_body> res_complete = client->Get(p_config->base_url + "/upgrade/complete", upgrade_ret.dump(), headers);
         if ((int)res_complete.result() != 200 && (int)res_complete.result() != 404 && --tryout > 0)
         {
-            p_log->warn("Inform old version failed!Warn:%s, try again...\n", res_complete.body().c_str());
+            p_log->warn("Inform old version failed!Message:%s, try again...\n", res_complete.body().c_str());
             sleep(complete_wait_time);
             continue;
         }
@@ -512,7 +512,6 @@ int process_run()
             if (--upgrade_tryout < 0)
             {
                 p_log->err("Upgrade timeout!Current version will restore work!\n");
-                Ecall_disable_upgrade(global_eid);
                 set_g_upgrade_status(UPGRADE_STATUS_NONE);
                 upgrade_tryout = UPGRADE_TIMEOUT / check_interval;
             }

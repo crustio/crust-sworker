@@ -13,7 +13,6 @@
 #include "Common.h"
 #include "Config.h"
 #include "FormatUtils.h"
-#include "IASReport.h"
 #include "SgxSupport.h"
 #include "Resource.h"
 #include "FileUtils.h"

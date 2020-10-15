@@ -18,8 +18,6 @@ bool g_is_set_id_key_pair = false;
 bool g_is_entry_network = false;
 // Current code measurement
 sgx_measurement_t current_mr_enclave;
-// True is for stopping report work report
-bool g_upgrade_flag = false;
 // Used to check current block head out-of-date
 size_t g_report_height = 0;
 // Used to indicate whether it is the first report after restart
@@ -805,113 +803,6 @@ cleanup:
 }
 
 /**
- * @description: Set old matadata by new key values in meta_json
- * @param meta_json -> New metadata json to be set
- * @return: Set status
- */
-crust_status_t id_metadata_set_by_new(json::JSON meta_json)
-{
-    sgx_thread_mutex_lock(&g_metadata_mutex);
-
-    json::JSON meta_json_org;
-    std::string meta_str;
-    size_t meta_len = 0;
-    uint8_t *p_meta = NULL;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    id_get_metadata(meta_json_org, false);
-    for (auto it : meta_json.ObjectRange())
-    {
-        meta_json_org[it.first] = it.second;
-    }
-
-    meta_str = meta_json_org.dump();
-    meta_len = meta_str.size() + strlen(SWORKER_PRIVATE_TAG);
-    p_meta = (uint8_t*)enc_malloc(meta_len);
-    if (p_meta == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    memset(p_meta, 0, meta_len);
-    memcpy(p_meta, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
-    memcpy(p_meta + strlen(SWORKER_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
-    free(p_meta);
-
-cleanup:
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
-
-    return crust_status;
-}
-
-/**
- * @description: Get metadata by key
- * @param key -> Key
- * @return: Value
- */
-json::JSON id_metadata_get_by_key(std::string key)
-{
-    sgx_thread_mutex_lock(&g_metadata_mutex);
-
-    json::JSON meta_json_org;
-    json::JSON val_json;
-    id_get_metadata(meta_json_org, false);
-    if (!meta_json_org.hasKey(key))
-    {
-        goto cleanup;
-    }
-
-    val_json = meta_json_org[key];
-
-cleanup:
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
-
-    return val_json;
-}
-
-/**
- * @description: Delete new file by file hash
- * @param file_hash -> To be deleted file hash
- * @return: Delete status
- */
-crust_status_t id_metadata_del_by_key(std::string key)
-{
-    sgx_thread_mutex_lock(&g_metadata_mutex);
-
-    crust_status_t crust_status = CRUST_SUCCESS;
-    json::JSON meta_json_org;
-    std::string meta_str;
-    size_t meta_len = 0;
-    uint8_t *p_meta = NULL;
-    id_get_metadata(meta_json_org, false);
-    auto p_obj = meta_json_org.ObjectRange();
-    if (!meta_json_org.hasKey(key))
-    {
-        goto cleanup;
-    }
-    p_obj.object->erase(key);
-
-    meta_str = meta_json_org.dump();
-    meta_len = meta_str.size() + strlen(SWORKER_PRIVATE_TAG);
-    p_meta = (uint8_t*)enc_malloc(meta_len);
-    if (p_meta == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    memset(p_meta, 0, meta_len);
-    memcpy(p_meta, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
-    memcpy(p_meta + strlen(SWORKER_PRIVATE_TAG), meta_str.c_str(), meta_str.size());
-    crust_status = persist_set(ID_METADATA, p_meta, meta_len);
-    free(p_meta);
-
-cleanup:
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
-
-    return crust_status;
-}
-
-/**
  * @description: Store metadata periodically
  * Just store all metadata except meaningful files. Meaningfule files can be added through 
  * 'id_metadata_set_or_append' function
@@ -1236,24 +1127,6 @@ void id_get_info()
 }
 
 /**
- * @description: Get upgrade flag
- * @return: Upgrade flag
- */
-bool get_upgrade_flag()
-{
-    return g_upgrade_flag;
-}
-
-/**
- * @description: Set upgrade flag
- * @param upgrade_flag -> New upgrade flag value
- */
-void set_upgrade_flag(bool upgrade_flag)
-{
-    g_upgrade_flag = upgrade_flag;
-}
-
-/**
  * @description: Generate upgrade data
  * @param block_height -> Current block height
  * @return: Generate result
@@ -1432,9 +1305,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // Store upgrade data
     store_large_data(p_upgrade_buffer, upgrade_buffer_len, ocall_store_upgrade_data, wl->ocall_upgrade_mutex);
-
-    // Set upgrade flag. Enter upgrade process, current process cannot send work report
-    set_upgrade_flag(true);
 
 
 cleanup:

@@ -674,6 +674,7 @@ crust_status_t ocall_upload_workreport(const char *work_report)
     remove_char(work_str, '\\');
     remove_char(work_str, '\n');
     remove_char(work_str, ' ');
+    p_log->info("Sending work report:%s\n", work_str.c_str());
     if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
     {
         p_log->err("Send work report to crust chain failed!\n");
@@ -714,16 +715,6 @@ crust_status_t ocall_entry_network()
     p_log->info("Send identity to crust chain successfully!\n");
 
     return CRUST_SUCCESS;
-}
-
-/**
- * @description: Store order report from enclave
- * @param p_order -> Poniter to order buffer
- * @param order_size -> Order buffer size
- */
-void ocall_store_order_report(const char *p_order, size_t order_size)
-{
-    set_g_order_report(std::string(p_order, order_size));
 }
 
 /**
