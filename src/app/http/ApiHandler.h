@@ -297,6 +297,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 goto getcleanup;
             }
 
+            // Block current work-report for a while
+            set_g_upgrade_status(UPGRADE_STATUS_STOP_WORKREPORT);
+
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
             crust::BlockHeader *block_header = crust::Chain::get_instance()->get_block_header();

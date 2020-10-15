@@ -325,7 +325,8 @@ int process_run()
     std::string sworker_identity_result = "";
     int return_status = 1;
     int check_interval = 15;
-    int upgrade_tryout = UPGRADE_TIMEOUT / check_interval;
+    int upgrade_timeout = REPORT_BLOCK_HEIGHT_BASE * BLOCK_INTERVAL;
+    int upgrade_tryout = upgrade_timeout / check_interval;
     p_log->info("WorkerPID = %d\n", worker_pid);
 
     // Init conifigure
@@ -513,7 +514,7 @@ int process_run()
             {
                 p_log->err("Upgrade timeout!Current version will restore work!\n");
                 set_g_upgrade_status(UPGRADE_STATUS_NONE);
-                upgrade_tryout = UPGRADE_TIMEOUT / check_interval;
+                upgrade_tryout = upgrade_timeout / check_interval;
             }
         }
 

@@ -98,4 +98,9 @@ void set_g_upgrade_status(upgrade_status_t upgrade_status)
         Ecall_disable_upgrade(global_eid);
     }
     g_upgrade_status_mutex.unlock();
+
+    if (UPGRADE_STATUS_NONE == get_g_upgrade_status())
+    {
+        Ecall_disable_upgrade(global_eid);
+    }
 }

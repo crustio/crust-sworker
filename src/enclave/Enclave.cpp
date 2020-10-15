@@ -88,11 +88,6 @@ void ecall_main_loop()
             log_err("Store enclave data failed!Error code:%lx\n", crust_status);
         }
 
-        if (ENC_UPGRADE_STATUS_SUCCESS == Workload::get_instance()->get_upgrade_status())
-        {
-            break;
-        }
-
         // Add validated proof
         report_add_validated_proof();
 
