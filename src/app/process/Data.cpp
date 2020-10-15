@@ -1,4 +1,5 @@
 #include "Data.h"
+#include "ECalls.h"
 
 // Store sworker identity
 std::string g_sworker_identity = "";
@@ -16,6 +17,8 @@ std::string g_upgrade_data = "";
 upgrade_status_t g_upgrade_status = UPGRADE_STATUS_NONE;
 // Upgrade status mutex
 std::mutex g_upgrade_status_mutex;
+
+extern sgx_enclave_id_t global_eid;
 
 std::string get_g_sworker_identity()
 {
@@ -90,5 +93,9 @@ void set_g_upgrade_status(upgrade_status_t upgrade_status)
 {
     g_upgrade_status_mutex.lock();
     g_upgrade_status = upgrade_status;
+    if (UPGRADE_STATUS_NONE == g_upgrade_status)
+    {
+        Ecall_disable_upgrade(global_eid);
+    }
     g_upgrade_status_mutex.unlock();
 }

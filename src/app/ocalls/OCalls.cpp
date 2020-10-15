@@ -674,6 +674,7 @@ crust_status_t ocall_upload_workreport(const char *work_report)
     remove_char(work_str, '\\');
     remove_char(work_str, '\n');
     remove_char(work_str, ' ');
+    p_log->info("Sending work report:%s\n", work_str.c_str());
     if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
     {
         p_log->err("Send work report to crust chain failed!\n");
