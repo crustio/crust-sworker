@@ -18,6 +18,8 @@ upgrade_status_t g_upgrade_status = UPGRADE_STATUS_NONE;
 // Upgrade status mutex
 std::mutex g_upgrade_status_mutex;
 
+crust::Log *p_log = crust::Log::get_instance();
+
 extern sgx_enclave_id_t global_eid;
 
 std::string get_g_sworker_identity()
