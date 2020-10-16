@@ -31,7 +31,7 @@ void work_report_loop(void)
     // Set srand
     Ecall_id_get_info(global_eid);
     json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
-    srand_string(id_json["pub_key"]);
+    srand_string(id_json["pub_key"].ToString());
 
     // Generate target block height
     if (!offline_chain_mode)

@@ -270,10 +270,11 @@ void replace(std::string &data, std::string org_str, std::string det_str)
  * @param seed -> random seed
  */
 void srand_string(std::string seed)
+{
     unsigned int seed_number = 0;
     for (size_t i = 0; i < seed.size(); i++)
     {
-        seed_number += seed[i];
+        seed_number += seed[i]*(i+1);
     }
 
     srand(time(NULL) + seed_number);
