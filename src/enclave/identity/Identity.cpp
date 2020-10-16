@@ -1166,9 +1166,15 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // ----- Generate work report ----- //
     // Current era has reported, wait for next era
+    if (block_height <= id_get_report_height())
+    {
+        crust_status = CRUST_UNEXPECTED_ERROR;
+        goto cleanup;
+    }
     if (block_height - id_get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        crust_status = CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        goto cleanup;
     }
     report_height = id_get_report_height();
     while (block_height - report_height > ERA_LENGTH)
