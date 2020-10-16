@@ -264,3 +264,17 @@ void replace(std::string &data, std::string org_str, std::string det_str)
         epos = spos + det_str.size();
     }
 }
+
+/**
+ * @description: Use string to set srand
+ * @param seed -> random seed
+ */
+void srand_string(std::string seed)
+    unsigned int seed_number = 0;
+    for (size_t i = 0; i < seed.size(); i++)
+    {
+        seed_number += seed[i];
+    }
+
+    srand(time(NULL) + seed_number);
+}

@@ -9,14 +9,8 @@ crust::Log *p_log = crust::Log::get_instance();
  * @description: used to generate random waiting time to ensure that the reporting workload is not concentrated
  * @return: wait time
  */
-size_t get_random_wait_time(std::string seed)
+size_t get_random_wait_time()
 {
-    unsigned int seed_number = 0;
-    for (size_t i = 0; i < seed.size(); i++)
-    {
-        seed_number += seed[i];
-    }
-    srand(time(NULL) + seed_number);
     //[9  199]
     return (rand() % (REPORT_INTERVAL_BLCOK_NUMBER_UPPER_LIMIT - REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT + 1) + REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT - 1) * BLOCK_INTERVAL;
 }
@@ -33,6 +27,11 @@ void work_report_loop(void)
     size_t wr_wait_time = BLOCK_INTERVAL / 2;
     int stop_timeout = 10 * BLOCK_INTERVAL;
     int stop_tryout = stop_timeout / wr_wait_time;
+
+    // Set srand
+    Ecall_id_get_info(global_eid);
+    json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
+    srand_string(id_json["pub_key"]);
 
     // Generate target block height
     if (!offline_chain_mode)
@@ -89,7 +88,7 @@ void work_report_loop(void)
             size_t cut_wait_time = (block_header->number - (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
             block_header->number = (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
 
-            size_t wait_time = get_random_wait_time(Config::get_instance()->chain_address + Config::get_instance()->base_url);
+            size_t wait_time = get_random_wait_time();
             if (cut_wait_time >= wait_time)
             {
                 wait_time = 0;
