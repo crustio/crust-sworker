@@ -14,7 +14,6 @@
 #define UPGRADE_START_TRYOUT 43200 /* 2x6x3600 = 12 hours*/
 #define UPGRADE_META_TRYOUT 360
 #define UPGRADE_COMPLETE_TRYOUT 100
-#define UPGRADE_TIMEOUT 10800 /* 6x1800 half era */
 
 #define OCALL_STORE_THRESHOLD 4194304 /* 4*1024*1024 */
 
@@ -24,11 +23,12 @@
 // For upgrade
 typedef enum _upgrade_status_t
 {
-    UPGRADE_STATUS_NONE,    // No upgrade
-    UPGRADE_STATUS_PROCESS, // Processing running tasks
-    UPGRADE_STATUS_END,     // Finish running tasks and generate uprade data successfully
-    UPGRADE_STATUS_COMPLETE,// Finish generating upgrade data
-    UPGRADE_STATUS_EXIT,    // Will exit process
+    UPGRADE_STATUS_NONE,            // No upgrade
+    UPGRADE_STATUS_STOP_WORKREPORT, // Block work-report
+    UPGRADE_STATUS_PROCESS,         // Processing running tasks
+    UPGRADE_STATUS_END,             // Finish running tasks and generate uprade data successfully
+    UPGRADE_STATUS_COMPLETE,        // Finish generating upgrade data
+    UPGRADE_STATUS_EXIT,            // Will exit process
 } upgrade_status_t;
 
 #define ID_METADATA_OLD "metadata_old"

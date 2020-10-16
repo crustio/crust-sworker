@@ -116,14 +116,6 @@ void task_sleep(int priority)
 sgx_status_t try_get_enclave(const char *name)
 {
     std::string tname(name);
-    if (UPGRADE_STATUS_COMPLETE == get_g_upgrade_status())
-    {
-        if (tname.compare("Ecall_disable_upgrade") != 0)
-        {
-            return SGX_ERROR_SERVICE_UNAVAILABLE;
-        }
-    }
-
     std::thread::id tid = std::this_thread::get_id();
     std::stringstream ss;
     ss << tid;

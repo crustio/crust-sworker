@@ -30,6 +30,9 @@ void work_report_loop(void)
     crust::Chain *p_chain = crust::Chain::get_instance();
     size_t offline_base_height = REPORT_BLOCK_HEIGHT_BASE;
     size_t target_block_height = REPORT_BLOCK_HEIGHT_BASE;
+    size_t wr_wait_time = BLOCK_INTERVAL / 2;
+    int stop_timeout = 10 * BLOCK_INTERVAL;
+    int stop_tryout = stop_timeout / wr_wait_time;
 
     // Generate target block height
     if (!offline_chain_mode)
@@ -53,8 +56,22 @@ void work_report_loop(void)
             break;
         }
 
-        // ----- Report work report ----- //
         crust::BlockHeader *block_header = NULL;
+
+        // Avoid A competing work-report with B
+        if (UPGRADE_STATUS_STOP_WORKREPORT == get_g_upgrade_status())
+        {
+            if (--stop_tryout < 0)
+            {
+                stop_tryout = stop_timeout / wr_wait_time;
+            }
+            else
+            {
+                goto loop;
+            }
+        }
+
+        // ----- Report work report ----- //
         if (!offline_chain_mode)
         {
             block_header = p_chain->get_block_header();
@@ -158,6 +175,6 @@ void work_report_loop(void)
         }
 
     loop:
-        sleep(BLOCK_INTERVAL / 2);
+        sleep(wr_wait_time);
     }
 }

@@ -272,7 +272,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            if (UPGRADE_STATUS_NONE != get_g_upgrade_status())
+            if (UPGRADE_STATUS_NONE != get_g_upgrade_status()
+                    && UPGRADE_STATUS_STOP_WORKREPORT != get_g_upgrade_status())
             {
                 ret_info = "Another upgrading is still running!";
                 res.result(300);
@@ -296,6 +297,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
                 goto getcleanup;
             }
+
+            // Block current work-report for a while
+            set_g_upgrade_status(UPGRADE_STATUS_STOP_WORKREPORT);
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
