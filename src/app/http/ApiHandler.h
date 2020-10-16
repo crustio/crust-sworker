@@ -272,7 +272,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            if (UPGRADE_STATUS_NONE != get_g_upgrade_status())
+            if (UPGRADE_STATUS_NONE != get_g_upgrade_status()
+                    || UPGRADE_STATUS_STOP_WORKREPORT != get_g_upgrade_status())
             {
                 ret_info = "Another upgrading is still running!";
                 res.result(300);

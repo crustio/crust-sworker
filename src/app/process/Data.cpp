@@ -93,6 +93,29 @@ void set_g_upgrade_status(upgrade_status_t upgrade_status)
 {
     g_upgrade_status_mutex.lock();
     g_upgrade_status = upgrade_status;
+    switch(g_upgrade_status)
+    {
+        case UPGRADE_STATUS_NONE:
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_NONE\n");
+            break;
+        case UPGRADE_STATUS_STOP_WORKREPORT:
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_STOP_WORKREPORT\n");
+            break;
+        case UPGRADE_STATUS_PROCESS:
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_PROCESS\n");
+            break;
+        case UPGRADE_STATUS_END:
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_END\n");
+            break;
+        case UPGRADE_STATUS_COMPLETE:
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_COMPLETE\n");
+            break;
+        case UPGRADE_STATUS_EXIT:
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_EXIT\n");
+            break;
+        default:
+            p_log->info("Unknown upgrade status!\n");
+    }
     g_upgrade_status_mutex.unlock();
 
     if (UPGRADE_STATUS_NONE == get_g_upgrade_status())
