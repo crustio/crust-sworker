@@ -208,7 +208,7 @@ bool Chain::wait_for_running(void)
  */
 bool Chain::post_sworker_identity(std::string identity)
 {
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 20; i++)
     {
         std::string path = this->url + "/swork/identity";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
@@ -231,7 +231,7 @@ bool Chain::post_sworker_identity(std::string identity)
             p_log->err("%s, wait 10s and try again\n", "return body is null");
         }
 
-        usleep(10000000);
+        sleep(10);
     }
 
     return false;
@@ -244,7 +244,7 @@ bool Chain::post_sworker_identity(std::string identity)
  */
 bool Chain::post_sworker_work_report(std::string work_report)
 {
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 20; i++)
     {
         std::string path = this->url + "/swork/workreport";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
@@ -267,7 +267,7 @@ bool Chain::post_sworker_work_report(std::string work_report)
             p_log->err("%s, wait 10s and try again\n", "return body is null");
         }
         
-        usleep(10000000);
+        sleep(10);
     }
 
     return false;
