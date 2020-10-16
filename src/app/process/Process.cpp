@@ -269,7 +269,6 @@ bool do_upgrade()
     p_log->info("Restore workload from upgrade data successfully!\n");
     upgrade_ret["success"] = true;
 
-
 cleanup:
 
     // ----- Inform old version to close webservice ----- //
