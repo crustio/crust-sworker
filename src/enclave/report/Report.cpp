@@ -9,7 +9,6 @@ std::string g_work_report;
 
 extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
-extern sgx_thread_mutex_t g_order_files_mutex;
 extern sgx_thread_mutex_t g_gen_work_report;
 
 /**

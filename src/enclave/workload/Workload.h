@@ -19,11 +19,29 @@
 #include "Parameter.h"
 
 // Show information
-std::unordered_map<char, std::string> g_file_status = {
+std::map<char, std::string> g_file_status = {
     {FILE_STATUS_UNCONFIRMED, "unconfirmed"},
     {FILE_STATUS_VALID, "valid"},
     {FILE_STATUS_LOST, "lost"},
     {FILE_STATUS_DELETED, "deleted"}
+};
+
+typedef enum _wl_spec_t {
+    WL_SPEC_FILE_VALID_NUM,
+    WL_SPEC_FILE_VALID_SIZE,
+    WL_SPEC_FILE_LOST_NUM,
+    WL_SPEC_FILE_LOST_SIZE,
+    WL_SPEC_FILE_UNCONFIRMED_NUM,
+    WL_SPEC_FILE_UNCONFIRMED_SIZE,
+} wl_spec_t;
+
+std::map<wl_spec_t, std::string> wl_spec_m = {
+    { WL_SPEC_FILE_VALID_NUM , "valid_num" },
+    { WL_SPEC_FILE_VALID_SIZE , "valid_size" },
+    { WL_SPEC_FILE_LOST_NUM , "lost_num" },
+    { WL_SPEC_FILE_LOST_SIZE , "lost_size" },
+    { WL_SPEC_FILE_UNCONFIRMED_NUM , "unconfirmed_num" },
+    { WL_SPEC_FILE_UNCONFIRMED_SIZE , "unconfirmed_size" },
 };
 
 class Workload
@@ -33,7 +51,6 @@ public:
 
     std::vector<json::JSON> checked_files;
     std::vector<json::JSON> new_files;
-    std::vector<std::pair<std::string, size_t>> order_files;
     std::set<size_t> reported_files_idx;
     sgx_ec256_public_t pre_pub_key;
     
@@ -49,7 +66,6 @@ public:
     void clean_data();
 
     void add_new_file(json::JSON file);
-    void add_order_file(std::pair<std::string, size_t> file);
 
     void set_report_flag(bool flag);
     bool get_report_flag();
@@ -65,6 +81,12 @@ public:
     enc_upgrade_status_t get_upgrade_status();
 
     void handle_report_result();
+
+    // For workload spec
+    void set_wl_spec(wl_spec_t wl_spec, int change);
+    void set_wl_spec(wl_spec_t wl_spec, wl_spec_t related_wl_spec, int change);
+    void restore_wl_spec_info(std::string data);
+    bool get_wl_spec_by_file_status(char status, std::pair<wl_spec_t, wl_spec_t> &wl_pair);
 
     // Workreport mutex
     sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER;
@@ -85,6 +107,9 @@ private:
     bool upgrade = false;
     // Upgrade status 
     enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE;
+    // For workload statistics
+    json::JSON wl_spec_info;
+    sgx_thread_mutex_t wl_spec_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */

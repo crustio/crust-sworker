@@ -66,12 +66,7 @@ for hash in ${!hash_2_use_m[@]}; do
     fi
     hash_2_use_m[$hash]=1
     _store_meta &>/dev/null
-    get_workload &>$TMPFILE
-    if [ $? -ne 0 ]; then
-        echo "get workload failed!"
-        exit 1
-    fi
-    if cat $TMPFILE | jq '.files | .unconfirmed' | grep $hash &>/dev/null; then
+    if ! check_hash "$hash" "deleted"; then
         echo "delete file:$hash failed!Find hash in workload"
         exit 1
     fi
@@ -101,12 +96,7 @@ for hash in ${confirm_arry[@]}; do
     fi
     hash_2_use_m[$hash]=1
     _store_meta &>/dev/null
-    get_workload &>$TMPFILE
-    if [ $? -ne 0 ]; then
-        echo "get workload failed!"
-        exit 1
-    fi
-    if cat $TMPFILE | jq '.files | .valid' | grep $hash &>/dev/null; then
+    if ! check_hash "$hash" "deleted"; then
         echo "delete file:$hash failed!Find hash in workload"
         exit 1
     fi
@@ -127,13 +117,8 @@ for hash in ${confirm_arry[@]}; do
     fi
 done
 _store_meta &>/dev/null
-get_workload &>$TMPFILE
-if [ $? -ne 0 ]; then
-    echo "get workload failed!"
-    exit 1
-fi
 for hash in ${delete_arry[@]}; do
-    if cat $TMPFILE | jq '.files | .valid' | grep $hash &>/dev/null; then
+    if ! check_hash "$hash" "deleted"; then
         echo "delete file concurrently failed!"
         exit 1
     fi

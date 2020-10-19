@@ -136,7 +136,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     }
 
     // Choose service according to upgrade status
-    std::string route_tag = path.substr(path.find(urlendpoint->base), path.size());
+    std::string route_tag = path.substr(path.find(urlendpoint->base) + urlendpoint->base.size(), path.size());
     if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
     {
         p_log->err("This process will exit!\n");
@@ -205,12 +205,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             wl_json["srd"]["disk_reserved"] = get_reserved_space();
             size_t tmp_size = 0;
+            size_t srd_space = 0;
             json::JSON disk_json = get_increase_srd_info(tmp_size);
             if (wl_json["srd"]["detail"].JSONType() == json::JSON::Class::Object)
             {
                 for (auto it = wl_json["srd"]["detail"].ObjectRange().begin(); 
                         it != wl_json["srd"]["detail"].ObjectRange().end(); it++)
                 {
+                    srd_space += (it->second)["assigned"].ToInt();
                     (it->second)["available"] = disk_json[it->first]["available"];
                     (it->second)["total"] = disk_json[it->first]["total"];
                     std::string disk_item = (it->second).dump();
@@ -219,27 +221,31 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     it->second = disk_item;
                 }
             }
+            wl_json["srd"]["space"] = srd_space;
             // Get file info
-            json::JSON files_json = wl_json["files"];
-            json::JSON n_files_json;
-            if (files_json.JSONType() == json::JSON::Class::Object)
-            {
-                char buf[128];
-                for (auto it = files_json.ObjectRange().begin(); it != files_json.ObjectRange().end(); it++)
-                {
-                    json::JSON item_json = it->second;
-                    memset(buf, 0, sizeof(buf));
-                    sprintf(buf, "  \"sealed_hash\" : \"%s\", \"sealed_size\" : %ld  ",
-                            (it->first).c_str(), item_json["sealed_size"].ToInt());
-                    std::string tmp_str = std::string("{") + std::string(buf) + "}";
-                    std::string fstatus = item_json["status"].ToString();
-                    n_files_json[fstatus]["detail"].append(tmp_str);
-                    n_files_json[fstatus]["number"] = n_files_json[fstatus]["number"].ToInt() + 1;
-                }
-            }
-            wl_json["files"] = n_files_json;
+            json::JSON file_info = wl_json["files"];
+            json::JSON n_file_info;
+            char buf[128];
+            // Unconfirmed
+            memset(buf, 0, sizeof(buf));
+            sprintf(buf, "{  \"num\" : %-6ld, \"size\" : %ld  }",
+                    file_info["unconfirmed_num"].ToInt(), file_info["unconfirmed_size"].ToInt());
+            n_file_info["unconfirmed"] = std::string(buf);
+            // Valid
+            memset(buf, 0, sizeof(buf));
+            sprintf(buf, "      {  \"num\" : %-6ld, \"size\" : %ld  }",
+                    file_info["valid_num"].ToInt(), file_info["valid_size"].ToInt());
+            n_file_info["valid"] = std::string(buf);
+            // Lost
+            memset(buf, 0, sizeof(buf));
+            sprintf(buf, "       {  \"num\" : %-6ld, \"size\" : %ld  }",
+                    file_info["lost_num"].ToInt(), file_info["lost_size"].ToInt());
+            n_file_info["lost"] = std::string(buf);
+
+            wl_json["files"] = n_file_info;
             std::string wl_str = wl_json.dump();
             replace(wl_str, "\"{", "{");
+            replace(wl_str, ": \" ", ":  ");
             replace(wl_str, "}\"", "}");
             remove_char(wl_str, '\\');
             res.body() = wl_str;

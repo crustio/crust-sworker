@@ -66,13 +66,8 @@ for hash in ${!hash_2_use_m[@]}; do
     fi
     hash_2_use_m[$hash]=1
     _store_meta &>/dev/null
-    get_workload &>$TMPFILE
-    if [ $? -ne 0 ]; then
-        echo "get workload failed!"
-        exit 1
-    fi
-    if ! cat $TMPFILE | jq '.files | .valid' | grep $hash &>/dev/null; then
-        echo "confirm file:$hash failed!Cannot find hash in workload"
+    if ! check_hash "$hash" "valid"; then
+        echo "confirm file:$hash failed!"
         exit 1
     fi
     ((acc--))
@@ -92,13 +87,8 @@ for hash in ${!hash_2_use_m[@]}; do
 done
 sleep 3
 _store_meta &>/dev/null
-get_workload &>$TMPFILE
-if [ $? -ne 0 ]; then
-    echo "get workload failed!"
-    exit 1
-fi
 for hash in ${confirm_arry[@]}; do
-    if ! cat $TMPFILE | jq '.files | .valid' | grep $hash &>/dev/null; then
+    if ! check_hash "$hash" "valid"; then
         echo "confirm file concurrently failed!"
         exit 1
     fi

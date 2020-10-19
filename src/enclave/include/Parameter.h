@@ -37,6 +37,7 @@
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
+#define DB_WL_SPEC_INFO "wl_spec_info"
 
 // For Merkle tree
 #define MT_LINKS_NUM "links_num"
@@ -66,12 +67,6 @@
 #define WORKREPORT_SIG "sig"
 #define WORKREPORT_FILE_LIMIT 1000
 #define WORKREPORT_REPORT_INTERVAL 10
-
-// For order report
-#define ORDERREPORT_FILES "files"
-#define ORDERREPORT_PUB_KEY "pub_key"
-#define ORDERREPORT_RANDOM "random"
-#define ORDERREPORT_SIG "sig"
 
 // For workload
 #define WL_SRD "srd"
