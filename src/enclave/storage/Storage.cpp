@@ -114,7 +114,11 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
             file_entry_json[FILE_SIZE].ToInt());
 
     // Add new file to buffer
-    Workload::get_instance()->add_new_file(file_entry_json);
+    Workload *wl = Workload::get_instance();
+    wl->add_new_file(file_entry_json);
+
+    // Add info in workload spec
+    wl->set_wl_spec(WL_SPEC_FILE_UNCONFIRMED_SIZE, file_entry_json[FILE_SIZE].ToInt());
 
     return crust_status;
 }
@@ -475,10 +479,10 @@ crust_status_t storage_confirm_file(const char *hash)
         log_warn("Confirm file:%s failed(not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
     }
 
-    // Report real-time order file
+    // Set workload spec information
     if (is_confirmed)
     {
-        wl->add_order_file(make_pair(confirmed_file[FILE_HASH].ToString(), confirmed_file[FILE_SIZE].ToInt()));
+        wl->set_wl_spec(WL_SPEC_FILE_VALID_SIZE, WL_SPEC_FILE_UNCONFIRMED_SIZE, confirmed_file[FILE_SIZE].ToInt());
     }
 
     return crust_status;

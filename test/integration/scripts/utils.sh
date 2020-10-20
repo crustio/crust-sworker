@@ -69,6 +69,35 @@ function get_workload()
     curl -s $baseurl/workload
 }
 
+function get_file_info()
+{
+    local hash="$1"
+    curl -s -XGET $baseurl/file_info --data-raw "{\"hash\":\"$hash\"}"
+}
+
+function check_hash()
+{
+    local hash=$1
+    local status=$2
+    local -A status_m=([unconfirmed]=0 [valid]=1 [lost]=2 [deleted]=3)
+    local file_info=$(get_file_info "$hash")
+    if [ x"$file_info" = x"" ]; then
+        if [ x"$status" = x"deleted" ]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    if ! echo $file_info | jq '.'; then
+        return 1
+    fi
+    if [[ $(echo $file_info | jq '.status' | sed 's/"//g') =~ ^${status_m[$status]}[0-3]{2}$ ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
 function seal()
 {
     local tree=$1
@@ -202,6 +231,11 @@ function test_delete_file()
         file_num=1000
     fi
     curl -s -XGET $baseurl/test/delete_file --data-raw "{\"file_num\":$file_num}"
+}
+
+function clean_file()
+{
+    curl -s -XGET $baseurl/clean_file
 }
 
 function verbose()

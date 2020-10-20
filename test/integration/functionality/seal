@@ -75,9 +75,8 @@ while [ $(cat $syncfile | wc -l) -ne ${data_size} ] && [ $timeout -gt 0 ]; do
 done
 
 _store_meta &>/dev/null
-get_workload &>$TMPFILE
 for hash in $(cat $syncfile); do
-    if ! cat $TMPFILE | jq '.files|.unconfirmed' | grep $hash &>/dev/null; then
+    if ! check_hash "$hash" "unconfirmed"; then
         echo "Seal file failed!Cannot find sealed hash."
         exit 1
     fi

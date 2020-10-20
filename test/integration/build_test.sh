@@ -52,7 +52,45 @@ void ecall_test_delete_file(uint32_t file_num)
 {
     Workload::get_instance()->test_delete_file(file_num);
 }
+
+void ecall_clean_file()
+{
+    Workload *wl = Workload::get_instance();
+
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    wl->checked_files.clear();
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+    sgx_thread_mutex_lock(&g_new_files_mutex);
+    wl->new_files.clear();
+    sgx_thread_mutex_unlock(&g_new_files_mutex);
+}
+
+crust_status_t ecall_get_file_info(const char *data)
+{
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    Workload *wl = Workload::get_instance();
+    crust_status_t crust_status = CRUST_UNEXPECTED_ERROR;
+    for (int i = wl->checked_files.size() - 1; i >= 0; i--)
+    {
+        if (wl->checked_files[i][FILE_HASH].ToString().compare(data) == 0)
+        {
+            std::string file_info_str = wl->checked_files[i].dump();
+            remove_char(file_info_str, '\n');
+            remove_char(file_info_str, '\\\\');
+            remove_char(file_info_str, ' ');
+            ocall_store_file_info(file_info_str.c_str());
+            crust_status = CRUST_SUCCESS;
+        }
+    }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+    return crust_status;
+}
 EOF
+
+    sed -i '/using namespace std;/a extern sgx_thread_mutex_t g_checked_files_mutex;' $enclave_cpp
+    sed -i '/using namespace std;/a extern sgx_thread_mutex_t g_new_files_mutex;' $enclave_cpp
 }
 
 ########## enclave_edl_test ##########
@@ -67,10 +105,15 @@ cat << EOF > $TMPFILE
         public void ecall_test_valid_file(uint32_t file_num);
         public void ecall_test_lost_file(uint32_t file_num);
         public void ecall_test_delete_file(uint32_t file_num);
+        public void ecall_clean_file();
+
+        public crust_status_t ecall_get_file_info([in, string] const char *data);
 EOF
     
     local pos=$(sed -n '/ecall_get_workload()/=' $enclave_edl)
     sed -i "$pos r $TMPFILE" $enclave_edl
+
+    sed -i "/void ocall_store_upgrade_data(/a \\\t\\tvoid ocall_store_file_info([in, string] const char *info);" $enclave_edl
 }
 
 ########## ecalls_cpp_test ##########
@@ -84,6 +127,8 @@ cat << EOF >$TMPFILE
 	{"Ecall_test_valid_file", 1},
 	{"Ecall_test_lost_file", 1},
 	{"Ecall_test_delete_file", 1},
+	{"Ecall_clean_file", 1},
+	{"Ecall_get_file_info", 3},
 EOF
     local pos=$(sed -n '/{"Ecall_delete_file", 0},/=' $ecalls_cpp)
     sed -i "$pos r $TMPFILE" $ecalls_cpp
@@ -194,6 +239,36 @@ sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num)
 
     return ret;
 }
+
+sgx_status_t Ecall_clean_file(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_clean_file(eid);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+sgx_status_t Ecall_get_file_info(sgx_enclave_id_t eid, crust_status_t *status, const char *data)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_get_file_info(eid, status, data);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
 EOF
 }
 
@@ -209,6 +284,8 @@ sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num);
 sgx_status_t Ecall_test_valid_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num);
+sgx_status_t Ecall_clean_file(sgx_enclave_id_t eid);
+sgx_status_t Ecall_get_file_info(sgx_enclave_id_t eid, crust_status_t *status, const char *data);
 EOF
 
     local pos=$(sed -n '/std::string show_enclave_thread_info();/=' $ecalls_h)
@@ -343,6 +420,32 @@ cat << EOF > $TMPFILE
             Ecall_test_delete_file(global_eid, file_num);
             res.body() = "Delete file successfully!";
         }
+
+        cur_path = urlendpoint->base + "/clean_file";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            Ecall_clean_file(global_eid);
+            res.body() = "Clean file successfully!";
+        }
+
+        cur_path = urlendpoint->base + "/file_info";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            json::JSON req_json = json::JSON::Load(req.body());
+            std::string hash = req_json["hash"].ToString();
+            crust_status_t crust_status = CRUST_SUCCESS;
+            Ecall_get_file_info(global_eid, &crust_status, hash.c_str());
+            if (CRUST_SUCCESS == crust_status)
+            {
+                res.body() = get_g_file_info();
+                res.result(200);
+            }
+            else
+            {
+                res.body() = "";
+                res.result(400);
+            }
+        }
 EOF
 
 cat << EOF > $TMPFILE2
@@ -449,6 +552,30 @@ EOF
     # Delete 
     pos=$(sed -n '/cur_path = urlendpoint->base + "\/storage\/delete";/=' $apihandler_h)
     sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
+}
+
+function data_cpp_test()
+{
+cat << EOF >> $data_cpp
+
+void set_g_file_info(std::string file_info)
+{
+    g_file_info = file_info;
+}
+
+std::string get_g_file_info()
+{
+    return g_file_info;
+}
+EOF
+
+    sed -i "/std::mutex g_upgrade_status_mutex/a // File info\nstd::string g_file_info = \"\";" $data_cpp
+}
+
+function data_h_test
+{
+    sed -i '/set_g_upgrade_status(/a void set_g_file_info(std::string file_info);' $data_h
+    sed -i '/set_g_file_info(/a std::string get_g_file_info();' $data_h
 }
 
 ########## enc_report_cpp_test ##########
@@ -702,6 +829,14 @@ function enc_parameter_h_test()
 ########## ocalls_cpp_test ##########
 function ocalls_cpp_test()
 {
+cat << EOF >> $ocalls_cpp
+
+void ocall_store_file_info(const char *info)
+{
+    set_g_file_info(info);
+}
+EOF
+
 cat << EOF > $TMPFILE
     std::string leaf_hash_str(leaf_hash);
     size_t spos = leaf_hash_str.find("_");
@@ -753,6 +888,11 @@ EOF
     sed -i "$((spos-=1)) r $TMPFILE" $ocalls_cpp
 }
 
+function ocalls_h_test()
+{
+    sed -i '/ocall_store_upgrade_data(/a void ocall_store_file_info(const char *info);' $ocalls_h
+}
+
 function InstallAPP()
 {
     mkdir -p $testdir
@@ -797,7 +937,10 @@ ecalls_h=$appdir/ecalls/ECalls.h
 process_cpp=$appdir/process/Process.cpp
 resource_h=$appdir/include/Resource.h
 apihandler_h=$appdir/http/ApiHandler.h
+data_cpp=$appdir/process/Data.cpp
+data_h=$appdir/process/Data.h
 ocalls_cpp=$appdir/ocalls/OCalls.cpp
+ocalls_h=$appdir/ocalls/OCalls.h
 enclave_report_cpp=$encdir/report/Report.cpp
 enclave_validate_cpp=$encdir/validator/Validator.cpp
 enclave_srd_cpp=$encdir/srd/Srd.cpp
@@ -836,7 +979,10 @@ ecalls_cpp_test
 ecalls_h_test
 process_cpp_test
 apihandler_h_test
+data_cpp_test
+data_h_test
 ocalls_cpp_test
+ocalls_h_test
 enclave_cpp_test
 enclave_edl_test
 enc_report_cpp_test

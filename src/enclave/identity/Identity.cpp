@@ -964,8 +964,23 @@ crust_status_t id_restore_metadata()
         return CRUST_UNEXPECTED_ERROR;
     }
 
-    // Restore srd
     Workload *wl = Workload::get_instance();
+    // Restore workload spec information
+    uint8_t *p_wl_spec = NULL;
+    size_t wl_spec_len = 0;
+    if (CRUST_SUCCESS != (crust_status = persist_get_unsafe(DB_WL_SPEC_INFO, &p_wl_spec, &wl_spec_len)))
+    {
+        log_warn("Cannot get workload spec info, code:%lx\n", crust_status);
+    }
+    else
+    {
+        if (p_wl_spec != NULL)
+        {
+            wl->restore_wl_spec_info(std::string(reinterpret_cast<const char *>(p_wl_spec), wl_spec_len));
+            free(p_wl_spec);
+        }
+    }
+    // Restore srd
     if (meta_json.hasKey(ID_WORKLOAD)
             && meta_json[ID_WORKLOAD].JSONType() == json::JSON::Class::Object)
     {

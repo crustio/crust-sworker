@@ -438,10 +438,19 @@ void validate_meaningful_file()
     {
         for (auto it : changed_idx2lost_um)
         {
+            char old_status_c = (it.second ? FILE_STATUS_VALID : FILE_STATUS_LOST);
+            char cur_status_c = wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS);
+            std::string old_status = (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]);
+            std::string cur_status = g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)];
             log_info("File status changed, hash: %s status: %s -> %s\n",
                     wl->checked_files[it.first][FILE_HASH].ToString().c_str(),
-                    (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]).c_str(),
-                    g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)].c_str());
+                    old_status.c_str(),
+                    cur_status.c_str());
+            std::pair<wl_spec_t, wl_spec_t> old_pair, cur_pair;
+            if (wl->get_wl_spec_by_file_status(old_status_c, old_pair) && wl->get_wl_spec_by_file_status(cur_status_c, cur_pair))
+            {
+                wl->set_wl_spec(cur_pair.second, old_pair.second, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
+            }
         }
     }
 
