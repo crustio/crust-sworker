@@ -1160,13 +1160,15 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     std::string srd_str;
     std::string mr_str;
     std::string sig_str;
-    std::string wr_title;
+    std::string pubkey_data;
+    std::string block_height_data;
+    std::string block_hash_data;
     std::string srd_title;
     std::string files_title;
-    std::string srd_root_title;
-    std::string files_root_title;
-    std::string mr_title;
-    std::string sig_title;
+    std::string srd_root_data;
+    std::string files_root_data;
+    std::string sig_data;
+    std::string report_height_str;
     uint8_t *p_files = NULL;
     size_t files_size = 0;
     uint8_t *sigbuf = NULL;
@@ -1178,6 +1180,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     uint8_t *upgrade_buffer = NULL;
     uint8_t *p_upgrade_buffer = NULL;
     json::JSON wl_info;
+    size_t random_time = 0;
 
     // ----- Generate work report ----- //
     // Current era has reported, wait for next era
@@ -1216,11 +1219,24 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         crust_status = CRUST_UPGRADE_GEN_WORKREPORT_FAILED;
         goto cleanup;
     }
+    report_height_str = std::to_string(report_height);
     work_report = get_generated_work_report();
     work_report = json::JSON::Load(work_report).dump();
     remove_char(work_report, '\n');
     remove_char(work_report, '\\');
     remove_char(work_report, ' ');
+
+    // Send work report
+    // TODO: Wait a random time:[10, 50] block time
+    sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
+    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * UPGRADE_WAIT_BLOCK_BASE;
+    ocall_usleep(random_time * 1000000);
+    ocall_upload_workreport(&crust_status, work_report.c_str());
+    if (CRUST_SUCCESS != crust_status)
+    {
+        log_err("Upload work report failed!\n");
+        goto cleanup;
+    }
 
     // Generate metadata
     wl->serialize_srd(srd_str);
@@ -1238,10 +1254,11 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         crust_status = CRUST_SGX_SIGN_FAILED;
         goto cleanup;
     }
-    sigbuf_len = work_report.size() 
+    sigbuf_len = sizeof(sgx_ec256_public_t) 
+        + report_height_str.size()
+        + HASH_LENGTH * 2
         + sizeof(sgx_sha256_hash_t) 
-        + sizeof(sgx_sha256_hash_t) 
-        + sizeof(sgx_measurement_t);
+        + sizeof(sgx_sha256_hash_t);
     sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
     if (sigbuf == NULL)
     {
@@ -1251,17 +1268,20 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     }
     memset(sigbuf, 0, sigbuf_len);
     p_sigbuf = sigbuf;
-    // Work report
-    memcpy(sigbuf, work_report.c_str(), work_report.size());
-    sigbuf += work_report.size();
+    // Pub key
+    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    sigbuf += sizeof(id_key_pair.pub_key);
+    // Block height
+    memcpy(sigbuf, report_height_str.c_str(), report_height_str.size());
+    sigbuf += report_height_str.size();
+    // Block hash
+    memcpy(sigbuf, report_hash, HASH_LENGTH * 2);
+    sigbuf += (HASH_LENGTH * 2);
     // Srd root
     memcpy(sigbuf, wl_info[WL_SRD_ROOT_HASH].ToBytes(), sizeof(sgx_sha256_hash_t));
     sigbuf += sizeof(sgx_sha256_hash_t);
     // Files root
     memcpy(sigbuf, wl_info[WL_FILE_ROOT_HASH].ToBytes(), sizeof(sgx_sha256_hash_t));
-    sigbuf += sizeof(sgx_sha256_hash_t);
-    // MR enclave
-    memcpy(sigbuf, &current_mr_enclave, sizeof(sgx_measurement_t));
     sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len, &id_key_pair.pri_key, &sgx_sig, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
@@ -1270,26 +1290,29 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     }
 
     // ----- Store upgrade data ----- //
-    wr_title.append("{\"" UPGRADE_WORK_REPORT "\":").append(work_report);
+    pubkey_data.append("{\"" UPGRADE_PUBLIC_KEY "\":")
+        .append("\"").append(hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key))).append("\"");
+    block_height_data.append(",\"" UPGRADE_BLOCK_HEIGHT "\":").append(report_height_str);
+    block_hash_data.append(",\"" UPGRADE_BLOCK_HASH "\":")
+        .append("\"").append(report_hash, HASH_LENGTH * 2).append("\"");
     srd_title.append(",\"" UPGRADE_SRD "\":");
     files_title.append(",\"" UPGRADE_FILE "\":");
-    srd_root_title.append(",\"" UPGRADE_SRD_ROOT "\":")
+    srd_root_data.append(",\"" UPGRADE_SRD_ROOT "\":")
         .append("\"").append(wl_info[WL_SRD_ROOT_HASH].ToString()).append("\"");
-    files_root_title.append(",\"" UPGRADE_FILE_ROOT "\":")
+    files_root_data.append(",\"" UPGRADE_FILE_ROOT "\":")
         .append("\"").append(wl_info[WL_FILE_ROOT_HASH].ToString()).append("\"");
-    mr_title.append(",\"" UPGRADE_MRENCLAVE "\":")
-        .append("\"").append(hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t))).append("\"");
-    sig_title.append(",\"" UPGRADE_SIG "\":")
+    sig_data.append(",\"" UPGRADE_SIG "\":")
         .append("\"").append(hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t))).append("\"}");
-    upgrade_buffer_len = srd_str.size()
-        + files_size
-        + wr_title.size()
+    upgrade_buffer_len = pubkey_data.size()
+        + block_height_data.size()
+        + block_hash_data.size()
         + srd_title.size()
+        + srd_str.size()
         + files_title.size()
-        + srd_root_title.size()
-        + files_root_title.size()
-        + mr_title.size()
-        + sig_title.size();
+        + files_size
+        + srd_root_data.size()
+        + files_root_data.size()
+        + sig_data.size();
     upgrade_buffer = (uint8_t *)enc_malloc(upgrade_buffer_len);
     if (upgrade_buffer == NULL)
     {
@@ -1298,9 +1321,15 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     }
     memset(upgrade_buffer, 0, upgrade_buffer_len);
     p_upgrade_buffer = upgrade_buffer;
-    // Work report
-    memcpy(upgrade_buffer, wr_title.c_str(), wr_title.size());
-    upgrade_buffer += wr_title.size();
+    // Public key
+    memcpy(upgrade_buffer, pubkey_data.c_str(), pubkey_data.size());
+    upgrade_buffer += pubkey_data.size();
+    // BLock height
+    memcpy(upgrade_buffer, block_height_data.c_str(), block_height_data.size());
+    upgrade_buffer += block_height_data.size();
+    // Block hash
+    memcpy(upgrade_buffer, block_hash_data.c_str(), block_hash_data.size());
+    upgrade_buffer += block_hash_data.size();
     // Srd
     memcpy(upgrade_buffer, srd_title.c_str(), srd_title.size());
     upgrade_buffer += srd_title.size();
@@ -1312,17 +1341,14 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     memcpy(upgrade_buffer, p_files, files_size);
     upgrade_buffer += files_size;
     // Srd root
-    memcpy(upgrade_buffer, srd_root_title.c_str(), srd_root_title.size());
-    upgrade_buffer += srd_root_title.size();
+    memcpy(upgrade_buffer, srd_root_data.c_str(), srd_root_data.size());
+    upgrade_buffer += srd_root_data.size();
     // Files root
-    memcpy(upgrade_buffer, files_root_title.c_str(), files_root_title.size());
-    upgrade_buffer += files_root_title.size();
-    // MR_enclave
-    memcpy(upgrade_buffer, mr_title.c_str(), mr_title.size());
-    upgrade_buffer += mr_title.size();
+    memcpy(upgrade_buffer, files_root_data.c_str(), files_root_data.size());
+    upgrade_buffer += files_root_data.size();
     // Signature
-    memcpy(upgrade_buffer, sig_title.c_str(), sig_title.size());
-    upgrade_buffer += sig_title.size();
+    memcpy(upgrade_buffer, sig_data.c_str(), sig_data.size());
+    upgrade_buffer += sig_data.size();
 
     // Store upgrade data
     store_large_data(p_upgrade_buffer, upgrade_buffer_len, ocall_store_upgrade_data, wl->ocall_upgrade_mutex);
@@ -1385,11 +1411,6 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     free(g_upgrade_buffer);
     g_upgrade_buffer = NULL;
     g_upgrade_buffer_offset = 0;
-    json::JSON wr_json = upgrade_json[UPGRADE_WORK_REPORT];
-    std::string work_report = upgrade_json[UPGRADE_WORK_REPORT].dump();
-    remove_char(work_report, '\n');
-    remove_char(work_report, '\\');
-    remove_char(work_report, ' ');
 
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
@@ -1397,144 +1418,30 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     uint8_t *sigbuf = NULL;
     uint8_t *p_sigbuf = NULL;
     size_t sigbuf_len = 0;
-    uint8_t *pub_key_u = NULL;
-    size_t pub_key_u_len = 0;
-    uint8_t *pre_pub_key_u = NULL;
-    size_t pre_pub_key_u_len = 0;
     sgx_ecc_state_handle_t ecc_state = NULL;
     Workload *wl = Workload::get_instance();
-    sgx_ec256_signature_t sgx_wr_sig;
     sgx_ec256_signature_t sgx_wl_sig;
-    sgx_ec256_public_t sgx_pub_key;
+    sgx_ec256_public_t sgx_a_pub_key;
     json::JSON srd_json;
     json::JSON file_json;
     json::JSON wl_info;
     std::string srd_str;
     std::string file_str;
-    std::string mrenclave_str;
     std::string wl_sig;
     std::string upgrade_srd_root_str;
     std::string upgrade_files_root_str;
-    uint8_t *mrenclave_u = NULL;
-    uint8_t *wr_sig_u = NULL;
+    std::string work_report;
     uint8_t *wl_sig_u = NULL;
-
-    // ----- Verify work report signature ----- //
-    if (wr_json.size() <= 0)
+    std::string report_height_str = upgrade_json[UPGRADE_BLOCK_HEIGHT].ToString();
+    std::string report_hash_str = upgrade_json[UPGRADE_BLOCK_HASH].ToString();
+    std::string a_pub_key_str = upgrade_json[UPGRADE_PUBLIC_KEY].ToString();
+    uint8_t *a_pub_key_u = hex_string_to_bytes(a_pub_key_str.c_str(), a_pub_key_str.size());
+    if (a_pub_key_u == NULL)
     {
-        return CRUST_UPGRADE_INVALID_WORKREPORT;
+        return CRUST_UNEXPECTED_ERROR;
     }
-    std::string wr_sig = wr_json[WORKREPORT_SIG].ToString();
-    std::string pub_key_str = wr_json[WORKREPORT_PUB_KEY].ToString();
-    std::string pre_pub_key_str = wr_json[WORKREPORT_PRE_PUB_KEY].ToString();
-    std::string block_height_str = wr_json[WORKREPORT_BLOCK_HEIGHT].ToString();
-    std::string block_hash_str = wr_json[WORKREPORT_BLOCK_HASH].ToString();
-    std::string reserved = wr_json[WORKREPORT_RESERVED].ToString();
-    std::string files_size_str = wr_json[WORKREPORT_FILES_SIZE].ToString();
-    std::string srd_root_str = wr_json[WORKREPORT_RESERVED_ROOT].ToString();
-    std::string files_root_str = wr_json[WORKREPORT_FILES_ROOT].ToString();
-    std::string files_added = wr_json[WORKREPORT_FILES_ADDED].dump();
-    std::string files_deleted = wr_json[WORKREPORT_FILES_DELETED].dump();
-    remove_char(files_deleted, '\\');
-    remove_char(files_deleted, '\n');
-    remove_char(files_deleted, ' ');
-    remove_char(files_added, '\\');
-    remove_char(files_added, '\n');
-    remove_char(files_added, ' ');
-    sigbuf_len = sizeof(sgx_ec256_public_t) 
-        + pre_pub_key_str.size() / 2
-        + block_height_str.size()
-        + HASH_LENGTH
-        + reserved.size()
-        + files_size_str.size()
-        + sizeof(sgx_sha256_hash_t)
-        + sizeof(sgx_sha256_hash_t)
-        + files_added.size()
-        + files_deleted.size();
-    sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
-    if (sigbuf == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(sigbuf, 0, sigbuf_len);
-    p_sigbuf = sigbuf;
-    // Pub key
-    pub_key_u = hex_string_to_bytes(pub_key_str.c_str(), pub_key_str.size());
-    pub_key_u_len = pub_key_str.size() / 2;
-    memcpy(sigbuf, pub_key_u, pub_key_u_len);
-    sigbuf += pub_key_u_len;
-    memcpy(&sgx_pub_key, pub_key_u, sizeof(sgx_ec256_public_t));
-    free(pub_key_u);
-    // Previous pub key
-    pre_pub_key_u = hex_string_to_bytes(pre_pub_key_str.c_str(), pre_pub_key_str.size());
-    if (pre_pub_key_u != NULL)
-    {
-        pre_pub_key_u_len = pre_pub_key_str.size() / 2;
-        memcpy(sigbuf, pre_pub_key_u, pre_pub_key_u_len);
-        sigbuf += pre_pub_key_u_len;
-        free(pre_pub_key_u);
-    }
-    // Block height
-    memcpy(sigbuf, block_height_str.c_str(), block_height_str.size());
-    sigbuf += block_height_str.size();
-    // Block hash
-    uint8_t *block_hash_u = hex_string_to_bytes(block_hash_str.c_str(), block_hash_str.size());
-    size_t block_hash_u_len = block_hash_str.size() / 2;
-    memcpy(sigbuf, block_hash_u, block_hash_u_len);
-    sigbuf += block_hash_u_len;
-    free(block_hash_u);
-    // Reserved
-    memcpy(sigbuf, reserved.c_str(), reserved.size());
-    sigbuf += reserved.size();
-    // Files size
-    memcpy(sigbuf, files_size_str.c_str(), files_size_str.size());
-    sigbuf += files_size_str.size();
-    // Reserved root
-    uint8_t *srd_root_u = hex_string_to_bytes(srd_root_str.c_str(), srd_root_str.size());
-    size_t srd_root_u_len = srd_root_str.size() / 2;
-    memcpy(sigbuf, srd_root_u, srd_root_u_len);
-    sigbuf += srd_root_u_len;
-    free(srd_root_u);
-    // File root
-    uint8_t *file_root_u = hex_string_to_bytes(files_root_str.c_str(), files_root_str.size());
-    size_t file_root_u_len = files_root_str.size() / 2;
-    memcpy(sigbuf, file_root_u, file_root_u_len);
-    sigbuf += file_root_u_len;
-    free(file_root_u);
-    // Added files
-    memcpy(sigbuf, files_added.c_str(), files_added.size());
-    sigbuf += files_added.size();
-    // Deleted files 
-    memcpy(sigbuf, files_deleted.c_str(), files_deleted.size());
-    sigbuf += files_deleted.size();
-
-    // Verify work report signature
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
-    if (SGX_SUCCESS != sgx_status)
-    {
-        crust_status = CRUST_SGX_SIGN_FAILED;
-        goto cleanup;
-    }
-    wr_sig_u = hex_string_to_bytes(wr_sig.c_str(), wr_sig.size());
-    if (wr_sig_u == NULL)
-    {
-        crust_status = CRUST_UNEXPECTED_ERROR;
-        goto cleanup;
-    }
-    memcpy(&sgx_wr_sig, wr_sig_u, sizeof(sgx_ec256_signature_t));
-    free(wr_sig_u);
-    sgx_status = sgx_ecdsa_verify(p_sigbuf, sigbuf_len, &sgx_pub_key, 
-            &sgx_wr_sig, &p_result, ecc_state);
-    if (SGX_SUCCESS != SGX_SUCCESS || p_result != SGX_EC_VALID)
-    {
-        log_err("Verify work report failed!Error code:%lx, result:%d\n", sgx_status, p_result);
-        crust_status = CRUST_SGX_VERIFY_SIG_FAILED;
-        goto cleanup;
-    }
-    sgx_ecc256_close_context(ecc_state);
-    free(p_sigbuf);
-    sigbuf = NULL;
-    p_sigbuf = NULL;
+    memcpy(&sgx_a_pub_key, a_pub_key_u, sizeof(sgx_ec256_public_t));
+    free(a_pub_key_u);
 
     // ----- Restore workload ----- //
     // Restore srd
@@ -1548,14 +1455,12 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
 
     // ----- Verify workload signature ----- //
     wl_info = wl->gen_workload_info();
-    // MR enclave data
-    mrenclave_str = upgrade_json[UPGRADE_MRENCLAVE].ToString();
-    mrenclave_u = hex_string_to_bytes(mrenclave_str.c_str(), mrenclave_str.size());
     wl_sig = upgrade_json[UPGRADE_SIG].ToString();
-    sigbuf_len = work_report.size() 
+    sigbuf_len = sizeof(sgx_ec256_public_t) 
+        + report_height_str.size()
+        + report_hash_str.size()
         + sizeof(sgx_sha256_hash_t) 
-        + sizeof(sgx_sha256_hash_t) 
-        + sizeof(sgx_measurement_t);
+        + sizeof(sgx_sha256_hash_t);
     sigbuf = (uint8_t *)enc_malloc(sigbuf_len);
     if (sigbuf == NULL)
     {
@@ -1564,17 +1469,20 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     }
     memset(sigbuf, 0, sigbuf_len);
     p_sigbuf = sigbuf;
-    // Work report
-    memcpy(sigbuf, work_report.c_str(), work_report.size());
-    sigbuf += work_report.size();
+    // A's public key
+    memcpy(sigbuf, &sgx_a_pub_key, sizeof(sgx_ec256_public_t));
+    sigbuf += sizeof(sgx_ec256_public_t);
+    // Block height
+    memcpy(sigbuf, report_height_str.c_str(), report_height_str.size());
+    sigbuf += report_height_str.size();
+    // Block hash
+    memcpy(sigbuf, report_hash_str.c_str(), report_hash_str.size());
+    sigbuf += report_hash_str.size();
     // Srd root
     memcpy(sigbuf, wl_info[WL_SRD_ROOT_HASH].ToBytes(), sizeof(sgx_sha256_hash_t));
     sigbuf += sizeof(sgx_sha256_hash_t);
     // Files root
     memcpy(sigbuf, wl_info[WL_FILE_ROOT_HASH].ToBytes(), sizeof(sgx_sha256_hash_t));
-    sigbuf += sizeof(sgx_sha256_hash_t);
-    // MR enclave
-    memcpy(sigbuf, mrenclave_u, sizeof(sgx_measurement_t));
     // Verify signature
     sgx_status = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != sgx_status)
@@ -1590,7 +1498,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     }
     memcpy(&sgx_wl_sig, wl_sig_u, sizeof(sgx_ec256_signature_t));
     free(wl_sig_u);
-    sgx_status = sgx_ecdsa_verify(p_sigbuf, sigbuf_len, &sgx_pub_key, 
+    sgx_status = sgx_ecdsa_verify(p_sigbuf, sigbuf_len, &sgx_a_pub_key, 
             &sgx_wl_sig, &p_result, ecc_state);
     if (SGX_SUCCESS != sgx_status || p_result != SGX_EC_VALID)
     {
@@ -1615,34 +1523,22 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
         goto cleanup;
     }
 
-    // ----- Send old version's work report ----- //
-    ocall_upload_workreport(&crust_status, wr_json.dump().c_str());
+    // ----- Entry network ----- //
+    ocall_entry_network(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
-        log_err("Upload work report failed!\n");
         goto cleanup;
     }
 
-    // If old version's mrenclave not equal to the new one
-    if (memcpy(&current_mr_enclave, mrenclave_u, sizeof(sgx_measurement_t)) != 0)
+    // ----- Send current version's work report ----- //
+    wl->set_upgrade(sgx_a_pub_key);
+    report_add_validated_proof();
+    if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()))))
     {
-        // ----- Entry network ----- //
-        ocall_entry_network(&crust_status);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            goto cleanup;
-        }
-
-        // ----- Send current version's work report ----- //
-        wl->set_upgrade(sgx_pub_key);
-        report_add_validated_proof();
-        if (CRUST_SUCCESS != (crust_status = get_signed_work_report(block_hash_str.c_str(), std::atoi(block_height_str.c_str()))))
-        {
-            goto cleanup;
-        }
-        work_report = get_generated_work_report();
-        ocall_upload_workreport(&crust_status, work_report.c_str());
+        goto cleanup;
     }
+    work_report = get_generated_work_report();
+    ocall_upload_workreport(&crust_status, work_report.c_str());
 
 
 cleanup:
@@ -1654,11 +1550,6 @@ cleanup:
     if (p_sigbuf != NULL)
     {
         free(p_sigbuf);
-    }
-
-    if (mrenclave_u != NULL)
-    {
-        free(mrenclave_u);
     }
 
     return crust_status;

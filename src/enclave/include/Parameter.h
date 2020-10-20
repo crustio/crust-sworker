@@ -91,13 +91,18 @@
 #define ENCLAVE_MALLOC_TRYOUT 3
 
 // For upgrade
-#define UPGRADE_WORK_REPORT "work_report"
+#define UPGRADE_PUBLIC_KEY "pub_key"
+#define UPGRADE_BLOCK_HEIGHT "block_height"
+#define UPGRADE_BLOCK_HASH "block_hash"
 #define UPGRADE_SRD "upgrade_srd"
 #define UPGRADE_SRD_ROOT "upgrade_srd_root"
 #define UPGRADE_FILE "upgrade_file"
 #define UPGRADE_FILE_ROOT "upgrade_file_root"
 #define UPGRADE_MRENCLAVE "upgrade_mrenclave"
 #define UPGRADE_SIG "upgrade_sig"
+#define UPGRADE_WAIT_BLOCK_MAX 50
+#define UPGRADE_WAIT_BLOCK_MIN 10
+#define UPGRADE_WAIT_BLOCK_BASE 6
 
 typedef enum _enc_upgrade_status_t {
     ENC_UPGRADE_STATUS_NONE,
