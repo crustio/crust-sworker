@@ -88,7 +88,7 @@ function check_hash()
             return 1
         fi
     fi
-    if ! echo $file_info | jq '.'; then
+    if ! echo $file_info | jq '.' &>/dev/null; then
         return 1
     fi
     if [[ $(echo $file_info | jq '.status' | sed 's/"//g') =~ ^${status_m[$status]}[0-3]{2}$ ]]; then
@@ -235,7 +235,7 @@ function test_delete_file()
 
 function clean_file()
 {
-    curl -s -XGET $baseurl/clean_file
+    curl -s -XGET $baseurl/clean_file &>/dev/null
 }
 
 function verbose()

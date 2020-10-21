@@ -86,7 +86,6 @@ void work_report_loop(void)
             }
 
             size_t cut_wait_time = (block_header->number - (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
-            block_header->number = (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
 
             size_t wait_time = get_random_wait_time();
             if (cut_wait_time >= wait_time)
@@ -99,6 +98,7 @@ void work_report_loop(void)
             }
 
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
+            block_header->number = (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
             sleep(wait_time);
 
             // Get confirmed block hash

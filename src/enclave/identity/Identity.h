@@ -62,10 +62,6 @@ sgx_status_t id_gen_key_pair(const char *account_id, size_t len);
 sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t id_gen_sgx_measurement();
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len);
-crust_status_t id_set_chain_account_id(const char *account_id, size_t len);
-ecc_key_pair id_get_key_pair();
-bool id_just_after_restart();
-void id_set_just_after_restart(bool in);
 void id_get_info();
 
 void id_get_metadata(json::JSON &meta_json, bool locked = true);
@@ -134,8 +130,6 @@ cleanup:
 
 crust_status_t id_store_metadata();
 crust_status_t id_restore_metadata();
-size_t id_get_report_height();
-void id_set_report_height(size_t height);
 crust_status_t id_gen_upgrade_data(size_t block_height);
 crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end);
 
