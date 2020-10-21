@@ -47,40 +47,46 @@ std::map<wl_spec_t, std::string> wl_spec_m = {
 class Workload
 {
 public:
-    std::map<std::string, std::vector<uint8_t*>> srd_path2hashs_m;         /* used to store all G srd file collection' hashs */
+    std::map<std::string, std::vector<uint8_t*>> srd_path2hashs_m; // used to store all G srd file collection' hashs
 
-    std::vector<json::JSON> checked_files;
-    std::vector<json::JSON> new_files;
-    std::set<size_t> reported_files_idx;
-    sgx_ec256_public_t pre_pub_key;
+    std::vector<json::JSON> checked_files; // Files have been added into checked queue
+    std::vector<json::JSON> new_files; // Files have not been confirmed
+    std::set<size_t> reported_files_idx; // File indexes reported this turn of workreport
+    sgx_ec256_public_t pre_pub_key; // Old version's public key
     
+    // Basic
     static Workload *workload;
     static Workload *get_instance();
     ~Workload();
     std::string get_workload(void);
+    void clean_data();
+    void add_new_file(json::JSON file);
+    void set_srd_info(std::string path, long change);
+    json::JSON get_srd_info();
+    json::JSON gen_workload_info();
+
+    // For persistence
     void serialize_srd(std::string &sered_srd);
     crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
     crust_status_t restore_srd(json::JSON g_hashs);
     void restore_file(json::JSON file_json);
     crust_status_t get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json);
-    void clean_data();
 
-    void add_new_file(json::JSON file);
-
+    // For report
+    void report_add_validated_proof();
+    void report_reduce_validated_proof();
+    bool report_has_validated_proof();
     void set_report_flag(bool flag);
     bool get_report_flag();
+    void set_restart_flag(bool flag);
+    bool get_restart_flag();
+    void handle_report_result();
 
-    void set_srd_info(std::string path, long change);
-    json::JSON get_srd_info();
-    json::JSON gen_workload_info();
-
+    // For upgrade
     void set_upgrade(sgx_ec256_public_t pub_key);
     bool is_upgrade();
-
     void set_upgrade_status(enc_upgrade_status_t status);
     enc_upgrade_status_t get_upgrade_status();
-
-    void handle_report_result();
 
     // For workload spec
     void set_wl_spec(wl_spec_t wl_spec, int change);
@@ -88,27 +94,45 @@ public:
     void restore_wl_spec_info(std::string data);
     bool get_wl_spec_by_file_status(char status, std::pair<wl_spec_t, wl_spec_t> &wl_pair);
 
-    // Workreport mutex
-    sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-    // Workload mutex
-    sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-    // Upgrade mutex
-    sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    // For identity
+    void set_account_id(std::string account_id);
+    std::string get_account_id();
+    // Key pair
+    bool try_get_key_pair();
+    const sgx_ec256_public_t& get_pub_key();
+    const sgx_ec256_private_t& get_pri_key();
+    void set_key_pair(ecc_key_pair id_key_pair);
+    const ecc_key_pair& get_key_pair();
+    // MR enclave
+    void set_mr_enclave(sgx_measurement_t mr);
+    const sgx_measurement_t& get_mr_enclave();
+    // Report height
+    void set_report_height(size_t height);
+    size_t get_report_height();
+
+    sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workreport mutex
+    sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workload mutex
+    sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Upgrade mutex
 
 private:
     Workload();
-    // True indicates report files this turn, false means not report
-    bool report_files;
-    // Srd info
-    json::JSON srd_info_json;
-    // Srd info mutex
+
+    std::string account_id; // Chain account id
+    ecc_key_pair id_key_pair; // Identity key pair
+    bool is_set_key_pair = false; // Check if key pair has been generated
+    sgx_measurement_t mr_enclave; // Enclave code measurement
+    size_t report_height = 0; // Identity report height, Used to check current block head out-of-date
+    bool restart_flag = false;// Used to indicate whether it is the first report after restart
+
+    int validated_proof = 0; // Generating workreport will decrease this value, while validating will increase it
+    sgx_thread_mutex_t validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+
+    bool report_files; // True indicates reporting files this turn, false means not report
+    json::JSON srd_info_json; // Srd info
     sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-    // Is upgrade
-    bool upgrade = false;
-    // Upgrade status 
-    enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE;
-    // For workload statistics
-    json::JSON wl_spec_info;
+    bool upgrade = false; // True indicates workreport should contain previous public key
+    enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE; // Initial value indicates no upgrade
+    json::JSON wl_spec_info; // For workload statistics
     sgx_thread_mutex_t wl_spec_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 };
 

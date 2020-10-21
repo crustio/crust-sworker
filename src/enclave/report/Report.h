@@ -22,8 +22,4 @@
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked = true);
 std::string get_generated_work_report();
 
-void report_add_validated_proof();
-void report_reduce_validated_proof();
-bool report_has_validated_proof();
-
 #endif /* !_CRUST_REPORT_H_ */

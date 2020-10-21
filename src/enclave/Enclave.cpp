@@ -89,7 +89,7 @@ void ecall_main_loop()
         }
 
         // Add validated proof
-        report_add_validated_proof();
+        Workload::get_instance()->report_add_validated_proof();
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
@@ -267,12 +267,13 @@ crust_status_t ecall_delete_file(const char *hash)
  */
 crust_status_t ecall_enable_upgrade(size_t block_height)
 {
-    if ((block_height != 0 && block_height - id_get_report_height() - WORKREPORT_REPORT_INTERVAL >= ERA_LENGTH)
-            && report_has_validated_proof()
-            && !id_just_after_restart()
-            && Workload::get_instance()->get_report_flag())
+    Workload *wl = Workload::get_instance();
+    if ((block_height != 0 && block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL >= ERA_LENGTH)
+            && wl->report_has_validated_proof()
+            && !wl->get_restart_flag()
+            && wl->get_report_flag())
     {
-        Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
+        wl->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
         return CRUST_SUCCESS;
     }
 

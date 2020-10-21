@@ -6,22 +6,6 @@
 
 using namespace std;
 
-// Store crust account id
-string g_chain_account_id;
-// Current node public and private key pair
-ecc_key_pair id_key_pair;
-// Can only set crust account id once
-bool g_is_set_account_id = false;
-// Can only set crust account id once
-bool g_is_set_id_key_pair = false;
-// TODO:Indicate if entry network successful
-bool g_is_entry_network = false;
-// Current code measurement
-sgx_measurement_t current_mr_enclave;
-// Used to check current block head out-of-date
-size_t g_report_height = 0;
-// Used to indicate whether it is the first report after restart
-bool just_after_restart = 0;
 // Protect metadata 
 sgx_thread_mutex_t g_metadata_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 // Upgrade generate metadata 
@@ -386,7 +370,8 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     X509 *intelRootPemX509 = PEM_read_bio_X509(bio_mem, NULL, NULL, NULL);
     vector<string> response(IASReport, IASReport + size);
 
-    string chain_account_id = g_chain_account_id;
+    Workload *wl = Workload::get_instance();
+    string chain_account_id = wl->get_account_id();
     uint8_t *p_account_id_u = hex_string_to_bytes(chain_account_id.c_str(), chain_account_id.size());
     size_t account_id_u_len = chain_account_id.size() / 2;
     uint8_t *org_data, *p_org_data = NULL;
@@ -550,14 +535,14 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
 
     // This report data is our ecc public key
     // should be equal to the one contained in IAS report
-    if (memcmp(iasReportBody->report_data.d, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key)) != 0)
+    if (memcmp(iasReportBody->report_data.d, &wl->get_pub_key(), sizeof(sgx_ec256_public_t)) != 0)
     {
         status = CRUST_IAS_REPORTDATA_NE;
         goto cleanup;
     }
 
     // The mr_enclave should be equal to the one contained in IAS report
-    if (memcmp(&iasReportBody->mr_enclave, &current_mr_enclave, sizeof(sgx_measurement_t)) != 0)
+    if (memcmp(&iasReportBody->mr_enclave, &wl->get_mr_enclave(), sizeof(sgx_measurement_t)) != 0)
     {
         status = CRUST_IAS_BADMEASUREMENT;
         goto cleanup;
@@ -591,7 +576,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     memcpy(org_data, p_account_id_u, account_id_u_len);
 
     sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
-            &id_key_pair.pri_key, &ecc_signature, ecc_state);
+            const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &ecc_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         status = CRUST_SIGN_PUBKEY_FAILED;
@@ -653,13 +638,20 @@ cleanup:
 sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
 {
     
-    if (g_is_set_id_key_pair)
+    if (Workload::get_instance()->try_get_key_pair())
     {
         log_err("Identity key pair has been generated!\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
+    if (account_id == NULL || 0 == len)
+    {
+        log_err("Invalid account id!\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
     // Generate public and private key
+    Workload *wl = Workload::get_instance();
     sgx_ec256_public_t pub_key;
     sgx_ec256_private_t pri_key;
     memset(&pub_key, 0, sizeof(pub_key));
@@ -682,20 +674,14 @@ sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
     }
 
     // Store key pair in enclave
-    memset(&id_key_pair.pub_key, 0, sizeof(id_key_pair.pub_key));
-    memset(&id_key_pair.pri_key, 0, sizeof(id_key_pair.pri_key));
-    memcpy(&id_key_pair.pub_key, &pub_key, sizeof(pub_key));
-    memcpy(&id_key_pair.pri_key, &pri_key, sizeof(pri_key));
+    ecc_key_pair tmp_key_pair;
+    memcpy(&tmp_key_pair.pub_key, &pub_key, sizeof(sgx_ec256_public_t));
+    memcpy(&tmp_key_pair.pri_key, &pri_key, sizeof(sgx_ec256_private_t));
+    wl->set_key_pair(tmp_key_pair);
 
     // Set chain account id
-    crust_status_t crust_status = id_set_chain_account_id(account_id, len);
-    if (crust_status != CRUST_SUCCESS)
-    {
-        log_err("Set chain account id error: %d\n", crust_status);
-        return SGX_ERROR_UNEXPECTED;
-    }
+    Workload::get_instance()->set_account_id(string(account_id, len));
 
-    g_is_set_id_key_pair = true;
     return SGX_SUCCESS;
 }
 
@@ -710,9 +696,10 @@ sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target
 {
 
     // Copy public key to report data
+    Workload *wl = Workload::get_instance();
     sgx_report_data_t report_data;
     memset(&report_data, 0, sizeof(report_data));
-    memcpy(&report_data, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+    memcpy(&report_data, &wl->get_pub_key(), sizeof(sgx_ec256_public_t));
 #ifdef SGX_HW_SIM
     return sgx_create_report(NULL, &report_data, report);
 #else
@@ -741,8 +728,7 @@ sgx_status_t id_gen_sgx_measurement()
         return status;
     }
 
-    memset(&current_mr_enclave, 0, sizeof(sgx_measurement_t));
-    memcpy(&current_mr_enclave, &verify_report.body.mr_enclave, sizeof(sgx_measurement_t));
+    Workload::get_instance()->set_mr_enclave(verify_report.body.mr_enclave);
 
     return status;
 }
@@ -761,6 +747,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
     size_t data_len = 0;
     uint8_t *p_id_key = NULL;
     std::string id_key_pair_str;
+    Workload *wl = Workload::get_instance();
     crust_status_t crust_status = persist_get(ID_METADATA, &p_data, &data_len);
     if (CRUST_SUCCESS != crust_status || data_len == 0)
     {
@@ -781,7 +768,7 @@ void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
         crust_status = CRUST_INVALID_META_DATA;
         goto cleanup;
     }
-    if (g_is_set_id_key_pair && memcmp(p_id_key, &id_key_pair, sizeof(id_key_pair)) != 0)
+    if (wl->try_get_key_pair() && memcmp(p_id_key, &wl->get_key_pair(), sizeof(ecc_key_pair)) != 0)
     {
         log_err("Identity: Get wrong id key pair!\n");
         crust_status = CRUST_INVALID_META_DATA;
@@ -820,7 +807,7 @@ crust_status_t id_store_metadata()
     // Get original metadata
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
-    std::string hex_id_key_str = hexstring_safe(&id_key_pair, sizeof(id_key_pair));
+    std::string hex_id_key_str = hexstring_safe(&wl->get_key_pair(), sizeof(ecc_key_pair));
 
     // Calculate metadata volumn
     size_t meta_len = 0;
@@ -900,13 +887,13 @@ crust_status_t id_store_metadata()
     // Append report height
     std::string report_height_str;
     report_height_str.append("\"").append(ID_REPORT_HEIGHT).append("\":")
-        .append(std::to_string(id_get_report_height())).append(",");
+        .append(std::to_string(wl->get_report_height())).append(",");
     memcpy(meta_buf + offset, report_height_str.c_str(), report_height_str.size());
     offset += report_height_str.size();
     // Append chain account id
     std::string account_id_str;
     account_id_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
-        .append("\"").append(g_chain_account_id).append("\",");
+        .append("\"").append(wl->get_account_id()).append("\",");
     memcpy(meta_buf + offset, account_id_str.c_str(), account_id_str.size());
     offset += account_id_str.size();
     // Append previous public key
@@ -1015,10 +1002,12 @@ crust_status_t id_restore_metadata()
         log_err("Identity: restore metadata failed!\n");
         return CRUST_UNEXPECTED_ERROR;
     }
-    memcpy(&id_key_pair, p_id_key, sizeof(id_key_pair));
+    ecc_key_pair tmp_key_pair;
+    memcpy(&tmp_key_pair, p_id_key, sizeof(ecc_key_pair));
+    wl->set_key_pair(tmp_key_pair);
     free(p_id_key);
-    // Restore report slot
-    id_set_report_height(meta_json[ID_REPORT_HEIGHT].ToInt());
+    // Restore report height
+    wl->set_report_height(meta_json[ID_REPORT_HEIGHT].ToInt());
     // Restore previous public key
     if (meta_json.hasKey(ID_PRE_PUB_KEY))
     {
@@ -1034,11 +1023,9 @@ crust_status_t id_restore_metadata()
         wl->set_upgrade(pre_pub_key);
     }
     // Restore chain account id
-    g_chain_account_id = meta_json[ID_CHAIN_ACCOUNT_ID].ToString();
+    wl->set_account_id(meta_json[ID_CHAIN_ACCOUNT_ID].ToString());
 
-    g_is_set_id_key_pair = true;
-    g_is_set_account_id = true;
-    just_after_restart = true; 
+    wl->set_restart_flag(true);
 
     return CRUST_SUCCESS;
 }
@@ -1051,7 +1038,7 @@ crust_status_t id_restore_metadata()
  */
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len)
 {
-    if (memcmp(g_chain_account_id.c_str(), account_id, len) != 0)
+    if (memcmp(Workload::get_instance()->get_account_id().c_str(), account_id, len) != 0)
     {
         return CRUST_NOT_EQUAL;
     }
@@ -1060,83 +1047,14 @@ crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len)
 }
 
 /**
- * @description: Set crust account id
- * @param account_id -> Chain account id
- * @param len -> Chain account id length
- * @return: Set status
- */
-crust_status_t id_set_chain_account_id(const char *account_id, size_t len)
-{
-    // Check if value has been set
-    if (g_is_set_account_id)
-    {
-        return CRUST_DOUBLE_SET_VALUE;
-    }
-
-    if (account_id == NULL)
-    {
-        return CRUST_UNEXPECTED_ERROR;
-    }
-
-    g_chain_account_id = string(account_id, len);
-    g_is_set_account_id = true;
-
-    return CRUST_SUCCESS;
-}
-
-/**
- * @description: Get key pair
- * @return: Identity key pair
- */
-ecc_key_pair id_get_key_pair()
-{
-    return id_key_pair;
-}
-
-/**
- * @description: Get last report height
- * @return: Last report height
- */
-size_t id_get_report_height()
-{
-    return g_report_height;
-}
-
-/**
- * @description: Set current report height
- * @param height -> new report height
- */
-void id_set_report_height(size_t height)
-{
-    g_report_height = height;
-}
-
-/**
- * @description: Determine if it just restarted 
- * @return: true or false
- */
-bool id_just_after_restart()
-{
-    return just_after_restart;
-}
-
-/**
- * @description: set just_after_restart
- * @param: true or false
- */
-void id_set_just_after_restart(bool in)
-{
-    just_after_restart = in;
-}
-
-/**
  * @description: Show enclave id information
  */
 void id_get_info()
 {
+    Workload *wl = Workload::get_instance();
     json::JSON id_info;
-    id_info["pub_key"] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    id_info["mrenclave"] = hexstring_safe(&current_mr_enclave, sizeof(sgx_measurement_t));
+    id_info["pub_key"] = hexstring_safe(&wl->get_pub_key(), sizeof(sgx_ec256_public_t));
+    id_info["mrenclave"] = hexstring_safe(&wl->get_mr_enclave(), sizeof(sgx_measurement_t));
     std::string id_str = id_info.dump();
     ocall_store_enclave_id_info(id_str.c_str());
 }
@@ -1184,17 +1102,17 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // ----- Generate work report ----- //
     // Current era has reported, wait for next era
-    if (block_height <= id_get_report_height())
+    if (block_height <= wl->get_report_height())
     {
         crust_status = CRUST_UNEXPECTED_ERROR;
         goto cleanup;
     }
-    if (block_height - id_get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
+    if (block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
     {
         crust_status = CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
         goto cleanup;
     }
-    report_height = id_get_report_height();
+    report_height = wl->get_report_height();
     while (block_height - report_height > ERA_LENGTH)
     {
         report_height += ERA_LENGTH;
@@ -1269,8 +1187,8 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     memset(sigbuf, 0, sigbuf_len);
     p_sigbuf = sigbuf;
     // Pub key
-    memcpy(sigbuf, &id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
-    sigbuf += sizeof(id_key_pair.pub_key);
+    memcpy(sigbuf, &wl->get_pub_key(), sizeof(sgx_ec256_public_t));
+    sigbuf += sizeof(sgx_ec256_public_t);
     // Block height
     memcpy(sigbuf, report_height_str.c_str(), report_height_str.size());
     sigbuf += report_height_str.size();
@@ -1282,7 +1200,8 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     sigbuf += sizeof(sgx_sha256_hash_t);
     // Files root
     memcpy(sigbuf, wl_info[WL_FILE_ROOT_HASH].ToBytes(), sizeof(sgx_sha256_hash_t));
-    sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len, &id_key_pair.pri_key, &sgx_sig, ecc_state);
+    sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len,
+            const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &sgx_sig, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         crust_status = CRUST_SGX_SIGN_FAILED;
@@ -1291,7 +1210,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // ----- Store upgrade data ----- //
     pubkey_data.append("{\"" UPGRADE_PUBLIC_KEY "\":")
-        .append("\"").append(hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key))).append("\"");
+        .append("\"").append(hexstring_safe(&wl->get_pub_key(), sizeof(sgx_ec256_public_t))).append("\"");
     block_height_data.append(",\"" UPGRADE_BLOCK_HEIGHT "\":").append(report_height_str);
     block_hash_data.append(",\"" UPGRADE_BLOCK_HASH "\":")
         .append("\"").append(report_hash, HASH_LENGTH * 2).append("\"");
@@ -1532,7 +1451,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
 
     // ----- Send current version's work report ----- //
     wl->set_upgrade(sgx_a_pub_key);
-    report_add_validated_proof();
+    wl->report_add_validated_proof();
     if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()))))
     {
         goto cleanup;

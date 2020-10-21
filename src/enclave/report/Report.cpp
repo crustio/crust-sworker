@@ -2,57 +2,11 @@
 #include "EJson.h"
 
 
-/* Indicates whether the current work report is validated */
-sgx_thread_mutex_t g_validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-int validated_proof = 0;
 std::string g_work_report;
 
 extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_checked_files_mutex;
 extern sgx_thread_mutex_t g_gen_work_report;
-
-/**
- * @description: add validated proof
- */
-void report_add_validated_proof()
-{
-    sgx_thread_mutex_lock(&g_validated_mutex);
-    if (validated_proof >= 2)
-    {
-        validated_proof = 2;
-    }
-    else
-    {
-        validated_proof++;
-    }
-    sgx_thread_mutex_unlock(&g_validated_mutex);
-}
-
-/**
- * @description: reduce validated proof
- */
-void report_reduce_validated_proof()
-{
-    sgx_thread_mutex_lock(&g_validated_mutex);
-    if (validated_proof <= 0)
-    {
-        validated_proof = 0;
-    }
-    else
-    {
-        validated_proof--;
-    }
-    sgx_thread_mutex_unlock(&g_validated_mutex);
-}
-
-/**
- * @description: Has validated proof
- * @return: true or false
- */
-bool report_has_validated_proof()
-{
-    return validated_proof > 0;
-}
 
 /**
  * @description: Get generated work report
@@ -71,23 +25,23 @@ std::string get_generated_work_report()
  */
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked /*=true*/)
 {
+    Workload *wl = Workload::get_instance();
     // Judge whether the current data is validated 
-    if (!report_has_validated_proof())
+    if (!wl->report_has_validated_proof())
     {
         return CRUST_WORK_REPORT_NOT_VALIDATED;
     }
 
     // Judge whether block height is expired
-    if (block_height == 0 || block_height - id_get_report_height() < ERA_LENGTH)
+    if (block_height == 0 || block_height - wl->get_report_height() < ERA_LENGTH)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
 
-    Workload *wl = Workload::get_instance();
     // The first report after restart will not be processed
-    if (id_just_after_restart())
+    if (wl->get_restart_flag())
     {
-        id_set_just_after_restart(false);
+        wl->set_restart_flag(false);
         wl->set_report_flag(true);
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
@@ -104,7 +58,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         sgx_thread_mutex_lock(&g_gen_work_report);
     }
 
-    ecc_key_pair id_key_pair = id_get_key_pair();
+    ecc_key_pair id_key_pair = wl->get_key_pair();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status;
     size_t hashs_len = 0;
@@ -387,7 +341,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     wl->set_report_flag(true);
 
     // Set report height
-    id_set_report_height(block_height);
+    wl->set_report_height(block_height);
 
 
 cleanup:
@@ -403,7 +357,7 @@ cleanup:
 
     free(p_sigbuf);
 
-    report_reduce_validated_proof();
-    id_set_just_after_restart(false);
+    wl->report_reduce_validated_proof();
+    wl->set_restart_flag(false);
     return crust_status;
 }

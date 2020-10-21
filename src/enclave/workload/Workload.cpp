@@ -623,3 +623,165 @@ void Workload::restore_wl_spec_info(std::string data)
 {
     this->wl_spec_info = json::JSON::Load(data);
 }
+
+/**
+ * @description: Set chain account id
+ * @param account_id -> Chain account id
+ */
+void Workload::set_account_id(std::string account_id)
+{
+    this->account_id = account_id;
+}
+
+/**
+ * @description: Get chain account id
+ * @return: Chain account id
+ */
+std::string Workload::get_account_id()
+{
+    return this->account_id;
+}
+
+/**
+ * @description: Can get key pair or not
+ * @return: Get result
+ */
+bool Workload::try_get_key_pair()
+{
+    return this->is_set_key_pair;
+}
+
+/**
+ * @description: Get public key
+ * @return: Public key
+ */
+const sgx_ec256_public_t& Workload::get_pub_key()
+{
+    return this->id_key_pair.pub_key;
+}
+
+/**
+ * @description: Get private key
+ * @return: Get private key
+ */
+const sgx_ec256_private_t& Workload::get_pri_key()
+{
+    return this->id_key_pair.pri_key;
+}
+
+/**
+ * @description: Set identity key pair
+ * @param id_key_pair -> Identity key pair
+ */
+void Workload::set_key_pair(ecc_key_pair id_key_pair)
+{
+    memcpy(&this->id_key_pair.pub_key, &id_key_pair.pub_key, sizeof(sgx_ec256_public_t));
+    memcpy(&this->id_key_pair.pri_key, &id_key_pair.pri_key, sizeof(sgx_ec256_private_t));
+    this->is_set_key_pair = true;
+}
+
+/**
+ * @description: Get identity key pair
+ * @return: Identity key pair
+ */
+const ecc_key_pair& Workload::get_key_pair()
+{
+    return this->id_key_pair;
+}
+
+/**
+ * @description: Set MR enclave
+ * @param mr -> MR enclave
+ */
+void Workload::set_mr_enclave(sgx_measurement_t mr)
+{
+    memcpy(&this->mr_enclave, &mr, sizeof(sgx_measurement_t));
+}
+
+/**
+ * @description: Get MR enclave
+ * @return: MR enclave
+ */
+const sgx_measurement_t& Workload::get_mr_enclave()
+{
+    return this->mr_enclave;
+}
+
+/**
+ * @description: Set report height
+ * @param height -> Report height
+ */
+void Workload::set_report_height(size_t height)
+{
+    this->report_height = height;
+}
+
+/**
+ * @description: Get report height
+ * @return: Report height
+ */
+size_t Workload::get_report_height()
+{
+    return this->report_height;
+}
+
+/**
+ * @description: Set restart flag
+ * @param flag -> Restart flag
+ */
+void Workload::set_restart_flag(bool flag)
+{
+    this->restart_flag = flag;
+}
+
+/**
+ * @description: Get restart flag
+ * @return: Restart flag
+ */
+bool Workload::get_restart_flag()
+{
+    return this->restart_flag;
+}
+
+/**
+ * @description: add validated proof
+ */
+void Workload::report_add_validated_proof()
+{
+    sgx_thread_mutex_lock(&this->validated_mutex);
+    if (this->validated_proof >= 2)
+    {
+        this->validated_proof = 2;
+    }
+    else
+    {
+        this->validated_proof++;
+    }
+    sgx_thread_mutex_unlock(&this->validated_mutex);
+}
+
+/**
+ * @description: reduce validated proof
+ */
+void Workload::report_reduce_validated_proof()
+{
+    sgx_thread_mutex_lock(&this->validated_mutex);
+    if (this->validated_proof <= 0)
+    {
+        this->validated_proof = 0;
+    }
+    else
+    {
+        this->validated_proof--;
+    }
+    sgx_thread_mutex_unlock(&this->validated_mutex);
+}
+
+/**
+ * @description: Has validated proof
+ * @return: true or false
+ */
+bool Workload::report_has_validated_proof()
+{
+    return this->validated_proof > 0;
+}
