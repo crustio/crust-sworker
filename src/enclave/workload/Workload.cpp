@@ -60,7 +60,9 @@ std::string Workload::get_workload(void)
     json::JSON wl_json;
 
     // File info
+    sgx_thread_mutex_lock(&wl_spec_info_mutex);
     wl_json[WL_FILES] = this->wl_spec_info;
+    sgx_thread_mutex_unlock(&wl_spec_info_mutex);
     // Srd info
     wl_json[WL_SRD][WL_SRD_DETAIL] = this->get_srd_info();
     wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_change();
@@ -210,8 +212,7 @@ json::JSON Workload::gen_workload_info()
         size_t f_hashs_len = 0;
         for (size_t i = 0; i < this->checked_files.size(); i++)
         {
-            std::string f_hash = this->checked_files[i][FILE_HASH].ToString();
-            uint8_t *f_hash_u = hex_string_to_bytes(f_hash.c_str(), f_hash.size());
+            uint8_t *f_hash_u = this->checked_files[i][FILE_HASH].ToBytes();
             if (f_hash_u == NULL)
             {
                 return ans;
@@ -320,7 +321,7 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    // Get srd_path2hashs_m
+    // Clean srd_path2hashs_m
     for (auto it : this->srd_path2hashs_m)
     {
         for (auto g_hash : it.second)
@@ -361,10 +362,21 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
  */
 void Workload::restore_file(json::JSON file_json)
 {
+    std::string num_name;
+    std::string size_name;
+    char status_c;
     this->checked_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
         this->checked_files.push_back(file_json[i]);
+        // Restore workload spec info
+        status_c = file_json[i][FILE_STATUS].get_char(CURRENT_STATUS);
+        std::pair<wl_spec_t, wl_spec_t> spec_p;
+        this->get_wl_spec_by_file_status(status_c, spec_p);
+        num_name = wl_spec_m[spec_p.first];
+        size_name = wl_spec_m[spec_p.second];
+        this->wl_spec_info[num_name] = this->wl_spec_info[num_name].ToInt() + 1;
+        this->wl_spec_info[size_name] = this->wl_spec_info[size_name].ToInt() + file_json[i][FILE_OLD_SIZE].ToInt();
     }
 }
 
@@ -383,7 +395,7 @@ void Workload::add_new_file(json::JSON file)
  * @description: Set report file flag
  * @param flag -> Report flag
  */
-void Workload::set_report_flag(bool flag)
+void Workload::set_report_file_flag(bool flag)
 {
     sgx_thread_mutex_lock(&g_report_flag_mutex);
     this->report_files = flag;
@@ -394,7 +406,7 @@ void Workload::set_report_flag(bool flag)
  * @description: Get report flag
  * @return: Report flag
  */
-bool Workload::get_report_flag()
+bool Workload::get_report_file_flag()
 {
     sgx_thread_mutex_lock(&g_report_flag_mutex);
     bool flag = this->report_files;
@@ -470,7 +482,6 @@ enc_upgrade_status_t Workload::get_upgrade_status()
 
 /**
  * @description: Handle workreport result
- * @param report_res -> Workreport result
  */
 void Workload::handle_report_result()
 {
@@ -486,6 +497,37 @@ void Workload::handle_report_result()
     }
     this->reported_files_idx.clear();
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
+}
+
+/**
+ * @description: Check if can report workreport
+ * @return: Check status
+ */
+crust_status_t Workload::try_report_work(size_t block_height)
+{
+    if (block_height == 0 || block_height - this->get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
+    {
+        return CRUST_UPGRADE_BLOCK_EXPIRE;
+    }
+
+    if (!this->report_has_validated_proof())
+    {
+        return CRUST_UPGRADE_NO_VALIDATE;
+    }
+
+    if (this->get_restart_flag())
+    {
+        return CRUST_UPGRADE_RESTART;
+    }
+
+    if (!this->get_report_file_flag())
+    {
+        return CRUST_UPGRADE_NO_FILE;
+    }
+    
+    this->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
+
+    return CRUST_SUCCESS;
 }
 
 /*
@@ -783,5 +825,9 @@ void Workload::report_reduce_validated_proof()
  */
 bool Workload::report_has_validated_proof()
 {
-    return this->validated_proof > 0;
+    sgx_thread_mutex_lock(&this->validated_mutex);
+    bool res = (this->validated_proof > 0);
+    sgx_thread_mutex_unlock(&this->validated_mutex);
+
+    return res;
 }

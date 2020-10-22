@@ -14,9 +14,6 @@ sgx_thread_mutex_t g_gen_work_report = SGX_THREAD_MUTEX_INITIALIZER;
 uint8_t *g_upgrade_buffer = NULL;
 size_t g_upgrade_buffer_offset = 0;
 
-extern sgx_thread_mutex_t g_srd_mutex;
-extern sgx_thread_mutex_t g_checked_files_mutex;
-
 // Intel SGX root certificate
 static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
 "MIIFSzCCA7OgAwIBAgIJANEHdl0yo7CUMA0GCSqGSIb3DQEBCwUAMH4xCzAJBgNV" "\n"
@@ -1147,7 +1144,8 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     // Send work report
     // TODO: Wait a random time:[10, 50] block time
     sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
-    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * UPGRADE_WAIT_BLOCK_BASE;
+    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
+    log_info("Upgrade: generate workreport successfully!Will send after %ld seconds...\n", random_time);
     ocall_usleep(random_time * 1000000);
     ocall_upload_workreport(&crust_status, work_report.c_str());
     if (CRUST_SUCCESS != crust_status)

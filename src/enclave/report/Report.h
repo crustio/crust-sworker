@@ -17,8 +17,6 @@
 #include "EUtils.h"
 #include "Schedule.h"
 
-# define ERA_LENGTH 300
-
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked = true);
 std::string get_generated_work_report();
 

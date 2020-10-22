@@ -150,7 +150,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.result(600);
         return send(std::move(res));
     }
-    if (UPGRADE_STATUS_NONE != get_g_upgrade_status() && upgrade_block_s.find(route_tag) != upgrade_block_s.end())
+    if (UPGRADE_STATUS_NONE != get_g_upgrade_status() 
+            && UPGRADE_STATUS_STOP_WORKREPORT != get_g_upgrade_status()
+            && upgrade_block_s.find(route_tag) != upgrade_block_s.end())
     {
         p_log->warn("Upgrade is doing, %s request cannot be applied!\n", route_tag.c_str());
         http::response<http::string_body> res{
@@ -335,12 +337,28 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 else
                 {
-                    char *p_res = (char *)malloc(128);
-                    memset(p_res, 0, 128);
-                    sprintf(p_res, "Not ready for upgrade!Error code:%lx", (long unsigned int)crust_status);
-                    ret_info = std::string(ret_info);
-                    free(p_res);
-                    res.result(405);
+                    switch (crust_status)
+                    {
+                        case CRUST_UPGRADE_BLOCK_EXPIRE:
+                            ret_info = "Block expired!Wait for next era.";
+                            res.result(405);
+                            break;
+                        case CRUST_UPGRADE_NO_VALIDATE:
+                            ret_info = "Necessary validation not completed!";
+                            res.result(406);
+                            break;
+                        case CRUST_UPGRADE_RESTART:
+                            ret_info = "Cannot report due to restart!Wait for next era.";
+                            res.result(407);
+                            break;
+                        case CRUST_UPGRADE_NO_FILE:
+                            ret_info = "Cannot get files for check!Please check karst!";
+                            res.result(408);
+                            break;
+                        default:
+                            ret_info = "Unknown error.";
+                            res.result(409);
+                    }
                 }
             }
             res.body() = ret_info;

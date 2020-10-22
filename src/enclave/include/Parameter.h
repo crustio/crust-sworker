@@ -67,6 +67,8 @@
 #define WORKREPORT_SIG "sig"
 #define WORKREPORT_FILE_LIMIT 1000
 #define WORKREPORT_REPORT_INTERVAL 10
+#define ERA_LENGTH 300
+#define BLOCK_TIME_BASE 6
 
 // For workload
 #define WL_SRD "srd"
@@ -80,6 +82,18 @@
 #define WL_FILE_OLD_HASH "old_hash"
 #define WL_FILE_OLD_SIZE "old_size"
 #define WL_FILE_ROOT_HASH "file_root_hash"
+
+// For srd
+#define SRD_MAX_PER_TURN 64
+
+// For validator
+#define SRD_VALIDATE_RATE 0.02
+#define SRD_VALIDATE_MIN_NUM 64
+/* Meaningful disk file verification ratio */
+#define MEANINGFUL_VALIDATE_RATE 0.02
+#define MEANINGFUL_VALIDATE_MIN_NUM 64
+#define MEANINGFUL_VALIDATE_MIN_BLOCK_NUM 1
+#define MAX_BLOCK_SIZE 1048576 /* 1024*1024 */
 
 // For ocalls
 #define PERSIST_SUM "persist_sum"
@@ -102,7 +116,6 @@
 #define UPGRADE_SIG "upgrade_sig"
 #define UPGRADE_WAIT_BLOCK_MAX 50
 #define UPGRADE_WAIT_BLOCK_MIN 10
-#define UPGRADE_WAIT_BLOCK_BASE 6
 
 typedef enum _enc_upgrade_status_t {
     ENC_UPGRADE_STATUS_NONE,

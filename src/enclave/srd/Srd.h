@@ -11,8 +11,8 @@
 #include "EUtils.h"
 #include "PathHelper.h"
 #include "Schedule.h"
-
-#define SRD_MAX_PER_TURN 64
+#include "SafeLock.h"
+#include "Parameter.h"
 
 void srd_change();
 void srd_increase(const char *path);

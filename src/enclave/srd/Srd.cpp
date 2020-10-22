@@ -94,22 +94,20 @@ void srd_increase(const char *path)
     {
         if (g_base_rand_buffer == NULL)
         {
-            sgx_thread_mutex_lock(&g_base_rand_buffer_mutex);
+            SafeLock sl(g_base_rand_buffer_mutex);
+            sl.lock();
             if (g_base_rand_buffer != NULL)
             {
-                sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
                 break;
             }
             g_base_rand_buffer = (uint8_t *)enc_malloc(SRD_RAND_DATA_LENGTH);
             if (g_base_rand_buffer == NULL)
             {
                 log_err("Malloc memory failed!\n");
-                sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
                 return;
             }
             memset(g_base_rand_buffer, 0, SRD_RAND_DATA_LENGTH);
             sgx_read_rand(g_base_rand_buffer, sizeof(g_base_rand_buffer));
-            sgx_thread_mutex_unlock(&g_base_rand_buffer_mutex);
         }
     } while (0);
 
