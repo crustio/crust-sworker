@@ -118,7 +118,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     wl->add_new_file(file_entry_json);
 
     // Add info in workload spec
-    wl->set_wl_spec(WL_SPEC_FILE_UNCONFIRMED_SIZE, file_entry_json[FILE_SIZE].ToInt());
+    wl->set_wl_spec(WL_SPEC_FILE_UNCONFIRMED_SIZE, file_entry_json[FILE_OLD_SIZE].ToInt());
 
     return crust_status;
 }
@@ -482,7 +482,7 @@ crust_status_t storage_confirm_file(const char *hash)
     // Set workload spec information
     if (is_confirmed)
     {
-        wl->set_wl_spec(WL_SPEC_FILE_VALID_SIZE, WL_SPEC_FILE_UNCONFIRMED_SIZE, confirmed_file[FILE_SIZE].ToInt());
+        wl->set_wl_spec(WL_SPEC_FILE_VALID_SIZE, WL_SPEC_FILE_UNCONFIRMED_SIZE, confirmed_file[FILE_OLD_SIZE].ToInt());
     }
 
     return crust_status;
@@ -496,7 +496,7 @@ crust_status_t storage_confirm_file(const char *hash)
 crust_status_t storage_delete_file(const char *hash)
 {
     // ----- Delete file items in metadata ----- //
-    std::string deleted_file;
+    json::JSON deleted_file;
     crust_status_t crust_status = CRUST_SUCCESS;
 
     // ----- Delete file items in checked_files ----- //
@@ -508,8 +508,8 @@ crust_status_t storage_delete_file(const char *hash)
         std::string hash_str = wl->checked_files[i][FILE_HASH].ToString();
         if (hash_str.compare(hash) == 0)
         {
+            deleted_file = wl->checked_files[i];
             wl->checked_files[i][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-            deleted_file = hash_str;
             is_deleted = true;
             break;
         }
@@ -523,7 +523,7 @@ crust_status_t storage_delete_file(const char *hash)
             std::string hash_str = (*it)[FILE_HASH].ToString();
             if (hash_str.compare(hash) == 0)
             {
-                deleted_file = hash_str;
+                deleted_file = *it;
                 wl->new_files.erase((++it).base());
                 is_deleted = true;
                 break;
@@ -535,20 +535,24 @@ crust_status_t storage_delete_file(const char *hash)
     // Print deleted info
     if (is_deleted)
     {
-        log_info("Delete file:%s successfully!\n", deleted_file.c_str());
+        log_info("Delete file:%s successfully!\n", deleted_file[FILE_HASH].ToString().c_str());
     }
     else
     {
-        log_warn("Delete file:%s failed(not found)!\n", deleted_file.c_str());
+        log_warn("Delete file:%s failed(not found)!\n", deleted_file[FILE_HASH].ToString().c_str());
     }
 
     // ----- Delete file related data ----- //
     if (is_deleted)
     {
         // Delete file tree structure
-        persist_del(deleted_file);
+        persist_del(deleted_file[FILE_HASH].ToString());
         // Delete file metadata
-        persist_del(deleted_file + "_meta");
+        persist_del(deleted_file[FILE_HASH].ToString() + "_meta");
+        // Update workload spec info
+        std::pair<wl_spec_t, wl_spec_t> wl_p;
+        wl->get_wl_spec_by_file_status(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), wl_p);
+        wl->set_wl_spec(wl_p.second, -deleted_file[FILE_OLD_SIZE].ToInt());
     }
 
     return crust_status;
