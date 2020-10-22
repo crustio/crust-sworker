@@ -6,6 +6,7 @@
 #include <mutex>
 
 #include "Resource.h"
+#include "SafeLock.h"
 #include "Log.h"
 
 #if defined(__cplusplus)

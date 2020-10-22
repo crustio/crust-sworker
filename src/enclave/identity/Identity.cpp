@@ -1145,7 +1145,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     // TODO: Wait a random time:[10, 50] block time
     sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
     random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
-    log_info("Upgrade: generate workreport successfully!Will send after %ld seconds...\n", random_time);
+    log_info("Upgrade: generate workreport successfully!Will send after %ld blocks...\n", random_time / BLOCK_TIME_BASE);
     ocall_usleep(random_time * 1000000);
     ocall_upload_workreport(&crust_status, work_report.c_str());
     if (CRUST_SUCCESS != crust_status)

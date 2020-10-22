@@ -93,7 +93,12 @@ upgrade_status_t get_g_upgrade_status()
 
 void set_g_upgrade_status(upgrade_status_t upgrade_status)
 {
-    g_upgrade_status_mutex.lock();
+    SafeLock sl(g_upgrade_status_mutex);
+    sl.lock();
+    if (g_upgrade_status == upgrade_status)
+    {
+        return;
+    }
     g_upgrade_status = upgrade_status;
     switch(g_upgrade_status)
     {
@@ -118,7 +123,7 @@ void set_g_upgrade_status(upgrade_status_t upgrade_status)
         default:
             p_log->warn("Unknown upgrade status!\n");
     }
-    g_upgrade_status_mutex.unlock();
+    sl.unlock();
 
     if (UPGRADE_STATUS_NONE == get_g_upgrade_status())
     {

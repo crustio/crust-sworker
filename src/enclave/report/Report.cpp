@@ -26,31 +26,37 @@ std::string get_generated_work_report()
 crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked /*=true*/)
 {
     Workload *wl = Workload::get_instance();
-    // Judge whether the current data is validated 
-    if (!wl->report_has_validated_proof())
-    {
-        return CRUST_WORK_REPORT_NOT_VALIDATED;
-    }
-
+    crust_status_t crust_status = CRUST_SUCCESS;
     // Judge whether block height is expired
     if (block_height == 0 || block_height - wl->get_report_height() < ERA_LENGTH)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
 
-    // The first report after restart will not be processed
     if (wl->get_restart_flag())
     {
-        wl->set_restart_flag(false);
-        wl->set_report_file_flag(true);
-        return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
+        // The first report after restart will not be processed
+        crust_status =  CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
+    }
+    else if (!wl->report_has_validated_proof())
+    {
+        // Judge whether the current data is validated 
+        crust_status = CRUST_WORK_REPORT_NOT_VALIDATED;
+    }
+    else if (!wl->get_report_file_flag())
+    {
+        // Have files and no karst
+        crust_status = CRUST_NO_KARST;
     }
 
-    // Have files and no karst
-    if (!wl->get_report_file_flag())
+    // Don't meet workreport condition
+    if (CRUST_SUCCESS != crust_status)
     {
+        wl->set_report_height(block_height);
+        wl->set_restart_flag(false);
         wl->set_report_file_flag(true);
-        return CRUST_NO_KARST;
+        wl->report_reduce_validated_proof();
+        return crust_status;
     }
 
     if (locked)
@@ -59,7 +65,6 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     }
 
     ecc_key_pair id_key_pair = wl->get_key_pair();
-    crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status;
     size_t hashs_len = 0;
     size_t files_buffer_len = 0;
@@ -337,12 +342,6 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     store_large_data(reinterpret_cast<const uint8_t *>(wr_str.c_str()), wr_str.size(), ocall_store_workreport, wl->ocall_wr_mutex);
     g_work_report = wr_str;
 
-    // Reset meaningful data
-    wl->set_report_file_flag(true);
-
-    // Set report height
-    wl->set_report_height(block_height);
-
 
 cleanup:
     if (locked)
@@ -355,9 +354,15 @@ cleanup:
         sgx_ecc256_close_context(ecc_state);
     }
 
-    free(p_sigbuf);
+    if (p_sigbuf != NULL)
+    {
+        free(p_sigbuf);
+    }
 
-    wl->report_reduce_validated_proof();
+    wl->set_report_height(block_height);
     wl->set_restart_flag(false);
+    wl->set_report_file_flag(true);
+    wl->report_reduce_validated_proof();
+
     return crust_status;
 }
