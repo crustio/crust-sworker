@@ -1153,6 +1153,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         log_err("Upload work report failed!\n");
         goto cleanup;
     }
+    wl->handle_report_result();
 
     // Generate metadata
     wl->serialize_srd(srd_str);
