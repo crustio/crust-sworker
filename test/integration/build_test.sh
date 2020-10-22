@@ -582,8 +582,7 @@ function data_h_test
 function enc_report_cpp_test()
 {
     local pos=$(sed -n '/crust_status_t get_signed_work_report(/=' $enclave_report_cpp)
-    sed -i "$((pos+2)),$((pos+13))d" $enclave_report_cpp
-    sed -i "$((pos+2)) a \\\tWorkload *wl = Workload::get_instance();" $enclave_report_cpp
+    sed -i "$((pos+4)),$((pos+34))d" $enclave_report_cpp
 }
 
 ########## enc_validate_cpp_test ##########
