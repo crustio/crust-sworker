@@ -76,11 +76,12 @@ public:
     void report_add_validated_proof();
     void report_reduce_validated_proof();
     bool report_has_validated_proof();
-    void set_report_flag(bool flag);
-    bool get_report_flag();
+    void set_report_file_flag(bool flag);
+    bool get_report_file_flag();
     void set_restart_flag(bool flag);
     bool get_restart_flag();
     void handle_report_result();
+    crust_status_t try_report_work(size_t block_height);
 
     // For upgrade
     void set_upgrade(sgx_ec256_public_t pub_key);

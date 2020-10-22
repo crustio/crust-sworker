@@ -42,14 +42,14 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     if (wl->get_restart_flag())
     {
         wl->set_restart_flag(false);
-        wl->set_report_flag(true);
+        wl->set_report_file_flag(true);
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
 
     // Have files and no karst
-    if (!wl->get_report_flag())
+    if (!wl->get_report_file_flag())
     {
-        wl->set_report_flag(true);
+        wl->set_report_file_flag(true);
         return CRUST_NO_KARST;
     }
 
@@ -338,7 +338,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     g_work_report = wr_str;
 
     // Reset meaningful data
-    wl->set_report_flag(true);
+    wl->set_report_file_flag(true);
 
     // Set report height
     wl->set_report_height(block_height);

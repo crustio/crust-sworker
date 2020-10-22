@@ -13,14 +13,7 @@
 #include "Persistence.h"
 #include "EUtils.h"
 #include "Parameter.h"
-
-#define SRD_VALIDATE_RATE 0.02
-#define SRD_VALIDATE_MIN_NUM 64
-/* Meaningful disk file verification ratio */
-#define MEANINGFUL_VALIDATE_RATE 0.02
-#define MEANINGFUL_VALIDATE_MIN_NUM 64
-#define MEANINGFUL_VALIDATE_MIN_BLOCK_NUM 1
-#define MAX_BLOCK_SIZE 1048576 /* 1024*1024 */
+#include "SafeLock.h"
 
 void validate_srd();
 void validate_meaningful_file();

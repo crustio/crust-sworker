@@ -267,17 +267,7 @@ crust_status_t ecall_delete_file(const char *hash)
  */
 crust_status_t ecall_enable_upgrade(size_t block_height)
 {
-    Workload *wl = Workload::get_instance();
-    if ((block_height != 0 && block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL >= ERA_LENGTH)
-            && wl->report_has_validated_proof()
-            && !wl->get_restart_flag()
-            && wl->get_report_flag())
-    {
-        wl->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
-        return CRUST_SUCCESS;
-    }
-
-    return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+    return Workload::get_instance()->try_report_work(block_height);
 }
 
 /**

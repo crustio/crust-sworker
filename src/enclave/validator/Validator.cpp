@@ -232,7 +232,8 @@ void validate_meaningful_file()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->checked_files
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    SafeLock cf_lock(g_checked_files_mutex);
+    cf_lock.lock();
 
     // Add new file to validate
     sgx_thread_mutex_lock(&g_new_files_mutex);
@@ -251,9 +252,8 @@ void validate_meaningful_file()
     {
         if(wl->checked_files.size() != 0)
         {
-            wl->set_report_flag(false);
+            wl->set_report_file_flag(false);
         }
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
         ocall_validate_close();
         return;
     }
@@ -365,7 +365,7 @@ void validate_meaningful_file()
             } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
             {
-                log_err("Find leaf node failed!node index:%ld\n", check_block_idx);
+                log_err("Find file(%s) leaf node failed!node index:%ld\n", root_hash.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
                     status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
@@ -385,9 +385,8 @@ void validate_meaningful_file()
             {
                 if (CRUST_VALIDATE_KARST_OFFLINE == crust_status)
                 {
-                    log_err("Get file block:%ld failed!\n", check_block_idx);
-                    wl->set_report_flag(false);
-                    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+                    log_err("Get file(%s) block:%ld failed!\n", root_hash.c_str(), check_block_idx);
+                    wl->set_report_file_flag(false);
                     ocall_validate_close();
                     return;
                 }
@@ -412,7 +411,7 @@ void validate_meaningful_file()
             {
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    log_err("Index:%ld block hash is not expected!\n", check_block_idx);
+                    log_err("File(%s) Index:%ld block hash is not expected!\n", root_hash.c_str(), check_block_idx);
                     //log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     //log_err("Org hash : %s\n", leaf_hash.c_str());
                     status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
@@ -457,5 +456,5 @@ void validate_meaningful_file()
     ocall_validate_close();
 
     // Unlock wl->checked_files
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    cf_lock.unlock();
 }
