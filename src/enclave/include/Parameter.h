@@ -94,6 +94,7 @@
 #define MEANINGFUL_VALIDATE_MIN_NUM 64
 #define MEANINGFUL_VALIDATE_MIN_BLOCK_NUM 1
 #define MAX_BLOCK_SIZE 1048576 /* 1024*1024 */
+#define SRD_PUNISH_FACTOR 2
 
 // For ocalls
 #define PERSIST_SUM "persist_sum"

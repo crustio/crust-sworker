@@ -806,6 +806,13 @@ crust_status_t id_store_metadata()
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string hex_id_key_str = hexstring_safe(&wl->get_key_pair(), sizeof(ecc_key_pair));
 
+    // Store workload spec info
+    std::string wl_spec_info_str = wl->get_wl_spec().dump();
+    remove_char(wl_spec_info_str, '\n');
+    remove_char(wl_spec_info_str, '\\');
+    remove_char(wl_spec_info_str, ' ');
+    persist_set_unsafe(DB_WL_SPEC_INFO, reinterpret_cast<const uint8_t *>(wl_spec_info_str.c_str()), wl_spec_info_str.size());
+
     // Calculate metadata volumn
     size_t meta_len = 0;
     for (auto it : wl->srd_path2hashs_m)
@@ -1451,6 +1458,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     // ----- Send current version's work report ----- //
     wl->set_upgrade(sgx_a_pub_key);
     wl->report_add_validated_proof();
+    wl->set_is_upgrading(true);
     if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()))))
     {
         goto cleanup;
@@ -1460,6 +1468,8 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
 
 
 cleanup:
+    wl->set_is_upgrading(false);
+
     if (ecc_state != NULL)
     {
         sgx_ecc256_close_context(ecc_state);
