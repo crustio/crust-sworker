@@ -147,7 +147,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
         res.body() = "No service will be provided because of upgrade complete!";
-        res.result(600);
+        res.result(503);
         return send(std::move(res));
     }
     if (UPGRADE_STATUS_NONE != get_g_upgrade_status() 
@@ -162,7 +162,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
         res.body() = "Current service is closed due to upgrade!";
-        res.result(601);
+        res.result(503);
         return send(std::move(res));
     }
 
@@ -228,21 +228,18 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             json::JSON file_info = wl_json["files"];
             json::JSON n_file_info;
             char buf[128];
-            // Unconfirmed
-            memset(buf, 0, sizeof(buf));
-            sprintf(buf, "{  \"num\" : %-6ld, \"size\" : %ld  }",
-                    file_info["unconfirmed_num"].ToInt(), file_info["unconfirmed_size"].ToInt());
-            n_file_info["unconfirmed"] = std::string(buf);
-            // Valid
-            memset(buf, 0, sizeof(buf));
-            sprintf(buf, "      {  \"num\" : %-6ld, \"size\" : %ld  }",
-                    file_info["valid_num"].ToInt(), file_info["valid_size"].ToInt());
-            n_file_info["valid"] = std::string(buf);
-            // Lost
-            memset(buf, 0, sizeof(buf));
-            sprintf(buf, "       {  \"num\" : %-6ld, \"size\" : %ld  }",
-                    file_info["lost_num"].ToInt(), file_info["lost_size"].ToInt());
-            n_file_info["lost"] = std::string(buf);
+            int space_num = 0;
+            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+            {
+                space_num = std::max(space_num, (int)it->first.size());
+            }
+            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+            {
+                memset(buf, 0, sizeof(buf));
+                sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
+                        std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
+                n_file_info[it->first] = std::string(buf);
+            }
 
             wl_json["files"] = n_file_info;
             std::string wl_str = wl_json.dump();

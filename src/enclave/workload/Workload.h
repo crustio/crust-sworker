@@ -26,24 +26,6 @@ std::map<char, std::string> g_file_status = {
     {FILE_STATUS_DELETED, "deleted"}
 };
 
-typedef enum _wl_spec_t {
-    WL_SPEC_FILE_VALID_NUM,
-    WL_SPEC_FILE_VALID_SIZE,
-    WL_SPEC_FILE_LOST_NUM,
-    WL_SPEC_FILE_LOST_SIZE,
-    WL_SPEC_FILE_UNCONFIRMED_NUM,
-    WL_SPEC_FILE_UNCONFIRMED_SIZE,
-} wl_spec_t;
-
-std::map<wl_spec_t, std::string> wl_spec_m = {
-    { WL_SPEC_FILE_VALID_NUM , "valid_num" },
-    { WL_SPEC_FILE_VALID_SIZE , "valid_size" },
-    { WL_SPEC_FILE_LOST_NUM , "lost_num" },
-    { WL_SPEC_FILE_LOST_SIZE , "lost_size" },
-    { WL_SPEC_FILE_UNCONFIRMED_NUM , "unconfirmed_num" },
-    { WL_SPEC_FILE_UNCONFIRMED_SIZE , "unconfirmed_size" },
-};
-
 class Workload
 {
 public:
@@ -70,7 +52,6 @@ public:
     crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
     crust_status_t restore_srd(json::JSON g_hashs);
     void restore_file(json::JSON file_json);
-    crust_status_t get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json);
 
     // For report
     void report_add_validated_proof();
@@ -88,12 +69,14 @@ public:
     bool is_upgrade();
     void set_upgrade_status(enc_upgrade_status_t status);
     enc_upgrade_status_t get_upgrade_status();
+    void set_is_upgrading(bool flag);
+    bool get_is_upgrading();
 
     // For workload spec
-    void set_wl_spec(wl_spec_t wl_spec, int change);
-    void set_wl_spec(wl_spec_t wl_spec, wl_spec_t related_wl_spec, int change);
+    void set_wl_spec(char file_status, int change);
+    void set_wl_spec(char file_status, char related_file_status, int change);
+    const json::JSON &get_wl_spec();
     void restore_wl_spec_info(std::string data);
-    bool get_wl_spec_by_file_status(char status, std::pair<wl_spec_t, wl_spec_t> &wl_pair);
 
     // For identity
     void set_account_id(std::string account_id);
@@ -127,6 +110,8 @@ private:
 
     int validated_proof = 0; // Generating workreport will decrease this value, while validating will increase it
     sgx_thread_mutex_t validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+
+    bool is_upgrading = false; // Indicate if upgrade is doing
 
     bool report_files; // True indicates reporting files this turn, false means not report
     json::JSON srd_info_json; // Srd info

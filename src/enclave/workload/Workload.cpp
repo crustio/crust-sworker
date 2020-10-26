@@ -33,6 +33,12 @@ Workload *Workload::get_instance()
 Workload::Workload()
 {
     this->report_files = true;
+    this->wl_spec_info[g_file_status[FILE_STATUS_UNCONFIRMED]]["num"] = 0;
+    this->wl_spec_info[g_file_status[FILE_STATUS_UNCONFIRMED]]["size"] = 0;
+    this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
+    this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
+    this->wl_spec_info[g_file_status[FILE_STATUS_LOST]]["num"] = 0;
+    this->wl_spec_info[g_file_status[FILE_STATUS_LOST]]["size"] = 0;
 }
 
 /**
@@ -94,69 +100,6 @@ void Workload::clean_data()
 }
 
 /**
- * @description: Generate srd information
- * @param srd_root_out -> srd root hash
- * @param srd_workload_out -> srd workload
- * @return: Get status
- */
-crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json)
-{
-    if (! md_json.hasKey(ID_WORKLOAD) 
-            || md_json[ID_WORKLOAD].JSONType() != json::JSON::Class::Object)
-    {
-        return CRUST_SUCCESS;
-    }
-    // Get hashs for hashing
-    uint64_t g_hashs_num = 0;
-    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
-            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
-    {
-        g_hashs_num += it->second.size();
-    }
-    uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
-    if (hashs == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    uint64_t hashs_len = 0;
-
-    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
-            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
-    {
-        for (int i = 0; i < it->second.size(); i++)
-        {
-            std::string hash_str = it->second[i].ToString();
-            uint8_t *hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
-            if (hash_u == NULL)
-            {
-                free(hashs);
-                return CRUST_MALLOC_FAILED;
-            }
-            memcpy(hashs + hashs_len, hash_u, HASH_LENGTH);
-            free(hash_u);
-            hashs_len += HASH_LENGTH;
-        }
-    }
-
-    // generate srd information
-    if (hashs_len == 0)
-    {
-        *srd_workload_out = 0;
-        memset(srd_root_out, 0, HASH_LENGTH);
-    }
-    else
-    {
-        *srd_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, hashs_len, srd_root_out);
-    }
-
-    free(hashs);
-
-    return CRUST_SUCCESS;
-}
-
-/**
  * @description: Generate workload info
  * @return: Workload info in json format
  */
@@ -212,13 +155,7 @@ json::JSON Workload::gen_workload_info()
         size_t f_hashs_len = 0;
         for (size_t i = 0; i < this->checked_files.size(); i++)
         {
-            uint8_t *f_hash_u = this->checked_files[i][FILE_HASH].ToBytes();
-            if (f_hash_u == NULL)
-            {
-                return ans;
-            }
-            memcpy(f_hashs + f_hashs_len, f_hash_u, HASH_LENGTH);
-            free(f_hash_u);
+            memcpy(f_hashs + f_hashs_len, this->checked_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
             f_hashs_len += HASH_LENGTH;
         }
         sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
@@ -362,21 +299,12 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
  */
 void Workload::restore_file(json::JSON file_json)
 {
-    std::string num_name;
-    std::string size_name;
-    char status_c;
     this->checked_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
         this->checked_files.push_back(file_json[i]);
         // Restore workload spec info
-        status_c = file_json[i][FILE_STATUS].get_char(CURRENT_STATUS);
-        std::pair<wl_spec_t, wl_spec_t> spec_p;
-        this->get_wl_spec_by_file_status(status_c, spec_p);
-        num_name = wl_spec_m[spec_p.first];
-        size_name = wl_spec_m[spec_p.second];
-        this->wl_spec_info[num_name] = this->wl_spec_info[num_name].ToInt() + 1;
-        this->wl_spec_info[size_name] = this->wl_spec_info[size_name].ToInt() + file_json[i][FILE_OLD_SIZE].ToInt();
+        set_wl_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_OLD_SIZE].ToInt());
     }
 }
 
@@ -530,131 +458,50 @@ crust_status_t Workload::try_report_work(size_t block_height)
     return CRUST_SUCCESS;
 }
 
-/*
- * @description: Get workload spec by file status
- * @param status -> File status
- * @param wl_pair -> Reference to wl_spec_t pair
- * @return: Get result
- */
-bool Workload::get_wl_spec_by_file_status(char status, std::pair<wl_spec_t, wl_spec_t> &wl_pair)
-{
-    bool res = true;
-
-    if (status == FILE_STATUS_VALID)
-    {
-        wl_pair = std::make_pair(WL_SPEC_FILE_VALID_NUM, WL_SPEC_FILE_VALID_SIZE);
-    }
-    else if (status == FILE_STATUS_LOST)
-    {
-        wl_pair = std::make_pair(WL_SPEC_FILE_LOST_NUM, WL_SPEC_FILE_LOST_SIZE);
-    }
-    else if (status == FILE_STATUS_UNCONFIRMED)
-    {
-        wl_pair = std::make_pair(WL_SPEC_FILE_UNCONFIRMED_NUM, WL_SPEC_FILE_UNCONFIRMED_SIZE);
-    }
-    else
-    {
-        res = false;
-    }
-
-    return res;
-}
-
 /**
  * @description: Set workload spec information
- * @param wl_spec -> Workload spec
+ * @param file_status -> Workload spec
  * @param change -> Spec information change
  */
-void Workload::set_wl_spec(wl_spec_t wl_spec, int change)
+void Workload::set_wl_spec(char file_status, int change)
 {
     sgx_thread_mutex_lock(&wl_spec_info_mutex);
-    std::string spec_name = wl_spec_m[wl_spec];
-    std::string spec_num_name;
-    this->wl_spec_info[spec_name] = this->wl_spec_info[spec_name].ToInt() + change;
-    switch(wl_spec)
-    {
-        case WL_SPEC_FILE_VALID_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_VALID_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() + (change > 0 ? 1 : -1);
-            break;
-        case WL_SPEC_FILE_LOST_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_LOST_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() + (change > 0 ? 1 : -1);
-            break;
-        case WL_SPEC_FILE_UNCONFIRMED_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_UNCONFIRMED_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() + (change > 0 ? 1 : -1);
-            break;
-        default:
-            log_warn("Inoperable item!\n");
-    }
-    std::string wl_spec_info_str = this->wl_spec_info.dump();
-    remove_char(wl_spec_info_str, '\n');
-    remove_char(wl_spec_info_str, '\\');
-    remove_char(wl_spec_info_str, ' ');
-    persist_set_unsafe(DB_WL_SPEC_INFO, reinterpret_cast<const uint8_t *>(wl_spec_info_str.c_str()), wl_spec_info_str.size());
+    std::string ws_name = g_file_status[file_status];
+    this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
+    this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
     sgx_thread_mutex_unlock(&wl_spec_info_mutex);
 }
 
 /**
  * @description: Set workload spec information
- * @param wl_spec -> Workload spec
- * @param related_wl_spec -> Related workload spec
+ * @param file_status -> Workload spec
+ * @param related_file_status -> Related workload spec
  * @param change -> Spec information change
  */
-void Workload::set_wl_spec(wl_spec_t wl_spec, wl_spec_t related_wl_spec, int change)
+void Workload::set_wl_spec(char file_status, char related_file_status, int change)
 {
-    std::string spec_name = wl_spec_m[wl_spec];
-    std::string related_spec_name = wl_spec_m[related_wl_spec];
-    std::string spec_num_name;
-    if (wl_spec == related_wl_spec)
+    if (file_status == related_file_status)
     {
         return;
     }
 
     sgx_thread_mutex_lock(&wl_spec_info_mutex);
-    this->wl_spec_info[spec_name] = this->wl_spec_info[spec_name].ToInt() + change;
-    this->wl_spec_info[related_spec_name] = this->wl_spec_info[related_spec_name].ToInt() - change;
-    switch(wl_spec)
-    {
-        case WL_SPEC_FILE_VALID_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_VALID_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() + (change > 0 ? 1 : -1);
-            break;
-        case WL_SPEC_FILE_LOST_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_LOST_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() + (change > 0 ? 1 : -1);
-            break;
-        case WL_SPEC_FILE_UNCONFIRMED_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_UNCONFIRMED_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() + (change > 0 ? 1 : -1);
-            break;
-        default:
-            log_warn("Inoperable item!\n");
-    }
-    switch(related_wl_spec)
-    {
-        case WL_SPEC_FILE_VALID_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_VALID_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() - (change > 0 ? 1 : -1);
-            break;
-        case WL_SPEC_FILE_LOST_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_LOST_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() - (change > 0 ? 1 : -1);
-            break;
-        case WL_SPEC_FILE_UNCONFIRMED_SIZE:
-            spec_num_name = wl_spec_m[WL_SPEC_FILE_UNCONFIRMED_NUM];
-            this->wl_spec_info[spec_num_name] = this->wl_spec_info[spec_num_name].ToInt() - (change > 0 ? 1 : -1);
-            break;
-        default:
-            log_warn("Inoperable item!\n");
-    }
-    std::string wl_spec_info_str = this->wl_spec_info.dump();
-    remove_char(wl_spec_info_str, '\n');
-    remove_char(wl_spec_info_str, '\\');
-    remove_char(wl_spec_info_str, ' ');
-    persist_set_unsafe(DB_WL_SPEC_INFO, reinterpret_cast<const uint8_t *>(wl_spec_info_str.c_str()), wl_spec_info_str.size());
+    std::string ws_name = g_file_status[file_status];
+    std::string related_ws_name = g_file_status[related_file_status];
+    this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
+    this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
+    this->wl_spec_info[related_ws_name]["num"] = this->wl_spec_info[related_ws_name]["num"].ToInt() - (change > 0 ? 1 : -1);
+    this->wl_spec_info[related_ws_name]["size"] = this->wl_spec_info[related_ws_name]["size"].ToInt() - change;
     sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+}
+
+/**
+ * @description: Get workload spec info reference
+ * @return: Const reference to wl_spec_infop
+ */
+const json::JSON &Workload::get_wl_spec()
+{
+    return this->wl_spec_info;
 }
 
 /*
@@ -830,4 +677,22 @@ bool Workload::report_has_validated_proof()
     sgx_thread_mutex_unlock(&this->validated_mutex);
 
     return res;
+}
+
+/**
+ * @description: Set is_upgrading flag
+ * @param flag -> Indicate if upgrade is doing
+ */
+void Workload::set_is_upgrading(bool flag)
+{
+    this->is_upgrading = flag;
+}
+
+/**
+ * @description: Get is_upgrading
+ * @return: Upgrading is doing
+ */
+bool Workload::get_is_upgrading()
+{
+    return this->is_upgrading;
 }

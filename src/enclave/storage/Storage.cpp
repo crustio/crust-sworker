@@ -118,7 +118,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     wl->add_new_file(file_entry_json);
 
     // Add info in workload spec
-    wl->set_wl_spec(WL_SPEC_FILE_UNCONFIRMED_SIZE, file_entry_json[FILE_OLD_SIZE].ToInt());
+    wl->set_wl_spec(FILE_STATUS_UNCONFIRMED, file_entry_json[FILE_OLD_SIZE].ToInt());
 
     return crust_status;
 }
@@ -482,7 +482,7 @@ crust_status_t storage_confirm_file(const char *hash)
     // Set workload spec information
     if (is_confirmed)
     {
-        wl->set_wl_spec(WL_SPEC_FILE_VALID_SIZE, WL_SPEC_FILE_UNCONFIRMED_SIZE, confirmed_file[FILE_OLD_SIZE].ToInt());
+        wl->set_wl_spec(FILE_STATUS_VALID, FILE_STATUS_UNCONFIRMED, confirmed_file[FILE_OLD_SIZE].ToInt());
     }
 
     return crust_status;
@@ -550,9 +550,7 @@ crust_status_t storage_delete_file(const char *hash)
         // Delete file metadata
         persist_del(deleted_file[FILE_HASH].ToString() + "_meta");
         // Update workload spec info
-        std::pair<wl_spec_t, wl_spec_t> wl_p;
-        wl->get_wl_spec_by_file_status(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), wl_p);
-        wl->set_wl_spec(wl_p.second, -deleted_file[FILE_OLD_SIZE].ToInt());
+        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_OLD_SIZE].ToInt());
     }
 
     return crust_status;

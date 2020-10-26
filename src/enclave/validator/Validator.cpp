@@ -47,32 +47,23 @@ void validate_srd()
     {
         srd_total_num += it.second.size();
     }
-    size_t srd_validate_num = 0;
-    size_t srd_punish_num = 0;
+    size_t srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
     size_t srd_validate_failed_num = 0;
     
     // Caculate srd validated variable
     if (srd_total_num >= srd_num_threshold)
     {
         srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
-        srd_punish_num = 1 / SRD_VALIDATE_RATE;
     }
     else
     {
         if (srd_total_num < SRD_VALIDATE_MIN_NUM)
         {
             srd_validate_num = srd_total_num;
-            srd_punish_num = 1;
         }
         else
         {
             srd_validate_num = SRD_VALIDATE_MIN_NUM;
-            double tmp = (double)srd_total_num / (double)SRD_VALIDATE_MIN_NUM;
-            srd_punish_num = tmp;
-            if (tmp - (double)srd_punish_num > 0.0)
-            {
-                srd_punish_num++;
-            }
         }
     }
 
@@ -211,7 +202,7 @@ void validate_srd()
     {
         srd_validate_failed_num += it.second.size();
     }
-    srd_random_delete(srd_punish_num * srd_validate_failed_num, &del_path2idx_m);
+    srd_random_delete(SRD_PUNISH_FACTOR * srd_validate_failed_num, &del_path2idx_m);
 
     sgx_thread_mutex_unlock(&g_srd_mutex);
 }
@@ -445,11 +436,7 @@ void validate_meaningful_file()
                     wl->checked_files[it.first][FILE_HASH].ToString().c_str(),
                     old_status.c_str(),
                     cur_status.c_str());
-            std::pair<wl_spec_t, wl_spec_t> old_pair, cur_pair;
-            if (wl->get_wl_spec_by_file_status(old_status_c, old_pair) && wl->get_wl_spec_by_file_status(cur_status_c, cur_pair))
-            {
-                wl->set_wl_spec(cur_pair.second, old_pair.second, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
-            }
+            wl->set_wl_spec(cur_status_c, old_status_c, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
         }
     }
 
