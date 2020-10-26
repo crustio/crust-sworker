@@ -52,7 +52,6 @@ public:
     crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
     crust_status_t restore_srd(json::JSON g_hashs);
     void restore_file(json::JSON file_json);
-    crust_status_t get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json);
 
     // For report
     void report_add_validated_proof();

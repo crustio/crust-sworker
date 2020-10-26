@@ -100,69 +100,6 @@ void Workload::clean_data()
 }
 
 /**
- * @description: Generate srd information
- * @param srd_root_out -> srd root hash
- * @param srd_workload_out -> srd workload
- * @return: Get status
- */
-crust_status_t Workload::get_srd_info(sgx_sha256_hash_t *srd_root_out, uint64_t *srd_workload_out, json::JSON &md_json)
-{
-    if (! md_json.hasKey(ID_WORKLOAD) 
-            || md_json[ID_WORKLOAD].JSONType() != json::JSON::Class::Object)
-    {
-        return CRUST_SUCCESS;
-    }
-    // Get hashs for hashing
-    uint64_t g_hashs_num = 0;
-    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
-            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
-    {
-        g_hashs_num += it->second.size();
-    }
-    uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
-    if (hashs == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    uint64_t hashs_len = 0;
-
-    for (auto it = md_json[ID_WORKLOAD].ObjectRange().begin();
-            it != md_json[ID_WORKLOAD].ObjectRange().end(); it++)
-    {
-        for (int i = 0; i < it->second.size(); i++)
-        {
-            std::string hash_str = it->second[i].ToString();
-            uint8_t *hash_u = hex_string_to_bytes(hash_str.c_str(), hash_str.size());
-            if (hash_u == NULL)
-            {
-                free(hashs);
-                return CRUST_MALLOC_FAILED;
-            }
-            memcpy(hashs + hashs_len, hash_u, HASH_LENGTH);
-            free(hash_u);
-            hashs_len += HASH_LENGTH;
-        }
-    }
-
-    // generate srd information
-    if (hashs_len == 0)
-    {
-        *srd_workload_out = 0;
-        memset(srd_root_out, 0, HASH_LENGTH);
-    }
-    else
-    {
-        *srd_workload_out = (hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, hashs_len, srd_root_out);
-    }
-
-    free(hashs);
-
-    return CRUST_SUCCESS;
-}
-
-/**
  * @description: Generate workload info
  * @return: Workload info in json format
  */
