@@ -67,7 +67,7 @@ App_C_Files := $(wildcard app/utils/*.c)
 App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*.cpp) \
 	$(wildcard app/log/*.cpp) $(wildcard app/database/*.cpp) $(wildcard app/http/*.cpp) \
 	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp) \
-	$(wildcard app/ecalls/*.cpp)
+	$(wildcard app/ecalls/*.cpp) $(wildcard app/ipfs/*.cpp)
 	
 App_Include_Paths := -I$(SGX_SDK)/include -Iapp -Ienclave/include -Iapp/include -Iapp/utils -Iapp/http \
 	-Iapp/config -Iapp/ocalls -Iapp/ecalls -Iapp/process -Iapp/chain -Iapp/log -Iapp/database
