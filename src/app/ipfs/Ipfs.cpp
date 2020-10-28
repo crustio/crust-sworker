@@ -1,14 +1,15 @@
 #include "Ipfs.h"
+#include "HttpClient.h"
 
 crust::Log *p_log = crust::Log::get_instance();
-
+HttpClient *ipfs_client = NULL;
 Ipfs *Ipfs::ipfs = NULL;
 
 /**
  * @desination: single instance class function to get instance
  * @return: ipfs instance
  */
-Ipfs *ipfs::get_instance()
+Ipfs *Ipfs::get_instance()
 {
     if (Ipfs::ipfs == NULL)
     {
@@ -22,11 +23,11 @@ Ipfs *ipfs::get_instance()
 /**	
  * @description: constructor	
  * @param url -> API base url 	
- */	
-Ipfs::Ipfs(std::string url)	
-{	
+ */
+Ipfs::Ipfs(std::string url)
+{
     this->url = url;
-    this->ipfs_client = new HttpClient();
+    ipfs_client = new HttpClient();
 }
 
 /**
@@ -34,9 +35,25 @@ Ipfs::Ipfs(std::string url)
  */
 Ipfs::~Ipfs()
 {
-    if (this->ipfs_client != NULL)
+    if (ipfs_client != NULL)
     {
-        delete this->ipfs_client;
-        this->ipfs_client = NULL;
+        delete ipfs_client;
+        ipfs_client = NULL;
     }
+}
+
+/**	
+ * @description: Test if there is usable IPFS	
+ * @return: Test result	
+ * */	
+bool Ipfs::online()	
+{	
+    std::string path = this->url + "/version";
+    http::response<http::string_body> res = ipfs_client->Post(path.c_str());
+    if ((int)res.result() == 200)
+    {
+        return true;
+    }
+
+    return false;
 }

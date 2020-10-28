@@ -3,17 +3,17 @@
 
 #include "Config.h"
 #include "Log.h"
-#include "HttpClient.h"
 
 class Ipfs
 {
 private:
     static Ipfs *ipfs;
     Ipfs(std::string url);
-    HttpClient *ipfs_client;
+    ~Ipfs();
     std::string url;
 public:
     static Ipfs *get_instance();
+    bool online();
 };
 
 #endif /* !_CRUST_IPFS_H_ */
