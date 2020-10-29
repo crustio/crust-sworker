@@ -20,7 +20,6 @@ class Chain
 {
 private:
     Chain(std::string url, std::string password_tmp, std::string backup_tmp);
-    UrlEndPoint *url_end_point;    /* Url end point info */
     std::string url;               /* Request url */
     std::string password;          /* The password of chain account */
     std::string backup;            /* The backup of chain account */

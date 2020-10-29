@@ -33,7 +33,6 @@ Chain *Chain::get_instance()
 Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp)
 {
     this->url = url;
-    this->url_end_point = get_url_end_point(url);
     this->password = password_tmp;
     this->backup = backup_tmp;
     pri_chain_client = new HttpClient();

@@ -78,7 +78,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
         }
         else
         {
-            p_log->err("SGX init quote failed!Error code: %08x\n", status);
+            p_log->err("SGX init quote failed!Error code: %lx\n", status);
             return false;
         }
     } while (true);
@@ -86,12 +86,12 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     status = Ecall_get_quote_report(global_eid, &sgxrv, &report, &target_info);
     if (status != SGX_SUCCESS)
     {
-        p_log->err("get_report: %08x\n", status);
+        p_log->err("get_report: %lx\n", status);
         return false;
     }
     if (sgxrv != SGX_SUCCESS)
     {
-        p_log->err("sgx_create_report: %08x\n", sgxrv);
+        p_log->err("sgx_create_report: %lx\n", sgxrv);
         return false;
     }
 
@@ -104,7 +104,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     }
     if (status != SGX_SUCCESS)
     {
-        p_log->err("SGX error while getting quote size: %08x\n", status);
+        p_log->err("SGX error while getting quote size: %lx\n", status);
         return false;
     }
 
@@ -123,7 +123,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
             spid, &nonce, NULL, 0, &qe_report, quote, sz);
     if (status != SGX_SUCCESS)
     {
-        p_log->err("sgx_get_quote: %08x\n", status);
+        p_log->err("sgx_get_quote: %lx\n", status);
         return false;
     }
 
