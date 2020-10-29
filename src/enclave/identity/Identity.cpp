@@ -1094,7 +1094,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     Workload *wl = Workload::get_instance();
     sgx_ec256_signature_t sgx_sig; 
     sgx_ecc_state_handle_t ecc_state = NULL;
-    std::string work_report;
     std::string srd_str;
     std::string mr_str;
     std::string sig_str;
@@ -1164,11 +1163,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // ----- Generate upgrade data ----- //
     report_height_str = std::to_string(report_height);
-    work_report = get_generated_work_report();
-    work_report = json::JSON::Load(work_report).dump();
-    remove_char(work_report, '\n');
-    remove_char(work_report, '\\');
-    remove_char(work_report, ' ');
     // Srd and files data
     wl->serialize_srd(srd_str);
     crust_status = wl->serialize_file(&p_files, &files_size);
@@ -1361,7 +1355,6 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     std::string wl_sig;
     std::string upgrade_srd_root_str;
     std::string upgrade_files_root_str;
-    std::string work_report;
     uint8_t *wl_sig_u = NULL;
     std::string report_height_str = upgrade_json[UPGRADE_BLOCK_HEIGHT].ToString();
     std::string report_hash_str = upgrade_json[UPGRADE_BLOCK_HASH].ToString();
