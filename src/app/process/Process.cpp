@@ -83,14 +83,14 @@ bool initialize_enclave()
     ret = sgx_create_enclave(ENCLAVE_FILE_PATH, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
-        p_log->err("Init enclave failed.Error code:%08x\n", ret);
+        p_log->err("Init enclave failed.Error code:%lx\n", ret);
         return false;
     }
 
     // ----- Generate code measurement ----- //
     if (SGX_SUCCESS != Ecall_gen_sgx_measurement(global_eid, &ret))
     {
-        p_log->err("Generate code measurement failed!error code:%08x\n", ret);
+        p_log->err("Generate code measurement failed!error code:%lx\n", ret);
         return false;
     }
 

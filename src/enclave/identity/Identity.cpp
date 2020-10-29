@@ -561,7 +561,6 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     certchain_1 = certchain_1.substr(spos, epos - spos);
     replace(certchain_1, "\n", "");
     org_data_len = certchain_1.size() 
-        + (wl->is_upgrade() ? sizeof(wl->pre_pub_key) : 0)
         + ias_sig.size() 
         + isv_body.size() 
         + account_id_u_len;
@@ -581,11 +580,6 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     memcpy(org_data, isv_body.c_str(), isv_body.size());
     org_data += isv_body.size();
     memcpy(org_data, p_account_id_u, account_id_u_len);
-    if (wl->is_upgrade())
-    {
-        org_data += account_id_u_len;
-        memcpy(org_data, &wl->pre_pub_key, sizeof(wl->pre_pub_key));
-    }
 
     sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
             const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &ecc_signature, ecc_state);
@@ -600,7 +594,6 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     id_json[IAS_SIG] = ias_sig;
     id_json[IAS_ISV_BODY] = isv_body;
     id_json[IAS_CHAIN_ACCOUNT_ID] = chain_account_id;
-    id_json[IAS_PRE_PUB_KEY] = (wl->is_upgrade() ? hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key)) : "");
     id_json[IAS_REPORT_SIG] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
     id_str = id_json.dump();
 
