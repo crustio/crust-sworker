@@ -28,8 +28,6 @@ mkdir -p $tmpdir
 
 . $scriptdir/utils.sh
 
-print_title "start confirm case"
-
 
 declare -A hash_2_use_m
 data_arry=($(ls $datadir))

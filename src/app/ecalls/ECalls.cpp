@@ -18,10 +18,9 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_verify_iasreport", 0},
     {"Ecall_gen_sgx_measurement", 0},
     {"Ecall_main_loop", 0},
-    {"Ecall_get_signed_work_report", 0},
+    {"Ecall_gen_and_upload_work_report", 0},
     {"Ecall_confirm_file", 0},
     {"Ecall_delete_file", 0},
-    {"Ecall_handle_report_result", 0},
     {"Ecall_gen_upgrade_data", 0},
     {"Ecall_restore_from_upgrade", 0},
     {"Ecall_enable_upgrade", 0},
@@ -42,20 +41,20 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
         {
             "Ecall_seal_file", 
             "Ecall_unseal_file", 
-            "Ecall_get_signed_work_report",
+            "Ecall_gen_and_upload_work_report",
             "Ecall_confirm_file",
         }
     },
     {
         "Ecall_confirm_file",
         {
-            "Ecall_get_signed_work_report",
+            "Ecall_gen_and_upload_work_report",
         }
     },
     {
         "Ecall_delete_file",
         {
-            "Ecall_get_signed_work_report",
+            "Ecall_gen_and_upload_work_report",
         }
     },
 };
@@ -368,7 +367,7 @@ sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *st
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
  */
-sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height)
+sgx_status_t Ecall_gen_and_upload_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -376,7 +375,7 @@ sgx_status_t Ecall_get_signed_work_report(sgx_enclave_id_t eid, crust_status_t *
         return ret;
     }
 
-    ret = ecall_get_signed_work_report(eid, status, block_hash, block_height);
+    ret = ecall_gen_and_upload_work_report(eid, status, block_hash, block_height);
 
     free_enclave(__FUNCTION__);
 
@@ -659,25 +658,6 @@ sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid)
     }
 
     ret = ecall_disable_upgrade(eid);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: Delete file
- * @param flag -> Report result
- */
-sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_handle_report_result(eid);
 
     free_enclave(__FUNCTION__);
 

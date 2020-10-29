@@ -25,6 +25,31 @@ function _seal()
     rm $curtmp
 }
 
+function _unseal()
+{
+    local datapath_l=$1
+    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
+    true > $syncfile
+    unseal $datapath_l &>$curtmp
+    if [ $? -ne 0 ]; then
+        echo "Unseal file failed!"
+        rm $curtmp
+        exit 1
+    fi
+    local ret_body=$(cat $curtmp)
+    if [ ! -e $ret_body ]; then
+        echo "Unseal file failed!Cannot find unsealed path."
+        rm $curtmp
+        exit 1
+    else
+        (
+          flock -w 30 200
+          echo $sealed_hash >> $syncfile
+        ) 200>$LOCKFILE
+    fi
+    rm $curtmp
+}
+
 function _store_meta()
 {
     validate_file
@@ -56,28 +81,34 @@ trap 'seal_exit' EXIT
 
 . $scriptdir/utils.sh
 
-print_title "start seal case"
-
 
 data_arry=($(ls $datadir))
 data_size=${#data_arry[@]}
 timeout=300
+acc=$data_size
+i=$acc
 
 true > $syncfile
 # Seal some file
 for file in ${data_arry[@]}; do
     _seal $datadir/$file $testfiledir &
+    ((i--))
+    if [ $i -le 0 ]; then
+        break
+    fi
 done
-
-while [ $(cat $syncfile | wc -l) -ne ${data_size} ] && [ $timeout -gt 0 ]; do
+# Wait seal finish
+while [ $(cat $syncfile | wc -l) -ne $acc ] && [ $timeout -gt 0 ]; do
     sleep 1
     ((timeout--))
 done
 
-_store_meta &>/dev/null
-for hash in $(cat $syncfile); do
-    if ! check_hash "$hash" "unconfirmed"; then
-        echo "Seal file failed!Cannot find sealed hash."
-        exit 1
-    fi
+# Unseal file
+for file in $(cat $syncfile); do
+    _unseal $testfiledir/$file &
+done
+# Wait unseal finish
+while [ $(cat $syncfile | wc -l) -ne $acc ] && [ $timeout -gt 0 ]; do
+    sleep 1
+    ((timeout--))
 done

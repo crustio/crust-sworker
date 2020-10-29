@@ -1,0 +1,42 @@
+#!/bin/bash
+function kill_current()
+{
+    kill -9 $newsworkerpid &>/dev/null
+    wait $newsworkerpid &>/dev/null
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+testdir=$instdir/test_app
+sworkerlog=$instdir/sworker.log
+
+. $scriptdir/utils.sh
+
+trap 'kill_current' INT
+
+
+cd $testdir
+./bin/crust-sworker -c etc/Config.json --offline --debug --upgrade &>${sworkerlog}2 &
+newsworkerpid=$!
+oldsworkerpid=$(cat $sworkerpidfile)
+sleep 20
+while : ; do
+    x1=$(ps --pid $newsworkerpid --no-headers | wc -l)
+    x2=$(ps --pid $oldsworkerpid --no-headers | wc -l)
+    [ $((x1+x2)) -ne 2 ] && { sleep 20; break; } 
+    sleep 1
+done
+cd - &>/dev/null
+if [ $x1 -eq 1 ]; then
+    echo $newsworkerpid > $sworkerpidfile
+    # Change current block height
+    block_height=$(cat $reportheightfile &>/dev/null)
+    [ x"$block_height" = x"" ] && { block_height=0; }
+    ((block_height+=ERA_LENGTH))
+    echo $block_height > $reportheightfile
+else
+    return 1
+fi

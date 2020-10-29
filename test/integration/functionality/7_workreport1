@@ -22,8 +22,6 @@ trap 'report_exit' EXIT
 
 . $scriptdir/utils.sh
 
-print_title "start workreport1 case"
-
 
 srd_num=$(get_config ".functionality|.srd_size")
 srd_paths=$(get_config ".functionality|.srd_paths")
@@ -89,11 +87,12 @@ if [ $? -ne 0 ]; then
     echo "get work report failed!"
     exit 1
 fi
+res=$(cat $TMPFILE)
 # Get report info
 ret=0
-added_fn=$(cat $TMPFILE | jq '.added_files | .[] | .hash' | wc -l 2>/dev/null)
-deleted_fn=$(cat $TMPFILE | jq '.deleted_files | .[] | .hash' | wc -l 2>/dev/null)
-reserved=$(cat $TMPFILE | jq '.reserved' 2>/dev/null)
+added_fn=$(echo $res | jq '.added_files | .[] | .hash' | wc -l 2>/dev/null)
+deleted_fn=$(echo $res | jq '.deleted_files | .[] | .hash' | wc -l 2>/dev/null)
+reserved=$(echo $res | jq '.reserved' 2>/dev/null)
 reserved_e=$((srd_num * 1024 * 1024 * 1024))
 if [ x"$reserved" != x"$reserved_e" ]; then
     echo "srd number is wrong!expect:${reserved_e}, real:${reserved}"

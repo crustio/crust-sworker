@@ -146,7 +146,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::make_tuple(http::status::ok, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-        res.body() = "No service will be provided because of upgrade complete!";
+        res.body() = "No service will be provided because of upgrade!";
         res.result(503);
         return send(std::move(res));
     }
