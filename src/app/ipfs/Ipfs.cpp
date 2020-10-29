@@ -27,6 +27,7 @@ Ipfs *Ipfs::get_instance()
 Ipfs::Ipfs(std::string url)
 {
     this->url = url;
+    this->form_boundary = std::to_string(time(NULL)) + "yasimola";
     ipfs_client = new HttpClient();
 }
 
@@ -49,7 +50,7 @@ Ipfs::~Ipfs()
 bool Ipfs::online()
 {
     std::string path = this->url + "/version";
-    http::response<http::string_body> res = ipfs_client->Post(path.c_str());
+    http::response<http::string_body> res = ipfs_client->Post(path);
     if ((int)res.result() == 200)
     {
         return true;
@@ -65,7 +66,7 @@ bool Ipfs::online()
 size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 {
     std::string path = this->url + "/block/get?arg=" + cid;
-    http::response<http::string_body> res = ipfs_client->Post(path.c_str());
+    http::response<http::string_body> res = ipfs_client->Post(path);
     if ((int)res.result() != 200)
     {
         p_log->err("Get block from ipfs error, code is: %d\n", (int)res.result());
@@ -81,7 +82,7 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
 {
     std::string path = this->url + "/cat?arg=" + cid;
-    http::response<http::string_body> res = ipfs_client->Post(path.c_str());
+    http::response<http::string_body> res = ipfs_client->Post(path);
     if ((int)res.result() != 200)
     {
         p_log->err("Get file error, code is: %d\n", (int)res.result());
@@ -94,18 +95,22 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
     return res.body().size();
 }
 
-std::string Ipfs::add(unsigned char *p_data_in)
+std::string Ipfs::add(unsigned char *p_data_in, size_t size)
 {
     std::string path = this->url + "/add";
-    std::string data(reinterpret_cast<char const *>(p_data_in));
-    ApiHeaders headers = {{"data", data}, {"Content-Type", "multipart/form-data"}};
-
-    http::response<http::string_body> res = ipfs_client->Post(path.c_str(), "", headers);
+    std::string data(reinterpret_cast<char const *>(p_data_in), size);
+    data = "\r\n--" + this->form_boundary + "\r\nContent-Disposition: form-data; name=\"\"\r\n\r\n" +
+           data + "\r\n--" + this->form_boundary + "--\r\n\r\n";
+    std::string content_type = "multipart/form-data; boundary=" + this->form_boundary;
+    
+    http::response<http::string_body> res = ipfs_client->Post(path, data, content_type);
     if ((int)res.result() != 200)
     {
         p_log->err("Add file error, code is: %d\n", (int)res.result());
-        return 0;
+        return "";
     }
 
-    return res.body();
+    json::JSON obj = json::JSON::Load(res.body());
+
+    return obj["Hash"].ToString();
 }
