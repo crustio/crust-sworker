@@ -17,7 +17,8 @@
 #include "EUtils.h"
 #include "Schedule.h"
 
-crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked = true);
+crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked =true);
+crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool is_upgrading);
 std::string get_generated_work_report();
 
 #endif /* !_CRUST_REPORT_H_ */

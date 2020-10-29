@@ -350,6 +350,8 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     string isv_body;
     int quoteSPos = 0;
     int quoteEPos = 0;
+    size_t spos = 0;
+    size_t epos = 0;
     string ias_quote_body;
     sgx_quote_t *iasQuote;
     sgx_report_body_t *iasReportBody;
@@ -554,7 +556,15 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     }
 
     // Generate identity data for sig
-    org_data_len = certchain_1.size() + ias_sig.size() + isv_body.size() + account_id_u_len;
+    spos = certchain_1.find("-----BEGIN CERTIFICATE-----\n") + strlen("-----BEGIN CERTIFICATE-----\n");
+    epos = certchain_1.find("\n-----END CERTIFICATE-----");
+    certchain_1 = certchain_1.substr(spos, epos - spos);
+    replace(certchain_1, "\n", "");
+    org_data_len = certchain_1.size() 
+        + (wl->is_upgrade() ? sizeof(wl->pre_pub_key) : 0)
+        + ias_sig.size() 
+        + isv_body.size() 
+        + account_id_u_len;
     org_data = (uint8_t *)malloc(org_data_len);
     if (org_data == NULL)
     {
@@ -571,6 +581,11 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     memcpy(org_data, isv_body.c_str(), isv_body.size());
     org_data += isv_body.size();
     memcpy(org_data, p_account_id_u, account_id_u_len);
+    if (wl->is_upgrade())
+    {
+        org_data += account_id_u_len;
+        memcpy(org_data, &wl->pre_pub_key, sizeof(wl->pre_pub_key));
+    }
 
     sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
             const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &ecc_signature, ecc_state);
@@ -585,6 +600,7 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     id_json[IAS_SIG] = ias_sig;
     id_json[IAS_ISV_BODY] = isv_body;
     id_json[IAS_CHAIN_ACCOUNT_ID] = chain_account_id;
+    id_json[IAS_PRE_PUB_KEY] = (wl->is_upgrade() ? hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key)) : "");
     id_json[IAS_REPORT_SIG] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
     id_str = id_json.dump();
 
@@ -1104,7 +1120,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     json::JSON wl_info;
     size_t random_time = 0;
 
-    // ----- Generate work report ----- //
+    // ----- Generate and upload work report ----- //
     // Current era has reported, wait for next era
     if (block_height <= wl->get_report_height())
     {
@@ -1121,7 +1137,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     {
         report_height += ERA_LENGTH;
     }
-    // Start upgrade process
     report_hash = (char *)enc_malloc(HASH_LENGTH * 2);
     if (report_hash == NULL)
     {
@@ -1135,34 +1150,26 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         crust_status = CRUST_UPGRADE_GET_BLOCK_HASH_FAILED;
         goto cleanup;
     }
-    if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash, report_height, false)))
+    // Send work report
+    // TODO: Wait a random time:[10, 50] block time
+    sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
+    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
+    log_info("Upgrade: generate workreport successfully!Will send after %ld blocks...\n", random_time / BLOCK_TIME_BASE);
+    if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report(report_hash, report_height, random_time, false, false)))
     {
         log_err("Fatal error! Get signed work report failed! Error code:%lx\n", crust_status);
         crust_status = CRUST_UPGRADE_GEN_WORKREPORT_FAILED;
         goto cleanup;
     }
+
+    // ----- Generate upgrade data ----- //
     report_height_str = std::to_string(report_height);
     work_report = get_generated_work_report();
     work_report = json::JSON::Load(work_report).dump();
     remove_char(work_report, '\n');
     remove_char(work_report, '\\');
     remove_char(work_report, ' ');
-
-    // Send work report
-    // TODO: Wait a random time:[10, 50] block time
-    sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
-    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
-    log_info("Upgrade: generate workreport successfully!Will send after %ld blocks...\n", random_time / BLOCK_TIME_BASE);
-    ocall_usleep(random_time * 1000000);
-    ocall_upload_workreport(&crust_status, work_report.c_str());
-    if (CRUST_SUCCESS != crust_status)
-    {
-        log_err("Upload work report failed!\n");
-        goto cleanup;
-    }
-    wl->handle_report_result();
-
-    // Generate metadata
+    // Srd and files data
     wl->serialize_srd(srd_str);
     crust_status = wl->serialize_file(&p_files, &files_size);
     wl_info = wl->gen_workload_info();
@@ -1170,7 +1177,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     {
         goto cleanup;
     }
-
     // Sign upgrade data
     sgx_status = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != sgx_status)
@@ -1214,7 +1220,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         goto cleanup;
     }
 
-    // ----- Store upgrade data ----- //
+    // ----- Get final upgrade data ----- //
     pubkey_data.append("{\"" UPGRADE_PUBLIC_KEY "\":")
         .append("\"").append(hexstring_safe(&wl->get_pub_key(), sizeof(sgx_ec256_public_t))).append("\"");
     block_height_data.append(",\"" UPGRADE_BLOCK_HEIGHT "\":").append(report_height_str);
@@ -1449,6 +1455,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     }
 
     // ----- Entry network ----- //
+    wl->set_upgrade(sgx_a_pub_key);
     ocall_entry_network(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
@@ -1456,15 +1463,11 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     }
 
     // ----- Send current version's work report ----- //
-    wl->set_upgrade(sgx_a_pub_key);
     wl->report_add_validated_proof();
-    wl->set_is_upgrading(true);
-    if (CRUST_SUCCESS != (crust_status = get_signed_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()))))
+    if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()), 0, true)))
     {
         goto cleanup;
     }
-    work_report = get_generated_work_report();
-    ocall_upload_workreport(&crust_status, work_report.c_str());
 
 
 cleanup:

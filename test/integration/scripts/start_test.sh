@@ -11,11 +11,10 @@ EOF
 
 function success_exit()
 {
-    local cur_sworkerpid=$(ps -ef | grep -v grep | grep "\b${sworkerpid}\b" | awk '{print $2}')
-    if [ x"$cur_sworkerpid" = x"$sworkerpid" ]; then
-        kill -9 $sworkerpid &>/dev/null
-        wait $sworkerpid &>/dev/null
-    fi
+    # Kill sworker process
+    local spid=$(cat $sworkerpidfile)
+    kill -9 $spid &>/dev/null
+    wait $spid &>/dev/null
 
     ### Clean test data
     if [ x"$datadir" != x"" ]; then
@@ -25,6 +24,11 @@ function success_exit()
     ### Clean err file
     if [ ! -s "$errfile" ]; then
         rm $errfile &>/dev/null
+    fi
+
+    ### Clean tmp dir
+    if [ x"$roottmpdir" != x"" ]; then
+        rm -rf $roottmpdir &>/dev/null
     fi
 
     rm $SYNCFILE &>/dev/null
@@ -38,13 +42,15 @@ function success_exit()
 
 function kill_process()
 {
+    killed=true
+    success_exit
+
     # Kill descendent processes
     print_end
-    killed=true
     if [ x"$parent_sworkerpid" != x"" ] && [[ $parent_sworkerpid =~ ^[1-9][0-9]*$ ]]; then
-        kill -- -$parent_sworkerpid
+        kill_descendent $parent_sworkerpid
     else
-        kill -- -$cursworkerpid
+        kill_descendent $cursworkerpid
     fi
 }
 
@@ -77,6 +83,11 @@ baseurl=$(cat $testconfigfile | jq ".base_url" | sed 's/"//g')
 SYNCFILE=$basedir/SYNCFILE
 TMPFILE=$instdir/TMPFILE
 TMPFILE2=$instdir/TMPFILE2
+roottmpdir=$instdir/tmp
+sworkerpidfile=$roottmpdir/sworkerpid
+reportheightfile=$roottmpdir/report_file
+ERA_LENGTH=300
+REPORT_WAIT_BM=15
 cursworkerpid=$$
 pad="$(printf '%0.1s' ' '{1..10})"
 casedir=""
@@ -89,9 +100,14 @@ trap "kill_process" INT
 
 mkdir -p $datadir
 mkdir -p $testfiledir
+mkdir -p $roottmpdir
 
 export baseurl
 export benchmarkfile
+export sworkerpidfile
+export reportheightfile
+export ERA_LENGTH
+export REPORT_WAIT_BM
 
 
 printf "%s%s\n"   "$pad" '                             __                __            __ '
@@ -105,7 +121,7 @@ while getopts "t:p:c:" opt &>/dev/null; do
     case $opt in
         t)  run_type=$OPTARG;;
         p)  parent_sworkerpid=$OPTARG;;
-        c)  case_name=$OPTARG;;
+        c)  case_arry=$OPTARG;;
         *)  ;;
     esac
 done
@@ -122,9 +138,32 @@ else
     exit 1
 fi
 
-if ! ls $casedir | grep "\b${case_name}\b" &>/dev/null; then
-    verbose ERROR "no $case_name case!"
-    exit 1
+### Select chose cases
+orgcase_arry=($(ls $functionalitytestdir | sort))
+if [ x"$case_arry" != x"" ]; then
+    declare -A cname2idx
+    declare -A cidx2name
+    for el in ${orgcase_arry[@]}; do
+        name=${el#*_}
+        idx=${el%_*}
+        cname2idx[$name]=$idx
+        cidx2name[$idx]=$name
+    done
+    usecase_arry=()
+    index=0
+    for el in $(echo $case_arry | sed -e 's/\[\|\]//g' -e 's/,/\n/g'); do
+        if [[ $el =~ ^[0-9]+$ ]]; then
+            case_name=${el}_${cidx2name[$el]}
+        else
+            case_name=${cname2idx[$el]}_${el}
+        fi
+        if ls $functionalitytestdir | grep $case_name &>/dev/null; then
+            usecase_arry[$index]=$case_name
+            ((index++))
+        fi
+    done
+else
+    usecase_arry=(${orgcase_arry[@]})
 fi
 
 
@@ -149,8 +188,8 @@ if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
     exit 1
 fi
 verbose INFO "success" t
+echo $sworkerpid > $sworkerpidfile
 cd - &>/dev/null
-export sworkerpid
 
 ### Prepare test data
 verbose INFO "creating test data..." h
@@ -169,16 +208,27 @@ verbose INFO "success" t
 cd $casedir
 verbose INFO "starting $run_type cases:" n
 true > $caseresfile
-testcase_arry=($(ls | grep -v "restart"))
-testcase_arry[${#testcase_arry[@]}]="restart"
 disown -r
-for script in ${testcase_arry[@]}; do
-    if [ x"$case_name" != x"" ] && [ x"$case_name" != x"$script" ]; then
+cur_index=1
+success_num=0
+failed_num=0
+for script in ${usecase_arry[@]}; do
+    if [ ! -f $script ]; then
         continue
     fi
     true > $SYNCFILE
-    setTimeWait "$(verbose INFO "running test case: $script..." h)" $SYNCFILE &
-    bash $script $sworkerpid &>> $caseresfile
-    checkRes $? "return" "success" "$SYNCFILE"
+    show_name=${script#*_}
+    setTimeWait "$(verbose INFO "running test case($cur_index/${#usecase_arry[@]}): $show_name..." h)" $SYNCFILE &
+    print_title "start $show_name case" &>> $caseresfile
+    bash $script &>> $caseresfile
+    ret=$?
+    checkRes $ret "return" "success" "$SYNCFILE"
+    if [ $ret -eq 0 ]; then
+        ((success_num++))
+    else
+        ((failed_num++))
+    fi
+    ((cur_index++))
 done
 cd - &>/dev/null
+verbose INFO "total: $((success_num+failed_num)), success: ${HGREEN}$success_num${NC}, failed: ${HRED}$failed_num${NC}" n

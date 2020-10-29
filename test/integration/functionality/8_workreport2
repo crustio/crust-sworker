@@ -87,8 +87,6 @@ mkdir -p $tmpdir
 
 trap 'report_exit' EXIT
 
-print_title "start workreport2 case"
-
 
 rnum=0
 # Test round 1

@@ -50,6 +50,7 @@
 #define IAS_SIG "ias_sig"
 #define IAS_ISV_BODY "isv_body"
 #define IAS_CHAIN_ACCOUNT_ID "account_id"
+#define IAS_PRE_PUB_KEY "pre_pub_key"
 #define IAS_REPORT_SIG "sig"
 #define IAS_ISV_BODY_TAG "isvEnclaveQuoteBody"
 

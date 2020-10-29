@@ -184,7 +184,16 @@ function validate_file()
 
 function report_work()
 {
-    curl -s $baseurl/report/work
+    local block_height=0
+    if [ -s $reportheightfile ]; then
+        block_height=$(cat $reportheightfile)
+    fi
+    ((block_height+=ERA_LENGTH))
+    echo $block_height > $reportheightfile
+
+    validate_srd &>/dev/null
+    validate_file &>/dev/null
+    curl -s -XGET $baseurl/report/work --data-raw "{\"block_height\":$block_height}"
 }
 
 function report_work_result()
@@ -238,6 +247,18 @@ function clean_file()
     curl -s -XGET $baseurl/clean_file &>/dev/null
 }
 
+function kill_descendent()
+{
+    local pid=$1
+    local cpid=""
+    while : ; do
+        cpid=$(ps -o pid= --ppid $pid)
+        kill -9 $pid
+        [ x"$cpid" = x"" ] && break
+        pid=$cpid
+    done
+}
+
 function verbose()
 {
     local type=$1
@@ -264,6 +285,7 @@ function verbose()
             content="${color}$info${nc}"
             ;;
         n)
+            opt="-e"
             content="$time [$type] $info"
             ;;
         *)

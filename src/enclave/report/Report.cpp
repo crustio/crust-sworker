@@ -18,12 +18,12 @@ std::string get_generated_work_report()
 }
 
 /**
- * @description: Get signed validation report
+ * @description: Generate and upload signed validation report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
  * @return: sign status
  */
-crust_status_t get_signed_work_report(const char *block_hash, size_t block_height, bool locked /*=true*/)
+crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked /*=true*/)
 {
     SafeLock gen_sl(g_gen_work_report);
     if (locked)
@@ -31,6 +31,41 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
         gen_sl.lock();
     }
 
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    // Generate work report
+    if (CRUST_SUCCESS != (crust_status = gen_work_report(block_hash, block_height, is_upgrading)))
+    {
+        return crust_status;
+    }
+
+    // Wait indicated time
+    if (wait_time != 0)
+    {
+        ocall_usleep(wait_time * 1000000);
+    }
+
+    // Upload work report
+    ocall_upload_workreport(&crust_status, g_work_report.c_str());
+
+    // Confirm work report result
+    if (CRUST_SUCCESS == crust_status)
+    {
+        Workload::get_instance()->handle_report_result();
+    }
+
+    return crust_status;
+}
+
+/**
+ * @description: Get signed validation report
+ * @param block_hash (in) -> block hash
+ * @param block_height (in) -> block height
+ * @param is_upgrading -> Check if this turn is uprade
+ * @return: sign status
+ */
+crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool is_upgrading)
+{
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     // Judge whether block height is expired
@@ -153,7 +188,7 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
     for (uint32_t i = 0; i < wl->checked_files.size(); i++)
     {
         auto status = &wl->checked_files[i][FILE_STATUS];
-        if (wl->get_is_upgrading())
+        if (is_upgrading)
         {
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID
                     && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
@@ -360,11 +395,6 @@ crust_status_t get_signed_work_report(const char *block_hash, size_t block_heigh
 
 
 cleanup:
-    if (locked)
-    {
-        gen_sl.unlock();
-    }
-
     if (ecc_state != NULL)
     {
         sgx_ecc256_close_context(ecc_state);
