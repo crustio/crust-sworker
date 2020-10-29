@@ -9,9 +9,10 @@ crust::Log *p_log = crust::Log::get_instance();
  * @description: used to generate random waiting time to ensure that the reporting workload is not concentrated
  * @return: wait time
  */
-size_t get_random_wait_time()
+size_t get_random_wait_time(std::string seed)
 {
     //[9  199]
+    srand_string(seed);
     return (rand() % (REPORT_INTERVAL_BLCOK_NUMBER_UPPER_LIMIT - REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT + 1) + REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT - 1) * BLOCK_INTERVAL;
 }
 
@@ -31,7 +32,6 @@ void work_report_loop(void)
     // Set srand
     Ecall_id_get_info(global_eid);
     json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
-    srand_string(id_json["pub_key"].ToString());
 
     // Generate target block height
     if (!offline_chain_mode)
@@ -87,7 +87,7 @@ void work_report_loop(void)
 
             size_t cut_wait_time = (block_header->number - (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
 
-            size_t wait_time = get_random_wait_time();
+            size_t wait_time = get_random_wait_time(id_json["pub_key"].ToString());
             if (cut_wait_time >= wait_time)
             {
                 wait_time = 0;

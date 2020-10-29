@@ -27,7 +27,7 @@ Ipfs *Ipfs::get_instance()
 Ipfs::Ipfs(std::string url)
 {
     this->url = url;
-    this->form_boundary = std::to_string(time(NULL)) + "yasimola";
+    this->form_boundary = "sWorker" + std::to_string(time(NULL)) + "FormBoundary";
     ipfs_client = new HttpClient();
 }
 
@@ -79,6 +79,10 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
     return res.body().size();
 }
 
+/**	
+ * @description: Cat file	
+ * @return: size of file, 0 for error	
+ * */
 size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
 {
     std::string path = this->url + "/cat?arg=" + cid;
@@ -95,15 +99,18 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
     return res.body().size();
 }
 
+/**	
+ * @description: Add file to ipfs	
+ * @return: Hash of the file	
+ * */
 std::string Ipfs::add(unsigned char *p_data_in, size_t size)
 {
     std::string path = this->url + "/add";
     std::string data(reinterpret_cast<char const *>(p_data_in), size);
     data = "\r\n--" + this->form_boundary + "\r\nContent-Disposition: form-data; name=\"\"\r\n\r\n" +
            data + "\r\n--" + this->form_boundary + "--\r\n\r\n";
-    std::string content_type = "multipart/form-data; boundary=" + this->form_boundary;
-    
-    http::response<http::string_body> res = ipfs_client->Post(path, data, content_type);
+
+    http::response<http::string_body> res = ipfs_client->Post(path, data, "multipart/form-data; boundary=" + this->form_boundary);
     if ((int)res.result() != 200)
     {
         p_log->err("Add file error, code is: %d\n", (int)res.result());
