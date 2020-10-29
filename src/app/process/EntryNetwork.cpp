@@ -11,9 +11,9 @@ crust::Log *p_log = crust::Log::get_instance();
  * @description: Entry network off-chain node sends quote to onchain node to verify identity
  * @param p_config -> configurations
  * @param sworker_identity_out -> sworker identity result
- * @return: Success or failure
+ * @return: Result status
  */
-bool entry_network(Config *p_config, std::string &sworker_identity_out)
+crust_status_t entry_network(Config *p_config, std::string &sworker_identity_out)
 {
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
@@ -31,7 +31,6 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     memset(spid, 0, sizeof(sgx_spid_t));
     from_hexstring((unsigned char *)spid, IAS_SPID, strlen(IAS_SPID));
     int i = 0;
-    bool entry_status = false;
     int common_tryout = 3;
 
     // ----- get nonce ----- //
@@ -45,7 +44,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
         if (ok == 0)
         {
             p_log->err("Nonce: RDRAND underflow\n");
-            return false;
+            return CRUST_UNEXPECTED_ERROR;
         }
     }
 
@@ -69,7 +68,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
             if (tryout > common_tryout)
             {
                 p_log->err("Initialize sgx quote tryout!\n");
-                return false;
+                return CRUST_INIT_QUOTE_FAILED;
             }
             p_log->info("SGX device is busy, trying again(%d time)...\n", tryout);
             tryout++;
@@ -79,7 +78,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
         else
         {
             p_log->err("SGX init quote failed!Error code: %lx\n", status);
-            return false;
+            return CRUST_INIT_QUOTE_FAILED;
         }
     } while (true);
 
@@ -87,12 +86,12 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     if (status != SGX_SUCCESS)
     {
         p_log->err("get_report: %lx\n", status);
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
     if (sgxrv != SGX_SUCCESS)
     {
         p_log->err("sgx_create_report: %lx\n", sgxrv);
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
 
     // sgx_get_quote_size() has been deprecated, but SGX PSW may be too old
@@ -100,19 +99,19 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     if (!get_quote_size(&status, &sz))
     {
         p_log->err("PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
     if (status != SGX_SUCCESS)
     {
         p_log->err("SGX error while getting quote size: %lx\n", status);
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
 
     quote = (sgx_quote_t *)malloc(sz);
     if (quote == NULL)
     {
         p_log->err("out of memory\n");
-        return false;
+        return CRUST_MALLOC_FAILED;
     }
 
     memset(quote, 0, sz);
@@ -124,7 +123,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     if (status != SGX_SUCCESS)
     {
         p_log->err("sgx_get_quote: %lx\n", status);
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
 
     // ----- Print SGX quote ----- //
@@ -143,7 +142,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     if (b64quote == NULL)
     {
         p_log->err("Could not base64 encode quote\n");
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
 
     p_log->debug("{\n");
@@ -191,7 +190,7 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
     {
         p_log->err("Request IAS failed!\n");
         delete client;
-        return false;
+        return CRUST_UNEXPECTED_ERROR;
     }
     p_log->info("Sending quote to IAS service successfully!\n");
 
@@ -257,7 +256,6 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
             json::JSON tmp_json = json::JSON::Load(get_g_sworker_identity());
             tmp_json["account_id"] = p_config->chain_address;
             sworker_identity_out = tmp_json.dump();
-            entry_status = true;
             p_log->info("Verify IAS report in enclave successfully!\n");
         }
         else
@@ -319,5 +317,5 @@ bool entry_network(Config *p_config, std::string &sworker_identity_out)
 
     delete client;
 
-    return entry_status;
+    return CRUST_SUCCESS;
 }

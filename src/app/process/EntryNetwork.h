@@ -22,6 +22,6 @@
 #define OPT_LINK 0x04
 #define OPT_PUBKEY 0x08
 
-bool entry_network(Config *p_config, std::string &sworker_identity_out);
+crust_status_t entry_network(Config *p_config, std::string &sworker_identity_out);
 
 #endif /* !_CRUST_ENTRY_NETWORK_H_ */
