@@ -87,15 +87,13 @@ mkdir -p $tmpdir
 
 trap 'report_exit' EXIT
 
-print_title "start workreport2 case"
-
 
 rnum=0
 # Test round 1
 _test_add_file 2000
 _test_valid_file 1500
 cres=($(_report))
-expected=${cres[1]}
+expected=$((${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): add file. expected:$expected, real:$real" n
 if [ ${cres[0]} -ne ${cres[1]} ]; then
@@ -106,7 +104,7 @@ pres=(${cres[@]})
 
 # Test round 2
 cres=($(_report))
-expected=$((${pres[0]}+${cres[1]}))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): add file. expected:$expected, real:$real" n
 if [ $expected -ne $real ]; then

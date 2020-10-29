@@ -17,6 +17,7 @@ WebsocketClient *wssclient = NULL;
 tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
 extern std::mutex srd_info_mutex;
+extern bool offline_chain_mode;
 
 
 /**
@@ -675,10 +676,13 @@ crust_status_t ocall_upload_workreport(const char *work_report)
     remove_char(work_str, '\n');
     remove_char(work_str, ' ');
     p_log->info("Sending work report:%s\n", work_str.c_str());
-    if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
+    if (!offline_chain_mode)
     {
-        p_log->err("Send work report to crust chain failed!\n");
-        return CRUST_UPGRADE_SEND_WORKREPORT_FAILED;
+        if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
+        {
+            p_log->err("Send work report to crust chain failed!\n");
+            return CRUST_UPGRADE_SEND_WORKREPORT_FAILED;
+        }
     }
 
     p_log->info("Send work report to crust chain successfully!\n");

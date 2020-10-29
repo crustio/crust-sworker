@@ -28,8 +28,6 @@ trap 'seal_exit' EXIT
 
 . $scriptdir/utils.sh
 
-print_title "start srd case"
-
 
 declare -A hash_2_use_m
 data_arry=($(ls $datadir))

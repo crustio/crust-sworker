@@ -10,6 +10,16 @@ function enclave_cpp_test()
 {
 cat << EOF >>$enclave_cpp
 
+void ecall_handle_report_result()
+{
+    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
+    Workload::get_instance()->handle_report_result();
+}
+
 void ecall_validate_srd()
 {
     sched_add(SCHED_VALIDATE_SRD);
@@ -100,6 +110,7 @@ cat << EOF > $TMPFILE
 		public void ecall_validate_srd();
 		public void ecall_validate_file();
 		public void ecall_store_metadata();
+        public void ecall_handle_report_result();
 
         public void ecall_test_add_file(long file_num);
         public void ecall_test_valid_file(uint32_t file_num);
@@ -123,6 +134,7 @@ cat << EOF >$TMPFILE
 	{"Ecall_validate_srd", 0},
 	{"Ecall_validate_file", 0},
 	{"Ecall_store_metadata", 0},
+    {"Ecall_handle_report_result", 0},
 	{"Ecall_test_add_file", 1},
 	{"Ecall_test_valid_file", 1},
 	{"Ecall_test_lost_file", 1},
@@ -134,6 +146,21 @@ EOF
     sed -i "$pos r $TMPFILE" $ecalls_cpp
 
 cat << EOF >>$ecalls_cpp
+
+sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_handle_report_result(eid);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
 
 sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid)
 {
@@ -280,6 +307,8 @@ sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid);
 sgx_status_t Ecall_store_metadata(sgx_enclave_id_t eid);
 
+sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid);
+
 sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num);
 sgx_status_t Ecall_test_valid_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num);
@@ -303,6 +332,42 @@ function process_cpp_test()
 
     local pos3=$(sed -n '/&main_loop/=' $process_cpp)
     sed -i "$((pos3-1)),$pos3 d" $process_cpp
+
+    # Get block to gen upgrade data
+    local pos4=$(sed -n '/crust::BlockHeader/=' $process_cpp)
+    sed -i "$pos4,$((pos4+5)) d" $process_cpp
+    sed -i "$((pos4-1)) a \\\t\t\tif (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))" $process_cpp
+    sed -i "/extern bool g_upgrade_flag;/ a extern size_t g_block_height;" $process_cpp
+    pos4=$(sed -n '/if (UPGRADE_STATUS_EXIT == get_g_upgrade_status(/=' $process_cpp)
+    sed -i "$((pos4+1)) a \\\t\t\tg_block_height += REPORT_BLOCK_HEIGHT_BASE;" $process_cpp
+}
+
+function storage_cpp_test()
+{
+cat << EOF >> $storage_cpp
+
+/**
+ * @description: Add delete meaningful file task
+ * @param hash -> Meaningful file root hash
+ */
+void report_add_callback()
+{
+    sgx_enclave_id_t eid = global_eid;
+    std::async(std::launch::async, [eid](){
+        sgx_status_t sgx_status = SGX_SUCCESS;
+        if (SGX_SUCCESS != (sgx_status = Ecall_handle_report_result(eid)))
+        {
+            p_log->err("Report result failed!Invoke SGX API failed!Error code:%lx\n", sgx_status);
+        }
+    });
+}
+EOF
+}
+
+function storage_h_test()
+{
+    local spos=$(sed -n "/void storage_add_delete(/=" $storage_h)
+    sed -i "$spos a void report_add_callback();" $storage_h
 }
 
 ########## apihandler_h_test ##########
@@ -316,19 +381,22 @@ cat << EOF > $TMPFILE
             crust_status_t crust_status = CRUST_SUCCESS;
             uint8_t *hash_u = (uint8_t *)malloc(32);
             int tmp_int;
+            res.result(200);
             for (uint32_t i = 0; i < 32 / sizeof(tmp_int); i++)
             {
                 tmp_int = rand();
                 memcpy(hash_u + i * sizeof(tmp_int), &tmp_int, sizeof(tmp_int));
             }
             std::string block_hash = hexstring_safe(hash_u, 32);
-            size_t block_height;
-            memcpy(&block_height, hash_u, 32);
+            json::JSON req_json = json::JSON::Load(req.body());
+            size_t block_height = req_json["block_height"].ToInt();
+            g_block_height = block_height;
             free(hash_u);
-            if (SGX_SUCCESS != Ecall_get_signed_work_report(global_eid, &crust_status,
-                    block_hash.c_str(), block_height))
+            if (SGX_SUCCESS != Ecall_gen_and_upload_work_report(global_eid, &crust_status,
+                    block_hash.c_str(), block_height+REPORT_BLOCK_HEIGHT_BASE))
             {
                 p_log->err("Get signed work report failed!\\n");
+                res.result(400);
             }
             else
             {
@@ -341,14 +409,17 @@ cat << EOF > $TMPFILE
                 else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
                 {
                     p_log->info("Block height expired.\\n");
+                    res.result(401);
                 }
                 else if (crust_status == CRUST_FIRST_WORK_REPORT_AFTER_REPORT)
                 {
                     p_log->info("Can't generate work report for the first time after restart\\n");
+                    res.result(402);
                 }
                 else
                 {
                     p_log->err("Get signed validation report failed! Error code: %x\\n", crust_status);
+                    res.result(403);
                 }
             }
             goto getcleanup;
@@ -532,6 +603,14 @@ EOF
     ((pos+=3))
     sed -i "$pos r $TMPFILE2" $apihandler_h
 
+    # Upgrade start
+    pos=$(sed -n '/crust::BlockHeader \*block_header =/=' $apihandler_h)
+cat << EOF > $TMPFILE
+            if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))
+EOF
+    sed -i "$((pos+7)) r $TMPFILE" $apihandler_h
+    sed -i "$pos,$((pos+7)) d" $apihandler_h
+
     # Srd directly
     pos=$(sed -n '/cur_path = urlendpoint->base + "\/srd\/change";/=' $apihandler_h)
     sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
@@ -552,6 +631,14 @@ EOF
     # Delete 
     pos=$(sed -n '/cur_path = urlendpoint->base + "\/storage\/delete";/=' $apihandler_h)
     sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
+
+    # Record block height
+    sed -i "/long change_srd_num = 0;/ a size_t g_block_height = 0;" $apihandler_h
+}
+
+function webserver_cpp_test()
+{
+    sed -i "/kill(g_webservice_pid,/ c //kill(g_webservice_pid," $webserver_cpp
 }
 
 function data_cpp_test()
@@ -581,8 +668,11 @@ function data_h_test
 ########## enc_report_cpp_test ##########
 function enc_report_cpp_test()
 {
-    local pos=$(sed -n '/crust_status_t get_signed_work_report(/=' $enclave_report_cpp)
-    sed -i "$((pos+10)),$((pos+41))d" $enclave_report_cpp
+    local spos=$(sed -n '/crust_status_t gen_work_report(/=' $enclave_report_cpp)
+    sed -i "$((spos+15)),$((spos+19)) d" $enclave_report_cpp
+
+    sed -i "/ocall_usleep(/ c //ocall_usleep(" $enclave_report_cpp
+    sed -i "/Workload::get_instance()->handle_report_result(/ c //Workload::get_instance()->handle_report_result(" $enclave_report_cpp
 }
 
 ########## enc_validate_cpp_test ##########
@@ -809,6 +899,17 @@ void Workload::test_delete_file(uint32_t file_num)
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
 }
 EOF
+
+    local spos=$(sed -n "/this->report_has_validated_proof(/=" $enclave_workload_cpp)
+    sed -i "$spos, $((spos+4)) d" $enclave_workload_cpp
+}
+
+function enc_id_cpp_test()
+{
+    local pos=$(sed -n '/ocall_get_block_hash(/=' $enclave_identity_cpp)
+    sed -i "$pos a \\\tsgx_read_rand(reinterpret_cast<uint8_t *>(report_hash), HASH_LENGTH);" $enclave_identity_cpp
+    sed -i "$((pos+1)) a \\\tmemcpy(report_hash, hexstring_safe(report_hash, HASH_LENGTH).c_str(), HASH_LENGTH * 2);" $enclave_identity_cpp
+    sed -i "$pos d" $enclave_identity_cpp
 }
 
 function enc_srd_h_test()
@@ -823,7 +924,7 @@ function enc_storage_cpp_test()
 
 function enc_parameter_h_test()
 {
-    sed -i "/#define OCALL_STORE_THRESHOLD/ c #define OCALL_STORE_THRESHOLD 1024" $enclave_parameter_h
+    sed -i "/#define WORKREPORT_FILE_LIMIT 1000/ c #define WORKREPORT_FILE_LIMIT 6" $enclave_parameter_h
 }
 
 ########## ocalls_cpp_test ##########
@@ -886,6 +987,9 @@ EOF
     local epos=$(sed -n "$spos,$ {/^\}/=}" $ocalls_cpp | head -n 1)
     sed -i "$spos,$((epos-1)) d" $ocalls_cpp
     sed -i "$((spos-=1)) r $TMPFILE" $ocalls_cpp
+
+    spos=$(sed -n '/\/\/ Send identity to crust chain/=' $ocalls_cpp)
+    sed -i "$spos,$((spos+9)) d" $ocalls_cpp
 }
 
 function ocalls_h_test()
@@ -935,8 +1039,11 @@ enclave_edl=$encdir/Enclave.edl
 ecalls_cpp=$appdir/ecalls/ECalls.cpp
 ecalls_h=$appdir/ecalls/ECalls.h
 process_cpp=$appdir/process/Process.cpp
+storage_cpp=$appdir/process/Storage.cpp
+storage_h=$appdir/process/Storage.h
 resource_h=$appdir/include/Resource.h
 apihandler_h=$appdir/http/ApiHandler.h
+webserver_cpp=$appdir/http/WebServer.cpp
 data_cpp=$appdir/process/Data.cpp
 data_h=$appdir/process/Data.h
 ocalls_cpp=$appdir/ocalls/OCalls.cpp
@@ -949,6 +1056,7 @@ enclave_storage_cpp=$encdir/storage/Storage.cpp
 enclave_parameter_h=$encdir/include/Parameter.h
 enclave_workload_cpp=$encdir/workload/Workload.cpp
 enclave_workload_h=$encdir/workload/Workload.h
+enclave_identity_cpp=$encdir/identity/Identity.cpp
 testdir=$basedir/test_app
 configfile=$testdir/etc/Config.json
 TMPFILE=$basedir/tmp.$$
@@ -978,7 +1086,10 @@ resource_h_test
 ecalls_cpp_test
 ecalls_h_test
 process_cpp_test
+storage_cpp_test
+storage_h_test
 apihandler_h_test
+webserver_cpp_test
 data_cpp_test
 data_h_test
 ocalls_cpp_test
@@ -991,7 +1102,8 @@ enc_srd_cpp_test
 enc_srd_h_test
 enc_wl_cpp_test
 enc_wl_h_test
+enc_id_cpp_test
+enc_parameter_h_test
 #enc_storage_cpp_test
-#enc_parameter_h_test
 
 InstallAPP

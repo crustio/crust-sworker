@@ -28,8 +28,6 @@ trap 'seal_exit' EXIT
 
 . $scriptdir/utils.sh
 
-print_title "start delete case"
-
 
 declare -A hash_2_use_m
 data_arry=($(ls $datadir))
@@ -45,12 +43,12 @@ while [ $acc -gt 0 ]; do
         echo "Seal file failed!"
         exit 1
     fi
-    ret_body=$(cat $TMPFILE)
-    sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+    sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -ge 64 ]; then
+        sealed_hash=${sealed_hash:0:64}
         hash_2_use_m[$sealed_hash]=0
     else
-        echo "Seal file failed!"
+        echo "Cannot get wrong sealed hash($sealed_hash)!"
         exit 1
     fi
     ((acc--))

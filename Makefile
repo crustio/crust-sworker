@@ -1,12 +1,12 @@
-.PHONY: build test build_test functionality_test clean
+.PHONY: build uint_test build_integration functionality_test clean
 
 build:
 	@$(MAKE) -C src/ all --no-print-directory
 
-test:
+uint_test:
 	@$(MAKE) -C test/unit test --no-print-directory
 
-build_test:
+build_integration:
 	@$(MAKE) -C test/integration build --no-print-directory
 
 functionality_test:

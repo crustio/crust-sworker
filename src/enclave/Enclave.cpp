@@ -121,7 +121,7 @@ crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
  * @param block_height (in) -> block height
  * @return: Sign status
  */
-crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block_height)
+crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t block_height)
 {
     if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
     {
@@ -129,7 +129,7 @@ crust_status_t ecall_get_signed_work_report(const char *block_hash, size_t block
     }
 
     sched_add(SCHED_GET_WORKREPORT);
-    crust_status_t ret = get_signed_work_report(block_hash, block_height);
+    crust_status_t ret = gen_and_upload_work_report(block_hash, block_height, 0, false);
     sched_del(SCHED_GET_WORKREPORT);
 
     return ret;
@@ -301,20 +301,6 @@ crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, siz
     }
 
     return id_restore_from_upgrade(meta, meta_len, total_size, transfer_end);
-}
-
-/**
- * @description: Set work report result
- * @param flag -> Report result
- */
-void ecall_handle_report_result()
-{
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
-    {
-        return;
-    }
-
-    Workload::get_instance()->handle_report_result();
 }
 
 /**

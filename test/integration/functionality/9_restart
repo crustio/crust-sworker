@@ -30,11 +30,10 @@ mkdir -p $tmpdir
 
 . $scriptdir/utils.sh
 
-print_title "start restart case"
-
 
 ### Restart crust-sworker
 store_metadata &>/dev/null
+sworkerpid=$(cat $sworkerpidfile)
 kill -9 $sworkerpid &>/dev/null
 wait $sworkerpid &>/dev/null
 sleep 3
@@ -42,6 +41,7 @@ cd $testdir
 verbose INFO "Restarting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
 sworkerpid=$!
+echo $sworkerpid > $sworkerpidfile
 sleep 20
 curl -s $baseurl/workload 2>$errfile 1>/dev/null
 if [ $? -ne 0 ] ; then

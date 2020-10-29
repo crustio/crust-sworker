@@ -20,7 +20,7 @@ enclave {
         public void ecall_main_loop();
         public crust_status_t ecall_cmp_chain_account_id([in, size=len] const char *account_id, size_t len);
 
-        public crust_status_t ecall_get_signed_work_report([in, string] const char *block_hash, size_t block_height); 
+        public crust_status_t ecall_gen_and_upload_work_report([in, string] const char *block_hash, size_t block_height); 
         
         public crust_status_t ecall_restore_metadata();
 		public sgx_status_t ecall_get_quote_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
@@ -32,7 +32,6 @@ enclave {
         public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
         public crust_status_t ecall_confirm_file([in, string] const char *hash);
         public crust_status_t ecall_delete_file([in, string] const char *hash);
-        public void ecall_handle_report_result();
 
         public crust_status_t ecall_gen_upgrade_data(size_t block_height);
         public crust_status_t ecall_restore_from_upgrade([in, size=meta_len] const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
