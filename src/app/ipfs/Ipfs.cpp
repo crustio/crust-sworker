@@ -13,7 +13,6 @@ Ipfs *Ipfs::get_instance()
 {
     if (Ipfs::ipfs == NULL)
     {
-        Config *p_config = Config::get_instance();
         Ipfs::ipfs = new Ipfs("http://127.0.0.1:5001/api/v0");
     }
 

@@ -9,8 +9,6 @@ std::string g_enclave_id_info = "";
 std::string g_enclave_workload = "";
 // Store signed work report
 std::string g_enclave_workreport = "";
-// New karst url
-std::string g_new_karst_url = "";
 // Upgrade data
 std::string g_upgrade_data = "";
 // Upgrade status
@@ -60,16 +58,6 @@ std::string get_g_enclave_workreport()
 void set_g_enclave_workreport(std::string workreport)
 {
     g_enclave_workreport = workreport;
-}
-
-std::string get_g_new_karst_url()
-{
-    return g_new_karst_url;
-}
-
-void set_g_new_karst_url(std::string karst_url)
-{
-    g_new_karst_url = karst_url;
 }
 
 std::string get_g_upgrade_data()

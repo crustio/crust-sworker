@@ -342,6 +342,7 @@ function process_cpp_test()
     sed -i "$((pos4+1)) a \\\t\t\tg_block_height += REPORT_BLOCK_HEIGHT_BASE;" $process_cpp
 }
 
+########## storage_cpp_test ##########
 function storage_cpp_test()
 {
 cat << EOF >> $storage_cpp
@@ -364,6 +365,7 @@ void report_add_callback()
 EOF
 }
 
+########## storage_h_test ##########
 function storage_h_test()
 {
     local spos=$(sed -n "/void storage_add_delete(/=" $storage_h)
@@ -636,11 +638,13 @@ EOF
     sed -i "/long change_srd_num = 0;/ a size_t g_block_height = 0;" $apihandler_h
 }
 
+########## webserver_cpp_test ##########
 function webserver_cpp_test()
 {
     sed -i "/kill(g_webservice_pid,/ c //kill(g_webservice_pid," $webserver_cpp
 }
 
+########## data_cpp_test ##########
 function data_cpp_test()
 {
 cat << EOF >> $data_cpp
@@ -659,6 +663,7 @@ EOF
     sed -i "/std::mutex g_upgrade_status_mutex/a // File info\nstd::string g_file_info = \"\";" $data_cpp
 }
 
+########## data_h_test ##########
 function data_h_test
 {
     sed -i '/set_g_upgrade_status(/a void set_g_file_info(std::string file_info);' $data_h
@@ -783,6 +788,7 @@ EOF
     sed -i "s/ocall_delete_folder_or_file(/\/\/ocall_delete_folder_or_file(/g" $enclave_srd_cpp
 }
 
+########## enc_wl_h_test ##########
 function enc_wl_h_test()
 {
 cat << EOF > $TMPFILE
@@ -798,6 +804,7 @@ EOF
     sed -i "$spos r $TMPFILE" $enclave_workload_h
 }
 
+########## enc_wl_cpp_test ##########
 function enc_wl_cpp_test()
 {
 cat << EOF >> $enclave_workload_cpp
@@ -832,6 +839,11 @@ void Workload::test_add_file(long file_num)
 void Workload::test_valid_file(uint32_t file_num)
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
+    if (this->checked_files.size() == 0)
+    {
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+        return;
+    }
     for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
     {
         uint32_t index = 0;
@@ -856,6 +868,11 @@ void Workload::test_valid_file(uint32_t file_num)
 void Workload::test_lost_file(uint32_t file_num)
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
+    if (this->checked_files.size() == 0)
+    {
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+        return;
+    }
     for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
     {
         uint32_t index = 0;
@@ -879,6 +896,11 @@ void Workload::test_lost_file(uint32_t file_num)
 void Workload::test_delete_file(uint32_t file_num)
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
+    if (this->checked_files.size() == 0)
+    {
+        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+        return;
+    }
     for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
     {
         uint32_t index = 0;
@@ -904,6 +926,7 @@ EOF
     sed -i "$spos, $((spos+4)) d" $enclave_workload_cpp
 }
 
+########## enc_id_cpp_test ##########
 function enc_id_cpp_test()
 {
     local pos=$(sed -n '/ocall_get_block_hash(/=' $enclave_identity_cpp)
@@ -912,16 +935,19 @@ function enc_id_cpp_test()
     sed -i "$pos d" $enclave_identity_cpp
 }
 
+########## enc_srd_h_test ##########
 function enc_srd_h_test()
 {
     sed -i "/^#define SRD_MAX_PER_TURN 64/ c #define SRD_MAX_PER_TURN 1000" $enclave_srd_h
 }
 
+########## enc_storage_cpp_test ##########
 function enc_storage_cpp_test()
 {
     sed -i "s/ocall_replace_file(/\/\/ocall_replace_file(/g" $enclave_storage_cpp
 }
 
+########## enc_parameter_h_test ##########
 function enc_parameter_h_test()
 {
     sed -i "/#define WORKREPORT_FILE_LIMIT 1000/ c #define WORKREPORT_FILE_LIMIT 6" $enclave_parameter_h
@@ -992,6 +1018,7 @@ EOF
     sed -i "$spos,$((spos+9)) d" $ocalls_cpp
 }
 
+########## ocalls_h_test ##########
 function ocalls_h_test()
 {
     sed -i '/ocall_store_upgrade_data(/a void ocall_store_file_info(const char *info);' $ocalls_h

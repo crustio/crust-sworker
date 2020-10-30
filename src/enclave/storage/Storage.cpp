@@ -26,6 +26,22 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char *path, size_t path_len, char *p_new_path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
+    Workload *wl = Workload::get_instance();
+
+    // Check if file number exceeds upper limit
+    size_t file_num = 0;
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    file_num += wl->checked_files.size();
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+
+    sgx_thread_mutex_lock(&g_new_files_mutex);
+    file_num += wl->new_files.size();
+    sgx_thread_mutex_unlock(&g_new_files_mutex);
+
+    if (file_num > FILE_NUMBER_UPPER_LIMIT)
+    {
+        return CRUST_FILE_NUMBER_EXCEED;
+    }
 
     // Validate MerkleTree
     json::JSON tree_json = json::JSON::Load(std::string(p_tree, tree_len));
@@ -53,7 +69,6 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     {
         return crust_status;
     }
-    new_tree.erase(new_tree.size() - 1, 1);
     std::string new_root_hash_str = tree_json[MT_HASH].ToString();
 
     // Rename old directory
@@ -114,7 +129,6 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
             file_entry_json[FILE_SIZE].ToInt());
 
     // Add new file to buffer
-    Workload *wl = Workload::get_instance();
     wl->add_new_file(file_entry_json);
 
     // Add info in workload spec
@@ -223,7 +237,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         // Note: Cannot change append sequence!
         tree.append("{\"" MT_LINKS_NUM "\":").append(to_string(tree_json[MT_LINKS_NUM].ToInt())).append(",");
         tree.append("\"" MT_HASH "\":\"").append(tree_json[MT_HASH].ToString()).append("\",");
-        tree.append("\"" MT_SIZE "\":").append(to_string(sealed_data_size)).append("},");
+        tree.append("\"" MT_SIZE "\":").append(to_string(sealed_data_size)).append("}");
 
     sealend:
 
@@ -269,6 +283,10 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         }
         memcpy(sub_hashs + i * HASH_LENGTH, p_new_hash, HASH_LENGTH);
         free(p_new_hash);
+        if (i != tree_json[MT_LINKS_NUM].ToInt() - 1)
+        {
+            tree.append(",");
+        }
     }
     // Get new hash
     sgx_sha256_hash_t new_hash;
@@ -276,10 +294,9 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     tree_json[MT_HASH] = hexstring_safe(new_hash, HASH_LENGTH);
 
     // Construct tree string
-    tree.erase(tree.size() - 1, 1);
     tree.append("],\"" MT_LINKS_NUM "\":").append(to_string(tree_json[MT_LINKS_NUM].ToInt())).append(",");
     tree.append("\"" MT_HASH "\":\"").append(tree_json[MT_HASH].ToString()).append("\",");
-    tree.append("\"" MT_SIZE "\":").append(to_string(cur_size)).append("},");
+    tree.append("\"" MT_SIZE "\":").append(to_string(cur_size)).append("}");
 
     node_size += cur_size;
 

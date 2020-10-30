@@ -540,12 +540,6 @@ crust_status_t ocall_validate_init()
 
     wssclient = new WebsocketClient();
     Config *p_config = Config::get_instance();
-    // Check and get new karst url
-    if (get_g_new_karst_url().compare("") != 0)
-    {
-        p_config->karst_url = get_g_new_karst_url();
-        set_g_new_karst_url("");
-    }
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->karst_url);
     if (! wssclient->websocket_init(urlendpoint->ip, std::to_string(urlendpoint->port), urlendpoint->base))
     {
