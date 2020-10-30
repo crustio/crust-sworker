@@ -696,14 +696,15 @@ crust_status_t ocall_upload_workreport(const char *work_report)
  * */
 crust_status_t ocall_entry_network()
 {
+    crust_status_t crust_status = CRUST_SUCCESS;
     std::string sworker_identity_result;
     Config *p_config = Config::get_instance();
 
     // Entry network
     p_log->info("Entrying network...\n");
-    if (!entry_network(p_config, sworker_identity_result))
+    if (CRUST_SUCCESS != (crust_status = entry_network(p_config, sworker_identity_result)))
     {
-        return CRUST_ENTRY_NETWORK_FAILED;
+        return crust_status;
     }
     p_log->info("Entry network application successfully! sworker identity: %s\n", sworker_identity_result.c_str());
     // Send identity to crust chain

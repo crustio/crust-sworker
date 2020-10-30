@@ -127,6 +127,10 @@ sgx_status_t try_get_enclave(const char *name)
     // Increase corresponding task queue
     g_waiting_task_sum_v[cur_task_prio]++;
     // Increase corresponding invoked ecall
+    if (g_invoked_ecalls_um.count(tname) == 0)
+    {
+        g_invoked_ecalls_um[tname] = 0;
+    }
     g_invoked_ecalls_um[tname]++;
 
     // ----- Task scheduling ----- //
@@ -240,7 +244,10 @@ int get_upgrade_ecalls_num()
     int block_task_num = 0;
     for (auto task : g_upgrade_block_task)
     {
-        block_task_num += g_invoked_ecalls_um[task];
+        if (g_invoked_ecalls_um.count(task) != 0 && g_invoked_ecalls_um[task] > 0)
+        {
+            block_task_num += g_invoked_ecalls_um[task];
+        }
     }
 
     return block_task_num;

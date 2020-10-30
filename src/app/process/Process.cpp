@@ -10,6 +10,10 @@
 
 #define RECEIVE_PID_RETRY 30
 
+bool upgrade_try_start();
+bool upgrade_try_restore();
+bool upgrade_try_complete(bool restore_res);
+
 // Global EID shared by multiple threads
 sgx_enclave_id_t global_eid;
 // Pointor to configure instance
@@ -144,31 +148,16 @@ bool initialize_components(void)
 }
 
 /**
- * @description: Check if upgrade
- * @return: Check status
+ * @description: Inform old version to start upgrade
+ * @return: Inform result
  */
-bool do_upgrade()
+bool upgrade_try_start()
 {
-    bool ret = false;
-    HttpClient *client = new HttpClient();
+    std::shared_ptr<HttpClient> client(new HttpClient());
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
-    int tryout = 0;
-    unsigned long time_acc = 0;
-    json::JSON upgrade_ret;
-    upgrade_ret["success"] = false;
-    size_t meta_offset = 0;
-    size_t meta_size = 0;
-    const char *p_meta = NULL;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    int start_wait_time = 16;
-    int meta_wait_time = 10;
-    int complete_wait_time = 1;
-    http::response<http::string_body> res_meta;
-
-    // ----- Inform old version to start upgrade ----- //
     p_log->info("Informing old version to get ready for upgrade...\n");
-    tryout = UPGRADE_START_TRYOUT / start_wait_time;
+    int start_wait_time = 16;
+    int tryout = UPGRADE_START_TRYOUT / start_wait_time;
     while (true)
     {
         http::response<http::string_body> res_inform = client->Get(p_config->base_url + "/upgrade/start", "", headers);
@@ -177,7 +166,7 @@ bool do_upgrade()
             if ((int)res_inform.result() == 404)
             {
                 p_log->err("Please make sure old sWorker is running!Error code:%d\n", res_inform.result());
-                goto cleanup;
+                return false;
             }
             if (tryout % 15 == 0)
             {
@@ -186,7 +175,7 @@ bool do_upgrade()
             if (--tryout < 0)
             {
                 p_log->warn("Upgrade tryout!Message:%s\n", res_inform.body().c_str());
-                goto cleanup;
+                return false;
             }
             sleep(start_wait_time);
             continue;
@@ -196,9 +185,24 @@ bool do_upgrade()
         break;
     }
 
-    // ----- Restore workload from upgrade data ----- //
+    return true;
+}
+
+/**
+ * @description: Restore upgrade data
+ * @return: Restore result
+ */
+bool upgrade_try_restore()
+{
+    std::shared_ptr<HttpClient> client(new HttpClient());
+    ApiHeaders headers = {{"backup",p_config->chain_backup}};
     p_log->info("Waiting for upgrade data...\n");
-    tryout = UPGRADE_META_TRYOUT / meta_wait_time;
+    int restore_tryout = 3;
+    unsigned long time_acc = 0;
+    int meta_wait_time = 10;
+    int tryout = UPGRADE_META_TRYOUT / meta_wait_time;
+    http::response<http::string_body> res_meta;
+    sgx_status_t sgx_status = SGX_SUCCESS;
     while (true)
     {
         // Try to get metadata
@@ -208,7 +212,7 @@ bool do_upgrade()
             if ((int)res_meta.result() == 404 || --tryout < 0)
             {
                 p_log->err("Get upgrade data failed!Old sWorker is not running!\n");
-                goto cleanup;
+                return false;
             }
             sleep(meta_wait_time);
             time_acc += meta_wait_time;
@@ -223,11 +227,13 @@ bool do_upgrade()
         break;
     }
 
+
+restore_try_again:
     // Init enclave
     if (!initialize_enclave())
     {
         p_log->err("Init enclave failed!\n");
-        goto cleanup;
+        return false;
     }
 
     // Generate ecc key pair
@@ -235,14 +241,15 @@ bool do_upgrade()
             || SGX_SUCCESS != sgx_status)
     {
         p_log->err("Generate key pair failed!\n");
-        goto cleanup;
+        return false;
     }
     p_log->info("Generate key pair successfully!\n");
 
     // Restore workload and report old version's work report
-    meta_offset = 0;
-    meta_size = res_meta.body().size();
-    p_meta = res_meta.body().c_str();
+    crust_status_t crust_status = CRUST_SUCCESS;
+    size_t meta_offset = 0;
+    size_t meta_size = res_meta.body().size();
+    const char *p_meta = res_meta.body().c_str();
     while (meta_size > meta_offset)
     {
         size_t partial_size = std::min(meta_size - meta_offset, (size_t)OCALL_STORE_THRESHOLD);
@@ -250,11 +257,24 @@ bool do_upgrade()
         if (SGX_SUCCESS != (sgx_status = Ecall_restore_from_upgrade(global_eid, &crust_status, p_meta + meta_offset, partial_size, meta_size, transfer_end)))
         {
             p_log->err("Invoke SGX API failed!Error code:%lx.\n", sgx_status);
-            goto cleanup;
+            return false;
         }
         else if (CRUST_SUCCESS == crust_status)
         {
             break;
+        }
+        else if (CRUST_INIT_QUOTE_FAILED == crust_status)
+        {
+            if (--restore_tryout > 0)
+            {
+                sgx_destroy_enclave(global_eid);
+                sleep(meta_wait_time);
+                goto restore_try_again;
+            }
+            else
+            {
+                return false;
+            }
         }
         else if (CRUST_UPGRADE_NEED_LEFT_DATA == crust_status)
         {
@@ -263,16 +283,27 @@ bool do_upgrade()
         else
         {
             p_log->err("Restore workload from upgrade data failed!Error code:%lx.\n", crust_status);
-            goto cleanup;
+            return false;
         }
     }
     p_log->info("Restore workload from upgrade data successfully!\n");
-    upgrade_ret["success"] = true;
 
-cleanup:
+    return true;
+}
 
-    // ----- Inform old version to close webservice ----- //
-    tryout = UPGRADE_COMPLETE_TRYOUT / complete_wait_time;
+/**
+ * @description: Inform old version upgrade result
+ * @param restore_res -> Upgrade try restore result
+ * @return: Inform result
+ */
+bool upgrade_try_complete(bool restore_res)
+{
+    std::shared_ptr<HttpClient> client(new HttpClient());
+    ApiHeaders headers = {{"backup",p_config->chain_backup}};
+    json::JSON upgrade_ret;
+    upgrade_ret["success"] = restore_res;
+    int complete_wait_time = 1;
+    int tryout = UPGRADE_COMPLETE_TRYOUT / complete_wait_time;
     while (true)
     {
         // Inform old version to close
@@ -286,22 +317,40 @@ cleanup:
         break;
     }
     p_log->info("Inform old version that upgrade result: %s!\n", upgrade_ret["success"].ToBool() ? "successfully" : "failed");
-    ret = upgrade_ret["success"].ToBool();
+    bool res = upgrade_ret["success"].ToBool();
 
     // Init related components
-    if (ret)
+    if (res)
     {
         // Waiting old version stop
         sleep(20);
         if (!initialize_components())
         {
             p_log->err("Init component failed!\n");
+            res = false;
         }
     }
 
-    delete(client);
+    return res;
+}
 
-    return ret;
+/**
+ * @description: Check if upgrade
+ * @return: Check status
+ */
+bool do_upgrade()
+{
+    bool res = true;
+    if (!upgrade_try_start())
+    {
+        return false;
+    }
+
+    res = upgrade_try_restore();
+
+    res = upgrade_try_complete(res);
+
+    return res;
 }
 
 /**
@@ -392,7 +441,7 @@ int process_run()
             {
                 // Entry network
                 p_log->info("Entrying network...\n");
-                if (!entry_network(p_config, sworker_identity_result))
+                if (CRUST_SUCCESS != entry_network(p_config, sworker_identity_result))
                 {
                     goto cleanup;
                     return_status = -1;
