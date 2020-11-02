@@ -265,6 +265,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             Ecall_id_get_info(global_eid);
             json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
+            id_json["account"] = p_config->chain_address;
             id_json["version"] = VERSION;
             id_json["sworker_version"] = SWORKER_VERSION;
             res.body() = id_json.dump();
@@ -708,6 +709,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         break;
                     case CRUST_STORAGE_FILE_NOTFOUND:
                         ret_info = "Given file cannot be found!";
+                        break;
+                    case CRUST_FILE_NUMBER_EXCEED:
+                        ret_info = "No more file can be sealed!File number reachs the upper limit!";
                         break;
                     default:
                         ret_info = "Unexpected error!";

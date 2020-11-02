@@ -39,6 +39,16 @@ function _test_delete_file()
     fi
 }
 
+function _report_success()
+{
+    _report
+}
+
+function _report_failed()
+{
+    _report 1
+}
+
 function _report()
 {
     local not_report=$1
@@ -64,6 +74,19 @@ function _report()
         ((files_size_deleted += $size))
     done
     echo "$files_size" "$files_size_added" "$files_size_deleted"
+}
+
+function _clean()
+{
+    local file_num=$1
+    local report_res=""
+    while [ $file_num -gt 0 ]; do
+        _test_delete_file 1000
+        _report_success &>/dev/null
+        ((file_num-=1000))
+    done
+
+    return 0
 }
 
 function report_exit()
@@ -92,18 +115,8 @@ rnum=0
 # Test round 1
 _test_add_file 2000
 _test_valid_file 1500
-cres=($(_report))
-expected=$((${cres[1]}-${cres[2]}))
-real=${cres[0]}
-verbose INFO "round$((++rnum)): add file. expected:$expected, real:$real" n
-if [ ${cres[0]} -ne ${cres[1]} ]; then
-    verbose INFO "test failed!expected:$expected, real:$real" n
-    exit 1
-fi
-pres=(${cres[@]})
-
-# Test round 2
-cres=($(_report))
+pres=($(_report_success))
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): add file. expected:$expected, real:$real" n
@@ -111,11 +124,28 @@ if [ $expected -ne $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
-pres=(${cres[@]})
+_clean 3000
+
+# Test round 2
+_test_add_file 1500
+_test_valid_file 1500
+pres=($(_report_success))
+cres=($(_report_success))
+expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
+real=${cres[0]}
+verbose INFO "round$((++rnum)): add file. expected:$expected, real:$real" n
+if [ $expected -ne $real ]; then
+    verbose INFO "test failed!expected:$expected, real:$real" n
+    exit 1
+fi
+_clean 3000
 
 # Test round 3
+_test_add_file 1500
+_test_valid_file 1000
+pres=($(_report_success))
 _test_delete_file 500
-cres=($(_report))
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): delete file. expected:$expected, real:$real" n
@@ -123,11 +153,14 @@ if [ $expected -ne $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
-pres=(${cres[@]})
+_clean 3000
 
 # Test round 4
+_test_add_file 1500
+_test_valid_file 1000
+pres=($(_report_success))
 _test_lost_file 500
-cres=($(_report))
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): lost file. expected:$expected, real:$real" n
@@ -135,11 +168,13 @@ if [ $expected -ne $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
-pres=(${cres[@]})
+_clean 3000
 
 # Test round 5
-_test_valid_file 500
-cres=($(_report))
+_test_add_file 1500
+_test_valid_file 1500
+pres=($(_report_success))
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): valid file. expected:$expected, real:$real" n
@@ -147,18 +182,17 @@ if [ $expected -ne $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
-pres=(${cres[@]})
+_clean 3000
 
 # Test round 6
 _test_add_file 1000
 _test_valid_file 1000
 _test_delete_file 500
-cres=($(_report))
-pres=(${cres[@]})
+pres=($(_report_success))
 _test_lost_file 500
-_report 1 &>/dev/null
+_report_failed &>/dev/null
 _test_valid_file 300
-cres=($(_report))
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): report failed,report again. expected:$expected, real:$real" n
@@ -166,12 +200,14 @@ if [ $expected -ne $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
-pres=(${cres[@]})
+_clean 3000
 
 # Test round 7
-_test_lost_file 500
-_report &>/dev/null
-cres=($(_report))
+_test_add_file 3000
+_test_valid_file 2500
+pres=($(_report_success))
+_report_success &>/dev/null
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): cheat: inform reporting while not!expected:$expected, real:$real" n
@@ -179,13 +215,13 @@ if [ $expected -eq $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
-pres=(${cres[@]})
+_clean 3000
 
 # Test round 8
+_test_add_file 1500
 _test_valid_file 500
-cres=($(_report 1))
-pres=(${cres[@]})
-cres=($(_report))
+pres=($(_report_failed))
+cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
 verbose INFO "round$((++rnum)): cheat: inform not report while do!expected:$expected, real:$real" n
@@ -193,3 +229,4 @@ if [ $expected -eq $real ]; then
     verbose INFO "test failed!expected:$expected, real:$real" n
     exit 1
 fi
+_clean 3000

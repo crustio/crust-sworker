@@ -369,6 +369,28 @@ long get_srd_change()
  */
 void set_srd_change(long change)
 {
+    // Check if srd number exceeds upper limit
+    if (change > 0)
+    {
+        sgx_thread_mutex_lock(&g_srd_mutex);
+        size_t srd_num = 0;
+        for (auto srds : Workload::get_instance()->srd_path2hashs_m)
+        {
+            srd_num += srds.second.size();
+        }
+        sgx_thread_mutex_unlock(&g_srd_mutex);
+        if (srd_num >= SRD_NUMBER_UPPER_LIMIT)
+        {
+            log_warn("No srd will be added!Srd size has reached the upper limit:%ldG!\n", SRD_NUMBER_UPPER_LIMIT / 1024);
+            change = 0;
+        }
+        else if (srd_num + change > SRD_NUMBER_UPPER_LIMIT)
+        {
+            change = SRD_NUMBER_UPPER_LIMIT - srd_num;
+            log_warn("To be added srd number:%ldG(srd upper limit:%ldG)\n", change, SRD_NUMBER_UPPER_LIMIT / 1024);
+        }
+    }
+
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     g_srd_change = change;
     sgx_thread_mutex_unlock(&g_srd_change_mutex);

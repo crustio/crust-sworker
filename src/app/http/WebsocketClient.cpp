@@ -16,8 +16,8 @@ void fail(beast::error_code ec, char const* what)
     if(ec == net::ssl::error::stream_truncated)
         return;
 
-    p_log->err("Webserver error: ");
-    std::cerr << what << ": " << ec.message() << "\n";
+    p_log->err("Webserver error: %s : %s\n", what, ec.message());
+    //std::cerr << what << ": " << ec.message() << "\n";
 }
 
 /**

@@ -168,7 +168,7 @@ json::JSON Workload::gen_workload_info()
 
 /**
  * @description: Serialize workload for sealing
- * @param locked -> Indicates whether to get lock, default value is true
+ * @param sered_srd -> Reference to serialized srd
  * @return: Serialized workload
  */
 void Workload::serialize_srd(std::string &sered_srd)
@@ -201,8 +201,9 @@ void Workload::serialize_srd(std::string &sered_srd)
 
 /**
  * @description: Serialize file for sealing
- * @param locked -> Indicates whether to get lock, default value is true
- * @return: Serialized file info
+ * @param p_data -> Pointer to point to data
+ * @param data_size -> Serialized data size
+ * @return: Serialized result
  */
 crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
@@ -251,7 +252,7 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 
 /**
  * @description: Restore workload from serialized workload
- * @param g_hashs -> G hashs in json format
+ * @param g_hashs -> G hashs json data
  * @return: Restore status
  */
 crust_status_t Workload::restore_srd(json::JSON g_hashs)
@@ -310,7 +311,7 @@ void Workload::restore_file(json::JSON file_json)
 
 /**
  * @description: Add new file to new_files
- * @param file -> A pair of file's hash and file's size
+ * @param file -> File json item
  */
 void Workload::add_new_file(json::JSON file)
 {
@@ -373,7 +374,7 @@ json::JSON Workload::get_srd_info()
 
 /**
  * @description: Set upgrade flag
- * @param flag -> Upgrade flag
+ * @param pub_key -> Previous version's public key
  */
 void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 {
@@ -392,7 +393,7 @@ bool Workload::is_upgrade()
 
 /**
  * @description: Set is_upgrading flag
- * @param flag -> Is upgrading
+ * @param status -> Enclave upgrade status
  */
 void Workload::set_upgrade_status(enc_upgrade_status_t status)
 {
@@ -401,7 +402,7 @@ void Workload::set_upgrade_status(enc_upgrade_status_t status)
 
 /**
  * @description: Get is_upgrading flag
- * @return: Is upgrading
+ * @return: Enclave upgrade status
  * */
 enc_upgrade_status_t Workload::get_upgrade_status()
 {
@@ -429,6 +430,7 @@ void Workload::handle_report_result()
 
 /**
  * @description: Check if can report workreport
+ * @param block_height -> Block height
  * @return: Check status
  */
 crust_status_t Workload::try_report_work(size_t block_height)
@@ -542,7 +544,7 @@ bool Workload::try_get_key_pair()
 
 /**
  * @description: Get public key
- * @return: Public key
+ * @return: Const reference to public key
  */
 const sgx_ec256_public_t& Workload::get_pub_key()
 {
@@ -551,7 +553,7 @@ const sgx_ec256_public_t& Workload::get_pub_key()
 
 /**
  * @description: Get private key
- * @return: Get private key
+ * @return: Const reference to private key
  */
 const sgx_ec256_private_t& Workload::get_pri_key()
 {
@@ -571,7 +573,7 @@ void Workload::set_key_pair(ecc_key_pair id_key_pair)
 
 /**
  * @description: Get identity key pair
- * @return: Identity key pair
+ * @return: Const reference to identity key pair
  */
 const ecc_key_pair& Workload::get_key_pair()
 {
@@ -589,7 +591,7 @@ void Workload::set_mr_enclave(sgx_measurement_t mr)
 
 /**
  * @description: Get MR enclave
- * @return: MR enclave
+ * @return: Const reference to MR enclave
  */
 const sgx_measurement_t& Workload::get_mr_enclave()
 {
