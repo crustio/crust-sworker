@@ -370,11 +370,11 @@ int process_run()
     pid_t worker_pid = getpid();
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
-    std::string sworker_identity_result = "";
     int return_status = 1;
     int check_interval = 15;
-    int upgrade_timeout = REPORT_BLOCK_HEIGHT_BASE * BLOCK_INTERVAL;
+    int upgrade_timeout = 2 * REPORT_BLOCK_HEIGHT_BASE * BLOCK_INTERVAL;
     int upgrade_tryout = upgrade_timeout / check_interval;
+    EnclaveData *ed = EnclaveData::get_instance();
     p_log->info("WorkerPID = %d\n", worker_pid);
 
     // Init conifigure
@@ -440,28 +440,11 @@ int process_run()
             if (!offline_chain_mode)
             {
                 // Entry network
-                p_log->info("Entrying network...\n");
-                if (CRUST_SUCCESS != entry_network(p_config, sworker_identity_result))
+                if (CRUST_SUCCESS != entry_network())
                 {
                     goto cleanup;
                     return_status = -1;
                 }
-                p_log->info("Entry network application successfully! Sworker identity: %s\n", sworker_identity_result.c_str());
-
-                // Send identity to crust chain
-                if (!crust::Chain::get_instance()->wait_for_running())
-                {
-                    return_status = -1;
-                    goto cleanup;
-                }
-
-                if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity_result))
-                {
-                    p_log->err("Send identity to crust chain failed!\n");
-                    return_status = -1;
-                    goto cleanup;
-                }
-                p_log->info("Send identity to crust chain successfully!\n");
             }
 
             // Srd disk
@@ -500,7 +483,7 @@ int process_run()
     while (true)
     {
         // Check if work threads still running
-        if (UPGRADE_STATUS_EXIT != get_g_upgrade_status())
+        if (UPGRADE_STATUS_EXIT != ed->get_upgrade_status())
         {
             std::future_status f_status;
             for (auto task : g_tasks_v)
@@ -515,14 +498,14 @@ int process_run()
         }
 
         // Deal with upgrade
-        if (UPGRADE_STATUS_PROCESS == get_g_upgrade_status())
+        if (UPGRADE_STATUS_PROCESS == ed->get_upgrade_status())
         {
             if (get_upgrade_ecalls_num() == 0)
             {
-                set_g_upgrade_status(UPGRADE_STATUS_END);
+                ed->set_upgrade_status(UPGRADE_STATUS_END);
             }
         }
-        if (UPGRADE_STATUS_END == get_g_upgrade_status())
+        if (UPGRADE_STATUS_END == ed->get_upgrade_status())
         {
             p_log->info("Start generating upgrade data...\n");
             crust::BlockHeader *block_header = crust::Chain::get_instance()->get_block_header();
@@ -541,10 +524,10 @@ int process_run()
             else
             {
                 p_log->info("Generate upgrade metadata successfully!\n");
-                set_g_upgrade_status(UPGRADE_STATUS_COMPLETE);
+                ed->set_upgrade_status(UPGRADE_STATUS_COMPLETE);
             }
         }
-        if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+        if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
             // Stop web service
             p_log->info("Kill web service for exit...\n");
@@ -556,12 +539,12 @@ int process_run()
             goto cleanup;
         }
         // Upgrade tryout
-        if (UPGRADE_STATUS_NONE != get_g_upgrade_status())
+        if (UPGRADE_STATUS_NONE != ed->get_upgrade_status())
         {
             if (--upgrade_tryout < 0)
             {
                 p_log->err("Upgrade timeout!Current version will restore work!\n");
-                set_g_upgrade_status(UPGRADE_STATUS_NONE);
+                ed->set_upgrade_status(UPGRADE_STATUS_NONE);
                 upgrade_tryout = upgrade_timeout / check_interval;
             }
         }
@@ -579,7 +562,7 @@ cleanup:
     if (global_eid != 0)
         sgx_destroy_enclave(global_eid);
 
-    if (get_g_upgrade_status() == UPGRADE_STATUS_EXIT)
+    if (ed->get_upgrade_status() == UPGRADE_STATUS_EXIT)
         exit(return_status);
 
     return return_status;

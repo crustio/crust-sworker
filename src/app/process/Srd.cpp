@@ -312,7 +312,7 @@ void srd_check_reserved(void)
 
     while (true)
     {
-        if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+        if (UPGRADE_STATUS_EXIT == EnclaveData::get_instance()->get_upgrade_status())
         {
             break;
         }

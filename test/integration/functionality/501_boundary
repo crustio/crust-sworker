@@ -1,0 +1,115 @@
+#!/bin/bash
+function _seal()
+{
+    local datapath_l=$1
+    local storepath_l=$2
+    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
+    seal_file $datapath_l $storepath_l &>$curtmp
+    if [ $? -ne 0 ]; then
+        rm $curtmp
+        return 1
+    fi
+    if ! cat $curtmp | jq '.' &>/dev/null; then
+        rm $curtmp
+        return 1
+    fi
+    rm $curtmp
+}
+
+function _srd()
+{
+    # Get current available max per turn
+    local paths=$1
+    local srd_num=$2
+    local tmp=""
+    local srd_max_per_turn=0
+    local srd_paths_test=($(echo $paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
+    for path in ${srd_paths_test[@]}; do
+        tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
+        tmp=${tmp%[a-zA-Z]*}
+        ((srd_max_per_turn+=tmp-55))
+    done
+
+    # Srd task
+    local tmp_num=0
+    local cur_turn=0
+    srd_disk_change "$paths" "add" &>/dev/null
+    while [ $tmp_num -lt $srd_num ]; do
+        if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
+            cur_turn=$srd_max_per_turn
+        else
+            cur_turn=$((srd_num - tmp_num))
+        fi
+        srd $cur_turn &>/dev/null
+        if [ $? -ne 0 ]; then
+            verbose ERROR "srd failed!" n
+            exit 1
+        fi
+        ((tmp_num+=cur_turn))
+    done
+}
+
+function _clean()
+{
+    local file_num=$file_limit
+    _test_delete_file_unsafe $file_limit
+}
+
+function _test_add_file()
+{
+    local num=$1
+    test_add_file $num &>/dev/null
+    if [ $? -ne 0 ]; then
+        verbose ERROR "add file failed!!" n
+        exit 1
+    fi
+}
+
+function _test_delete_file_unsafe()
+{
+    local num=$1
+    test_delete_file_unsafe $num &>/dev/null
+    if [ $? -ne 0 ]; then
+        verbose ERROR "delete file real failed!" n
+        exit 1
+    fi
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testfiledir=$testdir/files
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+
+mkdir -p $tmpdir
+
+trap '_clean' EXIT
+
+. $scriptdir/utils.sh
+
+data_arry=($(ls $datadir))
+srd_paths=$(get_config ".functionality|.srd_paths")
+srd_limit=$(get_config '.functionality|.srd_limit')
+file_limit=$(get_config '.functionality|.file_limit')
+
+### Seal file upper limit
+_test_add_file $file_limit
+sidx=$((RANDOM % ${#data_arry[@]}))
+_seal $datadir/${data_arry[$sidx]} $testfiledir
+if [ $? -eq 0 ]; then
+    verbose ERROR "test file upper limit failed!"
+    exit 1
+fi
+
+### Srd upper limit
+#_srd "$srd_paths" "$srd_limit"
+#srd 32
+#if [ $? -eq 0 ]; then
+#    verbose ERROR "test srd upper limit failed!"
+#    exit 1
+#fi

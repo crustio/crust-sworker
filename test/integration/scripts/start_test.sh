@@ -31,6 +31,11 @@ function success_exit()
         rm -rf $roottmpdir &>/dev/null
     fi
 
+    ### Clean functionality tmp dir
+    if [ x"$functionalitytmpdir" != x"" ]; then
+        rm -rf $functionalitytmpdir &>/dev/null
+    fi
+
     rm $SYNCFILE &>/dev/null
     rm $TMPFILE &>/dev/null
     rm $TMPFILE2 &>/dev/null
@@ -69,7 +74,8 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-functionalitytestdir=$instdir/functionality
+functionalitycasedir=$instdir/functionality
+functionalitytmpdir=$instdir/functionality/tmp
 benchmarktestdir=$instdir/benchmark
 performancetestdir=$instdir/performance
 testdir=$instdir/test_app
@@ -86,6 +92,7 @@ TMPFILE2=$instdir/TMPFILE2
 roottmpdir=$instdir/tmp
 sworkerpidfile=$roottmpdir/sworkerpid
 reportheightfile=$roottmpdir/report_file
+configfile=$instdir/config/config.json
 ERA_LENGTH=300
 REPORT_WAIT_BM=15
 cursworkerpid=$$
@@ -106,6 +113,7 @@ export baseurl
 export benchmarkfile
 export sworkerpidfile
 export reportheightfile
+export configfile
 export ERA_LENGTH
 export REPORT_WAIT_BM
 
@@ -127,7 +135,7 @@ while getopts "t:p:c:" opt &>/dev/null; do
 done
 
 if [ x"$run_type" = x"functionality" ]; then
-    casedir=$functionalitytestdir
+    casedir=$functionalitycasedir
 elif [ x"$run_type" = x"benchmark" ]; then
     casedir=$benchmarktestdir
     verbose INFO "starting $run_type cases:" n >> $benchmarkfile
@@ -139,7 +147,7 @@ else
 fi
 
 ### Select chose cases
-orgcase_arry=($(ls $functionalitytestdir | sort))
+orgcase_arry=($(ls $functionalitycasedir | sort))
 if [ x"$case_arry" != x"" ]; then
     declare -A cname2idx
     declare -A cidx2name
@@ -157,7 +165,7 @@ if [ x"$case_arry" != x"" ]; then
         else
             case_name=${cname2idx[$el]}_${el}
         fi
-        if ls $functionalitytestdir | grep $case_name &>/dev/null; then
+        if ls $functionalitycasedir | grep $case_name &>/dev/null; then
             usecase_arry[$index]=$case_name
             ((index++))
         fi

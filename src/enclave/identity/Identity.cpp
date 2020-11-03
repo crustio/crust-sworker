@@ -326,12 +326,12 @@ char *base64_decode(const char *msg, size_t *sz)
 }
 
 /**
- * @description: Verify IAS report
+ * @description: Verify IAS report and upload identity
  * @param IASReport -> Pointer to vector address
  * @param size -> Vector size
  * @return: Verify status
  */
-crust_status_t id_verify_iasreport(char **IASReport, size_t size)
+crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
 {
     string certchain;
     string certchain_1;
@@ -597,7 +597,8 @@ crust_status_t id_verify_iasreport(char **IASReport, size_t size)
     id_json[IAS_REPORT_SIG] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
     id_str = id_json.dump();
 
-    ocall_store_identity(id_str.c_str());
+    // Upload identity to chain
+    ocall_upload_identity(&status, id_str.c_str());
 
 
 cleanup:
@@ -1305,7 +1306,10 @@ cleanup:
 
 /**
  * @description: Restore workload from upgrade data
- * @param data -> Upgrade data
+ * @param data -> Upgrade data per transfer
+ * @param data_size -> Upgrade data size per transfer
+ * @param total_size -> Upgrade data total size
+ * @param transfer_end -> Indicate whether upgrade data transfer is end
  * @return: Restore status
  */
 crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end)
@@ -1457,8 +1461,6 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
 
 
 cleanup:
-    wl->set_is_upgrading(false);
-
     if (ecc_state != NULL)
     {
         sgx_ecc256_close_context(ecc_state);

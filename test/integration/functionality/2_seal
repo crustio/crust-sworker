@@ -6,7 +6,7 @@ function _seal()
     local curtmp=$TMPFILE.$(date +%N)${RANDOM}
     seal_file $datapath_l $storepath_l &>$curtmp
     if [ $? -ne 0 ]; then
-        echo "Seal file failed!"
+        verbose ERROR "Seal file failed!" n
         rm $curtmp
         exit 1
     fi
@@ -18,7 +18,7 @@ function _seal()
           echo $sealed_hash >> $syncfile
         ) 200>$LOCKFILE
     else
-        echo "Seal file failed!"
+        verbose ERROR "Seal file failed!" n
         rm $curtmp
         exit 1
     fi
@@ -44,7 +44,6 @@ scriptdir=$instdir/scripts
 datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
-configfile=$instdir/config/config.json
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 LOCKFILE=$tmpdir/LOCKFILE
@@ -75,7 +74,7 @@ done
 _store_meta &>/dev/null
 for hash in $(cat $syncfile); do
     if ! check_hash "$hash" "unconfirmed"; then
-        echo "Seal file failed!Cannot find sealed hash."
+        verbose ERROR "Seal file failed!Cannot find sealed hash." n
         exit 1
     fi
 done

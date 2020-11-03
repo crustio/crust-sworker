@@ -6,7 +6,9 @@
         ],
         "srd_size": 1000,
         "srd_max_per_turn": 800,
-        "file_arry": "1m 2m 4m 8m"
+        "file_arry": "1m 2m 4m 8m",
+        "srd_limit": 204800,
+        "file_limit": 200000
     },
     "performance" : {
         "srd_num" : 200000,

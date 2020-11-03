@@ -13,7 +13,7 @@
 #include "SgxSupport.h"
 #include "FormatUtils.h"
 #include "CrustStatus.h"
-#include "Data.h"
+#include "EnclaveData.h"
 
 #define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })
@@ -22,6 +22,6 @@
 #define OPT_LINK 0x04
 #define OPT_PUBKEY 0x08
 
-crust_status_t entry_network(Config *p_config, std::string &sworker_identity_out);
+crust_status_t entry_network();
 
 #endif /* !_CRUST_ENTRY_NETWORK_H_ */

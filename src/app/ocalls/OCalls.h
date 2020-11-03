@@ -21,7 +21,7 @@
 #include "Config.h"
 #include "Common.h"
 #include "Log.h"
-#include "Data.h"
+#include "EnclaveData.h"
 #include "WebsocketClient.h"
 #include "Srd.h"
 #include "DataBase.h"
@@ -76,14 +76,13 @@ extern "C"
 
     // For enclave data to app
     void ocall_store_enclave_id_info(const char *info);
-    void ocall_store_identity(const char *id);
     void ocall_store_workload(const char *data, size_t data_size, bool cover = true);
-    void ocall_store_workreport(const char *data, size_t data_size, bool cover = true);
     void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover = true);
 
     // For upgrade
     crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size);
     crust_status_t ocall_upload_workreport(const char *work_report);
+    crust_status_t ocall_upload_identity(const char *id);
     crust_status_t ocall_entry_network();
 
 #if defined(__cplusplus)

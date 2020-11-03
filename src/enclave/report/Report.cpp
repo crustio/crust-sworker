@@ -21,6 +21,9 @@ std::string get_generated_work_report()
  * @description: Generate and upload signed validation report
  * @param block_hash (in) -> block hash
  * @param block_height (in) -> block height
+ * @param wait_time -> Waiting time before upload
+ * @param is_upgrading -> Is this upload kind of upgrade
+ * @param locked -> Lock this upload or not
  * @return: sign status
  */
 crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked /*=true*/)
@@ -162,7 +165,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     }
     free(hashs);
     sgx_thread_mutex_unlock(&g_srd_mutex);
-    
+
     // ----- Get files info ----- //
     sgx_thread_mutex_lock(&g_checked_files_mutex);
     // Deleted invalid file item
@@ -390,7 +393,6 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     wr_str.append("\"").append(WORKREPORT_SIG).append("\":")
         .append("\"").append(hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t))).append("\"");
     wr_str.append("}");
-    store_large_data(reinterpret_cast<const uint8_t *>(wr_str.c_str()), wr_str.size(), ocall_store_workreport, wl->ocall_wr_mutex);
     g_work_report = wr_str;
 
 

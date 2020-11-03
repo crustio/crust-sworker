@@ -28,10 +28,11 @@ void work_report_loop(void)
     size_t wr_wait_time = BLOCK_INTERVAL / 2;
     int stop_timeout = 10 * BLOCK_INTERVAL;
     int stop_tryout = stop_timeout / wr_wait_time;
+    EnclaveData *ed = EnclaveData::get_instance();
 
     // Set srand
     Ecall_id_get_info(global_eid);
-    json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
+    json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
 
     // Generate target block height
     if (!offline_chain_mode)
@@ -50,7 +51,7 @@ void work_report_loop(void)
 
     while (true)
     {
-        if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+        if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
             break;
         }
@@ -58,7 +59,7 @@ void work_report_loop(void)
         crust::BlockHeader *block_header = NULL;
 
         // Avoid A competing work-report with B
-        if (UPGRADE_STATUS_STOP_WORKREPORT == get_g_upgrade_status())
+        if (UPGRADE_STATUS_STOP_WORKREPORT == ed->get_upgrade_status())
         {
             if (--stop_tryout < 0)
             {
@@ -96,6 +97,7 @@ void work_report_loop(void)
             {
                 wait_time = wait_time - cut_wait_time;
             }
+            wait_time = std::max(wait_time, (size_t)REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT);
 
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
             block_header->number = (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
