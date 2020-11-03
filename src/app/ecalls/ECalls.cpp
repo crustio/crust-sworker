@@ -15,7 +15,7 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_gen_key_pair", 0},
     {"Ecall_cmp_chain_account_id", 0},
     {"Ecall_get_quote_report", 0},
-    {"Ecall_verify_iasreport", 0},
+    {"Ecall_verify_and_upload_identity", 0},
     {"Ecall_gen_sgx_measurement", 0},
     {"Ecall_main_loop", 0},
     {"Ecall_gen_and_upload_work_report", 0},
@@ -452,7 +452,7 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
  * @param IASReport (in) -> Vector first address
  * @param len -> Count of Vector IASReport
  */
-sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len)
+sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -460,7 +460,7 @@ sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status
         return ret;
     }
 
-    ret = ecall_verify_iasreport(eid, status, IASReport, len);
+    ret = ecall_verify_and_upload_identity(eid, status, IASReport, len);
 
     free_enclave(__FUNCTION__);
 

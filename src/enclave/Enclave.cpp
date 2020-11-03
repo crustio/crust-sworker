@@ -171,9 +171,9 @@ sgx_status_t ecall_gen_sgx_measurement()
  * @param len -> Count of Vector IASReport
  * @return: Verify status
  */
-crust_status_t ecall_verify_iasreport(char **IASReport, size_t len)
+crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 {
-    return id_verify_iasreport(IASReport, len);
+    return id_verify_and_upload_identity(IASReport, len);
 }
 
 /**
@@ -267,7 +267,14 @@ crust_status_t ecall_delete_file(const char *hash)
  */
 crust_status_t ecall_enable_upgrade(size_t block_height)
 {
-    return Workload::get_instance()->try_report_work(block_height);
+    crust_status_t crust_status = CRUST_SUCCESS;
+    Workload *wl = Workload::get_instance();
+    if (CRUST_SUCCESS == (crust_status = wl->try_report_work(block_height)))
+    {
+        wl->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
+    }
+
+    return crust_status;
 }
 
 /**

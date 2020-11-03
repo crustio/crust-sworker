@@ -57,7 +57,7 @@ int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
 X509_STORE * cert_init_ca(X509 *cert);
 char *base64_decode(const char *msg, size_t *sz);
 
-crust_status_t id_verify_iasreport(char ** IASReport, size_t size);
+crust_status_t id_verify_and_upload_identity(char ** IASReport, size_t size);
 sgx_status_t id_gen_key_pair(const char *account_id, size_t len);
 sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t id_gen_sgx_measurement();

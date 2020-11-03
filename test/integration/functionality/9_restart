@@ -17,7 +17,6 @@ scriptdir=$instdir/scripts
 datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
-configfile=$instdir/config/config.json
 testconfigfile=$testdir/etc/Config.json
 errfile=$scriptdir/err.log
 tmpdir=$basedir/tmp
@@ -75,6 +74,6 @@ report_work &>/dev/null
 res=$(($?|$res))
 
 if [ $res -ne 0 ]; then
-    echo "Test failed after restart!"
+    verbose ERROR "Test failed after restart!" n
     exit 1
 fi

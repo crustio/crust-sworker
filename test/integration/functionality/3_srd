@@ -18,7 +18,6 @@ scriptdir=$instdir/scripts
 datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
-configfile=$instdir/config/config.json
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
@@ -60,7 +59,7 @@ while [ $tmp_num -lt $srd_num ]; do
     fi
     srd $cur_turn &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "srd failed!"
+        verbose ERROR "srd failed!" n
         exit 1
     fi
     ((tmp_num+=cur_turn))
@@ -68,6 +67,6 @@ done
 _store_meta &>/dev/null
 get_workload &>$TMPFILE
 if [ x"$(cat $TMPFILE | jq '.srd|.space')" != x"$srd_num" ]; then
-    echo "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.space')"
+    verbose ERROR "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.space')" n
     exit 1
 fi

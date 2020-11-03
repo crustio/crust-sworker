@@ -12,7 +12,6 @@ scriptdir=$instdir/scripts
 datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
-configfile=$instdir/config/config.json
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
@@ -38,7 +37,7 @@ report_work_result &>/dev/null
 # Get workload
 get_workload &>$TMPFILE
 if [ $? -ne 0 ]; then
-    echo "Get workload failed!"
+    verbose ERROR "Get workload failed!" n
     exit 1
 fi
 workload=$(cat $TMPFILE)
@@ -56,7 +55,7 @@ while [ $tmp_num -lt $srd_num ]; do
     fi
     srd $cur_turn &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "srd failed!"
+        verbose ERROR "srd failed!" n
         exit 1
     fi
     ((tmp_num+=cur_turn))
@@ -68,14 +67,14 @@ clean_file
 for file in ${file_arry[@]}; do
     seal_file $datadir/$file $testfiledir &>$TMPFILE
     if [ $? -ne 0 ]; then
-        echo "seal file failed!"
+        verbose ERROR "seal file failed!" n
         exit 1
     fi
     sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
     sealed_hash=${sealed_hash::64}
     confirm $sealed_hash &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "confirm file failed!"
+        verbose ERROR "confirm file failed!" n
         exit 1
     fi
 done
@@ -84,7 +83,7 @@ validate_file &>/dev/null
 # Report work report
 report_work &>$TMPFILE
 if [ $? -ne 0 ]; then
-    echo "get work report failed!"
+    verbose ERROR "get work report failed!" n
     exit 1
 fi
 res=$(cat $TMPFILE)
@@ -95,11 +94,11 @@ deleted_fn=$(echo $res | jq '.deleted_files | .[] | .hash' | wc -l 2>/dev/null)
 reserved=$(echo $res | jq '.reserved' 2>/dev/null)
 reserved_e=$((srd_num * 1024 * 1024 * 1024))
 if [ x"$reserved" != x"$reserved_e" ]; then
-    echo "srd number is wrong!expect:${reserved_e}, real:${reserved}"
+    verbose ERROR "srd number is wrong!expect:${reserved_e}, real:${reserved}" n
     ret=1
 fi
 if [ x"$added_fn" != x"$added_fn_e" ]; then
-    echo "added file number is wrong!expect:$added_fn_e, real:$added_fn"
+    verbose ERROR "added file number is wrong!expect:$added_fn_e, real:$added_fn" n
     ret=1
 fi
 

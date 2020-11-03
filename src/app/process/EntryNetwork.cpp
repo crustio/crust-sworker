@@ -9,12 +9,11 @@ crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: Entry network off-chain node sends quote to onchain node to verify identity
- * @param p_config -> configurations
- * @param sworker_identity_out -> sworker identity result
  * @return: Result status
  */
-crust_status_t entry_network(Config *p_config, std::string &sworker_identity_out)
+crust_status_t entry_network()
 {
+    p_log->info("Entrying network...\n");
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
     sgx_report_t report;
@@ -248,74 +247,68 @@ crust_status_t entry_network(Config *p_config, std::string &sworker_identity_out
     crust_status_t crust_status;
     // Ecall_verify_iasreport will store sworker identity to g_sworker_identity by ocall
     // You can get this identity by accessing g_sworker_identity
-    sgx_status_t status_ret = Ecall_verify_iasreport(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
+    sgx_status_t status_ret = Ecall_verify_and_upload_identity(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
     if (SGX_SUCCESS == status_ret)
     {
-        if (CRUST_SUCCESS == crust_status)
+        switch (crust_status)
         {
-            json::JSON tmp_json = json::JSON::Load(get_g_sworker_identity());
-            tmp_json["account_id"] = p_config->chain_address;
-            sworker_identity_out = tmp_json.dump();
+        case CRUST_SUCCESS:
             p_log->info("Verify IAS report in enclave successfully!\n");
-        }
-        else
-        {
-            switch (crust_status)
-            {
-            case CRUST_IAS_BADREQUEST:
-                p_log->err("Verify IAS report failed! Bad request!!\n");
-                break;
-            case CRUST_IAS_UNAUTHORIZED:
-                p_log->err("Verify IAS report failed! Unauthorized!!\n");
-                break;
-            case CRUST_IAS_NOT_FOUND:
-                p_log->err("Verify IAS report failed! Not found!!\n");
-                break;
-            case CRUST_IAS_SERVER_ERR:
-                p_log->err("Verify IAS report failed! Server error!!\n");
-                break;
-            case CRUST_IAS_UNAVAILABLE:
-                p_log->err("Verify IAS report failed! Unavailable!!\n");
-                break;
-            case CRUST_IAS_INTERNAL_ERROR:
-                p_log->err("Verify IAS report failed! Internal error!!\n");
-                break;
-            case CRUST_IAS_BAD_CERTIFICATE:
-                p_log->err("Verify IAS report failed! Bad certificate!!\n");
-                break;
-            case CRUST_IAS_BAD_SIGNATURE:
-                p_log->err("Verify IAS report failed! Bad signature!!\n");
-                break;
-            case CRUST_IAS_REPORTDATA_NE:
-                p_log->err("Verify IAS report failed! Report data not equal!!\n");
-                break;
-            case CRUST_IAS_GET_REPORT_FAILED:
-                p_log->err("Verify IAS report failed! Get report in current enclave failed!!\n");
-                break;
-            case CRUST_IAS_BADMEASUREMENT:
-                p_log->err("Verify IAS report failed! Bad enclave code measurement!!\n");
-                break;
-            case CRUST_IAS_UNEXPECTED_ERROR:
-                p_log->err("Verify IAS report failed! unexpected error!!\n");
-                break;
-            case CRUST_IAS_GETPUBKEY_FAILED:
-                p_log->err("Verify IAS report failed! Get public key from certificate failed!!\n");
-                break;
-            case CRUST_SIGN_PUBKEY_FAILED:
-                p_log->err("Sign public key failed!!\n");
-                break;
-            default:
-                p_log->err("Unknown return status!\n");
-            }
+            break;
+        case CRUST_IAS_BADREQUEST:
+            p_log->err("Verify IAS report failed! Bad request!!\n");
+            break;
+        case CRUST_IAS_UNAUTHORIZED:
+            p_log->err("Verify IAS report failed! Unauthorized!!\n");
+            break;
+        case CRUST_IAS_NOT_FOUND:
+            p_log->err("Verify IAS report failed! Not found!!\n");
+            break;
+        case CRUST_IAS_SERVER_ERR:
+            p_log->err("Verify IAS report failed! Server error!!\n");
+            break;
+        case CRUST_IAS_UNAVAILABLE:
+            p_log->err("Verify IAS report failed! Unavailable!!\n");
+            break;
+        case CRUST_IAS_INTERNAL_ERROR:
+            p_log->err("Verify IAS report failed! Internal error!!\n");
+            break;
+        case CRUST_IAS_BAD_CERTIFICATE:
+            p_log->err("Verify IAS report failed! Bad certificate!!\n");
+            break;
+        case CRUST_IAS_BAD_SIGNATURE:
+            p_log->err("Verify IAS report failed! Bad signature!!\n");
+            break;
+        case CRUST_IAS_REPORTDATA_NE:
+            p_log->err("Verify IAS report failed! Report data not equal!!\n");
+            break;
+        case CRUST_IAS_GET_REPORT_FAILED:
+            p_log->err("Verify IAS report failed! Get report in current enclave failed!!\n");
+            break;
+        case CRUST_IAS_BADMEASUREMENT:
+            p_log->err("Verify IAS report failed! Bad enclave code measurement!!\n");
+            break;
+        case CRUST_IAS_UNEXPECTED_ERROR:
+            p_log->err("Verify IAS report failed! unexpected error!!\n");
+            break;
+        case CRUST_IAS_GETPUBKEY_FAILED:
+            p_log->err("Verify IAS report failed! Get public key from certificate failed!!\n");
+            break;
+        case CRUST_SIGN_PUBKEY_FAILED:
+            p_log->err("Sign public key failed!!\n");
+            break;
+        default:
+            p_log->err("Unknown return status!\n");
         }
     }
     else
     {
         p_log->err("Invoke SGX api failed!\n");
+        crust_status = CRUST_UNEXPECTED_ERROR;
     }
 
 
     delete client;
 
-    return CRUST_SUCCESS;
+    return crust_status;
 }

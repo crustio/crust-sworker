@@ -18,7 +18,6 @@ scriptdir=$instdir/scripts
 datadir=$instdir/data
 testdir=$instdir/test_app
 testfiledir=$testdir/files
-configfile=$instdir/config/config.json
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
@@ -40,7 +39,7 @@ while [ $acc -gt 0 ]; do
     index=$(($RANDOM % $data_size))
     seal_file $datadir/${data_arry[$index]} $testfiledir &>$TMPFILE
     if [ $? -ne 0 ]; then
-        echo "Seal file failed!"
+        verbose ERROR "Seal file failed!" n
         exit 1
     fi
     sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
@@ -48,7 +47,7 @@ while [ $acc -gt 0 ]; do
         sealed_hash=${sealed_hash:0:64}
         hash_2_use_m[$sealed_hash]=0
     else
-        echo "Cannot get wrong sealed hash($sealed_hash)!"
+        verbose ERROR "Cannot get wrong sealed hash($sealed_hash)!" n
         exit 1
     fi
     ((acc--))
@@ -59,13 +58,13 @@ acc=2
 for hash in ${!hash_2_use_m[@]}; do
     delete_file $hash &>$TMPFILE
     if [ $? -ne 0 ]; then
-        echo "delete file failed!"
+        verbose ERROR "delete file failed!" n
         exit 1
     fi
     hash_2_use_m[$hash]=1
     _store_meta &>/dev/null
     if ! check_hash "$hash" "deleted"; then
-        echo "delete file:$hash failed!Find hash in workload"
+        verbose ERROR "delete file:$hash failed!Find hash in workload" n
         exit 1
     fi
     ((acc--))
@@ -89,13 +88,13 @@ acc=2
 for hash in ${confirm_arry[@]}; do
     delete_file $hash &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "delete file sequently failed!"
+        verbose ERROR "delete file sequently failed!" n
         exit 1
     fi
     hash_2_use_m[$hash]=1
     _store_meta &>/dev/null
     if ! check_hash "$hash" "deleted"; then
-        echo "delete file:$hash failed!Find hash in workload"
+        verbose ERROR "delete file:$hash failed!Find hash in workload" n
         exit 1
     fi
     ((acc--))
@@ -117,7 +116,7 @@ done
 _store_meta &>/dev/null
 for hash in ${delete_arry[@]}; do
     if ! check_hash "$hash" "deleted"; then
-        echo "delete file concurrently failed!"
+        verbose ERROR "delete file concurrently failed!" n
         exit 1
     fi
 done

@@ -13,7 +13,7 @@
 #include <sgx_eid.h>
 #include "Enclave_u.h"
 #include "Log.h"
-#include "Data.h"
+#include "EnclaveData.h"
 #include "CrustStatus.h"
 #include "Json.hpp"
 
@@ -51,7 +51,7 @@ sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status, cons
 sgx_status_t Ecall_get_quote_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *status);
 
-sgx_status_t Ecall_verify_iasreport(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
+sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
 
 sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *p_tree, size_t tree_len, const char *path,
         char *p_new_path , size_t path_len);

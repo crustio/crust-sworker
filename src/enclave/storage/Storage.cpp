@@ -38,7 +38,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     file_num += wl->new_files.size();
     sgx_thread_mutex_unlock(&g_new_files_mutex);
 
-    if (file_num > FILE_NUMBER_UPPER_LIMIT)
+    if (file_num >= FILE_NUMBER_UPPER_LIMIT)
     {
         return CRUST_FILE_NUMBER_EXCEED;
     }

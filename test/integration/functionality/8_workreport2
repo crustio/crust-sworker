@@ -4,7 +4,7 @@ function _test_add_file()
     local num=$1
     test_add_file $num &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "add file failed!!"
+        verbose ERROR "add file failed!!" n
         exit 1
     fi
 }
@@ -14,7 +14,7 @@ function _test_valid_file()
     local num=$1
     test_valid_file $num &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "valid file failed!"
+        verbose ERROR "valid file failed!" n
         exit 1
     fi
 }
@@ -24,7 +24,7 @@ function _test_lost_file()
     local num=$1
     test_lost_file $num &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "valid file failed!"
+        verbose ERROR "lost file failed!" n
         exit 1
     fi
 }
@@ -34,7 +34,7 @@ function _test_delete_file()
     local num=$1
     test_delete_file $num &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "valid file failed!"
+        verbose ERROR "delete file failed!" n
         exit 1
     fi
 }
@@ -54,13 +54,13 @@ function _report()
     local not_report=$1
     report_work &>$TMPFILE
     if [ $? -ne 0 ]; then
-        echo "report work failed!"
+        verbose ERROR "report work failed!" n
         exit 1
     fi
     if [ x"$not_report" = x"" ]; then
         report_work_result &>/dev/null
         if [ $? -ne 0 ]; then
-            echo "report work result failed!"
+            verbose ERROR "report work result failed!" n
             exit 1
         fi
     fi
@@ -79,7 +79,6 @@ function _report()
 function _clean()
 {
     local file_num=$1
-    local report_res=""
     while [ $file_num -gt 0 ]; do
         _test_delete_file 1000
         _report_success &>/dev/null
@@ -100,7 +99,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 testdir=$instdir/test_app
-configfile=$instdir/config/config.json
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
