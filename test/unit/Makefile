@@ -4,9 +4,9 @@ inst_dir=../../
 include $(inst_dir)/buildenv.mk
 
 define addTestFunctions
-	enc_cpp_fun="\\\nbool ecall_test_inner_apis()\n{\n\treturn test_utils();\n}"; \
-	enc_cpp_inc="#include \"UtilsTest.h\""; \
-	enc_edl_fun="\\\t\t// For test\n\t\tpublic bool ecall_test_inner_apis();\n"; \
+	enc_cpp_fun="\\\nbool ecall_test_enclave_unit()\n{\n\treturn test_enclave_unit();\n}"; \
+	enc_cpp_inc="#include \"EnclaveUnitTestEntrance.h\""; \
+	enc_edl_fun="\\\t\t// For test\n\t\tpublic bool ecall_test_enclave_unit();\n"; \
 	enc_edl_inc="\\\tinclude \"stdbool.h\""; \
 	sed -i "$$ a $$enc_cpp_fun" src/enclave/Enclave.cpp; \
 	sed -i "1 i $$enc_cpp_inc" src/enclave/Enclave.cpp; \

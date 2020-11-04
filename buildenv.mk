@@ -127,7 +127,7 @@ Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX
 	
 
 ifeq ($(TFLAG), 1)
-	Enclave_Cpp_Files += $(wildcard enclave/utilsTest/*.cpp)
+	Enclave_Cpp_Files += enclave/EnclaveUnitTestEntrance.cpp $(wildcard enclave/utilsTest/*.cpp)
 	Enclave_Include_Paths += -Ienclave/utilsTest
 endif
 

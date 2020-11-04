@@ -572,3 +572,30 @@ crust_status_t storage_delete_file(const char *hash)
 
     return crust_status;
 }
+
+crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t*> &hashs)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    if (block_data == NULL || block_size == 0)
+    {
+        return CRUST_STORAGE_EMPTY_BLOCK;
+    }
+
+    size_t index = 0;
+    while (index <= block_size)
+    {
+        if (block_data[index] != 0x12)
+        {
+            break;
+        }
+        index++;
+        uint8_t link_size = block_data[index];
+        // uint8_t* hash = (uint8_t *)enc_malloc(32);
+        std::string hash_str = hexstring_safe(block_data+index+5, HASH_LENGTH);
+        log_info("Link hash: %s\n", hash_str.c_str());
+
+        index += link_size;
+    }
+
+    return CRUST_SUCCESS;
+}

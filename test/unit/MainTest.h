@@ -1,6 +1,16 @@
 #ifndef _MAINT_TEST_H_
 #define _MAINT_TEST_H_
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string>
+#include <sgx_urts.h>
+#include <sgx_error.h>
+#include <sgx_uae_service.h>
+#include "Enclave_u.h"
+
+#define ENCLAVE_TEST_FILE_PATH   "src/enclave.signed.so"
+
 #if defined(__cplusplus)
 extern "C"
 {
