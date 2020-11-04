@@ -200,7 +200,7 @@ void srd_increase(const char *path)
 /**
  * @description: Decrease srd files under directory
  * @param change -> Total to be deleted space volumn
- * @param del_indexes -> To be deleted srd index in srd_path2hashs_m
+ * @param srd_del_index_m -> To be deleted srd path to index in srd_path2hashs_m
  * @return: Decreased size
  */
 size_t srd_decrease(long change, std::map<std::string, std::set<size_t>> *srd_del_index_m)

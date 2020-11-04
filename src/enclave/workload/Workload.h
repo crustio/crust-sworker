@@ -41,7 +41,7 @@ public:
     static Workload *get_instance();
     ~Workload();
     std::string get_workload(void);
-    void clean_data();
+    void clean_srd_buffer();
     void add_new_file(json::JSON file);
     void set_srd_info(std::string path, long change);
     json::JSON get_srd_info();
@@ -69,8 +69,6 @@ public:
     bool is_upgrade();
     void set_upgrade_status(enc_upgrade_status_t status);
     enc_upgrade_status_t get_upgrade_status();
-    void set_is_upgrading(bool flag);
-    bool get_is_upgrading();
 
     // For workload spec
     void set_wl_spec(char file_status, int change);

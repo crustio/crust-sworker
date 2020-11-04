@@ -26,7 +26,7 @@ enclave {
 		public sgx_status_t ecall_get_quote_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
 		public sgx_status_t ecall_gen_sgx_measurement();
         public sgx_status_t ecall_gen_key_pair([in, size=len] const char *account_id, size_t len);
-        public crust_status_t ecall_verify_iasreport([in, count=len] char ** IASReport, size_t len);
+        public crust_status_t ecall_verify_and_upload_identity([in, count=len] char ** IASReport, size_t len);
 
         public crust_status_t ecall_seal_file([in, size=tree_len] const char *p_tree, size_t tree_len, [in, size=path_len] const char *path, [out, size=path_len] char *p_new_path , size_t path_len);
         public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
@@ -79,16 +79,15 @@ enclave {
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_srd_set_change);
 
         crust_status_t ocall_upload_workreport([in, string] const char *data);
+        crust_status_t ocall_upload_identity([in, string] const char *id);
         crust_status_t ocall_entry_network()
-            allow(ecall_get_quote_report, ecall_verify_iasreport);
+            allow(ecall_get_quote_report, ecall_verify_and_upload_identity);
 
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
 
         void ocall_store_sealed_merkletree([in, string] const char *org_root_hash, [in, size=tree_len] const char *tree_data, size_t tree_len);
-        void ocall_store_identity([in, string] const char *id);
         void ocall_store_enclave_id_info([in, string] const char *info);
         void ocall_store_workload([in, size=data_size] const char *data, size_t data_size, bool cover);
-        void ocall_store_workreport([in, size=data_size] const char *data, size_t data_size, bool cover);
         void ocall_store_upgrade_data([in, size=data_size] const char *data, size_t data_size, bool cover);
     };
 };

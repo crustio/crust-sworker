@@ -643,7 +643,7 @@ void ocall_validate_close()
  * @param block_hash -> Pointer to got block hash
  * @param hash_size -> Block hash size
  * @return: Get result
- * */
+ */
 crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size)
 {
     std::string hash = crust::Chain::get_instance()->get_block_hash(block_height);
@@ -662,7 +662,7 @@ crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_
  * @description: For upgrade, send work report
  * @param work_report -> Work report
  * @return: Send result
- * */
+ */
 crust_status_t ocall_upload_workreport(const char *work_report)
 {
     std::string work_str(work_report);
@@ -687,33 +687,10 @@ crust_status_t ocall_upload_workreport(const char *work_report)
 /**
  * @description: Entry network
  * @return: Entry result
- * */
+ */
 crust_status_t ocall_entry_network()
 {
-    crust_status_t crust_status = CRUST_SUCCESS;
-    std::string sworker_identity_result;
-    Config *p_config = Config::get_instance();
-
-    // Entry network
-    p_log->info("Entrying network...\n");
-    if (CRUST_SUCCESS != (crust_status = entry_network(p_config, sworker_identity_result)))
-    {
-        return crust_status;
-    }
-    p_log->info("Entry network application successfully! sworker identity: %s\n", sworker_identity_result.c_str());
-    // Send identity to crust chain
-    if (!crust::Chain::get_instance()->wait_for_running())
-    {
-        return CRUST_SEND_IDENTITY_FAILED;
-    }
-    if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity_result))
-    {
-        p_log->err("Send identity to crust chain failed!\n");
-        return CRUST_SEND_IDENTITY_FAILED;
-    }
-    p_log->info("Send identity to crust chain successfully!\n");
-
-    return CRUST_SUCCESS;
+    return entry_network();
 }
 
 /**
@@ -744,10 +721,28 @@ void ocall_srd_change(long change)
 /**
  * @description: Store sworker identity
  * @param id -> Pointer to identity
+ * @return: Upload result
  */
-void ocall_store_identity(const char *id)
+crust_status_t ocall_upload_identity(const char *id)
 {
-    set_g_sworker_identity(id);
+    json::JSON id_json = json::JSON::Load(std::string(id));
+    id_json["account_id"] = Config::get_instance()->chain_address;
+    std::string sworker_identity = id_json.dump();
+    p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());
+
+    // Send identity to crust chain
+    if (!crust::Chain::get_instance()->wait_for_running())
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
+    {
+        p_log->err("Send identity to crust chain failed!\n");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    p_log->info("Send identity to crust chain successfully!\n");
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -756,7 +751,7 @@ void ocall_store_identity(const char *id)
  */
 void ocall_store_enclave_id_info(const char *info)
 {
-    set_g_enclave_id_info(info);
+    EnclaveData::get_instance()->set_enclave_id_info(info);
 }
 
 /**
@@ -768,31 +763,13 @@ void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true
 {
     if (cover)
     {
-        set_g_enclave_workload(std::string(data, data_size));
+        EnclaveData::get_instance()->set_enclave_workload(std::string(data, data_size));
     }
     else
     {
-        std::string str = get_g_enclave_workload();
+        std::string str = EnclaveData::get_instance()->get_enclave_workload();
         str.append(data, data_size);
-        set_g_enclave_workload(str);
-    }
-}
-
-/**
- * @description: Store enclave workreport
- * @param wr -> Workreport information
- */
-void ocall_store_workreport(const char *data, size_t data_size, bool cover /*=true*/)
-{
-    if (cover)
-    {
-        set_g_enclave_workreport(std::string(data, data_size));
-    }
-    else
-    {
-        std::string str = get_g_enclave_workreport();
-        str.append(data, data_size);
-        set_g_enclave_workreport(str);
+        EnclaveData::get_instance()->set_enclave_workload(str);
     }
 }
 
@@ -804,12 +781,12 @@ void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
 {
     if (cover)
     {
-        set_g_upgrade_data(std::string(data, data_size));
+        EnclaveData::get_instance()->set_upgrade_data(std::string(data, data_size));
     }
     else
     {
-        std::string str = get_g_upgrade_data();
+        std::string str = EnclaveData::get_instance()->get_upgrade_data();
         str.append(data, data_size);
-        set_g_upgrade_data(str);
+        EnclaveData::get_instance()->set_upgrade_data(str);
     }
 }

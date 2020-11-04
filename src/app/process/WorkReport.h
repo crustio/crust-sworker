@@ -13,7 +13,7 @@
 #include "Chain.h"
 #include "CrustStatus.h"
 #include "FormatUtils.h"
-#include "Data.h"
+#include "EnclaveData.h"
 #include "Storage.h"
 
 void work_report_loop(void);

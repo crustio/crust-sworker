@@ -242,6 +242,15 @@ function test_delete_file()
     curl -s -XGET $baseurl/test/delete_file --data-raw "{\"file_num\":$file_num}"
 }
 
+function test_delete_file_unsafe()
+{
+    local file_num=$1
+    if [ x"$file_num" = x"" ]; then
+        file_num=1000
+    fi
+    curl -s -XGET $baseurl/test/delete_file_unsafe --data-raw "{\"file_num\":$file_num}"
+}
+
 function clean_file()
 {
     curl -s -XGET $baseurl/clean_file &>/dev/null

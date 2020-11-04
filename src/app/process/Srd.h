@@ -13,7 +13,7 @@
 #include "FormatUtils.h"
 #include "DataBase.h"
 #include "Log.h"
-#include "Data.h"
+#include "EnclaveData.h"
 
 // Indicates minimal srd reserved space
 #define MIN_SRD_RESERVED 30

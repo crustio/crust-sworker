@@ -27,7 +27,7 @@
 #include "DataBase.h"
 #include "Srd.h"
 #include "Storage.h"
-#include "Data.h"
+#include "EnclaveData.h"
 #include "Chain.h"
 #include "tbb/concurrent_unordered_map.h"
 #include "../enclave/include/Parameter.h"
@@ -90,6 +90,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     Config *p_config = Config::get_instance();
     crust::Log *p_log = crust::Log::get_instance();
     UrlEndPoint *urlendpoint = get_url_end_point(p_config->base_url);
+    EnclaveData *ed = EnclaveData::get_instance();
     std::string cur_path;
     // Upgrade block service set
     std::set<std::string> upgrade_block_s = {
@@ -137,7 +138,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     // Choose service according to upgrade status
     std::string route_tag = path.substr(path.find(urlendpoint->base) + urlendpoint->base.size(), path.size());
-    if (UPGRADE_STATUS_EXIT == get_g_upgrade_status())
+    if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
     {
         p_log->err("This process will exit!\n");
         http::response<http::string_body> res{
@@ -150,8 +151,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.result(503);
         return send(std::move(res));
     }
-    if (UPGRADE_STATUS_NONE != get_g_upgrade_status() 
-            && UPGRADE_STATUS_STOP_WORKREPORT != get_g_upgrade_status()
+    if (UPGRADE_STATUS_NONE != ed->get_upgrade_status() 
+            && UPGRADE_STATUS_STOP_WORKREPORT != ed->get_upgrade_status()
             && upgrade_block_s.find(route_tag) != upgrade_block_s.end())
     {
         p_log->warn("Upgrade is doing, %s request cannot be applied!\n", route_tag.c_str());
@@ -199,7 +200,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
             }
-            json::JSON wl_json = json::JSON::Load(get_g_enclave_workload());
+            json::JSON wl_json = json::JSON::Load(ed->get_enclave_workload());
             if (wl_json.size() == -1)
             {
                 res.body() = "Get workload failed!";
@@ -264,7 +265,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (path.compare(cur_path) == 0)
         {
             Ecall_id_get_info(global_eid);
-            json::JSON id_json = json::JSON::Load(get_g_enclave_id_info());
+            json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
             id_json["account"] = p_config->chain_address;
             id_json["version"] = VERSION;
             id_json["sworker_version"] = SWORKER_VERSION;
@@ -278,8 +279,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            if (UPGRADE_STATUS_NONE != get_g_upgrade_status()
-                    && UPGRADE_STATUS_STOP_WORKREPORT != get_g_upgrade_status())
+            if (UPGRADE_STATUS_NONE != ed->get_upgrade_status()
+                    && UPGRADE_STATUS_STOP_WORKREPORT != ed->get_upgrade_status())
             {
                 ret_info = "Another upgrading is still running!";
                 res.result(300);
@@ -305,7 +306,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
 
             // Block current work-report for a while
-            set_g_upgrade_status(UPGRADE_STATUS_STOP_WORKREPORT);
+            ed->set_upgrade_status(UPGRADE_STATUS_STOP_WORKREPORT);
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
@@ -328,7 +329,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     ret_info = "Receive upgrade inform successfully!";
                     // Set upgrade status
-                    set_g_upgrade_status(UPGRADE_STATUS_PROCESS);
+                    ed->set_upgrade_status(UPGRADE_STATUS_PROCESS);
                     // Give current tasks some time to go into enclave queue.
                     sleep(10);
                     p_log->info("%s\n", ret_info.c_str());
@@ -370,7 +371,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            if (UPGRADE_STATUS_COMPLETE != get_g_upgrade_status())
+            if (UPGRADE_STATUS_COMPLETE != ed->get_upgrade_status())
             {
                 ret_info = "Metadata is still collecting!";
                 res.result(300);
@@ -395,7 +396,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 goto getcleanup;
             }
 
-            std::string upgrade_data = get_g_upgrade_data();
+            std::string upgrade_data = ed->get_upgrade_data();
             p_log->info("Generate upgrade data:%s\n", upgrade_data.c_str());
             res.body() = upgrade_data;
 
@@ -432,7 +433,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             if (!upgrade_ret)
             {
                 p_log->err("Upgrade failed!Current version will restore work.\n");
-                set_g_upgrade_status(UPGRADE_STATUS_NONE);
+                ed->set_upgrade_status(UPGRADE_STATUS_NONE);
             }
             else
             {
@@ -460,7 +461,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     p_log->info("Upgrade: clean old version's data successfully!\n");
                 }
                 // Set upgrade exit flag
-                set_g_upgrade_status(UPGRADE_STATUS_EXIT);
+                ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
             }
 
             goto getcleanup;

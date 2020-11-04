@@ -85,7 +85,7 @@ std::string Workload::get_workload(void)
 /**
  * @description: Clean up work report data
  */
-void Workload::clean_data()
+void Workload::clean_srd_buffer()
 {
     // Clean srd_path2hashs_m
     for (auto it : this->srd_path2hashs_m)
@@ -279,7 +279,7 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
             uint8_t *g_hash = hex_string_to_bytes(hex_g_hash.c_str(), hex_g_hash.size());
             if (g_hash == NULL)
             {
-                clean_data();
+                clean_srd_buffer();
                 return CRUST_UNEXPECTED_ERROR;
             }
             this->srd_path2hashs_m[it->first].push_back(g_hash);
@@ -454,8 +454,6 @@ crust_status_t Workload::try_report_work(size_t block_height)
     {
         return CRUST_UPGRADE_NO_FILE;
     }
-    
-    this->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
 
     return CRUST_SUCCESS;
 }
@@ -679,22 +677,4 @@ bool Workload::report_has_validated_proof()
     sgx_thread_mutex_unlock(&this->validated_mutex);
 
     return res;
-}
-
-/**
- * @description: Set is_upgrading flag
- * @param flag -> Indicate if upgrade is doing
- */
-void Workload::set_is_upgrading(bool flag)
-{
-    this->is_upgrading = flag;
-}
-
-/**
- * @description: Get is_upgrading
- * @return: Upgrading is doing
- */
-bool Workload::get_is_upgrading()
-{
-    return this->is_upgrading;
 }

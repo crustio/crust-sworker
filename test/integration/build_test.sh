@@ -63,6 +63,11 @@ void ecall_test_delete_file(uint32_t file_num)
     Workload::get_instance()->test_delete_file(file_num);
 }
 
+void ecall_test_delete_file_unsafe(uint32_t file_num)
+{
+    Workload::get_instance()->test_delete_file_unsafe(file_num);
+}
+
 void ecall_clean_file()
 {
     Workload *wl = Workload::get_instance();
@@ -116,6 +121,7 @@ cat << EOF > $TMPFILE
         public void ecall_test_valid_file(uint32_t file_num);
         public void ecall_test_lost_file(uint32_t file_num);
         public void ecall_test_delete_file(uint32_t file_num);
+        public void ecall_test_delete_file_unsafe(uint32_t file_num);
         public void ecall_clean_file();
 
         public crust_status_t ecall_get_file_info([in, string] const char *data);
@@ -139,6 +145,7 @@ cat << EOF >$TMPFILE
 	{"Ecall_test_valid_file", 1},
 	{"Ecall_test_lost_file", 1},
 	{"Ecall_test_delete_file", 1},
+	{"Ecall_test_delete_file_unsafe", 1},
 	{"Ecall_clean_file", 1},
 	{"Ecall_get_file_info", 3},
 EOF
@@ -267,6 +274,21 @@ sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num)
     return ret;
 }
 
+sgx_status_t Ecall_test_delete_file_unsafe(sgx_enclave_id_t eid, uint32_t file_num)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_test_delete_file_unsafe(eid, file_num);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
 sgx_status_t Ecall_clean_file(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -313,6 +335,7 @@ sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num);
 sgx_status_t Ecall_test_valid_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num);
+sgx_status_t Ecall_test_delete_file_unsafe(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_clean_file(sgx_enclave_id_t eid);
 sgx_status_t Ecall_get_file_info(sgx_enclave_id_t eid, crust_status_t *status, const char *data);
 EOF
@@ -338,7 +361,7 @@ function process_cpp_test()
     sed -i "$pos4,$((pos4+5)) d" $process_cpp
     sed -i "$((pos4-1)) a \\\t\t\tif (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))" $process_cpp
     sed -i "/extern bool g_upgrade_flag;/ a extern size_t g_block_height;" $process_cpp
-    pos4=$(sed -n '/if (UPGRADE_STATUS_EXIT == get_g_upgrade_status(/=' $process_cpp)
+    pos4=$(sed -n '/if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status(/=' $process_cpp)
     sed -i "$((pos4+1)) a \\\t\t\tg_block_height += REPORT_BLOCK_HEIGHT_BASE;" $process_cpp
 }
 
@@ -405,7 +428,8 @@ cat << EOF > $TMPFILE
                 if (CRUST_SUCCESS == crust_status)
                 {
                     // Send signed validation report to crust chain
-                    std::string work_str = get_g_enclave_workreport();
+                    p_log->info("Send work report successfully!\\n");
+                    std::string work_str = ed->get_enclave_workreport();
                     res.body() = work_str;
                 }
                 else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
@@ -494,6 +518,15 @@ cat << EOF > $TMPFILE
             res.body() = "Delete file successfully!";
         }
 
+        cur_path = urlendpoint->base + "/test/delete_file_unsafe";
+        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        {
+            json::JSON req_json = json::JSON::Load(req.body());
+            uint32_t file_num = req_json["file_num"].ToInt();
+            Ecall_test_delete_file_unsafe(global_eid, file_num);
+            res.body() = "Delete file successfully!";
+        }
+
         cur_path = urlendpoint->base + "/clean_file";
         if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
         {
@@ -510,7 +543,7 @@ cat << EOF > $TMPFILE
             Ecall_get_file_info(global_eid, &crust_status, hash.c_str());
             if (CRUST_SUCCESS == crust_status)
             {
-                res.body() = get_g_file_info();
+                res.body() = ed->get_file_info();
                 res.result(200);
             }
             else
@@ -644,30 +677,42 @@ function webserver_cpp_test()
     sed -i "/kill(g_webservice_pid,/ c //kill(g_webservice_pid," $webserver_cpp
 }
 
-########## data_cpp_test ##########
-function data_cpp_test()
+########## enclavedata_cpp_test ##########
+function enclavedata_cpp_test()
 {
 cat << EOF >> $data_cpp
 
-void set_g_file_info(std::string file_info)
+void EnclaveData::set_enclave_workreport(std::string report)
+{
+    enclave_workreport = report;
+}
+
+std::string EnclaveData::get_enclave_workreport()
+{
+    return enclave_workreport;
+}
+
+void EnclaveData::set_file_info(std::string file_info)
 {
     g_file_info = file_info;
 }
 
-std::string get_g_file_info()
+std::string EnclaveData::get_file_info()
 {
     return g_file_info;
 }
 EOF
-
-    sed -i "/std::mutex g_upgrade_status_mutex/a // File info\nstd::string g_file_info = \"\";" $data_cpp
 }
 
-########## data_h_test ##########
-function data_h_test
+########## enclavedata_h_test ##########
+function enclavedata_h_test
 {
-    sed -i '/set_g_upgrade_status(/a void set_g_file_info(std::string file_info);' $data_h
-    sed -i '/set_g_file_info(/a std::string get_g_file_info();' $data_h
+    sed -i '/set_upgrade_status(/a void set_file_info(std::string file_info);' $data_h
+    sed -i '/set_upgrade_status(/a void set_enclave_workreport(std::string report);' $data_h
+    sed -i '/set_upgrade_status(/a std::string get_enclave_workreport();' $data_h
+    sed -i '/set_file_info(/a std::string get_file_info();' $data_h
+    sed -i "/std::mutex upgrade_status_mutex/a // File info\nstd::string g_file_info = \"\";" $data_h
+    sed -i "/std::mutex upgrade_status_mutex/a // Work report\nstd::string enclave_workreport = \"\";" $data_h
 }
 
 ########## enc_report_cpp_test ##########
@@ -797,6 +842,7 @@ cat << EOF > $TMPFILE
     void test_valid_file(uint32_t file_num);
     void test_lost_file(uint32_t file_num);
     void test_delete_file(uint32_t file_num);
+    void test_delete_file_unsafe(uint32_t file_num);
 EOF
 
     local spos=$(sed -n '/handle_report_result(/=' $enclave_workload_h)
@@ -831,6 +877,7 @@ void Workload::test_add_file(long file_num)
         file_entry_json[FILE_STATUS] = "000";
         free(n_u);
         this->checked_files.push_back(file_entry_json);
+        this->set_wl_spec(FILE_STATUS_UNCONFIRMED, file_entry_json[FILE_OLD_SIZE].ToInt());
         acc++;
     }
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
@@ -854,6 +901,7 @@ void Workload::test_valid_file(uint32_t file_num)
                 || status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
         {
             status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
+            this->set_wl_spec(FILE_STATUS_VALID, status->get_char(CURRENT_STATUS), this->checked_files[index][FILE_OLD_SIZE].ToInt());
             i++;
             j = 0;
         }
@@ -882,6 +930,7 @@ void Workload::test_lost_file(uint32_t file_num)
         if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
             status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+            this->set_wl_spec(FILE_STATUS_LOST, status->get_char(CURRENT_STATUS), this->checked_files[index][FILE_OLD_SIZE].ToInt());
             i++;
             j = 0;
         }
@@ -909,6 +958,7 @@ void Workload::test_delete_file(uint32_t file_num)
         auto status = &this->checked_files[index][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) != FILE_STATUS_DELETED)
         {
+            this->set_wl_spec(status->get_char(CURRENT_STATUS), -this->checked_files[index][FILE_OLD_SIZE].ToInt());
             status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             i++;
             j = 0;
@@ -918,6 +968,14 @@ void Workload::test_delete_file(uint32_t file_num)
             j++;
         }
     }
+    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+}
+
+void Workload::test_delete_file_unsafe(uint32_t file_num)
+{
+    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    file_num = std::min(this->checked_files.size(), (size_t)file_num);
+    this->checked_files.erase(this->checked_files.begin(), this->checked_files.begin() + file_num);
     sgx_thread_mutex_unlock(&g_checked_files_mutex);
 }
 EOF
@@ -960,7 +1018,7 @@ cat << EOF >> $ocalls_cpp
 
 void ocall_store_file_info(const char *info)
 {
-    set_g_file_info(info);
+    EnclaveData::get_instance()->set_file_info(info);
 }
 EOF
 
@@ -1013,6 +1071,11 @@ EOF
     local epos=$(sed -n "$spos,$ {/^\}/=}" $ocalls_cpp | head -n 1)
     sed -i "$spos,$((epos-1)) d" $ocalls_cpp
     sed -i "$((spos-=1)) r $TMPFILE" $ocalls_cpp
+
+    spos=$(sed -n '/p_log->info("Sending work report:/=' $ocalls_cpp)
+    sed -i "$((spos+1)),$((spos+8)) d" $ocalls_cpp
+
+    sed -i "/p_log->info(\"Sending work report/ a \\\tEnclaveData::get_instance()->set_enclave_workreport(work_str);" $ocalls_cpp
 
     spos=$(sed -n '/\/\/ Send identity to crust chain/=' $ocalls_cpp)
     sed -i "$spos,$((spos+9)) d" $ocalls_cpp
@@ -1071,8 +1134,8 @@ storage_h=$appdir/process/Storage.h
 resource_h=$appdir/include/Resource.h
 apihandler_h=$appdir/http/ApiHandler.h
 webserver_cpp=$appdir/http/WebServer.cpp
-data_cpp=$appdir/process/Data.cpp
-data_h=$appdir/process/Data.h
+data_cpp=$appdir/process/EnclaveData.cpp
+data_h=$appdir/process/EnclaveData.h
 ocalls_cpp=$appdir/ocalls/OCalls.cpp
 ocalls_h=$appdir/ocalls/OCalls.h
 enclave_report_cpp=$encdir/report/Report.cpp
@@ -1117,8 +1180,8 @@ storage_cpp_test
 storage_h_test
 apihandler_h_test
 webserver_cpp_test
-data_cpp_test
-data_h_test
+enclavedata_cpp_test
+enclavedata_h_test
 ocalls_cpp_test
 ocalls_h_test
 enclave_cpp_test
@@ -1130,7 +1193,7 @@ enc_srd_h_test
 enc_wl_cpp_test
 enc_wl_h_test
 enc_id_cpp_test
-enc_parameter_h_test
+#enc_parameter_h_test
 #enc_storage_cpp_test
 
 InstallAPP
