@@ -1,5 +1,5 @@
-#ifndef _MAINT_TEST_H_
-#define _MAINT_TEST_H_
+#ifndef _CRUST_MAIN_TEST_H_
+#define _CRUST_MAIN_TEST_H_
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,10 +16,10 @@ extern "C"
 {
 #endif
 
-int test_enclave_utils();
+int test_enclave();
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* !_MAINT_TEST_H_ */
+#endif /* !_CRUST_MAIN_TEST_H_ */

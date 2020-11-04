@@ -1,9 +1,8 @@
-#ifndef _UTILS_TEST_H_
-#define _UTILS_TEST_H_
+#ifndef _CRUST_UTILS_TEST_H_
+#define _CRUST_UTILS_TEST_H_
 
 #include "EUtils.h"
 #include "stdbool.h"
-
 
 #if defined(__cplusplus)
 extern "C"
@@ -22,4 +21,4 @@ bool test_remove_char();
 #endif
 
 
-#endif /* !_UTILS_TEST_H_ */
+#endif /* !_CRUST_UTILS_TEST_H_ */

@@ -1,4 +1,4 @@
-#include "EnclaveUnitTestEntrance.h"
+#include "EncalveTestEntrance.h"
 
 void print_err(const char *info)
 {
@@ -14,7 +14,7 @@ void print_success(const char *info)
     eprint_info("%s%s%s", HGREEN.c_str(), info, NC.c_str());
 }
 
-bool test_enclave_unit()
+bool test_all_utils()
 {
     bool ret = true;
     if (!test_char_to_int())
@@ -57,7 +57,36 @@ bool test_enclave_unit()
         print_err("x Test remove_char failed!\n");
         ret = ret && false;
     }
-    print_success("+ Test remove_char successfully!\n");
+    print_success("+ Test remove_char successfully!\n")
 
+    return ret;
+}
+
+bool test_all_storage()
+{
+    bool ret = true;
+    if (!test_get_hashs_from_block())
+    {
+        print_err("x Test get_hashs_from_block failed!\n");
+        ret = ret && false;
+    }
+    print_success("+ Test get_hashs_from_block successfully!\n");
+
+    return ret;
+}
+
+bool test_enclave_unit()
+{
+    bool ret = true;
+    if (!test_all_utils())
+    {
+        ret = ret && false;
+    }
+
+    if (!test_all_storage())
+    {
+        ret = ret && false;
+    }
+    
     return ret;
 }
