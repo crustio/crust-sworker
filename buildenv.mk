@@ -128,7 +128,7 @@ Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX
 
 ifeq ($(TFLAG), 1)
 	Enclave_Cpp_Files += enclave/EncalveTestEntrance.cpp $(wildcard enclave/utilsTest/*.cpp) $(wildcard enclave/storageTest/*.cpp)
-	Enclave_Include_Paths += -Ienclave/utilsTest
+	Enclave_Include_Paths += -Ienclave/utilsTest -Ienclave/storageTest
 endif
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -Wno-type-limits

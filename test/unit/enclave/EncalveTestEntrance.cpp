@@ -78,11 +78,13 @@ bool test_all_storage()
 bool test_enclave_unit()
 {
     bool ret = true;
+    print_success("------------ Test utils ------------\n\n");
     if (!test_all_utils())
     {
         ret = ret && false;
     }
 
+    print_success("\n------------ Test storage ------------\n\n");
     if (!test_all_storage())
     {
         ret = ret && false;
