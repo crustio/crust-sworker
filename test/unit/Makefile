@@ -5,7 +5,7 @@ include $(inst_dir)/buildenv.mk
 
 define addTestFunctions
 	enc_cpp_fun="\\\nbool ecall_test_enclave_unit()\n{\n\treturn test_enclave_unit();\n}"; \
-	enc_cpp_inc="#include \"EnclaveUnitTestEntrance.h\""; \
+	enc_cpp_inc="#include \"EncalveTestEntrance.h\""; \
 	enc_edl_fun="\\\t\t// For test\n\t\tpublic bool ecall_test_enclave_unit();\n"; \
 	enc_edl_inc="\\\tinclude \"stdbool.h\""; \
 	sed -i "$$ a $$enc_cpp_fun" src/enclave/Enclave.cpp; \

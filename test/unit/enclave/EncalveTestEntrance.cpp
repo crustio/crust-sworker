@@ -57,7 +57,7 @@ bool test_all_utils()
         print_err("x Test remove_char failed!\n");
         ret = ret && false;
     }
-    print_success("+ Test remove_char successfully!\n")
+    print_success("+ Test remove_char successfully!\n");
 
     return ret;
 }

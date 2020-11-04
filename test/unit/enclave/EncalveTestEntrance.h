@@ -2,6 +2,8 @@
 #define _CRUST_ENLCAVE_TEST_ENTRANCE_H_
 
 #include "UtilsTest.h"
+#include "StorageTest.h"
+
 
 #if defined(__cplusplus)
 extern "C"
