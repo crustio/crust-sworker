@@ -572,9 +572,15 @@ crust_status_t storage_delete_file(const char *hash)
     return crust_status;
 }
 
+/**
+ * @description: Get the hashs of links from ipfs block
+ * @param block_data -> ipfs block data
+ * @param block_size -> ipfs block size
+ * @param hashs -> Return hashs, which need to be released when used up
+ * @return: Status
+ */
 crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t *> &hashs)
 {
-    crust_status_t crust_status = CRUST_SUCCESS;
     if (block_data == NULL || block_size == 0)
     {
         return CRUST_STORAGE_EMPTY_BLOCK;
