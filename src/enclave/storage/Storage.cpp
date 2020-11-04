@@ -603,8 +603,6 @@ crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std:
 
         memcpy(hash, block_data + index + 5, HASH_LENGTH);
         hashs.push_back(hash);
-        std::string hash_str = hexstring_safe(hash, HASH_LENGTH);
-        log_info("Link hash: %s\n", hash_str.c_str());
 
         index += link_size + 1;
     }

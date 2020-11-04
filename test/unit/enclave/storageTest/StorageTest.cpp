@@ -22,10 +22,17 @@ bool test_get_hashs_from_block()
 
     if (hashs.size() != 5)
     {
-        log_err("Get hashs failed, block1' must have 5 hashs\n");
+        log_err("Get hashs failed, block must have 5 hashs\n");
         return false;
     }
 
+    std::string hash_str = hexstring_safe(hashs[2], HASH_LENGTH);
+    if (hash_str != "1687310fe656495e943b4b57c709a487f94d7e00e310b0303781c04ee890e322")
+    {
+        log_err("The 3rd hash must be 1687310fe656495e943b4b57c709a487f94d7e00e310b0303781c04ee890e322\n");
+        return false;
+    }
+    
     // Clear hashs
     for (size_t i = 0; i < hashs.size(); i++)
     {
