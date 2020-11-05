@@ -329,7 +329,7 @@ char *unsigned_char_to_hex(const unsigned char in)
  * @return: Seal status
  */
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
-                                   sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
+        sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -347,7 +347,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
     sgx_status = Sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
-                                  0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
+            0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
 
     if (SGX_SUCCESS != sgx_status)
     {
@@ -370,7 +370,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
  * @return: Seal status
  */
 crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
-                                  sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
+        sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -550,7 +550,10 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
     uint32_t hash_len = strlen(root->hash);
     string node;
     std::string hex_hash_str = hexstring_safe(root->hash, hash_len);
-    node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",").append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num)).append(",").append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",").append("\"" MT_LINKS "\":[");
+    node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",")
+        .append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num))
+        .append(",").append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",")
+        .append("\"" MT_LINKS "\":[");
 
     for (size_t i = 0; i < root->links_num; i++)
     {
@@ -657,9 +660,9 @@ void *enc_realloc(void *p, size_t size)
  * @description: A wrapper for sgx_seal_data
  */
 sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
-                           const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
-                           const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
-                           sgx_sealed_data_t *p_sealed_data)
+        const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
+        const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
+        sgx_sealed_data_t *p_sealed_data)
 {
     uint8_t *p_test = (uint8_t *)enc_malloc(sealed_data_size);
     if (p_test == NULL)
@@ -670,19 +673,15 @@ sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
     free(p_test);
 
     return sgx_seal_data(additional_MACtext_length, p_additional_MACtext,
-                         text2encrypt_length, p_text2encrypt, sealed_data_size, p_sealed_data);
+            text2encrypt_length, p_text2encrypt, sealed_data_size, p_sealed_data);
 }
 
 /**
  * @description: A wrapper function for sgx_seal_data_ex
  */
-sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
-                              const sgx_attributes_t attribute_mask,
-                              const sgx_misc_select_t misc_mask,
-                              const uint32_t additional_MACtext_length,
-                              const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
-                              const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
-                              sgx_sealed_data_t *p_sealed_data)
+sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy, const sgx_attributes_t attribute_mask, const sgx_misc_select_t misc_mask,
+        const uint32_t additional_MACtext_length, const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
+        const uint8_t *p_text2encrypt, const uint32_t sealed_data_size, sgx_sealed_data_t *p_sealed_data)
 {
     uint8_t *p_test = (uint8_t *)enc_malloc(sealed_data_size);
     if (p_test == NULL)
@@ -693,8 +692,8 @@ sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
     free(p_test);
 
     return sgx_seal_data_ex(key_policy, attribute_mask, misc_mask,
-                            additional_MACtext_length, p_additional_MACtext, text2encrypt_length,
-                            p_text2encrypt, sealed_data_size, p_sealed_data);
+            additional_MACtext_length, p_additional_MACtext, text2encrypt_length,
+            p_text2encrypt, sealed_data_size, p_sealed_data);
 }
 
 /**
