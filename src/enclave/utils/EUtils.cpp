@@ -14,7 +14,7 @@ int eprint_base(char buf[], int flag);
  * @param fmt -> Output format
  * @return: the length of printed string
  */
-int eprint_info(const char* fmt, ...)
+int eprint_info(const char *fmt, ...)
 {
     char buf[LOG_BUF_SIZE] = {'\0'};
     va_list ap;
@@ -49,12 +49,12 @@ int eprint_base(char buf[], int flag)
 {
     switch (flag)
     {
-        case 0: 
-            ocall_print_info(buf); 
-            break;
-        case 1: 
-            ocall_print_debug(buf); 
-            break;
+    case 0:
+        ocall_print_info(buf);
+        break;
+    case 1:
+        ocall_print_debug(buf);
+        break;
     }
     return (int)strnlen(buf, LOG_BUF_SIZE - 1) + 1;
 }
@@ -186,7 +186,7 @@ std::string hexstring_safe(const void *vsrc, size_t len)
 {
     size_t i;
     const uint8_t *src = (const uint8_t *)vsrc;
-    char *hex_buffer = (char*)enc_malloc(len * 2);
+    char *hex_buffer = (char *)enc_malloc(len * 2);
     if (hex_buffer == NULL)
     {
         return "";
@@ -233,7 +233,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
         return NULL;
     }
 
-    const char *rsrc = (const char*)src;
+    const char *rsrc = (const char *)src;
     uint8_t *p_target;
     uint8_t *target = (uint8_t *)enc_malloc(len / 2);
     if (target == NULL)
@@ -242,7 +242,7 @@ uint8_t *hex_string_to_bytes(const void *src, size_t len)
     }
     memset(target, 0, len / 2);
     p_target = target;
-    for (size_t i = 0; i < len; i+=2)
+    for (size_t i = 0; i < len; i += 2)
     {
         *(target++) = (uint8_t)(char_to_int(rsrc[0]) * 16 + char_to_int(rsrc[1]));
         rsrc += 2;
@@ -329,7 +329,7 @@ char *unsigned_char_to_hex(const unsigned char in)
  * @return: Seal status
  */
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
-        sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
+                                   sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -339,7 +339,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     if (*p_sealed_data == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED; 
+        return CRUST_MALLOC_FAILED;
     }
     memset(*p_sealed_data, 0, sealed_data_sz);
     sgx_attributes_t sgx_attr;
@@ -347,7 +347,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     sgx_attr.xfrm = 0;
     sgx_misc_select_t sgx_misc = 0xF0000000;
     sgx_status = Sgx_seal_data_ex(0x0001, sgx_attr, sgx_misc,
-            0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
+                                  0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
 
     if (SGX_SUCCESS != sgx_status)
     {
@@ -370,7 +370,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
  * @return: Seal status
  */
 crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
-        sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
+                                  sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -415,7 +415,7 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
 
     uint8_t *parent_hash_org = NULL;
 
-    uint8_t *children_hashs = (uint8_t*)enc_malloc(tree->links_num * HASH_LENGTH);
+    uint8_t *children_hashs = (uint8_t *)enc_malloc(tree->links_num * HASH_LENGTH);
     if (children_hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
@@ -424,7 +424,7 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
     memset(children_hashs, 0, tree->links_num * HASH_LENGTH);
     for (uint32_t i = 0; i < tree->links_num; i++)
     {
-        if(validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
+        if (validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
         {
             crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
@@ -453,7 +453,6 @@ crust_status_t validate_merkle_tree_c(MerkleTree *tree)
         crust_status = CRUST_INVALID_MERKLETREE;
         goto cleanup;
     }
-
 
 cleanup:
 
@@ -487,7 +486,7 @@ crust_status_t validate_merkletree_json(json::JSON tree)
 
     uint8_t *parent_hash_org = NULL;
 
-    uint8_t *children_hashs = (uint8_t*)enc_malloc(tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
+    uint8_t *children_hashs = (uint8_t *)enc_malloc(tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
     if (children_hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
@@ -496,7 +495,7 @@ crust_status_t validate_merkletree_json(json::JSON tree)
     memset(children_hashs, 0, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
     for (int i = 0; i < tree[MT_LINKS_NUM].ToInt(); i++)
     {
-        if(validate_merkletree_json(tree[MT_LINKS][i]) != CRUST_SUCCESS)
+        if (validate_merkletree_json(tree[MT_LINKS][i]) != CRUST_SUCCESS)
         {
             crust_status = CRUST_INVALID_MERKLETREE;
             goto cleanup;
@@ -526,7 +525,6 @@ crust_status_t validate_merkletree_json(json::JSON tree)
         goto cleanup;
     }
 
-
 cleanup:
 
     free(children_hashs);
@@ -552,10 +550,7 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
     uint32_t hash_len = strlen(root->hash);
     string node;
     std::string hex_hash_str = hexstring_safe(root->hash, hash_len);
-    node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",")
-        .append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num)).append(",")
-        .append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",")
-        .append("\"" MT_LINKS "\":[");
+    node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",").append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num)).append(",").append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",").append("\"" MT_LINKS "\":[");
 
     for (size_t i = 0; i < root->links_num; i++)
     {
@@ -581,7 +576,7 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
     MerkleTree *root = new MerkleTree();
     std::string hash = tree_json[MT_HASH].ToString();
     size_t hash_len = hash.size() + 1;
-    root->hash = (char*)enc_malloc(hash_len);
+    root->hash = (char *)enc_malloc(hash_len);
     if (root->hash == NULL)
     {
         log_err("Malloc memory failed!\n");
@@ -594,7 +589,7 @@ MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
 
     if (root->links_num != 0)
     {
-        root->links = (MerkleTree**)enc_malloc(root->links_num * sizeof(MerkleTree*));
+        root->links = (MerkleTree **)enc_malloc(root->links_num * sizeof(MerkleTree *));
         if (root->links == NULL)
         {
             log_err("Malloc memory failed!\n");
@@ -629,7 +624,7 @@ void *enc_malloc(size_t size)
 
     while (tryout++ < ENCLAVE_MALLOC_TRYOUT && p == NULL)
     {
-        p = (void*)malloc(size);
+        p = (void *)malloc(size);
     }
 
     return p;
@@ -652,7 +647,7 @@ void *enc_realloc(void *p, size_t size)
 
     while (tryout++ < ENCLAVE_MALLOC_TRYOUT && p == NULL)
     {
-        p = (void*)enc_malloc(size);
+        p = (void *)enc_malloc(size);
     }
 
     return p;
@@ -670,12 +665,12 @@ sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
     if (p_test == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return SGX_ERROR_OUT_OF_MEMORY; 
+        return SGX_ERROR_OUT_OF_MEMORY;
     }
     free(p_test);
 
-    return sgx_seal_data(additional_MACtext_length, p_additional_MACtext, 
-            text2encrypt_length, p_text2encrypt, sealed_data_size, p_sealed_data);
+    return sgx_seal_data(additional_MACtext_length, p_additional_MACtext,
+                         text2encrypt_length, p_text2encrypt, sealed_data_size, p_sealed_data);
 }
 
 /**
@@ -693,13 +688,13 @@ sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
     if (p_test == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return SGX_ERROR_OUT_OF_MEMORY; 
+        return SGX_ERROR_OUT_OF_MEMORY;
     }
     free(p_test);
 
     return sgx_seal_data_ex(key_policy, attribute_mask, misc_mask,
-            additional_MACtext_length, p_additional_MACtext, text2encrypt_length, 
-            p_text2encrypt, sealed_data_size, p_sealed_data);
+                            additional_MACtext_length, p_additional_MACtext, text2encrypt_length,
+                            p_text2encrypt, sealed_data_size, p_sealed_data);
 }
 
 /**
@@ -801,4 +796,28 @@ char *base64_decode(const char *msg, size_t *sz)
     BIO_free_all(bmem);
 
     return buf;
+}
+
+/**
+ * @description: base58 encode function
+ * @param input -> To be encoded message
+ * @param len -> Message size
+ * @return: Encoded result
+ */
+std::string base58_encode(const uint8_t *input, size_t len)
+{
+    BIO *bmem, *b58;
+    BUF_MEM *bptr;
+
+    b58 = BIO_new(BIO_f_base58());
+    bmem = BIO_new(BIO_s_mem());
+    b58 = BIO_push(b58, bmem);
+    BIO_write(b58, input, len);
+    BIO_flush(b58);
+    BIO_get_mem_ptr(b58, &bptr);
+
+    std::string res(bptr->data, bptr->length - 1);
+    BIO_free_all(b58);
+
+    return res;
 }
