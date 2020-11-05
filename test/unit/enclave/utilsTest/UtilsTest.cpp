@@ -159,3 +159,20 @@ bool test_remove_char()
 
     return true;
 }
+
+bool test_base58_encode()
+{
+    std::string input_str = "12208ad1b49139d0c987ed74c5df798c039d3c6eb034907284778974bd63abadc658";
+    uint8_t *input = hex_string_to_bytes(input_str.c_str(), input_str.size());
+
+    std::string res = base58_encode(input, input_str.size() / 2);
+    delete input;
+
+    if (res != "QmXgYSFx8vSeGgb5qBEw3wYXmQPwYYLHiVZzxN1FM93SmD")
+    {
+        log_err("The base58 encode result must be QmXgYSFx8vSeGgb5qBEw3wYXmQPwYYLHiVZzxN1FM93SmD\n");
+        return false;
+    }
+
+    return true;
+}

@@ -43,6 +43,10 @@ namespace json
 /* The length of hash */
 #define HASH_LENGTH 32
 
+const char *const BASE58_ALPHABET =
+    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const double base58_ifactor = 1.36565823730976103695740418120764243208481439700722980119458355862779176747360903943915516885072037696111192757109;
+
 typedef sgx_status_t (*p_ocall_store)(const char *data, size_t data_size, bool cover);
 
 

@@ -15,6 +15,7 @@ bool test_hexstring_safe();
 bool test_hex_string_to_bytes();
 bool test_seal_data_mrenclave();
 bool test_remove_char();
+bool test_base58_encode();
 
 #if defined(__cplusplus)
 }

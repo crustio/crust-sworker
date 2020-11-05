@@ -806,18 +806,44 @@ char *base64_decode(const char *msg, size_t *sz)
  */
 std::string base58_encode(const uint8_t *input, size_t len)
 {
-    BIO *bmem, *b58;
-    BUF_MEM *bptr;
+    int length = 0, pbegin = 0, pend;
+    if (!(pend = len))
+    {
+        return "";
+    }
 
-    b58 = BIO_new(BIO_f_base58());
-    bmem = BIO_new(BIO_s_mem());
-    b58 = BIO_push(b58, bmem);
-    BIO_write(b58, input, len);
-    BIO_flush(b58);
-    BIO_get_mem_ptr(b58, &bptr);
+    int size = 1 + base58_ifactor * (double)(pend - pbegin);
+    unsigned char b58[size] = {0};
+    while (pbegin != pend)
+    {
+        unsigned int carry = input[pbegin];
+        int i = 0;
+        for (int it1 = size - 1; (carry || i < length) && (it1 != -1); it1--, i++)
+        {
+            carry += 256 * b58[it1];
+            b58[it1] = carry % 58;
+            carry /= 58;
+        }
+        if (carry)
+        {
+            return 0;
+        }
+        length = i;
+        pbegin++;
+    }
+    int it2 = size - length;
+    while ((it2 - size) && !b58[it2])
+    {
+        it2++;
+    }
 
-    std::string res(bptr->data, bptr->length - 1);
-    BIO_free_all(b58);
+    std::string res(size - it2, '\0');
+    size_t res_index = 0;
+    for (; it2 < size; ++it2)
+    {
+        res[res_index] = BASE58_ALPHABET[b58[it2]];
+        res_index++;
+    }
 
     return res;
 }
