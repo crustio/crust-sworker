@@ -106,7 +106,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     free(org_root_hash_u);
 
     // Store new tree structure
-    crust_status = persist_set_unsafe(new_root_hash_str, (const uint8_t*)new_tree.c_str(), new_tree.size());
+    crust_status = persist_set_unsafe(new_root_hash_str, (const uint8_t *)new_tree.c_str(), new_tree.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -117,7 +117,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     tree_meta_json[FILE_OLD_HASH] = org_root_hash_str;
     tree_meta_json[FILE_OLD_SIZE] = org_node_size;
     std::string tree_meta_str = tree_meta_json.dump();
-    crust_status = persist_set_unsafe((new_root_hash_str + "_meta"), (const uint8_t*)tree_meta_str.c_str(), tree_meta_str.size());
+    crust_status = persist_set_unsafe((new_root_hash_str + "_meta"), (const uint8_t *)tree_meta_str.c_str(), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -189,7 +189,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
             goto sealend;
         }
         // Check file hash
-        file_data_r = (uint8_t*)enc_malloc(file_data_len);
+        file_data_r = (uint8_t *)enc_malloc(file_data_len);
         if (file_data_r == NULL)
         {
             log_err("Malloc memory failed!\n");
@@ -210,8 +210,8 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
             goto sealend;
         }
         // Do seal
-        crust_status = seal_data_mrsigner(file_data_r, file_data_len, 
-                (sgx_sealed_data_t**)&p_sealed_data, &sealed_data_size);
+        crust_status = seal_data_mrsigner(file_data_r, file_data_len,
+                (sgx_sealed_data_t **)&p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
             goto sealend;
@@ -221,8 +221,10 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
         sgx_sha256_msg(p_sealed_data, sealed_data_size, &new_hash);
         hex_new_hash_str = hexstring_safe(new_hash, HASH_LENGTH);
         new_path.append(path)
-            .append("/").append(to_string(block_num))
-            .append("_").append(hex_new_hash_str);
+            .append("/")
+            .append(to_string(block_num))
+            .append("_")
+            .append(hex_new_hash_str);
         // Replace old file with new file
         ocall_replace_file(&crust_status, old_path.c_str(), new_path.c_str(), p_sealed_data, sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
@@ -260,7 +262,7 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
     tree.append("{\"" MT_LINKS "\": [");
 
     size_t sub_hashs_len = tree_json[MT_LINKS_NUM].ToInt() * HASH_LENGTH;
-    uint8_t *sub_hashs = (uint8_t*)enc_malloc(sub_hashs_len);
+    uint8_t *sub_hashs = (uint8_t *)enc_malloc(sub_hashs_len);
     if (sub_hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
@@ -300,7 +302,6 @@ crust_status_t _storage_seal_file(json::JSON &tree_json, string path, string &tr
 
     node_size += cur_size;
 
-
 cleanup:
 
     if (sub_hashs != NULL)
@@ -321,31 +322,31 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
-    vector<string> files_v(files, files + files_num);   // Get all data file path
-    uint8_t *p_sealed_data = NULL;  // Get from outside file
-    size_t sealed_data_size_r = 0;  // Data size got from outside file
-    sgx_sealed_data_t *p_sealed_data_r = NULL;  // Malloc in enclave for unseal
-    uint8_t *p_decrypted_data = NULL;   // Buffer malloced for unseal
-    uint32_t decrypted_data_len = 0;    // Malloced buffer size
-    uint32_t decrypted_data_len_r = 0;  // Unsealed buffer size
-    std::string dir(p_dir); // Parent directory path
+    vector<string> files_v(files, files + files_num);          // Get all data file path
+    uint8_t *p_sealed_data = NULL;                             // Get from outside file
+    size_t sealed_data_size_r = 0;                             // Data size got from outside file
+    sgx_sealed_data_t *p_sealed_data_r = NULL;                 // Malloc in enclave for unseal
+    uint8_t *p_decrypted_data = NULL;                          // Buffer malloced for unseal
+    uint32_t decrypted_data_len = 0;                           // Malloced buffer size
+    uint32_t decrypted_data_len_r = 0;                         // Unsealed buffer size
+    std::string dir(p_dir);                                    // Parent directory path
     std::string up_dir = dir.substr(0, dir.find_last_of("/")); // Directory contains parent dir
 
     // Judge if new tree hash exists in DB
     std::string new_root_hash_str = dir.substr(dir.find_last_of("/") + 1, dir.size());
     uint8_t *p_meta = NULL;
     size_t meta_len;
-    crust_status = persist_get_unsafe((new_root_hash_str+"_meta"), &p_meta, &meta_len);
+    crust_status = persist_get_unsafe((new_root_hash_str + "_meta"), &p_meta, &meta_len);
     if (CRUST_SUCCESS != crust_status || p_meta == NULL)
     {
         return CRUST_STORAGE_UNSEAL_FILE_FAILED;
     }
-    std::string tree_meta(reinterpret_cast<char*>(p_meta), meta_len);
+    std::string tree_meta(reinterpret_cast<char *>(p_meta), meta_len);
     json::JSON meta_json = json::JSON::Load(tree_meta);
     std::string new_dir(up_dir);
     new_dir.append("/").append(meta_json[FILE_OLD_HASH].ToString());
     free(p_meta);
-    
+
     // Do unseal file
     sgx_thread_mutex_lock(&g_file_buffer_mutex);
     for (auto path : files_v)
@@ -361,7 +362,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
             goto cleanup;
         }
         // Allocate buffer for sealed data
-        p_sealed_data_r = (sgx_sealed_data_t*)enc_malloc(sealed_data_size_r);
+        p_sealed_data_r = (sgx_sealed_data_t *)enc_malloc(sealed_data_size_r);
         if (p_sealed_data_r == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
@@ -405,8 +406,7 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
         sgx_sha256_msg(p_decrypted_data, decrypted_data_len_r, &new_hash);
         std::string new_path;
         std::string hex_new_hash_str = hexstring_safe(new_hash, HASH_LENGTH);
-        new_path.append(dir).append("/").append(tag).append("_")
-            .append(hex_new_hash_str);
+        new_path.append(dir).append("/").append(tag).append("_").append(hex_new_hash_str);
         ocall_replace_file(&crust_status, path.c_str(), new_path.c_str(), p_decrypted_data, decrypted_data_len_r);
         if (CRUST_SUCCESS != crust_status)
         {
@@ -422,7 +422,6 @@ crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p
     // Rename directory
     ocall_rename_dir(&crust_status, dir.c_str(), new_dir.c_str());
     memcpy(p_new_path, new_dir.c_str(), new_dir.size());
-
 
 cleanup:
 
@@ -571,4 +570,48 @@ crust_status_t storage_delete_file(const char *hash)
     }
 
     return crust_status;
+}
+
+/**
+ * @description: Get the hashs of links from ipfs block
+ * @param block_data -> ipfs block data
+ * @param block_size -> ipfs block size
+ * @param hashs -> Return hashs, which need to be released when used up
+ * @return: Status
+ */
+crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t *> &hashs)
+{
+    if (block_data == NULL || block_size == 0)
+    {
+        return CRUST_STORAGE_EMPTY_BLOCK;
+    }
+
+    size_t index = 0;
+    while (index <= block_size)
+    {
+        if (block_data[index] != 0x12)
+        {
+            break;
+        }
+        index++;
+        uint8_t link_size = block_data[index];
+        
+        uint8_t* hash = (uint8_t *)enc_malloc(32);
+        if (hash == NULL)
+        {
+            for (size_t i = 0; i < hashs.size(); i++)
+            {
+                delete hashs[i];
+            }
+            hashs.clear();
+            return CRUST_MALLOC_FAILED;
+        }
+
+        memcpy(hash, block_data + index + 5, HASH_LENGTH);
+        hashs.push_back(hash);
+
+        index += link_size + 1;
+    }
+
+    return CRUST_SUCCESS;
 }

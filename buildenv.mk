@@ -127,8 +127,8 @@ Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX
 	
 
 ifeq ($(TFLAG), 1)
-	Enclave_Cpp_Files += $(wildcard enclave/utilsTest/*.cpp)
-	Enclave_Include_Paths += -Ienclave/utilsTest
+	Enclave_Cpp_Files += enclave/EncalveTestEntrance.cpp $(wildcard enclave/utilsTest/*.cpp) $(wildcard enclave/storageTest/*.cpp)
+	Enclave_Include_Paths += -Ienclave/utilsTest -Ienclave/storageTest
 endif
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -Wno-type-limits
@@ -190,6 +190,6 @@ endif
 
 ######## Test Settings ########
 
-Test_Source_Files := EnclaveUtilsTest.cpp MainTest.cpp
+Test_Source_Files := MainTest.cpp
 Test_Objects := $(Test_Source_Files:.cpp=.o)
 Test_Target := crust-sworker-test
