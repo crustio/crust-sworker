@@ -551,8 +551,8 @@ string serialize_merkletree_to_json_string(MerkleTree *root)
     string node;
     std::string hex_hash_str = hexstring_safe(root->hash, hash_len);
     node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",")
-        .append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num))
-        .append(",").append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",")
+        .append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num)).append(",")
+        .append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",")
         .append("\"" MT_LINKS "\":[");
 
     for (size_t i = 0; i < root->links_num; i++)
