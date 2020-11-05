@@ -23,17 +23,6 @@
 #include <sgx_ecp_types.h>
 #include "sgx_spinlock.h"
 
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
-#include <openssl/cmac.h>
-#include <openssl/conf.h>
-#include <openssl/ec.h>
-#include <openssl/ecdsa.h>
-#include <openssl/bn.h>
-#include <openssl/x509v3.h>
-
-
 #define PSE_RETRIES	    5	/* Arbitrary. Not too long, not too short. */
 
 enum metadata_op_e
@@ -55,7 +44,6 @@ void cert_stack_free (STACK_OF(X509) *chain);
 int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
     size_t sigsz, EVP_PKEY *pkey, int *result);
 X509_STORE * cert_init_ca(X509 *cert);
-char *base64_decode(const char *msg, size_t *sz);
 
 crust_status_t id_verify_and_upload_identity(char ** IASReport, size_t size);
 sgx_status_t id_gen_key_pair(const char *account_id, size_t len);

@@ -287,43 +287,7 @@ X509_STORE *cert_init_ca(X509 *cert)
     return store;
 }
 
-/**
- * @description: base64 decode function
- * @param msg -> To be decoded message
- * @param sz -> Message size
- * @return: Decoded result
- */
-char *base64_decode(const char *msg, size_t *sz)
-{
-    BIO *b64, *bmem;
-    char *buf;
-    size_t len = strlen(msg);
 
-    buf = (char *)enc_malloc(len + 1);
-    if (buf == NULL)
-        return NULL;
-    memset(buf, 0, len + 1);
-
-    b64 = BIO_new(BIO_f_base64());
-    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-
-    bmem = BIO_new_mem_buf(msg, (int)len);
-
-    BIO_push(b64, bmem);
-
-    int rsz = BIO_read(b64, buf, (int)len);
-    if (rsz == -1)
-    {
-        free(buf);
-        return NULL;
-    }
-
-    *sz = rsz;
-
-    BIO_free_all(bmem);
-
-    return buf;
-}
 
 /**
  * @description: Verify IAS report and upload identity

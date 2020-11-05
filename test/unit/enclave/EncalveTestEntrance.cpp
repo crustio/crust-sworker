@@ -59,6 +59,13 @@ bool test_all_utils()
     }
     print_success("+ Test remove_char successfully!\n");
 
+    if (!test_base58_encode())
+    {
+        print_err("x Test base58_encode failed!\n");
+        ret = ret && false;
+    }
+    print_success("+ Test base58_encode successfully!\n");
+
     return ret;
 }
 

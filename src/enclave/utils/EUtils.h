@@ -11,6 +11,16 @@
 #include "Enclave_t.h"
 #include "Parameter.h"
 
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/cmac.h>
+#include <openssl/conf.h>
+#include <openssl/ec.h>
+#include <openssl/ecdsa.h>
+#include <openssl/bn.h>
+#include <openssl/x509v3.h>
+
 namespace json
 {
     class JSON;
@@ -32,6 +42,10 @@ namespace json
 #define LOG_BUF_SIZE 32768 /* 32*1024 */
 /* The length of hash */
 #define HASH_LENGTH 32
+
+const char *const BASE58_ALPHABET =
+    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const double base58_ifactor = 1.36565823730976103695740418120764243208481439700722980119458355862779176747360903943915516885072037696111192757109;
 
 typedef sgx_status_t (*p_ocall_store)(const char *data, size_t data_size, bool cover);
 
@@ -81,6 +95,8 @@ void *enc_realloc(void *p, size_t size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
 void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex);
+char *base64_decode(const char *msg, size_t *sz);
+std::string base58_encode(const uint8_t *input, size_t len);
 
 #if defined(__cplusplus)
 }
