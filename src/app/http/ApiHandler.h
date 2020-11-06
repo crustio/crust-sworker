@@ -189,7 +189,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
 
-
         // ----- Get workload ----- //
         cur_path = urlendpoint->base + "/workload";
         if (path.compare(cur_path) == 0)
@@ -287,23 +286,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
                 goto getcleanup;
             }
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto getcleanup;
-            }
 
             // Block current work-report for a while
             ed->set_upgrade_status(UPGRADE_STATUS_STOP_WORKREPORT);
@@ -378,23 +360,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
                 goto getcleanup;
             }
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto getcleanup;
-            }
 
             std::string upgrade_data = ed->get_upgrade_data();
             p_log->info("Generate upgrade data:%s\n", upgrade_data.c_str());
@@ -409,25 +374,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (path.compare(cur_path) == 0)
         {
             res.result(200);
-            std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto getcleanup;
-            }
-
             json::JSON req_json = json::JSON::Load(req.body());
             bool upgrade_ret = req_json["success"].ToBool();
             if (!upgrade_ret)
@@ -516,25 +462,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (path.compare(cur_path) == 0)
         {
             res.result(200);
-            std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req.body());
             change_srd_num = req_json["change"].ToInt();
@@ -563,24 +490,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
             // Confirm new file
             json::JSON req_json = json::JSON::Load(req.body());
             std::string hash = req_json["hash"].ToString();
@@ -606,24 +515,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
             // Delete file
             json::JSON req_json = json::JSON::Load(req.body());
             std::string hash = req_json["hash"].ToString();
@@ -649,24 +540,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
 
@@ -756,24 +629,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             std::string ret_info;
-            // Get backup info
-            if (req.find("backup") == req.end())
-            {
-                ret_info = "Validate MerkleTree failed!Error: Empty backup!";
-                res.result(400);
-            }
-            else if (p_config->chain_backup.compare(std::string(req.at("backup"))) != 0)
-            {
-                ret_info = "Validate MerkleTree failed!Error: Invalid backup!";
-                res.result(401);
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-
             p_log->info("Dealing with unseal request...\n");
             // Parse parameters
             json::JSON req_json;

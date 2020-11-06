@@ -81,7 +81,6 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 1. Run '**bin/crust-sworker -v, --version**', program will output version information. 
 1. Run '**bin/crust-sworker --offline**', program will not interact with the chain.
 1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
-1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
 
 ## APIs
 Crust sWorker provides plenty of getting and controlling interfaces, please refer to [Crust sWorker APIs](docs/API.md)
