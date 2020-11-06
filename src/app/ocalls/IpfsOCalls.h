@@ -19,4 +19,4 @@ crust_status_t ocall_ipfs_add(unsigned char *p_data, size_t len);
 }
 #endif
 
-#endif /* !_OCALLS_APP_H_ */
+#endif /* !_CRUST_IPFS_OCALLS_H_ */
