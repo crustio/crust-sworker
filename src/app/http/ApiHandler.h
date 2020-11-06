@@ -287,13 +287,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 goto getcleanup;
             }
 
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                goto getcleanup;
-            }
-
             // Block current work-report for a while
             ed->set_upgrade_status(UPGRADE_STATUS_STOP_WORKREPORT);
 
@@ -364,12 +357,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 ret_info = "Metadata is still collecting!";
                 res.result(300);
-                res.body() = ret_info;
-                goto getcleanup;
-            }
-            if (int(res.result()) != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
                 res.body() = ret_info;
                 goto getcleanup;
             }
