@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "Common.h"
 #include "Log.h"
+#include "DataBase.h"
 
 #if defined(__cplusplus)
 extern "C"
