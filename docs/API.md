@@ -75,7 +75,7 @@ Set debug flag failed
 
 Use 'api/v0/srd/change' to change SRD capacity 
 ----------------------------------------------
-Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative. Parameter 'backup' in body is your chian account's backup, this need be same as 'chain_backup' in configuration file.
+Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative.
 ```
 curl --location --request POST 'http://<url:port>/api/v0/srd/change' \
 --header 'Content-Type: application/json' \
@@ -87,11 +87,6 @@ curl --location --request POST 'http://<url:port>/api/v0/srd/change' \
 Output (200, success):
 ```
 Change srd file success, the srd workload will change in next validation loop
-```
-
-Output (401, invalid backup):
-```
-invalid backup
 ```
 
 Output (402, invalid change):

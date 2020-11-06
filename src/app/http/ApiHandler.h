@@ -188,7 +188,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::make_tuple(http::status::ok, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-+
+
         // ----- Get workload ----- //
         cur_path = urlendpoint->base + "/workload";
         if (path.compare(cur_path) == 0)
