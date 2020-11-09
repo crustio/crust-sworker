@@ -53,15 +53,8 @@ extern "C"
     crust_status_t ocall_replace_file(const char *old_path, const char *new_path, const uint8_t *data, size_t len);
     crust_status_t ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len);
     crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_file, size_t *len);
+    
     void ocall_usleep(int u);
-
-    // For database
-    crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len);
-    crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t keys_len);
-    crust_status_t ocall_persist_del(const char *key);
-    crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t keys_len);
-    crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len);
-    crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len);
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
 
     // For file validate
