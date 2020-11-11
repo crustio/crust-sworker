@@ -12,10 +12,10 @@ sWorker(storage worker) is an offchain storage work inspector of Crust MPoW prot
   - Need use ordinary account, **cannot support root account**
 
 - Ensure that you have one of the following required operating systems:
-  * Ubuntu\* 16.04 LTS Desktop 64bits
-  * Ubuntu\* 16.04 LTS Server 64bits
-  * Ubuntu\* 18.04 LTS Desktop 64bits (just for docker mode)
-  * Ubuntu\* 18.04 LTS Server 64bits (just for docker mode)
+  * Ubuntu\* 16.04 LTS Desktop 64bits (just for docker mode)
+  * Ubuntu\* 16.04 LTS Server 64bits (just for docker mode)
+  * Ubuntu\* 18.04 LTS Desktop 64bits 
+  * Ubuntu\* 18.04 LTS Server 64bits 
 
 - Install git-lfs:
   ```
@@ -38,7 +38,7 @@ Please refer to [Crust sWorker docker mode](docs/Docker.md)
 - Prerequisites:
   ```
   sudo apt-get update
-  sudo apt-get install -y build-essential git libboost-all-dev openssl libssl-dev curl libelf-dev libleveldb-dev expect libcurl3 libcurl4-openssl-dev libprotobuf-dev kmod unzip linux-headers-`uname -r`
+  sudo apt-get install -y wget expect kmod unzip libboost-all-dev libleveldb-dev build-essential linux-headers-`uname -r` libssl-dev curl libprotobuf-dev libcurl4-openssl-dev
   ```
   ***Note: This mode is just for Ubuntu\* 16.04***
 

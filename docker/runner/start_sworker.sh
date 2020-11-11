@@ -8,19 +8,18 @@ inteldir=/opt/intel
 
 echo "Starting curst sworker $version"
 source $crust_env_file
-export LD_LIBRARY_PATH=LD_LIBRARY_PATH:$inteldir/libsgx-enclave-common/aesm
 
-# ensure aesm service is running
-# otherwise enclave will not be initialized
-if pgrep -x "aesm_service" > /dev/null
-then
-    echo "Aesm service running"
-else
-    echo "Aesm service not running, starting it"
-    $inteldir/libsgx-enclave-common/aesm/aesm_service &
-    echo "Wait 5 seconds for aesm service fully start"
-    sleep 5
-fi
+echo "Wait 5 seconds for aesm service fully start"
+/opt/intel/sgx-aesm-service/aesm/linksgx.sh
+/bin/mkdir -p /var/run/aesmd/
+/bin/chown -R aesmd:aesmd /var/run/aesmd/
+/bin/chmod 0755 /var/run/aesmd/
+/bin/chown -R aesmd:aesmd /var/opt/aesmd/
+/bin/chmod 0750 /var/opt/aesmd/
+NAME=aesm_service AESM_PATH=/opt/intel/sgx-aesm-service/aesm LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm /opt/intel/sgx-aesm-service/aesm/aesm_service
+sleep 5
+
+ps -ef | grep aesm
 
 echo "Run sworker with arguments: $ARGS"
 /opt/crust/crust-sworker/$version/bin/crust-sworker $ARGS

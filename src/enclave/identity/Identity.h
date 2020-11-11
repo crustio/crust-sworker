@@ -16,10 +16,11 @@
 #include <vector>
 
 #include <sgx_utils.h>
-#include <sgx_tae_service.h>
 #include <sgx_tkey_exchange.h>
 #include <sgx_tcrypto.h>
-#include <sgx_uae_service.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
 #include <sgx_ecp_types.h>
 #include "sgx_spinlock.h"
 
