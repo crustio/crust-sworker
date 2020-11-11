@@ -48,7 +48,6 @@ static void *_load_symbol(void *handle, const char *symbol, int *status);
 static const char *dlerr = NULL;
 static void *h_libsgx_uae_service = NULL;
 static void *h_libsgx_urts = NULL;
-static int l_libsgx_uae_service = 0;
 static int l_libsgx_urts = 0;
 
 /**
