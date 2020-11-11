@@ -75,9 +75,9 @@ function installSGXSSL()
     setTimeWait "$(verbose INFO "Installing SGX SSL..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
     cd $rsrcdir
-    tar -xvf toolset.tar.gz
+    tar -xvf toolset.tar.gz &>$ERRFILE
     cp $rsrcdir/toolset/* /usr/local/bin/
-    rm -rf $rsrcdir/toolset
+    rm -rf $rsrcdir/toolset 
     sgxssltmpdir=$rsrcdir/$(unzip -l $sgxsslpkg | awk '{print $NF}' | awk -F/ '{print $1}' | grep intel | head -n 1)
     sgxssl_openssl_source_dir=$sgxssltmpdir/openssl_source
     unzip $sgxsslpkg &>$ERRFILE
