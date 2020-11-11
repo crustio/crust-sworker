@@ -157,6 +157,13 @@ function delete_file()
     curl -s -XPOST $baseurl/storage/delete --data-raw "{\"hash\":\"$hash\"}"
 }
 
+function srd_real()
+{
+    local change=$1
+
+    curl -s -XPOST $baseurl/srd/change_real --data-raw "{\"change\":$change}"
+}
+
 function srd()
 {
     local change=$1
@@ -172,7 +179,12 @@ function srd_disk_change()
     curl -s -XPOST $baseurl/srd/change_disk --data-raw "{\"paths\":$paths_json,\"op\":\"$op\"}"
 }
 
-function validate_srd()
+function validate_srd_real()
+{
+    curl -s $baseurl/validate/srd_real
+}
+
+function validate_srd_bench()
 {
     curl -s $baseurl/validate/srd
 }
@@ -180,6 +192,16 @@ function validate_srd()
 function validate_file()
 {
     curl -s $baseurl/validate/file
+}
+
+function validate_file_real()
+{
+    curl -s $baseurl/validate/file_real
+}
+
+function validate_file_bench()
+{
+    curl -s $baseurl/validate/file_bench
 }
 
 function report_work()
@@ -191,7 +213,6 @@ function report_work()
     ((block_height+=ERA_LENGTH))
     echo $block_height > $reportheightfile
 
-    validate_srd &>/dev/null
     validate_file &>/dev/null
     curl -s -XGET $baseurl/report/work --data-raw "{\"block_height\":$block_height}"
 }
@@ -323,14 +344,14 @@ function benchmark_output()
                 ans=$((${ans_m["$key"]} / $run_num))
                 c_sec=$(expr $ans / 1000000000)
                 c_msec=$(expr $ans % 1000000)
-                printf "%-${sa[0]}s%-$((${sa[1]}/2))s%-$((${sa[1]}/2))s%s\n" ' ' "$key" "--->" "${c_sec}.${c_msec}s"
+                printf "%-${sa[0]}s%-$((${sa[1]}/3*2))s%-$((${sa[1]}/3))s%s\n" ' ' "$key" "--->" "${c_sec}.${c_msec}s"
             done
         else
             for key in "${!ans_m[@]}"; do
                 ans=$((${ans_m["$key"]} / $run_num))
                 c_sec=$(expr $ans / 1000000000)
                 c_msec=$(expr $ans % 1000000)
-                printf "%-${sa[0]}s%-$((${sa[1]}/2))s%-$((${sa[1]}/2))s%s\n" ' ' "$key" "--->" "${c_sec}.${c_msec}s"
+                printf "%-${sa[0]}s%-$((${sa[1]}/3*2))s%-$((${sa[1]}/3))s%s\n" ' ' "$key" "--->" "${c_sec}.${c_msec}s"
             done
         fi
         echo -e "\n"

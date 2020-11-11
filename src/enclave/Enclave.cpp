@@ -8,7 +8,7 @@ using namespace std;
 
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
- * @param path -> the directory path
+ * @param path (in) -> the directory path
  */
 void ecall_srd_increase(const char* path)
 {
@@ -40,15 +40,15 @@ size_t ecall_srd_decrease(long change)
  * @description: Change srd number
  * @param change -> Will be changed srd number
  */
-void ecall_srd_set_change(long change)
+crust_status_t ecall_srd_set_change(long change, long *real_change)
 {
     long srd_change = get_srd_change() + change;
-    set_srd_change(srd_change);
+    return change_srd_task(srd_change, real_change);
 }
 
 /**
  * @description: Update srd_path2hashs_m
- * @param hashs -> Pointer to the address of to be deleted hashs array
+ * @param hashs (in) -> Pointer to the address of to be deleted hashs array
  * @param hashs_len -> Hashs array length
  */
 void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
@@ -63,9 +63,16 @@ void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
  */
 void ecall_main_loop()
 {
+    Workload *wl = Workload::get_instance();
+
     while (true)
     {
         crust_status_t crust_status = CRUST_SUCCESS;
+
+        if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+        {
+            break;
+        }
 
         // ----- File validate ----- //
         sched_add(SCHED_VALIDATE_FILE);
@@ -89,7 +96,7 @@ void ecall_main_loop()
         }
 
         // Add validated proof
-        Workload::get_instance()->report_add_validated_proof();
+        wl->report_add_validated_proof();
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
@@ -137,6 +144,8 @@ crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t b
 
 /**
  * @description: Generate ecc key pair and store it in enclave
+ * @param account_id (in) -> Chain account id
+ * @param len -> Chain account id length
  * @return: Generate status
  */
 sgx_status_t ecall_gen_key_pair(const char *account_id, size_t len)
@@ -182,7 +191,7 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
  * @param tree_len -> MerkleTree json structure buffer length
  * @param path (in) -> Reference to file path
  * @param p_new_path (out) -> Pointer to sealed data path
- * @param path_len -> Pointer to file path length
+ * @param path_len -> File path length
  * @return: Seal status
  */
 crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *path, char *p_new_path , size_t path_len)
@@ -224,7 +233,7 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
 
 /**
  * @description: Confirm new file
- * @param hash -> New file hash
+ * @param hash (in) -> New file hash
  * @return: Confirm status
  */
 crust_status_t ecall_confirm_file(const char *hash)
@@ -243,7 +252,7 @@ crust_status_t ecall_confirm_file(const char *hash)
 
 /**
  * @description: Add to be deleted file hash to buffer
- * @param hash -> File root hash
+ * @param hash (in) -> File root hash
  * @return: Delete status
  */
 crust_status_t ecall_delete_file(const char *hash)
@@ -287,6 +296,7 @@ void ecall_disable_upgrade()
 
 /**
  * @description: Generate upgrade data
+ * @param block_height -> Current block height
  * @return: Generate result
  */
 crust_status_t ecall_gen_upgrade_data(size_t block_height)
@@ -296,8 +306,10 @@ crust_status_t ecall_gen_upgrade_data(size_t block_height)
 
 /**
  * @description: Restore from upgrade data
- * @param meta -> Metadata from old version
+ * @param meta (in) -> Metadata from old version
  * @param meta_len -> Metadata length
+ * @param total_size -> Total size of metadata data
+ * @param transfer_end -> Indicate whether transfer is end
  * @return: Restore result
  */
 crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, size_t total_size, bool transfer_end)

@@ -10,18 +10,12 @@ function _seal()
         rm $curtmp
         exit 1
     fi
-    local ret_body=$(cat $curtmp)
-    local sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
-        (
-          flock -w 30 200
-          echo $sealed_hash >> $syncfile
-        ) 200>$LOCKFILE
-    else
-        verbose ERROR "Seal file failed!" n
-        rm $curtmp
-        exit 1
-    fi
+    local sealed_hash=$(cat -v $curtmp | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    sealed_hash=${sealed_hash:0:64}
+    (
+      flock -w 30 200
+      echo $sealed_hash >> $syncfile
+    ) 200>$LOCKFILE
     rm $curtmp
 }
 
@@ -36,8 +30,7 @@ function _unseal()
         rm $curtmp
         exit 1
     fi
-    local ret_body=$(cat $curtmp)
-    if [ ! -e $ret_body ]; then
+    if [ ! -s $curtmp ]; then
         verbose ERROR "Unseal file failed!Cannot find unsealed path." n
         rm $curtmp
         exit 1

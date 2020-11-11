@@ -106,7 +106,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     free(org_root_hash_u);
 
     // Store new tree structure
-    crust_status = persist_set_unsafe(new_root_hash_str, (const uint8_t *)new_tree.c_str(), new_tree.size());
+    crust_status = persist_set_unsafe(new_root_hash_str, reinterpret_cast<const uint8_t *>(new_tree.c_str()), new_tree.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -117,7 +117,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     tree_meta_json[FILE_OLD_HASH] = org_root_hash_str;
     tree_meta_json[FILE_OLD_SIZE] = org_node_size;
     std::string tree_meta_str = tree_meta_json.dump();
-    crust_status = persist_set_unsafe((new_root_hash_str + "_meta"), (const uint8_t *)tree_meta_str.c_str(), tree_meta_str.size());
+    crust_status = persist_set_unsafe((new_root_hash_str + "_meta"), reinterpret_cast<const uint8_t *>(tree_meta_str.c_str()), tree_meta_str.size());
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;

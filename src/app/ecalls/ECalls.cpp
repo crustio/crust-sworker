@@ -521,7 +521,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
  * @description: Change srd number
  * @param change -> Will be changed srd number
  */
-sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, long change)
+sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -529,7 +529,7 @@ sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, long change)
         return ret;
     }
 
-    ret = ecall_srd_set_change(eid, change);
+    ret = ecall_srd_set_change(eid, status, change, real_change);
 
     free_enclave(__FUNCTION__);
 

@@ -130,20 +130,21 @@ void work_report_loop(void)
         }
         else if (CRUST_SUCCESS != crust_status)
         {
-            if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
+            switch (crust_status)
             {
-                p_log->info("Block height expired.\n");
-            }
-            else if (crust_status == CRUST_FIRST_WORK_REPORT_AFTER_REPORT)
-            {
-                p_log->info("Can't generate work report for the first time after restart\n");
-            }
-            else if (crust_status == CRUST_NO_KARST)
-            {
-                p_log->info("Can't generate work report. You have meaningful files, please start karst\n");
-            }
-            else
-            {
+            case CRUST_BLOCK_HEIGHT_EXPIRED:
+                p_log->warn("Block height expired.\n");
+                break;
+            case CRUST_FIRST_WORK_REPORT_AFTER_REPORT:
+                p_log->warn("Can't generate work report for the first time after restart\n");
+                break;
+            case CRUST_NO_KARST:
+                p_log->warn("Can't generate work report. You have meaningful files, please start karst\n");
+                break;
+            case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
+                p_log->warn("This era cannot report work,please wait for next era.\n");
+                break;
+            default:
                 p_log->err("Get signed validation report failed! Error code: %x\n", crust_status);
             }
         }

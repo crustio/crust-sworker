@@ -138,7 +138,6 @@ if [ x"$run_type" = x"functionality" ]; then
     casedir=$functionalitycasedir
 elif [ x"$run_type" = x"benchmark" ]; then
     casedir=$benchmarktestdir
-    verbose INFO "starting $run_type cases:" n >> $benchmarkfile
 elif [ x"$run_type" = x"performance" ]; then
     casedir=$performancetestdir
 else
@@ -147,7 +146,7 @@ else
 fi
 
 ### Select chose cases
-orgcase_arry=($(ls $functionalitycasedir | sort))
+orgcase_arry=($(ls $casedir | sort))
 if [ x"$case_arry" != x"" ]; then
     declare -A cname2idx
     declare -A cidx2name
@@ -163,9 +162,13 @@ if [ x"$case_arry" != x"" ]; then
         if [[ $el =~ ^[0-9]+$ ]]; then
             case_name=${el}_${cidx2name[$el]}
         else
-            case_name=${cname2idx[$el]}_${el}
+            if [ x"${cname2idx[$el]}" = x"$el" ]; then
+                case_name=$el
+            else
+                case_name=${cname2idx[$el]}_${el}
+            fi
         fi
-        if ls $functionalitycasedir | grep $case_name &>/dev/null; then
+        if ls $casedir | grep $case_name &>/dev/null; then
             usecase_arry[$index]=$case_name
             ((index++))
         fi
@@ -174,6 +177,10 @@ else
     usecase_arry=(${orgcase_arry[@]})
 fi
 
+if [ ${#usecase_arry[@]} -eq 0 ]; then
+    verbose WARN "No test case seleted!"
+    exit 1
+fi
 
 ### Start crust-sworker
 cd $testdir
@@ -211,6 +218,8 @@ for v in ${volunm_arry2[@]}; do
     cat $datadir/$((${v%[a-z]*}/2))${v##*[0-9]} >> $datadir/$v
 done
 verbose INFO "success" t
+# Generate test srd file
+$scriptdir/gen_random.sh 1m $datadir/srd_test
 
 ### Run test cases
 cd $casedir

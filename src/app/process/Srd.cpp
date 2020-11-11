@@ -202,6 +202,8 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
  */
 void srd_change(long change)
 {
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
     Config *p_config = Config::get_instance();
 
     if (change > 0)
@@ -212,7 +214,25 @@ void srd_change(long change)
         if (change > (long)true_increase)
         {
             long left_srd_num = change - true_increase;
-            Ecall_srd_set_change(global_eid, left_srd_num);
+            long real_change = 0;
+            if (SGX_SUCCESS != (sgx_status = Ecall_srd_set_change(global_eid, &crust_status, left_srd_num, &real_change)))
+            {
+                p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
+            }
+            else
+            {
+                switch (crust_status)
+                {
+                case CRUST_SUCCESS:
+                    p_log->info("Add left srd task successfully!%ldG has been added, will be executed later.\n", real_change);
+                    break;
+                case CRUST_SRD_NUMBER_EXCEED:
+                    p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
+                    break;
+                default:
+                    p_log->info("Unexpected error has occurred!\n");
+                }
+            }
             //p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
         }
         if (true_increase == 0)
@@ -260,7 +280,9 @@ void srd_change(long change)
                 if (SGX_SUCCESS != Ecall_srd_increase(eid, path.c_str()))
                 {
                     // If failed, add current task to next turn
-                    Ecall_srd_set_change(global_eid, 1);
+                    crust_status_t crust_status = CRUST_SUCCESS;
+                    long real_change = 0;
+                    Ecall_srd_set_change(global_eid, &crust_status, 1, &real_change);
                 }
             })));
         }

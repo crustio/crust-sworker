@@ -5,7 +5,7 @@ function get_exec_time()
     local start_time=$(date +%s%N)
     eval $cmd &>/dev/null
     local end_time=$(date +%s%N)
-    srd -${srd_size} &>/dev/null
+    srd_real -${srd_size} &>/dev/null
     sleep 15
     echo $((end_time - start_time))
 }
@@ -31,13 +31,24 @@ function check_path()
     return $ret
 }
 
+function srd_exit()
+{
+    rm -rf $tmpdir
+}
+
 ########## MAIN BODY ##########
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 testdir=$instdir/test_app
+testconfigfile=$testdir/etc/Config.json
 configfile=$instdir/config/config.json
+tmpdir=$basedir/tmp
+
+mkdir -p $tmpdir
+
+trap 'srd_exit' EXIT
 
 . $scriptdir/utils.sh
 
@@ -51,6 +62,9 @@ if ! check_path; then
     exit 1
 fi
 
+### Delete disk
+srd_disk_change "$(cat $testconfigfile | jq '.srd_paths')" delete &>/dev/null
+
 ### Add disk
 srd_size=$(get_config ".functionality|.srd_size")
 if ! [[ $srd_size =~ ^[1-9][0-9]*$ ]]; then
@@ -60,17 +74,17 @@ fi
 i=1
 path_json="["
 for path in ${srd_paths[@]}; do
-    srd_disk_change "[\"$path\"]" "add"
-    ans["$i"]=$(get_exec_time "srd $srd_size")
-    path_json=",\"$path\""
+    srd_disk_change "[\"$path\"]" "add" &>/dev/null
+    ans["$i"]=$(get_exec_time "srd_real $srd_size")
+    path_json="$path_json\"$path\","
     ((i++))
 done
-path_json=${path_json:1}
+path_json=${path_json:0:${#path_json}-1}
 path_json="${path_json}]"
 
 ### Restore environment
-srd_disk_change "$path_json" "delete"
+srd_disk_change "$path_json" "delete" &>/dev/null
 
 ### Print srd information
-benchmark_output "srd size:$srd_size benchmark result:\n\n(DISK_NUM TIME)\n" \
+benchmark_output "srd size:${srd_size}G benchmark result:\n\n(DISK_NUM TIME)\n" \
     "1" "$(declare -p ans)"

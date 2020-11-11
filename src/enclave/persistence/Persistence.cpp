@@ -205,7 +205,7 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
         inner_ocall_persist_get(&crust_status, sum_key.c_str(), &p_sum_key, &sum_key_len);
         if (CRUST_SUCCESS == crust_status)
         {
-            json::JSON sum_json = json::JSON::Load(std::string(reinterpret_cast<char *>(p_sum_key), sum_key_len));
+            json::JSON sum_json = json::JSON::Load(p_sum_key, sum_key_len);
             free(p_sum_key);
             uint32_t piece_num = sum_json[PERSIST_SUM].ToInt();
             for (uint32_t i = 0; i < piece_num; i++)

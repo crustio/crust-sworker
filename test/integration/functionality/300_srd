@@ -41,6 +41,9 @@ real_max_per_turn=0
 # Get current available max per turn
 srd_paths_test=($(echo $srd_paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
 for path in ${srd_paths_test[@]}; do
+    if [ ! -d $path ]; then
+        mkdir -p $path
+    fi
     tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
     tmp=${tmp%[a-zA-Z]*}
     ((real_max_per_turn += tmp))
@@ -49,7 +52,30 @@ if [ $srd_max_per_turn -gt $real_max_per_turn ]; then
     srd_max_per_turn=$real_max_per_turn
 fi
 
+# Remove previous srd
+get_workload &>$TMPFILE
+if [ $? -ne 0 ]; then
+    verbose ERROR "get workload failed!" n
+    exit 1
+fi
+tmp_num=0
+p_srd_num=$(cat $TMPFILE | jq '.srd|.space')
+while [ $tmp_num -lt $p_srd_num ]; do
+    if [ $((p_srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
+        cur_turn=$srd_max_per_turn
+    else
+        cur_turn=$((p_srd_num - tmp_num))
+    fi
+    srd_real "-$cur_turn" &>/dev/null
+    if [ $? -ne 0 ]; then
+        verbose ERROR "remove srd failed!" n
+        exit 1
+    fi
+    ((tmp_num+=cur_turn))
+done
+
 # Srd task
+tmp_num=0
 srd_disk_change "$srd_paths" "add" &>/dev/null
 while [ $tmp_num -lt $srd_num ]; do
     if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
@@ -57,7 +83,7 @@ while [ $tmp_num -lt $srd_num ]; do
     else
         cur_turn=$((srd_num - tmp_num))
     fi
-    srd $cur_turn &>/dev/null
+    srd_real $cur_turn &>/dev/null
     if [ $? -ne 0 ]; then
         verbose ERROR "srd failed!" n
         exit 1
