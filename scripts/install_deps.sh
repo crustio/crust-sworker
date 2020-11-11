@@ -41,6 +41,10 @@ function installSGXPSW()
     res=$(($?|$res))
     apt-get install -y libsgx-launch libsgx-urts libsgx-epid libsgx-urts libsgx-quote-ex libsgx-urts &>$ERRFILE
     res=$(($?|$res))
+    /opt/intel/sgx-aesm-service/cleanup.sh &>$ERRFILE
+    res=$(($?|$res))
+    /opt/intel/sgx-aesm-service/startup.sh &>$ERRFILE
+    res=$(($?|$res))
     checkRes $res "quit" "success"
 }
 
