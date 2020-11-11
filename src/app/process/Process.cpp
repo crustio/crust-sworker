@@ -197,7 +197,7 @@ bool upgrade_try_restore()
     p_log->info("Waiting for upgrade data...\n");
     int restore_tryout = 3;
     unsigned long time_acc = 0;
-    int meta_wait_time = 10;
+    int meta_wait_time = 60;
     int tryout = UPGRADE_META_TRYOUT / meta_wait_time;
     http::response<http::string_body> res_meta;
     sgx_status_t sgx_status = SGX_SUCCESS;
@@ -448,6 +448,7 @@ entry_network_flag:
                         entry_tryout--;
                         sgx_destroy_enclave(global_eid);
                         global_eid = 0;
+                        sleep(60);
                         goto entry_network_flag;
                     }
                     goto cleanup;
