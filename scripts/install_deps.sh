@@ -76,6 +76,7 @@ function installSGXSSL()
     toKillPID[${#toKillPID[*]}]=$!
     cd $rsrcdir
     tar -xvf toolset.tar.gz &>$ERRFILE
+    mkdir -p /usr/local/bin
     cp $rsrcdir/toolset/* /usr/local/bin/
     rm -rf $rsrcdir/toolset 
     sgxssltmpdir=$rsrcdir/$(unzip -l $sgxsslpkg | awk '{print $NF}' | awk -F/ '{print $1}' | grep intel | head -n 1)
