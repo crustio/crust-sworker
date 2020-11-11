@@ -9,7 +9,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sgx_edger8r.h>
-#include <sgx_uae_service.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -40,7 +42,6 @@ typedef sgx_status_t(SGXAPI *fp_sgx_calc_quote_size_t)(const uint8_t *p_sig_rl, 
 
 int sgx_support = SGX_SUPPORT_UNKNOWN;
 
-static void *_load_libsgx_uae_service(void);
 static void *_load_libsgx_urts(void);
 static void *_load_symbol(void *handle, const char *symbol, int *status);
 
@@ -118,30 +119,7 @@ int get_sgx_support(void)
  */
 int have_sgx_psw()
 {
-	return (
-			   _load_libsgx_uae_service() == NULL ||
-			   _load_libsgx_urts() == NULL)
-			   ? 0
-			   : 1;
-}
-
-/**
- * @description: Load SGX uas service
- * @return: Pointer to SGX uae service lib
- */
-static void *_load_libsgx_uae_service()
-{
-	if (l_libsgx_uae_service == 0)
-	{
-#ifdef _WIN32
-		h_libsgx_uae_service = LoadLibrary("libsgx_uae_service.dll");
-#else
-		h_libsgx_uae_service = dlopen("libsgx_uae_service.so", RTLD_GLOBAL | RTLD_NOW);
-#endif
-		l_libsgx_uae_service = (h_libsgx_uae_service == NULL) ? -1 : 1;
-	}
-
-	return h_libsgx_uae_service;
+	return _load_libsgx_urts() == NULL ? 0 : 1;
 }
 
 /**

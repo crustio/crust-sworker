@@ -16,39 +16,43 @@ function installPrerequisites()
 
 function installSGXSDK()
 {
-    if ! hasInstalledSGXSDK; then
-        local cmd=""
-        local expCmd=""
-        local ret=0
-
-        # Unstall previous SGX component
-        uninstallSGX
-
-        cd $rsrcdir
-        for dep in ${sdkInstOrd[@]}; do 
-            verbose INFO "Installing $dep..." h
-            if echo $dep | grep lib &>/dev/null; then
-                dpkg -i $rsrcdir/$dep &>$ERRFILE
-                ret=$?
-            elif [[ $dep =~ sdk ]]; then
-                execWithExpect_sdk "" "$rsrcdir/$dep"
-                ret=$?
-            else
-                $rsrcdir/$dep &>$ERRFILE
-                ret=$?
-            fi
-            checkRes $ret "quit" "success"
-        done
-        cd - &>/dev/null
+    res=0
+    cd $rsrcdir
+    verbose INFO "Installing SGX SDK..." h
+    if [ -f "$inteldir/sgxsdk/uninstall.sh" ]; then
+        $inteldir/sgxsdk/uninstall.sh &>$ERRFILE
+        res=$(($?|$res))
     fi
+    execWithExpect_sdk "" "$rsrcdir/$sdkpkg"
+    res=$(($?|$res))
+    cd - &>/dev/null
+    checkRes $res "quit" "success"
+}
 
-    # Check if psw daemon process is running
-    if ! ps -ef | grep -v grep | grep aesm_service &>/dev/null; then
-        verbose INFO "Starting up aesm_service..." h
-        export LD_LIBRARY_PATH=LD_LIBRARY_PATH:$inteldir/libsgx-enclave-common/aesm
-        $inteldir/libsgx-enclave-common/aesm/aesm_service &
-        checkRes $? "quit" "success"
-    fi
+function installSGXPSW()
+{
+    res=0
+    verbose INFO "Installing SGX PSW..." h
+    echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list &>$ERRFILE
+    res=$(($?|$res))
+    wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - &>$ERRFILE
+    res=$(($?|$res))
+    apt-get update &>$ERRFILE
+    res=$(($?|$res))
+    apt-get install -y libsgx-launch libsgx-urts libsgx-epid libsgx-urts libsgx-quote-ex libsgx-urts &>$ERRFILE
+    res=$(($?|$res))
+    checkRes $res "quit" "success"
+}
+
+function installSGXDRIVER()
+{
+    res=0
+    cd $rsrcdir
+    verbose INFO "Installing SGX driver..." h
+    $rsrcdir/$driverpkg &>$ERRFILE
+    res=$(($?|$res))
+    cd - &>/dev/null
+    checkRes $res "quit" "success"
 }
 
 function installSGXSSL()
@@ -59,6 +63,8 @@ function installSGXSSL()
         return
     fi
     verbose ERROR "no" t
+
+    cp $rsrcdir/toolset/* /usr/local/bin/
 
     local ret_l=0
 
@@ -83,7 +89,6 @@ function installSGXSSL()
         make all test &>$ERRFILE && make install &>$ERRFILE
     else
         make all &>$ERRFILE && make install &>$ERRFILE
-        echo "11111"
     fi
     checkRes $? "quit" "success" "$SYNCFILE"
     cd - &>/dev/null
@@ -179,44 +184,6 @@ function installONETBB()
     if [ x"$tmponetbbdir" != x"/" ]; then
         rm -rf $tmponetbbdir
     fi
-}
-
-function hasInstalledSGXSDK()
-{
-    local installed=true
-    for dep in ${!checkArry[@]}; do
-        verbose INFO "Checking $dep..." h
-        if ! dpkg -l | grep $dep &>/dev/null && [ ! -e "$inteldir/$dep" ]; then
-            verbose ERROR "no" t
-            installed=false
-        else
-            verbose INFO "yes" t
-            checkArry[$dep]=1
-        fi
-    done
-
-    $installed && { source $sgx_env_file; return 0; }
-
-    return 1
-}
-
-function uninstallSGX()
-{
-    for el in ${delOrder[@]}; do
-        if [ ${checkArry[$el]} -eq 1 ]; then
-            verbose INFO "Uninstalling previous SGX $el..." h
-            if echo $el | grep lib &>/dev/null; then
-                dpkg -r "${el}-dev" &>$ERRFILE
-                dpkg -r "${el}" &>$ERRFILE
-                checkRes $? "quit" "success"
-            else
-                $inteldir/$el/uninstall.sh &>$ERRFILE
-                checkRes $? "quit" "success"
-            fi
-        fi
-    done
-
-    rm -rf $sgxssldir
 }
 
 function checkAndInstall()
@@ -316,9 +283,6 @@ boostdir=$crusttooldir/boost
 onetbbdir=$crusttooldir/onetbb
 sgxssltmpdir=""
 selfPID=$$
-OSID=$(cat /etc/os-release | grep '^ID\b' | grep -Po "(?<==).*")
-OSVERSION=$(cat /etc/os-release | grep 'VERSION_ID' | grep -Po "(?<==\").*(?=\")")
-tmo=180
 SYNCFILE=$scriptdir/.syncfile
 res=0
 # Environment related
@@ -328,39 +292,22 @@ coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
 # Control configuration
 instTimeout=30
 toKillPID=()
-# SGX SDK
-SDKURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/sgx_linux_x64_sdk_2.7.101.3.bin"
-DRIVERURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/sgx_linux_x64_driver_2.6.0_4f5bb63.bin"
-PSWURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/libsgx-enclave-common_2.7.101.3-xenial1_amd64.deb"
-PSWDEVURL="https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/${OSID}${OSVERSION}-server/libsgx-enclave-common-dev_2.7.101.3-xenial1_amd64.deb"
-# SGX SSL
-SGXSSLURL="https://codeload.github.com/intel/intel-sgx-ssl/zip/master"
-SGXSSLPKGNAME="intel-sgx-ssl-master.zip"
-OPENSSLURL="https://www.openssl.org/source/openssl-1.1.1d.tar.gz"
-# downloaded files
-packages=($SDKURL $DRIVERURL $PSWURL $PSWDEVURL $SGXSSLURL $OPENSSLURL)
-sdkpkg=$(basename $SDKURL)
-driverpkg=$(basename $DRIVERURL)
-pswpkg=$(basename $PSWURL)
-pswdevpkg=$(basename $PSWDEVURL)
-sgxsslpkg=$rsrcdir/$SGXSSLPKGNAME
-opensslpkg=$rsrcdir/$(basename $OPENSSLURL)
-openssldir=$rsrcdir/$(basename $OPENSSLURL | grep -Po ".*(?=\.tar)")
-sdkInstOrd=($driverpkg $pswpkg $pswdevpkg $sdkpkg)
+# Files
+sdkpkg=sgx_linux_x64_sdk_2.11.100.2.bin
+driverpkg=sgx_linux_x64_driver_2.6.0_b0a445b.bin
+sgxsslpkg=$rsrcdir/intel-sgx-ssl-master.zip
+opensslpkg=$rsrcdir/openssl-1.1.1g.tar.gz
+openssldir=$rsrcdir/$(echo openssl-1.1.1g.tar.gz | grep -Po ".*(?=\.tar)")
 boostpkg=$rsrcdir/boost_1_70_0.tar.gz
 onetbbpkg=$rsrcdir/onetbb.tar
 # SGX prerequisites
 basicsprereq=(expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
-sgxpswprereq=(libssl-dev libcurl4-openssl-dev libprotobuf-dev)
+sgxpswprereq=(libssl-dev libcurl4-openssl-dev libprotobuf-dev wget)
 othersprereq=(libboost-all-dev libleveldb-dev openssl)
-# SGX associate array
-delOrder=(libsgx-enclave-common-dev libsgx-enclave-common sgxdriver sgxsdk)
-declare -A checkArry="("$(for el in ${delOrder[@]}; do echo [$el]=0; done)")"
 # Crust related
 crust_env_file=$realsworkerdir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
-
 
 disown -r
 
@@ -391,12 +338,17 @@ while getopts ":hu" opt; do
   esac
 done
 
-
 # Installing Prerequisites
 installPrerequisites
 
 # Installing SGX SDK
 installSGXSDK
+
+# Installing SGX driver
+installSGXDRIVER
+
+# Installing SGX PSW
+installSGXPSW
 
 # Installing SGX SSL
 installSGXSSL $UNTEST

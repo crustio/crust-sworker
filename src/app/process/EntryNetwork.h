@@ -5,7 +5,9 @@
 #include <stdlib.h>
 
 #include <sgx_eid.h>
-#include <sgx_uae_service.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
 
 #include "Common.h"
 #include "Config.h"

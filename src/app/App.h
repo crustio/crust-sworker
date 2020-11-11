@@ -3,7 +3,9 @@
 
 #include <sgx_key_exchange.h>
 #include <sgx_report.h>
-#include <sgx_uae_service.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
 #include <sgx_urts.h>
 
 #include <stdlib.h>

@@ -1,5 +1,5 @@
 # crust sworker image
-FROM crustio/crust-sworker-env:0.5.0
+FROM crustio/crust-sworker-env:0.6.0
 
 ADD scripts /crust-sworker/scripts
 ADD src /crust-sworker/src

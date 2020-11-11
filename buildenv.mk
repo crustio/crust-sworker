@@ -9,10 +9,9 @@ SGXSSL_DIR := /opt/intel/sgxssl
 SGXSSL_INCDIR := $(SGXSSL_DIR)/include
 SGXSSL_LIBDIR := $(SGXSSL_DIR)/lib64
 
-SGXSSL_LIBRARY_NAME := sgx_tsgxssl
 SGXSSL_CRYPTO_LIBRARY_NAME := sgx_tsgxssl_crypto
-SGXSSL_LINK_FLAGS :=  -L$(SGXSSL_LIBDIR) -Wl,--whole-archive -l$(SGXSSL_LIBRARY_NAME) \
-	-Wl,--no-whole-archive -l$(SGXSSL_CRYPTO_LIBRARY_NAME)
+SGXSSL_LINK_FLAGS :=  -L$(SGXSSL_LIBDIR) -Wl,--whole-archive -lsgx_tsgxssl -Wl,--no-whole-archive \
+	-lsgx_tsgxssl_crypto
 
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
@@ -93,9 +92,9 @@ App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_L
 	-L$(TBB_LIBRARY_PATH) -ltbb
 
 ifneq ($(SGX_MODE), HW)
-	App_Link_Flags += -lsgx_uae_service_sim
+	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
 else
-	App_Link_Flags += -lsgx_uae_service
+	App_Link_Flags += -lsgx_epid -lsgx_quote_ex
 endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
@@ -156,7 +155,7 @@ Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
 	-L$(SGXSSL_LIBDIR) $(SGXSSL_LINK_FLAGS) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_pthread -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
