@@ -41,32 +41,15 @@ void validate_srd()
 
     sgx_thread_mutex_lock(&g_srd_mutex);
 
-    size_t srd_num_threshold = 1 / SRD_VALIDATE_RATE * SRD_VALIDATE_MIN_NUM;
     size_t srd_total_num = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
         srd_total_num += it.second.size();
     }
-    size_t srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
+    size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
+    srd_validate_num = std::min(srd_validate_num, srd_total_num);
     size_t srd_validate_failed_num = 0;
     
-    // Caculate srd validated variable
-    if (srd_total_num >= srd_num_threshold)
-    {
-        srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
-    }
-    else
-    {
-        if (srd_total_num < SRD_VALIDATE_MIN_NUM)
-        {
-            srd_validate_num = srd_total_num;
-        }
-        else
-        {
-            srd_validate_num = SRD_VALIDATE_MIN_NUM;
-        }
-    }
-
     // Randomly choose validate srd files
     std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
@@ -250,11 +233,8 @@ void validate_meaningful_file()
     }
 
     // Get to be checked files indexes
-    size_t check_file_num = wl->checked_files.size();
-    if (wl->checked_files.size() > MEANINGFUL_VALIDATE_MIN_NUM)
-    {
-        check_file_num = wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE;
-    }
+    size_t check_file_num = std::max((size_t)(wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
+    check_file_num = std::min(check_file_num, wl->checked_files.size());
     std::vector<uint32_t> file_idx_v;
     uint32_t rand_val;
     size_t rand_index = 0;
@@ -265,7 +245,7 @@ void validate_meaningful_file()
         file_idx_v.push_back(rand_index);
     }
 
-    // ----- Randomly check file block ----- //
+    // ----- Validate file ----- //
     // TODO: Do we allow to store duplicated files?
     // Used to indicate which meaningful file status has been changed
     std::unordered_map<size_t, bool> changed_idx2lost_um;

@@ -608,8 +608,8 @@ cleanup:
  */
 sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
 {
-    
-    if (Workload::get_instance()->try_get_key_pair())
+    Workload *wl = Workload::get_instance();
+    if (wl->try_get_key_pair())
     {
         log_err("Identity key pair has been generated!\n");
         return SGX_ERROR_UNEXPECTED;
@@ -622,7 +622,6 @@ sgx_status_t id_gen_key_pair(const char *account_id, size_t len)
     }
 
     // Generate public and private key
-    Workload *wl = Workload::get_instance();
     sgx_ec256_public_t pub_key;
     sgx_ec256_private_t pri_key;
     memset(&pub_key, 0, sizeof(pub_key));
@@ -1016,7 +1015,8 @@ crust_status_t id_restore_metadata()
  */
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len)
 {
-    if (memcmp(Workload::get_instance()->get_account_id().c_str(), account_id, len) != 0)
+    Workload *wl = Workload::get_instance();
+    if (memcmp(wl->get_account_id().c_str(), account_id, len) != 0)
     {
         return CRUST_NOT_EQUAL;
     }
@@ -1111,10 +1111,10 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     // TODO: Wait a random time:[10, 50] block time
     sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
     random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
-    log_info("Upgrade: generate workreport successfully!Will send after %ld blocks...\n", random_time / BLOCK_TIME_BASE);
+    log_info("Upgrade: Will generate and send work reort after %ld blocks...\n", random_time / BLOCK_TIME_BASE);
     if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report(report_hash, report_height, random_time, false, false)))
     {
-        log_err("Fatal error! Get signed work report failed! Error code:%lx\n", crust_status);
+        log_err("Fatal error! Send work report failed! Error code:%lx\n", crust_status);
         crust_status = CRUST_UPGRADE_GEN_WORKREPORT_FAILED;
         goto cleanup;
     }

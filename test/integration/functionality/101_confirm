@@ -42,14 +42,9 @@ while [ $acc -gt 0 ]; do
         verbose ERROR "Seal file failed!" n
         exit 1
     fi
-    ret_body=$(cat $TMPFILE)
-    sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
-        hash_2_use_m[$sealed_hash]=0
-    else
-        verbose ERROR "Seal file failed!" n
-        exit 1
-    fi
+    sealed_hash=$(cat -v $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    sealed_hash=${sealed_hash:0:64}
+    hash_2_use_m[$sealed_hash]=0
     ((acc--))
 done
 

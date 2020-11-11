@@ -44,7 +44,12 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
  */
 void srd_change()
 {
-    // ----- Change and store srd task ----- //
+    Workload *wl = Workload::get_instance();
+    if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+    {
+        return;
+    }
+
     // Get real srd space
     sgx_thread_mutex_lock(&g_srd_change_mutex);
     long srd_change_num = 0;
@@ -69,7 +74,7 @@ void srd_change()
     // Update srd info
     crust_status_t crust_status = CRUST_SUCCESS;
     ocall_srd_info_lock();
-    std::string srd_info_str = Workload::get_instance()->get_srd_info().dump();
+    std::string srd_info_str = wl->get_srd_info().dump();
     if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
     {
         log_warn("Set srd info failed! Error code:%lx\n", crust_status);
@@ -367,8 +372,9 @@ long get_srd_change()
  * @description: Set srd change
  * @param change -> Srd change
  */
-void set_srd_change(long change)
+crust_status_t change_srd_task(long change, long *real_change)
 {
+    crust_status_t crust_status = CRUST_SUCCESS;
     // Check if srd number exceeds upper limit
     if (change > 0)
     {
@@ -381,17 +387,23 @@ void set_srd_change(long change)
         sgx_thread_mutex_unlock(&g_srd_mutex);
         if (srd_num >= SRD_NUMBER_UPPER_LIMIT)
         {
-            log_warn("No srd will be added!Srd size has reached the upper limit:%ldG!\n", SRD_NUMBER_UPPER_LIMIT / 1024);
+            log_warn("No srd will be added!Srd size has reached the upper limit:%ldG!\n", SRD_NUMBER_UPPER_LIMIT);
             change = 0;
+            crust_status = CRUST_SRD_NUMBER_EXCEED;
         }
         else if (srd_num + change > SRD_NUMBER_UPPER_LIMIT)
         {
+            log_warn("To be added srd number:%ldG(srd upper limit:%ldG)\n", change, SRD_NUMBER_UPPER_LIMIT);
             change = SRD_NUMBER_UPPER_LIMIT - srd_num;
-            log_warn("To be added srd number:%ldG(srd upper limit:%ldG)\n", change, SRD_NUMBER_UPPER_LIMIT / 1024);
+            crust_status = CRUST_SRD_NUMBER_EXCEED;
         }
     }
 
     sgx_thread_mutex_lock(&g_srd_change_mutex);
-    g_srd_change = change;
+    g_srd_change += change;
     sgx_thread_mutex_unlock(&g_srd_change_mutex);
+
+    *real_change = change;
+
+    return crust_status;
 }

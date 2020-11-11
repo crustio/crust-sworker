@@ -18,8 +18,6 @@ bool upgrade_try_complete(bool restore_res);
 sgx_enclave_id_t global_eid;
 // Pointor to configure instance
 Config *p_config = NULL;
-// Pointer to http handler instance
-ApiHandler *p_api_handler = NULL;
 // Map to record specific task
 std::vector<std::pair<std::shared_ptr<std::future<void>>, task_func_t>> g_tasks_v;
 
@@ -223,7 +221,7 @@ bool upgrade_try_restore()
             }
             continue;
         }
-        p_log->info("Get upgrade data:%s\n", res_meta.body().c_str());
+        p_log->info("Get upgrade data successfully!Data size:%ld.\n", res_meta.body().size());
         break;
     }
 
@@ -374,6 +372,7 @@ int process_run()
     int check_interval = 15;
     int upgrade_timeout = 2 * REPORT_BLOCK_HEIGHT_BASE * BLOCK_INTERVAL;
     int upgrade_tryout = upgrade_timeout / check_interval;
+    int entry_tryout = 3;
     EnclaveData *ed = EnclaveData::get_instance();
     p_log->info("WorkerPID = %d\n", worker_pid);
 
@@ -410,6 +409,7 @@ int process_run()
             goto cleanup;
         }
 
+entry_network_flag:
         // Init enclave
         if (!initialize_enclave())
         {
@@ -440,15 +440,41 @@ int process_run()
             if (!offline_chain_mode)
             {
                 // Entry network
-                if (CRUST_SUCCESS != entry_network())
+                crust_status = entry_network();
+                if (CRUST_SUCCESS != crust_status)
                 {
+                    if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
+                    {
+                        entry_tryout--;
+                        sgx_destroy_enclave(global_eid);
+                        global_eid = 0;
+                        goto entry_network_flag;
+                    }
                     goto cleanup;
                     return_status = -1;
                 }
             }
 
             // Srd disk
-            Ecall_srd_set_change(global_eid, p_config->srd_capacity);
+            long real_change = 0;
+            if (SGX_SUCCESS != (sgx_status = Ecall_srd_set_change(global_eid, &crust_status, p_config->srd_capacity, &real_change)))
+            {
+                p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
+            }
+            else
+            {
+                switch (crust_status)
+                {
+                case CRUST_SUCCESS:
+                    p_log->info("Add init srd task successfully!%ldG has been added, will be executed later.\n", real_change);
+                    break;
+                case CRUST_SRD_NUMBER_EXCEED:
+                    p_log->warn("Add init srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
+                    break;
+                default:
+                    p_log->info("Unexpected error has occurred!\n");
+                }
+            }
         }
         else
         {
@@ -533,6 +559,7 @@ int process_run()
             p_log->info("Kill web service for exit...\n");
             stop_webservice();
             // Destroy enclave
+            // TODO: Fix me, why destory enclave leads to coredump
             p_log->info("Destroy enclave for exit...\n");
             sgx_destroy_enclave(global_eid);
             global_eid = 0;
@@ -553,17 +580,15 @@ int process_run()
     }
 
 cleanup:
-    // End and release
-    delete p_config;
-
-    if (p_api_handler != NULL)
-        delete p_api_handler;
-
     if (global_eid != 0)
+    {
         sgx_destroy_enclave(global_eid);
+    }
 
     if (ed->get_upgrade_status() == UPGRADE_STATUS_EXIT)
+    {
         exit(return_status);
+    }
 
     return return_status;
 }

@@ -1,0 +1,124 @@
+#!/bin/bash
+function _seal()
+{
+    local datapath_l=$1
+    local storepath_l=$2
+    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
+    seal_file $datapath_l $storepath_l &>$curtmp
+    if [ $? -ne 0 ]; then
+        verbose ERROR "Seal file failed!" n
+        rm $curtmp
+        exit 1
+    fi
+    cat -v $curtmp | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null
+    rm $curtmp
+}
+
+function _validate()
+{
+    local i=10
+    while [ $((i--)) -gt 0 ]; do
+        validate_srd_real &>/dev/null
+        validate_file_real &>/dev/null
+    done
+}
+
+function validate_exit()
+{
+    rm -rf $tmpdir
+}
+
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testconfigfile=$testdir/etc/Config.json
+testfiledir=$testdir/files
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+LOCKFILE=$tmpdir/LOCKFILE
+syncfile=$tmpdir/syncfile
+
+mkdir -p $tmpdir
+
+trap 'validate_exit' EXIT
+
+. $scriptdir/utils.sh
+
+
+srd_num=$(get_config ".functionality|.validate|.srd_num")
+deleted_srd=$(get_config ".functionality|.validate|.deleted_srd")
+file_num=$(get_config ".functionality|.validate|.file_num")
+deleted_file=$(get_config ".functionality|.validate|.deleted_file")
+data_arry=($(ls $datadir))
+
+### Srd some space
+srd_real $srd_num &>/dev/null
+srd_path=$(cat $testconfigfile | jq '.srd_paths|.[]' | sed 's/"//g')
+i=0
+# Delete some srd
+for sf in $(ls $srd_path); do
+    if [ $((i++)) -ge $deleted_srd ]; then
+        break
+    fi
+    rm -rf $srd_path/$sf
+done
+
+### Seal some file
+data_arry_size=${#data_arry[@]}
+i=0
+while [ $i -lt $file_num ]; do
+    index=$((RANDOM % data_arry_size))
+    file=${data_arry[$index]}
+    if [[ $file =~ 128 ]] || [[ $file =~ 256 ]] || [[ $file =~ 512m ]] || [[ $file =~ 1024 ]] ; then
+        continue
+    fi
+    sealed_hash=$(_seal $datadir/$file $testfiledir)
+    confirm ${sealed_hash:0:64} &>$TMPFILE
+    ((i++))
+done
+# Delete some file
+i=0
+while [ $((i++)) -lt $deleted_file ]; do
+    for file in $(ls $testfiledir); do
+        rm -rf $testfiledir/$file
+        break
+    done
+done
+
+### Validate
+_validate
+
+### Check validate result
+# Check srd
+ret=0
+punish_srd=$(ls $srd_path | wc -l)
+((punish_srd=srd_num-punish_srd))
+if [ $punish_srd -lt $deleted_srd ] || [ $punish_srd -gt $((deleted_srd*2)) ]; then
+    verbose ERROR "srd validate for punishment failed!real punished num:$punish_srd" n
+    ret=1
+fi
+# Check file
+get_workload &>$TMPFILE
+if [ $? -ne 0 ]; then
+    verbose ERROR "get workload failed!" n
+    ret=1
+fi
+real_vfile=$(cat $TMPFILE | jq '.files|.valid|.num')
+expected_vfile=$((file_num-deleted_file))
+if [ $real_vfile -ne $expected_vfile ]; then
+    verbose ERROR "expected valid file num:$expected_vfile, real:$real_vfile" n
+    ret=1
+fi
+real_lfile=$(cat $TMPFILE | jq '.files|.lost|.num')
+expected_lfile=$deleted_file
+if [ $real_lfile -ne $expected_lfile ]; then
+    verbose ERROR "expected lost file num:$expected_lfile, real:$real_lfile" n
+    ret=1
+fi
+
+exit $ret

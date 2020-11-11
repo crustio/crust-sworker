@@ -35,9 +35,9 @@ function installSGXPSW()
     verbose INFO "Installing SGX PSW..." h
     echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list &>$ERRFILE
     res=$(($?|$res))
-    wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - &>$ERRFILE
+    wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - &>>$ERRFILE
     res=$(($?|$res))
-    apt-get update &>$ERRFILE
+    apt-get update &>>$ERRFILE
     res=$(($?|$res))
     apt-get install -y --allow-downgrades libsgx-ae-epid=2.11.100.2-bionic1 libsgx-ae-le=2.11.100.2-bionic1 \
     libsgx-ae-pce=2.11.100.2-bionic1 libsgx-ae-qe3=1.8.100.2-bionic1 libsgx-aesm-ecdsa-plugin=2.11.100.2-bionic1 \
@@ -45,11 +45,11 @@ function installSGXPSW()
     libsgx-aesm-pce-plugin=2.11.100.2-bionic1 libsgx-aesm-quote-ex-plugin=2.11.100.2-bionic1 \
     libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-launch=2.11.100.2-bionic1 \
     libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
-    libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1
+    libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1 &>>$ERRFILE
     res=$(($?|$res))
-    /opt/intel/sgx-aesm-service/cleanup.sh &>$ERRFILE
+    /opt/intel/sgx-aesm-service/cleanup.sh &>>$ERRFILE
     res=$(($?|$res))
-    /opt/intel/sgx-aesm-service/startup.sh &>$ERRFILE
+    /opt/intel/sgx-aesm-service/startup.sh &>>$ERRFILE
     res=$(($?|$res))
     checkRes $res "quit" "success"
 }

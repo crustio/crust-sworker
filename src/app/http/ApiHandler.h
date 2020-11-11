@@ -191,7 +191,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get workload ----- //
         cur_path = urlendpoint->base + "/workload";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             sgx_status_t sgx_status = SGX_SUCCESS;
             // Get srd info
@@ -253,7 +253,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get enclave thread information ----- //
         cur_path = urlendpoint->base + "/enclave/thread_info";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.body() = show_enclave_thread_info();
             goto getcleanup;
@@ -261,7 +261,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get enclave id information ----- //
         cur_path = urlendpoint->base + "/enclave/id_info";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             Ecall_id_get_info(global_eid);
             json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
@@ -274,7 +274,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Inform upgrade ----- //
         cur_path = urlendpoint->base + "/upgrade/start";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -349,7 +349,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get metadata ----- //
         cur_path = urlendpoint->base + "/upgrade/metadata";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -362,7 +362,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
 
             std::string upgrade_data = ed->get_upgrade_data();
-            p_log->info("Generate upgrade data:%s\n", upgrade_data.c_str());
+            p_log->info("Generate upgrade data successfully!Data size:%ld.\n", upgrade_data.size());
             res.body() = upgrade_data;
 
             goto getcleanup;
@@ -371,7 +371,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         // ----- Inform that new version is already ----- //
         // Use to inform current sworker upgrade result
         cur_path = urlendpoint->base + "/upgrade/complete";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             json::JSON req_json = json::JSON::Load(req.body());
@@ -436,7 +436,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Set debug flag ----- //
         cur_path = urlendpoint->base + "/debug";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             // Check input parameters
             std::string ret_info;
@@ -459,9 +459,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // --- Srd change API --- //
         cur_path = urlendpoint->base + "/srd/change";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
+            std::string ret_info;
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req.body());
             change_srd_num = req_json["change"].ToInt();
@@ -476,9 +477,34 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             else
             {
                 // Start changing srd
-                Ecall_srd_set_change(global_eid, change_srd_num);
-                p_log->info("Change task:%ldG has been added, will be executed next srd.\n", change_srd_num);
-                res.body() = "Change srd file success, the srd workload will change in next validation loop!";
+                crust_status_t crust_status = CRUST_SUCCESS;
+                long real_change = 0;
+                if (SGX_SUCCESS != Ecall_srd_set_change(global_eid, &crust_status, change_srd_num, &real_change))
+                {
+                    ret_info = "Change srd failed!Invoke SGX api failed!";
+                }
+                else
+                {
+                    char buffer[256];
+                    memset(buffer, 0, 256);
+                    switch (crust_status)
+                    {
+                    case CRUST_SUCCESS:
+                        sprintf(buffer, "Change task:%ldG has been added, will be executed later.\n", real_change);
+                        res.result(403);
+                        break;
+                    case CRUST_SRD_NUMBER_EXCEED:
+                        sprintf(buffer, "Only %ldG srd will be added.Rest srd task exceeds upper limit.\n", real_change);
+                        res.result(404);
+                        break;
+                    default:
+                        sprintf(buffer, "Unexpected error has occurred!\n");
+                        res.result(405);
+                    }
+                    ret_info.append(buffer);
+                }
+                p_log->info("%s", ret_info.c_str());
+                res.body() = ret_info;
             }
         end_change_srd:
             goto postcleanup;
@@ -486,7 +512,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // --- Confirm new file --- //
         cur_path = urlendpoint->base + "/storage/confirm";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -511,7 +537,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // --- Delete meaningful file --- //
         cur_path = urlendpoint->base + "/storage/delete";
-        if (path.compare(cur_path) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -536,7 +562,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Storage seal file block ----- //
         cur_path = urlendpoint->base + "/storage/seal";
-        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -625,7 +651,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Storage unseal file block ----- //
         cur_path = urlendpoint->base + "/storage/unseal";
-        if (memcmp(path.c_str(), cur_path.c_str(), cur_path.size()) == 0)
+        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;

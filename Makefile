@@ -12,6 +12,9 @@ build_integration:
 functionality_test:
 	@$(MAKE) -C test/integration functionality_test --no-print-directory
 
+benchmark_test:
+	@$(MAKE) -C test/integration benchmark_test --no-print-directory
+
 clean:
 	@$(MAKE) -C src/ clean --no-print-directory
 	@$(MAKE) -C test/unit clean --no-print-directory

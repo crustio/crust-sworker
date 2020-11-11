@@ -1,0 +1,130 @@
+#!/bin/bash
+function get_exec_time()
+{
+    local cmd=$1
+    local start_time=$(date +%s%N)
+    eval $cmd &>/dev/null
+    local end_time=$(date +%s%N)
+    echo $((end_time - start_time))
+}
+
+function _seal()
+{
+    local datapath_l=$1
+    local storepath_l=$2
+    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
+    seal_file $datapath_l $storepath_l &>$curtmp
+    if [ $? -ne 0 ]; then
+        verbose ERROR "Seal file failed!" n
+        rm $curtmp
+        exit 1
+    fi
+    local ret_body=$(cat $curtmp)
+    local sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
+        echo $sealed_hash
+    else
+        verbose ERROR "Seal file failed!" n
+        rm $curtmp
+        exit 1
+    fi
+    rm $curtmp
+}
+
+function validate_exit()
+{
+    rm -rf $tmpdir
+}
+
+########## MAIN BODY ##########
+# basic variable
+basedir=$(cd `dirname $0`;pwd)
+instdir=$(cd $basedir/..;pwd)
+scriptdir=$instdir/scripts
+datadir=$instdir/data
+testdir=$instdir/test_app
+testconfigfile=$testdir/etc/Config.json
+testfiledir=$testdir/files
+tmpdir=$basedir/tmp
+TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+
+mkdir -p $tmpdir
+
+trap 'validate_exit' EXIT
+
+. $scriptdir/utils.sh
+
+declare -A ans
+i=0
+
+file_num=$(get_config ".performance|.file_num")
+srd_num=$(get_config ".performance|.srd_num")
+srd_paths=$(get_config ".functionality|.srd_paths")
+srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
+
+### Seal file and validate
+_seal $datadir/1024m $testfiledir &>$TMPFILE
+confirm $(cat $TMPFILE) &>$TMPFILE
+validate_file_real &>/dev/null
+test_add_file $file_num &>/dev/null
+validate_file &>/dev/null
+test_valid_file $file_num &>/dev/null
+ans["file($file_num)"]=$(get_exec_time "validate_file_bench &>/dev/null")
+
+# Get current available max per turn
+tmp_num=0
+real_max_per_turn=0
+srd_paths_test=($(echo $srd_paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
+for path in ${srd_paths_test[@]}; do
+    tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
+    tmp=${tmp%[a-zA-Z]*}
+    ((real_max_per_turn += tmp))
+done
+if [ $srd_max_per_turn -gt $real_max_per_turn ]; then
+    srd_max_per_turn=$real_max_per_turn
+fi
+
+# Remove previous srd
+get_workload &>$TMPFILE
+if [ $? -ne 0 ]; then
+    verbose ERROR "get workload failed!" n
+    exit 1
+fi
+tmp_num=0
+p_srd_num=$(cat $TMPFILE | jq '.srd|.space')
+while [ $tmp_num -lt $p_srd_num ]; do
+    if [ $((p_srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
+        cur_turn=$srd_max_per_turn
+    else
+        cur_turn=$((p_srd_num - tmp_num))
+    fi
+    srd "-$cur_turn" &>/dev/null
+    if [ $? -ne 0 ]; then
+        verbose ERROR "remove srd failed!" n
+        exit 1
+    fi
+    ((tmp_num+=cur_turn))
+done
+
+# Srd task
+tmp_num=0
+srd_disk_change "$srd_paths" "add" &>/dev/null
+while [ $tmp_num -lt $srd_num ]; do
+    if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
+        cur_turn=$srd_max_per_turn
+    else
+        cur_turn=$((srd_num - tmp_num))
+    fi
+    srd $cur_turn &>/dev/null
+    if [ $? -ne 0 ]; then
+        verbose ERROR "srd failed!" n
+        exit 1
+    fi
+    ((tmp_num+=cur_turn))
+done
+ans["srd(${srd_num}G)"]=$(get_exec_time "validate_srd_bench &>/dev/null")
+
+
+### Print srd information
+benchmark_output "validate benchmark result:\n\n(VALIDATE_INFO TIME)\n" \
+    "1" "$(declare -p ans)"
