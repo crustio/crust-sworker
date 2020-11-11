@@ -39,7 +39,13 @@ function installSGXPSW()
     res=$(($?|$res))
     apt-get update &>$ERRFILE
     res=$(($?|$res))
-    apt-get install -y libsgx-launch libsgx-urts libsgx-epid libsgx-urts libsgx-quote-ex libsgx-urts &>$ERRFILE
+    apt-get install -y --allow-downgrades libsgx-ae-epid=2.11.100.2-bionic1 libsgx-ae-le=2.11.100.2-bionic1 \
+    libsgx-ae-pce=2.11.100.2-bionic1 libsgx-ae-qe3=1.8.100.2-bionic1 libsgx-aesm-ecdsa-plugin=2.11.100.2-bionic1 \
+    libsgx-aesm-epid-plugin=2.11.100.2-bionic1 libsgx-aesm-launch-plugin=2.11.100.2-bionic1 \
+    libsgx-aesm-pce-plugin=2.11.100.2-bionic1 libsgx-aesm-quote-ex-plugin=2.11.100.2-bionic1 \
+    libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-launch=2.11.100.2-bionic1 \
+    libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
+    libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1
     res=$(($?|$res))
     /opt/intel/sgx-aesm-service/cleanup.sh &>$ERRFILE
     res=$(($?|$res))
