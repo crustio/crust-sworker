@@ -136,7 +136,7 @@ void work_report_loop(void)
                 p_log->warn("Block height expired.\n");
                 break;
             case CRUST_FIRST_WORK_REPORT_AFTER_REPORT:
-                p_log->warn("Can't generate work report for the first time after restart\n");
+                p_log->warn("Can't generate work report for the first four times after restart\n");
                 break;
             case CRUST_NO_KARST:
                 p_log->warn("Can't generate work report. You have meaningful files, please start karst\n");

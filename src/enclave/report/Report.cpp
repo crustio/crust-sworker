@@ -79,7 +79,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
 
     if (wl->get_restart_flag())
     {
-        // The first report after restart will not be processed
+        // The first 4 report after restart will not be processed
         crust_status =  CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
     else if (!wl->report_has_validated_proof())
@@ -97,7 +97,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     if (CRUST_SUCCESS != crust_status)
     {
         wl->set_report_height(block_height);
-        wl->set_restart_flag(false);
+        wl->reduce_restart_flag();
         wl->set_report_file_flag(true);
         wl->report_reduce_validated_proof();
         return crust_status;
@@ -408,7 +408,7 @@ cleanup:
     }
 
     wl->set_report_height(block_height);
-    wl->set_restart_flag(false);
+    wl->reduce_restart_flag();
     wl->set_report_file_flag(true);
     wl->report_reduce_validated_proof();
 

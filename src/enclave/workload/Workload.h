@@ -59,7 +59,8 @@ public:
     bool report_has_validated_proof();
     void set_report_file_flag(bool flag);
     bool get_report_file_flag();
-    void set_restart_flag(bool flag);
+    void set_restart_flag();
+    void reduce_restart_flag();
     bool get_restart_flag();
     void handle_report_result();
     crust_status_t try_report_work(size_t block_height);
@@ -104,7 +105,7 @@ private:
     bool is_set_key_pair = false; // Check if key pair has been generated
     sgx_measurement_t mr_enclave; // Enclave code measurement
     size_t report_height = 0; // Identity report height, Used to check current block head out-of-date
-    bool restart_flag = false;// Used to indicate whether it is the first report after restart
+    int restart_flag = 0;// Used to indicate whether it is the first report after restart
 
     int validated_proof = 0; // Generating workreport will decrease this value, while validating will increase it
     sgx_thread_mutex_t validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
