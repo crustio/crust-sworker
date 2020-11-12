@@ -87,8 +87,8 @@ void Config::show(void)
     printf("        'base url' : %s,\n", this->chain_api_base_url.c_str());
     printf("        'address' : '%s',\n", this->chain_address.c_str());
     printf("        'account id' : '%s',\n", this->chain_account_id.c_str());
-    printf("        'password' : '%s',\n", this->chain_password.c_str());
-    printf("        'backup' : '%s'\n", this->chain_backup.c_str());
+    printf("        'password' : 'xxxxxx',\n");
+    printf("        'backup' : 'xxxxxx'\n");
     printf("    },\n");
 
     printf("    'IAS parameters' : {\n");
