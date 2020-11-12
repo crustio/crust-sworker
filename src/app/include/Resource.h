@@ -38,7 +38,7 @@ typedef enum _upgrade_status_t
     UPGRADE_STATUS_EXIT,            // Will exit process
 } upgrade_status_t;
 
-const uint32_t UPGRADE_START_TRYOUT = BLOCK_INTERVAL * REPORT_BLOCK_HEIGHT_BASE * 2;
+const uint32_t UPGRADE_START_TRYOUT = BLOCK_INTERVAL * REPORT_BLOCK_HEIGHT_BASE * 5;
 const uint32_t UPGRADE_META_TRYOUT = BLOCK_INTERVAL * REPORT_BLOCK_HEIGHT_BASE / 5;
 const uint32_t UPGRADE_COMPLETE_TRYOUT = BLOCK_INTERVAL * 10;
 
