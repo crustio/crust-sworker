@@ -209,13 +209,7 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
 
-    size_t file_item_len = strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
-        + strlen(FILE_OLD_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
-        + strlen(FILE_SIZE) + 3 + 12 + 1
-        + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
-        + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
-        + strlen(FILE_STATUS) + 3 + 3 + 3
-        + 2;
+    size_t file_item_len = strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + 64 + 3 + strlen(FILE_OLD_HASH) + 3 + strlen(HASH_TAG) + 64 + 3 + strlen(FILE_SIZE) + 3 + 12 + 1 + strlen(FILE_OLD_SIZE) + 3 + 12 + 1 + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1 + strlen(FILE_STATUS) + 3 + 3 + 3 + 2;
     size_t buffer_size = this->checked_files.size() * file_item_len;
     *p_data = (uint8_t *)enc_malloc(buffer_size);
     if (*p_data == NULL)
@@ -544,7 +538,7 @@ bool Workload::try_get_key_pair()
  * @description: Get public key
  * @return: Const reference to public key
  */
-const sgx_ec256_public_t& Workload::get_pub_key()
+const sgx_ec256_public_t &Workload::get_pub_key()
 {
     return this->id_key_pair.pub_key;
 }
@@ -553,7 +547,7 @@ const sgx_ec256_public_t& Workload::get_pub_key()
  * @description: Get private key
  * @return: Const reference to private key
  */
-const sgx_ec256_private_t& Workload::get_pri_key()
+const sgx_ec256_private_t &Workload::get_pri_key()
 {
     return this->id_key_pair.pri_key;
 }
@@ -573,7 +567,7 @@ void Workload::set_key_pair(ecc_key_pair id_key_pair)
  * @description: Get identity key pair
  * @return: Const reference to identity key pair
  */
-const ecc_key_pair& Workload::get_key_pair()
+const ecc_key_pair &Workload::get_key_pair()
 {
     return this->id_key_pair;
 }
@@ -591,7 +585,7 @@ void Workload::set_mr_enclave(sgx_measurement_t mr)
  * @description: Get MR enclave
  * @return: Const reference to MR enclave
  */
-const sgx_measurement_t& Workload::get_mr_enclave()
+const sgx_measurement_t &Workload::get_mr_enclave()
 {
     return this->mr_enclave;
 }
@@ -616,11 +610,22 @@ size_t Workload::get_report_height()
 
 /**
  * @description: Set restart flag
- * @param flag -> Restart flag
  */
-void Workload::set_restart_flag(bool flag)
+void Workload::set_restart_flag()
 {
-    this->restart_flag = flag;
+    this->restart_flag = 4;
+}
+
+/**
+ * @description: Reduce flag
+ */
+void Workload::reduce_restart_flag()
+{
+    this->restart_flag -= 1;
+    if (this->restart_flag < 0)
+    {
+        this->restart_flag = 0;
+    }
 }
 
 /**
@@ -629,7 +634,7 @@ void Workload::set_restart_flag(bool flag)
  */
 bool Workload::get_restart_flag()
 {
-    return this->restart_flag;
+    return this->restart_flag <= 0;
 }
 
 /**

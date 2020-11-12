@@ -1002,7 +1002,7 @@ crust_status_t id_restore_metadata()
     // Restore chain account id
     wl->set_account_id(meta_json[ID_CHAIN_ACCOUNT_ID].ToString());
 
-    wl->set_restart_flag(true);
+    wl->set_restart_flag();
 
     return CRUST_SUCCESS;
 }
