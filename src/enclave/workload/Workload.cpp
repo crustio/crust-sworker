@@ -634,7 +634,7 @@ void Workload::reduce_restart_flag()
  */
 bool Workload::get_restart_flag()
 {
-    return this->restart_flag <= 0;
+    return this->restart_flag > 0;
 }
 
 /**
