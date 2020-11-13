@@ -372,6 +372,10 @@ class http_session
         template<bool isRequest, class Body, class Fields>
         void operator()(http::message<isRequest, Body, Fields>&& msg)
         {
+    if (memcmp(req_route.c_str(), urlendpoint->base.c_str(), urlendpoint->base.size()) != 0)
+    {
+        return send(bad_request("Illegal request-target"));
+    }
             // This holds a work item
             struct work_impl : work
             {
@@ -499,6 +503,9 @@ public:
 
         if(ec)
             return fail(ec, "write");
+
+        // Clear the buffer
+        buffer_.consume(buffer_.size());
 
         if(close)
         {
