@@ -19,15 +19,8 @@ function _seal()
         rm $curtmp
         exit 1
     fi
-    local ret_body=$(cat $curtmp)
-    local sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
-        echo $sealed_hash
-    else
-        verbose ERROR "Seal file failed!" n
-        rm $curtmp
-        exit 1
-    fi
+    local sealed_hash=$(cat -v $curtmp | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+    echo ${sealed_hash:0:64}
     rm $curtmp
 }
 
@@ -57,14 +50,14 @@ trap 'validate_exit' EXIT
 declare -A ans
 i=0
 
-file_num=$(get_config ".performance|.file_num")
-srd_num=$(get_config ".performance|.srd_num")
-srd_paths=$(get_config ".functionality|.srd_paths")
-srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
+file_num=$(get_config ".benchmark|.file_num")
+srd_num=$(get_config ".benchmark|.srd_num")
+srd_paths=$(get_config ".benchmark|.srd_paths")
+srd_max_per_turn=$(get_config ".benchmark|.srd_max_per_turn")
 
 ### Seal file and validate
-_seal $datadir/1024m $testfiledir &>$TMPFILE
-confirm $(cat $TMPFILE) &>$TMPFILE
+hash=$(_seal $datadir/1024m $testfiledir)
+confirm $hash &>/dev/null
 validate_file_real &>/dev/null
 test_add_file $file_num &>/dev/null
 validate_file &>/dev/null

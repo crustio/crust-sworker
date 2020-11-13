@@ -29,7 +29,7 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_unseal_file", 1},
     {"Ecall_srd_decrease", 1},
     {"Ecall_srd_update_metadata", 1},
-    {"Ecall_srd_set_change", 1},
+    {"Ecall_change_srd_task", 1},
     {"Ecall_srd_increase", 2},
     {"Ecall_id_get_info", 3},
     {"Ecall_get_workload", 3},
@@ -521,7 +521,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
  * @description: Change srd number
  * @param change -> Will be changed srd number
  */
-sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change)
+sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -529,7 +529,7 @@ sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, crust_status_t *status, 
         return ret;
     }
 
-    ret = ecall_srd_set_change(eid, status, change, real_change);
+    ret = ecall_change_srd_task(eid, status, change, real_change);
 
     free_enclave(__FUNCTION__);
 

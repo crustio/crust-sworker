@@ -215,7 +215,7 @@ void srd_change(long change)
         {
             long left_srd_num = change - true_increase;
             long real_change = 0;
-            if (SGX_SUCCESS != (sgx_status = Ecall_srd_set_change(global_eid, &crust_status, left_srd_num, &real_change)))
+            if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, left_srd_num, &real_change)))
             {
                 p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
             }
@@ -282,7 +282,7 @@ void srd_change(long change)
                     // If failed, add current task to next turn
                     crust_status_t crust_status = CRUST_SUCCESS;
                     long real_change = 0;
-                    Ecall_srd_set_change(global_eid, &crust_status, 1, &real_change);
+                    Ecall_change_srd_task(global_eid, &crust_status, 1, &real_change);
                 }
             })));
         }

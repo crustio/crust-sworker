@@ -40,10 +40,9 @@ size_t ecall_srd_decrease(long change)
  * @description: Change srd number
  * @param change -> Will be changed srd number
  */
-crust_status_t ecall_srd_set_change(long change, long *real_change)
+crust_status_t ecall_change_srd_task(long change, long *real_change)
 {
-    long srd_change = get_srd_change() + change;
-    return change_srd_task(srd_change, real_change);
+    return change_srd_task(change, real_change);
 }
 
 /**

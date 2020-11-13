@@ -458,7 +458,7 @@ entry_network_flag:
 
             // Srd disk
             long real_change = 0;
-            if (SGX_SUCCESS != (sgx_status = Ecall_srd_set_change(global_eid, &crust_status, p_config->srd_capacity, &real_change)))
+            if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, p_config->srd_capacity, &real_change)))
             {
                 p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
             }

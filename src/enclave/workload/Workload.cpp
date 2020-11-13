@@ -71,7 +71,7 @@ std::string Workload::get_workload(void)
     sgx_thread_mutex_unlock(&wl_spec_info_mutex);
     // Srd info
     wl_json[WL_SRD][WL_SRD_DETAIL] = this->get_srd_info();
-    wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_change();
+    wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_task();
 
     std::string wl_str = wl_json.dump();
     remove_char(wl_str, '\n');

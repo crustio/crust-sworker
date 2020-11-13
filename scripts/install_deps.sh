@@ -16,7 +16,16 @@ function installPrerequisites()
 
 function installSGXSDK()
 {
-    res=0
+    # Check SGX SDK
+    verbose INFO "Checking SGX SDK..." h
+    if [ -d $sgxsdkdir ]; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    # Install SGX SDK
+    local res=0
     cd $rsrcdir
     verbose INFO "Installing SGX SDK..." h
     if [ -f "$inteldir/sgxsdk/uninstall.sh" ]; then
@@ -31,7 +40,24 @@ function installSGXSDK()
 
 function installSGXPSW()
 {
-    res=0
+    # Check SGX PSW
+    verbose INFO "Checking SGX PSW..." h
+    local inst_pkg_num=0
+    for item in $(dpkg -l | grep sgx | awk '{print $3}'); do
+        if ! echo $item | grep "2.11.100" &>/dev/null && ! echo $item | grep "1.8.100" &>/dev/null; then
+            break
+        fi
+        ((inst_pkg_num++))
+    done
+    if [ $inst_pkg_num -lt ${#sgxpswlibs[@]} ]; then
+        verbose ERROR "no" t
+    else
+        verbose INFO "yes" t
+        return 0
+    fi
+
+    # Install SGX PSW
+    local res=0
     verbose INFO "Installing SGX PSW..." h
     echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list &>$ERRFILE
     res=$(($?|$res))
@@ -39,13 +65,7 @@ function installSGXPSW()
     res=$(($?|$res))
     apt-get update &>>$ERRFILE
     res=$(($?|$res))
-    apt-get install -y --allow-downgrades libsgx-ae-epid=2.11.100.2-bionic1 libsgx-ae-le=2.11.100.2-bionic1 \
-    libsgx-ae-pce=2.11.100.2-bionic1 libsgx-ae-qe3=1.8.100.2-bionic1 libsgx-aesm-ecdsa-plugin=2.11.100.2-bionic1 \
-    libsgx-aesm-epid-plugin=2.11.100.2-bionic1 libsgx-aesm-launch-plugin=2.11.100.2-bionic1 \
-    libsgx-aesm-pce-plugin=2.11.100.2-bionic1 libsgx-aesm-quote-ex-plugin=2.11.100.2-bionic1 \
-    libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-launch=2.11.100.2-bionic1 \
-    libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
-    libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1 &>>$ERRFILE
+    apt-get install -y --allow-downgrades ${sgxpswlibs[@]} &>>$ERRFILE
     res=$(($?|$res))
     /opt/intel/sgx-aesm-service/cleanup.sh &>>$ERRFILE
     res=$(($?|$res))
@@ -56,7 +76,16 @@ function installSGXPSW()
 
 function installSGXDRIVER()
 {
-    res=0
+    # Check SGX driver
+    verbose INFO "Checking SGX driver..." h
+    if [ -d $sgxdriverdir ]; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    # Install SGX driver
+    local res=0
     cd $rsrcdir
     verbose INFO "Installing SGX driver..." h
     $rsrcdir/$driverpkg &>$ERRFILE
@@ -67,7 +96,7 @@ function installSGXDRIVER()
 
 function installSGXSSL()
 {
-    verbose INFO "Checking sgxssl..." h
+    verbose INFO "Checking SGX SSL..." h
     if [ -d "$sgxssldir" ]; then
         verbose INFO "yes" t
         return
@@ -290,6 +319,8 @@ crustsworkerdir=$crustdir/crust-sworker
 realsworkerdir=$crustsworkerdir/$(cat $scriptdir/../VERSION | head -n 1)
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
+sgxsdkdir=$inteldir/sgxsdk
+sgxdriverdir=$inteldir/sgxdriver
 sgxssldir=$inteldir/sgxssl
 boostdir=$crusttooldir/boost
 onetbbdir=$crusttooldir/onetbb
@@ -312,6 +343,14 @@ opensslpkg=$rsrcdir/openssl-1.1.1g.tar.gz
 openssldir=$rsrcdir/$(echo openssl-1.1.1g.tar.gz | grep -Po ".*(?=\.tar)")
 boostpkg=$rsrcdir/boost_1_70_0.tar.gz
 onetbbpkg=$rsrcdir/onetbb.tar
+# SGX PSW package
+sgxpswlibs=(libsgx-ae-epid=2.11.100.2-bionic1 libsgx-ae-le=2.11.100.2-bionic1 \
+libsgx-ae-pce=2.11.100.2-bionic1 libsgx-ae-qe3=1.8.100.2-bionic1 libsgx-aesm-ecdsa-plugin=2.11.100.2-bionic1 \
+libsgx-aesm-epid-plugin=2.11.100.2-bionic1 libsgx-aesm-launch-plugin=2.11.100.2-bionic1 \
+libsgx-aesm-pce-plugin=2.11.100.2-bionic1 libsgx-aesm-quote-ex-plugin=2.11.100.2-bionic1 \
+libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-launch=2.11.100.2-bionic1 \
+libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
+libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1)
 # SGX prerequisites
 basicsprereq=(expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)

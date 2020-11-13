@@ -500,6 +500,9 @@ public:
         if(ec)
             return fail(ec, "write");
 
+        // Clear the buffer
+        buffer_.consume(buffer_.size());
+
         if(close)
         {
             // This means we should close the connection, usually because

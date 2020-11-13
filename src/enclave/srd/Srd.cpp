@@ -1,8 +1,8 @@
 #include "Srd.h"
 
 extern sgx_thread_mutex_t g_srd_mutex;
-long g_srd_change = 0;
-sgx_thread_mutex_t g_srd_change_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+long g_srd_task = 0;
+sgx_thread_mutex_t g_srd_task_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 uint8_t *g_base_rand_buffer = NULL;
 sgx_thread_mutex_t g_base_rand_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
@@ -51,19 +51,19 @@ void srd_change()
     }
 
     // Get real srd space
-    sgx_thread_mutex_lock(&g_srd_change_mutex);
+    sgx_thread_mutex_lock(&g_srd_task_mutex);
     long srd_change_num = 0;
-    if (g_srd_change > SRD_MAX_PER_TURN)
+    if (g_srd_task > SRD_MAX_PER_TURN)
     {
         srd_change_num = SRD_MAX_PER_TURN;
-        g_srd_change -= SRD_MAX_PER_TURN;
+        g_srd_task -= SRD_MAX_PER_TURN;
     }
     else
     {
-        srd_change_num = g_srd_change;
-        g_srd_change = 0;
+        srd_change_num = g_srd_task;
+        g_srd_task = 0;
     }
-    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+    sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     // Do srd
     if (srd_change_num != 0)
@@ -359,11 +359,11 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
  * @description: Get srd change
  * @return: Srd change 
  */
-long get_srd_change()
+long get_srd_task()
 {
-    sgx_thread_mutex_lock(&g_srd_change_mutex);
-    long srd_change = g_srd_change;
-    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+    sgx_thread_mutex_lock(&g_srd_task_mutex);
+    long srd_change = g_srd_task;
+    sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     return srd_change;
 }
@@ -399,9 +399,9 @@ crust_status_t change_srd_task(long change, long *real_change)
         }
     }
 
-    sgx_thread_mutex_lock(&g_srd_change_mutex);
-    g_srd_change += change;
-    sgx_thread_mutex_unlock(&g_srd_change_mutex);
+    sgx_thread_mutex_lock(&g_srd_task_mutex);
+    g_srd_task += change;
+    sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     *real_change = change;
 

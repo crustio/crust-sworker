@@ -190,14 +190,19 @@ mkdir files
 verbose INFO "starting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
 sworkerpid=$!
-sleep 8
-curl -s $baseurl/workload 2>$errfile 1>/dev/null
-if [ $? -ne 0 ] ; then
-    verbose ERROR "failed" t
-    verbose ERROR "start crust sworker failed! Please check $errfile for details."
-    kill -9 $sworkerpid
-    exit 1
-fi
+sleep 10
+while true; do
+    curl -s $baseurl/workload 2>$errfile 1>$TMPFILE
+    if [ $? -ne 0 ] ; then
+        verbose ERROR "failed" t
+        verbose ERROR "start crust sworker failed! Please check $errfile for details."
+        kill -9 $sworkerpid
+        exit 1
+    elif cat $TMPFILE | jq '.' &>/dev/null; then
+        break
+    fi
+    sleep 1
+done
 if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
     verbose ERROR "failed" t
     exit 1
