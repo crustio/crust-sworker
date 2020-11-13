@@ -129,13 +129,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     // Build the path to the requested file
     std::string req_route = std::string(req.target().data(), req.target().size());
+    if (req_route.find("/enclave/id_info") == std::string::npos)
+    {
+        p_log->debug("Http request:%s\n", req_route.c_str());
+    }
     if (memcmp(req_route.c_str(), urlendpoint->base.c_str(), urlendpoint->base.size()) != 0)
     {
         return send(bad_request("Illegal request-target"));
-    }
-    if (req_route.find("/enclave/id_info") == std::string::npos)
-    {
-        p_log->info("Http request:%s\n", req_route.c_str());
     }
     std::map<std::string, std::string> params = get_params(req_route);
 
