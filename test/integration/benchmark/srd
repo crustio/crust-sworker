@@ -53,7 +53,7 @@ trap 'srd_exit' EXIT
 . $scriptdir/utils.sh
 
 declare -A ans
-paths=$(get_config ".functionality|.srd_paths")
+paths=$(get_config ".benchmark|.srd_paths")
 srd_paths=($(parse_json_array "$paths"))
 
 ### Check path
@@ -66,7 +66,7 @@ fi
 srd_disk_change "$(cat $testconfigfile | jq '.srd_paths')" delete &>/dev/null
 
 ### Add disk
-srd_size=$(get_config ".functionality|.srd_size")
+srd_size=$(get_config ".benchmark|.srd_bench_num")
 if ! [[ $srd_size =~ ^[1-9][0-9]*$ ]]; then
     verbose ERROR "srd size must be number type!"
     exit 1

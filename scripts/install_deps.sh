@@ -16,7 +16,16 @@ function installPrerequisites()
 
 function installSGXSDK()
 {
-    res=0
+    # Check SGX SDK
+    verbose INFO "Checking SGX SDK..." h
+    if [ -d $sgxsdkdir ]; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    # Install SGX SDK
+    local res=0
     cd $rsrcdir
     verbose INFO "Installing SGX SDK..." h
     if [ -f "$inteldir/sgxsdk/uninstall.sh" ]; then
@@ -31,7 +40,21 @@ function installSGXSDK()
 
 function installSGXPSW()
 {
-    res=0
+    # Check SGX PSW
+    verbose INFO "Checking SGX PSW..." h
+    dpkg -l | grep sgx &>$TMPFILE
+    if cat $TMPFILE | grep "2.11.100" &>/dev/null; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    if cat $TMPFILE | grep "1.8.100" &>/dev/null; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    # Install SGX PSW
+    local res=0
     verbose INFO "Installing SGX PSW..." h
     echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list &>$ERRFILE
     res=$(($?|$res))
@@ -56,7 +79,16 @@ function installSGXPSW()
 
 function installSGXDRIVER()
 {
-    res=0
+    # Check SGX driver
+    verbose INFO "Checking SGX driver..." h
+    if [ -d $sgxdriverdir ]; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    # Install SGX driver
+    local res=0
     cd $rsrcdir
     verbose INFO "Installing SGX driver..." h
     $rsrcdir/$driverpkg &>$ERRFILE
@@ -67,7 +99,7 @@ function installSGXDRIVER()
 
 function installSGXSSL()
 {
-    verbose INFO "Checking sgxssl..." h
+    verbose INFO "Checking SGX SSL..." h
     if [ -d "$sgxssldir" ]; then
         verbose INFO "yes" t
         return
@@ -290,6 +322,8 @@ crustsworkerdir=$crustdir/crust-sworker
 realsworkerdir=$crustsworkerdir/$(cat $scriptdir/../VERSION | head -n 1)
 crusttooldir=$crustdir/tools
 inteldir=/opt/intel
+sgxsdkdir=$inteldir/sgxsdk
+sgxdriverdir=$inteldir/sgxdriver
 sgxssldir=$inteldir/sgxssl
 boostdir=$crusttooldir/boost
 onetbbdir=$crusttooldir/onetbb

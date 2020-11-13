@@ -40,7 +40,7 @@ extern "C"
 sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, const char* path);
 sgx_status_t Ecall_srd_decrease(sgx_enclave_id_t eid, size_t *size, size_t change);
 sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, size_t hashs_len);
-sgx_status_t Ecall_srd_set_change(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change);
+sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change);
 
 sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);
 sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status);

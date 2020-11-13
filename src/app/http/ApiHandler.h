@@ -128,23 +128,26 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         return send(bad_request("Illegal request-target"));
 
     // Build the path to the requested file
-    std::string path = std::string(req.target().data(), req.target().size());
-    std::map<std::string, std::string> params = get_params(path);
-    size_t epos = path.find('\?');
-    if (epos != std::string::npos)
+    std::string req_route = std::string(req.target().data(), req.target().size());
+    if (memcmp(req_route.c_str(), urlendpoint->base.c_str(), urlendpoint->base.size()) != 0)
     {
-        path = path.substr(0, epos);
+        return send(bad_request("Illegal request-target"));
     }
+    if (req_route.find("/enclave/id_info") == std::string::npos)
+    {
+        p_log->info("Http request:%s\n", req_route.c_str());
+    }
+    std::map<std::string, std::string> params = get_params(req_route);
 
     // Choose service according to upgrade status
-    std::string route_tag = path.substr(path.find(urlendpoint->base) + urlendpoint->base.size(), path.size());
+    std::string route_tag = req_route.substr(req_route.find(urlendpoint->base) + urlendpoint->base.size(), req_route.size());
     if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
     {
         p_log->err("This process will exit!\n");
         http::response<http::string_body> res{
             std::piecewise_construct,
             std::make_tuple("Stop service!"),
-            std::make_tuple(http::status::ok, req.version())};
+            std::make_tuple(http::status::forbidden, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
         res.body() = "No service will be provided because of upgrade!";
@@ -159,7 +162,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::string_body> res{
             std::piecewise_construct,
             std::make_tuple("Current service is closed due to upgrade!"),
-            std::make_tuple(http::status::ok, req.version())};
+            std::make_tuple(http::status::forbidden, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
         res.body() = "Current service is closed due to upgrade!";
@@ -184,14 +187,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     {
         http::response<http::string_body> res{
             std::piecewise_construct,
-            std::make_tuple("crust return"),
-            std::make_tuple(http::status::ok, req.version())};
+            std::make_tuple("Unknown request target"),
+            std::make_tuple(http::status::bad_request, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
 
         // ----- Get workload ----- //
         cur_path = urlendpoint->base + "/workload";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             sgx_status_t sgx_status = SGX_SUCCESS;
             // Get srd info
@@ -253,7 +256,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get enclave thread information ----- //
         cur_path = urlendpoint->base + "/enclave/thread_info";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.body() = show_enclave_thread_info();
             goto getcleanup;
@@ -261,7 +264,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get enclave id information ----- //
         cur_path = urlendpoint->base + "/enclave/id_info";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_id_get_info(global_eid);
             json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
@@ -274,7 +277,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Inform upgrade ----- //
         cur_path = urlendpoint->base + "/upgrade/start";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -349,7 +352,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Get metadata ----- //
         cur_path = urlendpoint->base + "/upgrade/metadata";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -371,7 +374,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         // ----- Inform that new version is already ----- //
         // Use to inform current sworker upgrade result
         cur_path = urlendpoint->base + "/upgrade/complete";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             json::JSON req_json = json::JSON::Load(req.body());
@@ -427,8 +430,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     {
         http::response<http::string_body> res{
             std::piecewise_construct,
-            std::make_tuple("crust return"),
-            std::make_tuple(http::status::ok, req.version())};
+            std::make_tuple("Unknown request target"),
+            std::make_tuple(http::status::bad_request, req.version())};
         res.result(400);
         res.body() = "Unknown request!";
         json::JSON res_json;
@@ -436,7 +439,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Set debug flag ----- //
         cur_path = urlendpoint->base + "/debug";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             // Check input parameters
             std::string ret_info;
@@ -459,7 +462,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // --- Srd change API --- //
         cur_path = urlendpoint->base + "/srd/change";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -479,7 +482,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 // Start changing srd
                 crust_status_t crust_status = CRUST_SUCCESS;
                 long real_change = 0;
-                if (SGX_SUCCESS != Ecall_srd_set_change(global_eid, &crust_status, change_srd_num, &real_change))
+                if (SGX_SUCCESS != Ecall_change_srd_task(global_eid, &crust_status, change_srd_num, &real_change))
                 {
                     ret_info = "Change srd failed!Invoke SGX api failed!";
                 }
@@ -512,7 +515,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // --- Confirm new file --- //
         cur_path = urlendpoint->base + "/storage/confirm";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -537,7 +540,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // --- Delete meaningful file --- //
         cur_path = urlendpoint->base + "/storage/delete";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -562,7 +565,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Storage seal file block ----- //
         cur_path = urlendpoint->base + "/storage/seal";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -651,7 +654,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Storage unseal file block ----- //
         cur_path = urlendpoint->base + "/storage/unseal";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;

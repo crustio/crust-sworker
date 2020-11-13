@@ -41,19 +41,19 @@ while [ $i -lt $run_num ]; do
             exit 1
         else
             start_time=$(date +%s%N)
-            ret_body=$(seal ${mt_json[0]} ${mt_json[1]} 2>$TMPFILE)
-            end_time=$(date +%s%N)
-            sealed_hash=$(echo $ret_body | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-            if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -eq 64 ]; then
-                cost=$((end_time - start_time))
-                if [ x"${file_2_time_m[$(basename $file)]}" = x"" ]; then
-                    file_2_time_m[$(basename $file)]=$cost
-                else
-                    file_2_time_m[$(basename $file)]=$((cost + ${file_2_time_m[$(basename $file)]}))
-                fi
-            else
+            seal ${mt_json[0]} ${mt_json[1]} &>$TMPFILE
+            if [ $? -ne 0 ]; then
                 verbose ERROR "seal file:$file failed!"
                 exit 1
+            fi
+            end_time=$(date +%s%N)
+            sealed_hash=$(cat -v $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
+            sealed_hash=${sealed_hash:0:64}
+            cost=$((end_time - start_time))
+            if [ x"${file_2_time_m[$(basename $file)]}" = x"" ]; then
+                file_2_time_m[$(basename $file)]=$cost
+            else
+                file_2_time_m[$(basename $file)]=$((cost + ${file_2_time_m[$(basename $file)]}))
             fi
         fi
     done

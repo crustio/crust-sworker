@@ -537,7 +537,7 @@ function apihandler_h_test()
 cat << EOF > $TMPFILE
 
         cur_path = urlendpoint->base + "/report/work";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             crust_status_t crust_status = CRUST_SUCCESS;
             uint8_t *hash_u = (uint8_t *)malloc(32);
@@ -589,7 +589,7 @@ cat << EOF > $TMPFILE
 
         // --- Srd change API --- //
         cur_path = urlendpoint->base + "/report/result";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -602,43 +602,43 @@ cat << EOF > $TMPFILE
         }
 
         cur_path = urlendpoint->base + "/validate/srd";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_srd(global_eid);
         }
 
         cur_path = urlendpoint->base + "/validate/srd_real";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_srd_real(global_eid);
         }
 
         cur_path = urlendpoint->base + "/validate/file";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_file(global_eid);
         }
 
         cur_path = urlendpoint->base + "/validate/file_real";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_file_real(global_eid);
         }
 
         cur_path = urlendpoint->base + "/validate/file_bench";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_file_bench(global_eid);
         }
 
         cur_path = urlendpoint->base + "/store_metadata";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_store_metadata(global_eid);
         }
 
         cur_path = urlendpoint->base + "/test/add_file";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
             long file_num = req_json["file_num"].ToInt();
@@ -647,7 +647,7 @@ cat << EOF > $TMPFILE
         }
 
         cur_path = urlendpoint->base + "/test/valid_file";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
             long file_num = req_json["file_num"].ToInt();
@@ -656,7 +656,7 @@ cat << EOF > $TMPFILE
         }
 
         cur_path = urlendpoint->base + "/test/lost_file";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
             uint32_t file_num = req_json["file_num"].ToInt();
@@ -665,7 +665,7 @@ cat << EOF > $TMPFILE
         }
 
         cur_path = urlendpoint->base + "/test/delete_file";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
             uint32_t file_num = req_json["file_num"].ToInt();
@@ -674,7 +674,7 @@ cat << EOF > $TMPFILE
         }
 
         cur_path = urlendpoint->base + "/test/delete_file_unsafe";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
             uint32_t file_num = req_json["file_num"].ToInt();
@@ -683,14 +683,14 @@ cat << EOF > $TMPFILE
         }
 
         cur_path = urlendpoint->base + "/clean_file";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_clean_file(global_eid);
             res.body() = "Clean file successfully!";
         }
 
         cur_path = urlendpoint->base + "/file_info";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
             std::string hash = req_json["hash"].ToString();
@@ -712,7 +712,7 @@ EOF
 cat << EOF > $TMPFILE2
 
         cur_path = urlendpoint->base + "/srd/change_real";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -737,7 +737,7 @@ cat << EOF > $TMPFILE2
         }
 
         cur_path = urlendpoint->base + "/srd/change_disk";
-        if (path.size() == cur_path.size() && path.compare(cur_path) == 0)
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
@@ -829,22 +829,9 @@ EOF
     # Srd directly
     #pos=$(sed -n '/cur_path = urlendpoint->base + "\/srd\/change";/=' $apihandler_h)
     #sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
-    pos=$(sed -n '/Ecall_srd_set_change/=' $apihandler_h)
+    pos=$(sed -n '/Ecall_change_srd_task/=' $apihandler_h)
     sed -i "$((pos-2)),$((pos+24)) d " $apihandler_h
     sed -i "$((pos-2)) a \\\t\t\t\tsrd_change_test(change_srd_num);" $apihandler_h
-
-    ## Seal 
-    #pos=$(sed -n '/cur_path = urlendpoint->base + "\/storage\/seal";/=' $apihandler_h)
-    #sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
-    ## Unseal 
-    #pos=$(sed -n '/cur_path = urlendpoint->base + "\/storage\/unseal";/=' $apihandler_h)
-    #sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
-    ## Confirm
-    #pos=$(sed -n '/cur_path = urlendpoint->base + "\/storage\/confirm";/=' $apihandler_h)
-    #sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
-    ## Delete 
-    #pos=$(sed -n '/cur_path = urlendpoint->base + "\/storage\/delete";/=' $apihandler_h)
-    #sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
 
     # Record block height
     sed -i "/long change_srd_num = 0;/ a size_t g_block_height = 0;" $apihandler_h
@@ -917,7 +904,7 @@ void srd_change_test(long change)
         {
             long left_srd_num = change - true_increase;
             long real_change = 0;
-            if (SGX_SUCCESS != (sgx_status = Ecall_srd_set_change(global_eid, &crust_status, left_srd_num, &real_change)))
+            if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, left_srd_num, &real_change)))
             {
                 p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
             }
@@ -984,7 +971,7 @@ void srd_change_test(long change)
                     // If failed, add current task to next turn
                     crust_status_t crust_status = CRUST_SUCCESS;
                     long real_change = 0;
-                    Ecall_srd_set_change(global_eid, &crust_status, 1, &real_change);
+                    Ecall_change_srd_task(global_eid, &crust_status, 1, &real_change);
                 }
             })));
         }
@@ -2443,7 +2430,7 @@ cp -r $devrootdir/buildenv.mk ./
 # Check if jq is installed
 if ! dpkg -l | grep "\bjq\b" &>/dev/null; then
     verbose WARN "jq is required!"
-    sudo apt-get install jq
+    sudo apt-get install -y jq
     if [ $? -ne 0 ]; then
         verbose ERROR "Install jq failed!"
         exit 1
