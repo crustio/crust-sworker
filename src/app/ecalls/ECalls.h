@@ -15,6 +15,7 @@
 #include "Log.h"
 #include "EnclaveData.h"
 #include "CrustStatus.h"
+#include "SafeLock.h"
 #include "Json.hpp"
 
 // Max thread number.
@@ -74,7 +75,7 @@ sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *st
 
 int get_upgrade_ecalls_num();
 
-std::string show_enclave_thread_info();
+std::string get_running_ecalls_info();
 
 #if defined(__cplusplus)
 }

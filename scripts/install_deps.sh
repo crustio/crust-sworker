@@ -191,42 +191,6 @@ function installBOOST()
     fi
 }
 
-function installONETBB()
-{
-    verbose INFO "Checking oneTBB..." h
-    if [ -d "$onetbbdir" ]; then
-        verbose INFO "yes" t
-        return
-    fi
-    verbose ERROR "no" t
-    mkdir -p $onetbbdir
-
-    verbose INFO "Installing oneTBB..." h
-    local tmponetbbdir=$rsrcdir/onetbb
-    mkdir $tmponetbbdir
-    cd $rsrcdir
-    tar -xvf $onetbbpkg -C $tmponetbbdir --strip-components=1 &>$ERRFILE
-    if [ $? -ne 0 ]; then
-        verbose "failed" t
-        exit 1
-    fi
-    cd - &>/dev/null
-
-    cd $tmponetbbdir
-    make &>/dev/null
-    checkRes $? "quit" "success"
-    cp -r include $onetbbdir/include
-    cp -r `ls -d build/*/ | grep linux` $onetbbdir/lib
-    ln -s $onetbbdir/include/tbb /usr/local/include/tbb
-    echo "$onetbbdir/lib" >> $crustldfile
-    ldconfig
-    cd - &>/dev/null
-
-    if [ x"$tmponetbbdir" != x"/" ]; then
-        rm -rf $tmponetbbdir
-    fi
-}
-
 function checkAndInstall()
 {
     for dep in $1; do
@@ -323,7 +287,6 @@ sgxsdkdir=$inteldir/sgxsdk
 sgxdriverdir=$inteldir/sgxdriver
 sgxssldir=$inteldir/sgxssl
 boostdir=$crusttooldir/boost
-onetbbdir=$crusttooldir/onetbb
 sgxssltmpdir=""
 selfPID=$$
 SYNCFILE=$scriptdir/.syncfile
@@ -342,7 +305,6 @@ sgxsslpkg=$rsrcdir/intel-sgx-ssl-master.zip
 opensslpkg=$rsrcdir/openssl-1.1.1g.tar.gz
 openssldir=$rsrcdir/$(echo openssl-1.1.1g.tar.gz | grep -Po ".*(?=\.tar)")
 boostpkg=$rsrcdir/boost_1_70_0.tar.gz
-onetbbpkg=$rsrcdir/onetbb.tar
 # SGX PSW package
 sgxpswlibs=(libsgx-ae-epid=2.11.100.2-bionic1 libsgx-ae-le=2.11.100.2-bionic1 \
 libsgx-ae-pce=2.11.100.2-bionic1 libsgx-ae-qe3=1.8.100.2-bionic1 libsgx-aesm-ecdsa-plugin=2.11.100.2-bionic1 \
@@ -406,6 +368,3 @@ installSGXSSL $UNTEST
 
 # Installing BOOST
 installBOOST
-
-# Installing ONETBB
-installONETBB

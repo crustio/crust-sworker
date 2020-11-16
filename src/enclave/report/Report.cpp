@@ -36,16 +36,16 @@ crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_h
 
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    // Generate work report
-    if (CRUST_SUCCESS != (crust_status = gen_work_report(block_hash, block_height, is_upgrading)))
-    {
-        return crust_status;
-    }
-
     // Wait indicated time
     if (wait_time != 0)
     {
         ocall_usleep(wait_time * 1000000);
+    }
+
+    // Generate work report
+    if (CRUST_SUCCESS != (crust_status = gen_work_report(block_hash, block_height, is_upgrading)))
+    {
+        return crust_status;
     }
 
     // Upload work report
