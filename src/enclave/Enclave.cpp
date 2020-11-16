@@ -12,7 +12,7 @@ using namespace std;
  */
 void ecall_srd_increase(const char* path)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
@@ -129,7 +129,7 @@ crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
  */
 crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t block_height)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
@@ -195,7 +195,7 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
  */
 crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *path, char *p_new_path , size_t path_len)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
@@ -218,7 +218,7 @@ crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *
  */
 crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path, uint32_t /*path_len*/)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
@@ -237,7 +237,7 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
  */
 crust_status_t ecall_confirm_file(const char *hash)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
@@ -256,7 +256,7 @@ crust_status_t ecall_confirm_file(const char *hash)
  */
 crust_status_t ecall_delete_file(const char *hash)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
@@ -313,7 +313,7 @@ crust_status_t ecall_gen_upgrade_data(size_t block_height)
  */
 crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, size_t total_size, bool transfer_end)
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
@@ -334,7 +334,7 @@ void ecall_id_get_info()
  */
 void ecall_get_workload()
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }

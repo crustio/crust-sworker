@@ -3,7 +3,6 @@
 #include "WebServer.h"
 #include "EntryNetwork.h"
 #include "Chain.h"
-#include "tbb/concurrent_unordered_map.h"
 
 #include <future>
 #include <chrono>
@@ -156,6 +155,8 @@ bool upgrade_try_start()
     p_log->info("Informing old version to get ready for upgrade...\n");
     int start_wait_time = 16;
     int tryout = UPGRADE_START_TRYOUT / start_wait_time;
+    int tryout_idx = 0;
+    std::string err_msg;
     while (true)
     {
         http::response<http::string_body> res_inform = client->Get(p_config->base_url + "/upgrade/start", "", headers);
@@ -166,11 +167,12 @@ bool upgrade_try_start()
                 p_log->err("Please make sure old sWorker is running!Error code:%d\n", res_inform.result());
                 return false;
             }
-            if (tryout % 15 == 0)
+            if (res_inform.body().compare(err_msg) != 0 || tryout_idx % 15 == 0)
             {
                 p_log->info("Old version not ready for upgrade!Message:%s, status:%d, try again...\n", res_inform.body().c_str(), res_inform.result());
+                err_msg = res_inform.body();
             }
-            if (--tryout < 0)
+            if (++tryout_idx > tryout)
             {
                 p_log->warn("Upgrade tryout!Message:%s\n", res_inform.body().c_str());
                 return false;
@@ -179,7 +181,7 @@ bool upgrade_try_start()
             continue;
         }
 
-        p_log->info("Inform old version to upgrade successfully!Waiting for upgrade data...\n");
+        p_log->info("Inform old version to upgrade successfully!\n");
         break;
     }
 
@@ -196,29 +198,34 @@ bool upgrade_try_restore()
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
     p_log->info("Waiting for upgrade data...\n");
     int restore_tryout = 3;
-    unsigned long time_acc = 0;
-    int meta_wait_time = 60;
+    int meta_wait_time = 3;
     int tryout = UPGRADE_META_TRYOUT / meta_wait_time;
+    int tryout_idx = 0;
     http::response<http::string_body> res_meta;
     sgx_status_t sgx_status = SGX_SUCCESS;
+    std::string err_msg;
     while (true)
     {
         // Try to get metadata
         res_meta = client->Get(p_config->base_url + "/upgrade/metadata", "", headers);
         if ((int)res_meta.result() != 200)
         {
-            if ((int)res_meta.result() == 404 || --tryout < 0)
+            if ((int)res_meta.result() == 404)
             {
                 p_log->err("Get upgrade data failed!Old sWorker is not running!\n");
                 return false;
             }
-            sleep(meta_wait_time);
-            time_acc += meta_wait_time;
-            if (time_acc % 900 == 0)
+            if (res_meta.body().compare(err_msg) != 0 || tryout_idx % 15 == 0)
             {
-                p_log->info("Having being waiting upgrade data about %ld minutes.Message:%s\n",
-                        time_acc / 60, res_meta.body().c_str());
+                p_log->info("Old version Message:%s\n", res_meta.body().c_str());
+                err_msg = res_meta.body();
             }
+            if (++tryout_idx > tryout)
+            {
+                p_log->err("Upgrade: restore tryout!\n");
+                return false;
+            }
+            sleep(meta_wait_time);
             continue;
         }
         p_log->info("Get upgrade data successfully!Data size:%ld.\n", res_meta.body().size());
@@ -252,7 +259,8 @@ restore_try_again:
     {
         size_t partial_size = std::min(meta_size - meta_offset, (size_t)OCALL_STORE_THRESHOLD);
         bool transfer_end = (meta_offset + partial_size >= meta_size);
-        if (SGX_SUCCESS != (sgx_status = Ecall_restore_from_upgrade(global_eid, &crust_status, p_meta + meta_offset, partial_size, meta_size, transfer_end)))
+        sgx_status = Ecall_restore_from_upgrade(global_eid, &crust_status, p_meta + meta_offset, partial_size, meta_size, transfer_end);
+        if (SGX_SUCCESS != sgx_status)
         {
             p_log->err("Invoke SGX API failed!Error code:%lx.\n", sgx_status);
             return false;
@@ -266,7 +274,7 @@ restore_try_again:
             if (--restore_tryout > 0)
             {
                 sgx_destroy_enclave(global_eid);
-                sleep(meta_wait_time);
+                sleep(60);
                 goto restore_try_again;
             }
             else
@@ -298,6 +306,7 @@ bool upgrade_try_complete(bool restore_res)
 {
     std::shared_ptr<HttpClient> client(new HttpClient());
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
+    p_log->info("Informing old version upgrade result...\n");
     json::JSON upgrade_ret;
     upgrade_ret["success"] = restore_res;
     int complete_wait_time = 1;
@@ -320,8 +329,28 @@ bool upgrade_try_complete(bool restore_res)
     // Init related components
     if (res)
     {
+        p_log->info("Waiting for old version's webservice stop...\n");
         // Waiting old version stop
-        sleep(20);
+        int check_old_api_tryout = 200;
+        while (true)
+        {
+            // Inform old version to close
+            http::response<http::string_body> res_test = client->Get(p_config->base_url + "/enclave/thread_info", "", headers);
+            if ((int)res_test.result() == 404)
+            {
+                break;
+            }
+            if (check_old_api_tryout % 10 == 0)
+            {
+                p_log->info("Old version webservice is still working, please wait...\n");
+            }
+            if (--check_old_api_tryout < 0)
+            {
+                p_log->err("Wait old version stop failed!\n");
+                break;
+            }
+            sleep(3);
+        }
         if (!initialize_components())
         {
             p_log->err("Init component failed!\n");

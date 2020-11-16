@@ -5,6 +5,7 @@ sgx_thread_mutex_t g_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_new_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_report_flag_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_upgrade_status_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 Workload *Workload::workload = NULL;
 
@@ -397,7 +398,23 @@ bool Workload::is_upgrade()
  */
 void Workload::set_upgrade_status(enc_upgrade_status_t status)
 {
+    sgx_thread_mutex_lock(&g_upgrade_status_mutex);
     this->upgrade_status = status;
+    switch (status)
+    {
+        case ENC_UPGRADE_STATUS_NONE:
+            log_debug("Set upgrade status to:ENC_UPGRADE_STATUS_NONE\n");
+            break;
+        case ENC_UPGRADE_STATUS_PROCESS:
+            log_debug("Set upgrade status to:ENC_UPGRADE_STATUS_PROCESS\n");
+            break;
+        case ENC_UPGRADE_STATUS_SUCCESS:
+            log_debug("Set upgrade status to:ENC_UPGRADE_STATUS_SUCCESS\n");
+            break;
+        default:
+            log_debug("Unknown upgrade status!\n");
+    }
+    sgx_thread_mutex_unlock(&g_upgrade_status_mutex);
 }
 
 /**
@@ -406,7 +423,11 @@ void Workload::set_upgrade_status(enc_upgrade_status_t status)
  * */
 enc_upgrade_status_t Workload::get_upgrade_status()
 {
-    return this->upgrade_status;
+    enc_upgrade_status_t status = ENC_UPGRADE_STATUS_NONE;
+    sgx_thread_mutex_lock(&g_upgrade_status_mutex);
+    status = this->upgrade_status;
+    sgx_thread_mutex_unlock(&g_upgrade_status_mutex);
+    return status;
 }
 
 /**

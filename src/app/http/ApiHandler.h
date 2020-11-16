@@ -143,7 +143,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     std::string route_tag = req_route.substr(req_route.find(urlendpoint->base) + urlendpoint->base.size(), req_route.size());
     if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
     {
-        p_log->err("This process will exit!\n");
+        p_log->warn("This process will exit!\n");
         http::response<http::string_body> res{
             std::piecewise_construct,
             std::make_tuple("Stop service!"),
@@ -258,7 +258,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint->base + "/enclave/thread_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.body() = show_enclave_thread_info();
+            res.body() = get_running_ecalls_info();
             goto getcleanup;
         }
 
@@ -615,6 +615,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         break;
                     case CRUST_FILE_NUMBER_EXCEED:
                         ret_info = "No more file can be sealed!File number reachs the upper limit!";
+                        break;
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        ret_info = "Seal failed due to upgrade!";
                         break;
                     default:
                         ret_info = "Unexpected error!";

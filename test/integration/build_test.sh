@@ -476,7 +476,7 @@ sgx_status_t Ecall_clean_file(sgx_enclave_id_t eid);
 sgx_status_t Ecall_get_file_info(sgx_enclave_id_t eid, crust_status_t *status, const char *data);
 EOF
 
-    local pos=$(sed -n '/std::string show_enclave_thread_info();/=' $ecalls_h)
+    local pos=$(sed -n '/sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid);/=' $ecalls_h)
     sed -i "$((pos+1)) r $TMPFILE" $ecalls_h
 }
 
@@ -1069,7 +1069,6 @@ void validate_srd()
         srd_total_num += it.second.size();
     }
     size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
-    size_t srd_validate_failed_num = 0;
 
     log_debug("validate srd start, num:%d\n", srd_validate_num);
     // Randomly choose validate srd files
@@ -1164,7 +1163,7 @@ void validate_srd()
 
         // Compare M hashs
         sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-        memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH);
+        if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH)) {}
 
         // Get leaf data
         uint32_t rand_val;
@@ -1182,7 +1181,7 @@ void validate_srd()
 
         // Compare leaf data
         sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
-        memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH);
+        if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH)) {}
 
 
     nextloop:
@@ -2153,7 +2152,30 @@ EOF
 ########## enc_id_cpp_test ##########
 function enc_id_cpp_test()
 {
-    local pos=$(sed -n '/ocall_get_block_hash(/=' $enclave_identity_cpp)
+cat << EOF >$TMPFILE
+    json::JSON gened_wr_json;
+    std::string gened_srd_root;
+    uint8_t *p_gened_srd_root = NULL;
+
+EOF
+    local pos=$(sed -n '/size_t random_time = 0;/=' $enclave_identity_cpp)
+    sed -i "$pos r $TMPFILE" $enclave_identity_cpp
+
+cat << EOF >$TMPFILE
+    // Check root
+    gened_wr_json = json::JSON::Load(get_generated_work_report());
+    gened_srd_root = gened_wr_json[WORKREPORT_RESERVED_ROOT].ToString();
+    p_gened_srd_root = hex_string_to_bytes(gened_srd_root.c_str(), gened_srd_root.size());
+    if (memcmp(p_gened_srd_root, wl_info[WL_SRD_ROOT_HASH].ToBytes(), HASH_LENGTH) != 0)
+    {
+        crust_status = CRUST_UNEXPECTED_ERROR;
+        goto cleanup;
+    }
+EOF
+    pos=$(sed -n '/crust_status = wl->serialize_file(/=' $enclave_identity_cpp)
+    sed -i "$((pos+5)) r $TMPFILE" $enclave_identity_cpp
+
+    pos=$(sed -n '/ocall_get_block_hash(/=' $enclave_identity_cpp)
     sed -i "$pos a \\\tsgx_read_rand(reinterpret_cast<uint8_t *>(report_hash), HASH_LENGTH);" $enclave_identity_cpp
     sed -i "$((pos+1)) a \\\tmemcpy(report_hash, hexstring_safe(report_hash, HASH_LENGTH).c_str(), HASH_LENGTH * 2);" $enclave_identity_cpp
     sed -i "$pos d" $enclave_identity_cpp
@@ -2176,7 +2198,7 @@ function ocalls_cpp_test()
 {
 cat << EOF >> $ocalls_cpp
 
-crust_status_t ocall_get_file_bench(const char *file_path, unsigned char **p_file, size_t *len)
+crust_status_t ocall_get_file_bench(const char */*file_path*/, unsigned char **p_file, size_t *len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 

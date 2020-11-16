@@ -837,6 +837,7 @@ void WebServer::set_api_handler(ApiHandler *api_handler)
 void stop_webservice(void)
 {
     p_ioc->stop();
+    kill(g_webservice_pid, SIGINT);
 }
 
 void start_webservice(void)
