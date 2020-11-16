@@ -351,6 +351,7 @@ bool upgrade_try_complete(bool restore_res)
             }
             sleep(3);
         }
+        sleep(10);
         if (!initialize_components())
         {
             p_log->err("Init component failed!\n");
@@ -585,6 +586,8 @@ entry_network_flag:
         }
         if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
+            // Release database
+            delete crust::DataBase::get_instance();
             // Stop web service
             p_log->info("Kill web service for exit...\n");
             stop_webservice();
@@ -613,6 +616,7 @@ cleanup:
     if (global_eid != 0)
     {
         sgx_destroy_enclave(global_eid);
+        delete crust::DataBase::get_instance();
     }
 
     if (ed->get_upgrade_status() == UPGRADE_STATUS_EXIT)
