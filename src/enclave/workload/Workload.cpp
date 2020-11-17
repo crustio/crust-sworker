@@ -432,13 +432,13 @@ void Workload::set_upgrade_status(enc_upgrade_status_t status)
     switch (status)
     {
         case ENC_UPGRADE_STATUS_NONE:
-            log_debug("Set upgrade status to:ENC_UPGRADE_STATUS_NONE\n");
+            log_debug("Set upgrade status:ENC_UPGRADE_STATUS_NONE\n");
             break;
         case ENC_UPGRADE_STATUS_PROCESS:
-            log_debug("Set upgrade status to:ENC_UPGRADE_STATUS_PROCESS\n");
+            log_debug("Set upgrade status:ENC_UPGRADE_STATUS_PROCESS\n");
             break;
         case ENC_UPGRADE_STATUS_SUCCESS:
-            log_debug("Set upgrade status to:ENC_UPGRADE_STATUS_SUCCESS\n");
+            log_debug("Set upgrade status:ENC_UPGRADE_STATUS_SUCCESS\n");
             break;
         default:
             log_debug("Unknown upgrade status!\n");
