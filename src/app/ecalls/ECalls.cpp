@@ -60,12 +60,10 @@ std::unordered_set<std::string> g_upgrade_blocked_task_us = {
 };
 // Record running task number
 int g_running_task_num;
-// Lock to ensure mutex
-std::mutex g_task_mutex;
 // Indicate number of each priority task, higher index represents lower priority
 std::vector<int> g_waiting_priority_sum_v(4, 0);
 std::mutex g_waiting_priority_sum_mutex;
-// Ecall function name to invoked number mapping
+// Ecall function name to running number mapping
 std::unordered_map<std::string, int> g_running_ecalls_um;
 std::mutex g_running_ecalls_mutex;
 // Waiting time(million seconds) for different priority task
@@ -116,7 +114,7 @@ int get_waiting_priority_sum(int priority)
 }
 
 /**
- * @description: Increase indicated ecall's invoked number
+ * @description: Increase indicated ecall's running number
  * @param name -> Ecall's name
  */
 void increase_running_queue(std::string name)
@@ -129,12 +127,10 @@ void increase_running_queue(std::string name)
     g_running_ecalls_um[name]++;
     g_running_task_num++;
     g_running_ecalls_mutex.unlock();
-
-    decrease_waiting_queue(name);
 }
 
 /**
- * @description: Decrease indicated ecall's invoked number
+ * @description: Decrease indicated ecall's running number
  * @param name -> Ecall's name
  */
 void decrease_running_queue(std::string name)
@@ -148,6 +144,19 @@ void decrease_running_queue(std::string name)
     }
     g_running_ecalls_um[name]--;
     g_running_task_num--;
+}
+
+/**
+ * @description: Get running tasks total num
+ * @return: Running tasks total num
+ */
+int get_running_ecalls_sum()
+{
+    g_running_ecalls_mutex.lock();
+    int res = g_running_task_num;
+    g_running_ecalls_mutex.unlock();
+
+    return res;
 }
 
 /**
@@ -223,10 +232,11 @@ sgx_status_t try_get_enclave(const char *name)
     std::string this_id = ss.str();
     uint32_t timeout = 0;
     sgx_status_t sgx_status = SGX_SUCCESS;
+    int running_tasks_num = 0;
 
     // Get current task priority
     int cur_task_prio = g_task_priority_um[tname];
-    // Increase corresponding invoked ecall
+    // Increase corresponding waiting ecall
     increase_waiting_queue(tname);
 
     // ----- Task scheduling ----- //
@@ -239,22 +249,20 @@ sgx_status_t try_get_enclave(const char *name)
             {
                 if (get_running_ecalls_num(btask) > 0)
                 {
-                    sgx_status = SGX_ERROR_DEVICE_BUSY;
                     goto loop;
                 }
             }
         }
 
-        g_task_mutex.lock();
         // Following situations cannot get enclave resource:
         // 1. Current task number equal or larger than ENC_MAX_THREAD_NUM
         // 2. Current task priority lower than highest level and remaining resource less than ENC_RESERVED_THREAD_NUM
         // 3. There exists higher priority task waiting
-        if (g_running_task_num >= ENC_MAX_THREAD_NUM 
-                || (cur_task_prio > ENC_HIGHEST_PRIORITY && ENC_MAX_THREAD_NUM - g_running_task_num <= ENC_RESERVED_THREAD_NUM)
+        running_tasks_num = get_running_ecalls_sum();
+        if (running_tasks_num >= ENC_MAX_THREAD_NUM 
+                || (cur_task_prio > ENC_HIGHEST_PRIORITY && ENC_MAX_THREAD_NUM - running_tasks_num <= ENC_RESERVED_THREAD_NUM)
                 || get_higher_prio_waiting_task_num(cur_task_prio) - ENC_PERMANENT_TASK_NUM > 0)
         {
-            g_task_mutex.unlock();
             if (cur_task_prio > ENC_PRIO_TIMEOUT_THRESHOLD)
             {
                 p_log->debug("task:%s(thread id:%s) blocked because of SGX busy!\n", name, this_id.c_str());
@@ -262,7 +270,6 @@ sgx_status_t try_get_enclave(const char *name)
             goto loop;
         }
         increase_running_queue(tname);
-        g_task_mutex.unlock();
         break;
 
     loop:
@@ -274,12 +281,14 @@ sgx_status_t try_get_enclave(const char *name)
             {
                 p_log->debug("task:%s(thread id:%s) timeout!\n", name, this_id.c_str());
                 sgx_status = SGX_ERROR_SERVICE_TIMEOUT;
-                decrease_waiting_queue(tname);
                 break;
             }
         }
         task_sleep(cur_task_prio);
     }
+
+    // Decrease corresponding waiting ecall
+    decrease_waiting_queue(tname);
 
     return sgx_status;
 }
@@ -290,14 +299,7 @@ sgx_status_t try_get_enclave(const char *name)
  */
 void free_enclave(const char *name)
 {
-    std::string tname = std::string(name);
-    std::thread::id tid = std::this_thread::get_id();
-    std::stringstream ss;
-    ss << tid;
-    std::string this_id = ss.str();
-
-    // Decrease corresponding invoked ecall
-    decrease_running_queue(tname);
+    decrease_running_queue(name);
 }
 
 /**

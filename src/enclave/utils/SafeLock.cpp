@@ -21,7 +21,7 @@ void SafeLock::unlock()
 {
     if (this->lock_time > 0)
     {
-        sgx_thread_mutex_unlock(&this->_mutex);
         this->lock_time--;
+        sgx_thread_mutex_unlock(&this->_mutex);
     }
 }

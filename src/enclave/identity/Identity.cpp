@@ -1052,7 +1052,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     Workload *wl = Workload::get_instance();
     sgx_ec256_signature_t sgx_sig; 
     sgx_ecc_state_handle_t ecc_state = NULL;
-    std::string srd_str;
     std::string mr_str;
     std::string sig_str;
     std::string pubkey_data;
@@ -1065,7 +1064,9 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     std::string sig_data;
     std::string report_height_str;
     uint8_t *p_files = NULL;
+    uint8_t *p_srd = NULL;
     size_t files_size = 0;
+    size_t srd_size = 0;
     uint8_t *sigbuf = NULL;
     uint8_t *p_sigbuf = NULL;
     size_t sigbuf_len = 0;
@@ -1122,8 +1123,16 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     // ----- Generate upgrade data ----- //
     report_height_str = std::to_string(report_height);
     // Srd and files data
-    wl->serialize_srd(srd_str);
+    crust_status = wl->serialize_srd(&p_srd, &srd_size);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        goto cleanup;
+    }
     crust_status = wl->serialize_file(&p_files, &files_size);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        goto cleanup;
+    }
     wl_info = wl->gen_workload_info();
     if (crust_status != CRUST_SUCCESS)
     {
@@ -1190,7 +1199,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         + block_height_data.size()
         + block_hash_data.size()
         + srd_title.size()
-        + srd_str.size()
+        + srd_size
         + files_title.size()
         + files_size
         + srd_root_data.size()
@@ -1216,8 +1225,8 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     // Srd
     memcpy(upgrade_buffer, srd_title.c_str(), srd_title.size());
     upgrade_buffer += srd_title.size();
-    memcpy(upgrade_buffer, srd_str.c_str(), srd_str.size());
-    upgrade_buffer += srd_str.size();
+    memcpy(upgrade_buffer, p_srd, srd_size);
+    upgrade_buffer += srd_size;
     // Files
     memcpy(upgrade_buffer, files_title.c_str(), files_title.size());
     upgrade_buffer += files_title.size();
@@ -1311,7 +1320,6 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     json::JSON srd_json;
     json::JSON file_json;
     json::JSON wl_info;
-    std::string srd_str;
     std::string file_str;
     std::string wl_sig;
     std::string upgrade_srd_root_str;

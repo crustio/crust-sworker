@@ -48,7 +48,7 @@ public:
     json::JSON gen_workload_info();
 
     // For persistence
-    void serialize_srd(std::string &sered_srd);
+    crust_status_t serialize_srd(uint8_t **p_data, size_t *data_size);
     crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
     crust_status_t restore_srd(json::JSON g_hashs);
     void restore_file(json::JSON file_json);
