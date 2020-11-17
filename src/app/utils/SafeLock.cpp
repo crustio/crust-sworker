@@ -21,7 +21,7 @@ void SafeLock::unlock()
 {
     if (this->lock_time > 0)
     {
-        this->_mutex.unlock();
         this->lock_time--;
+        this->_mutex.unlock();
     }
 }

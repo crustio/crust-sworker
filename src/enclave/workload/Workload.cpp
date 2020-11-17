@@ -172,32 +172,61 @@ json::JSON Workload::gen_workload_info()
  * @param sered_srd -> Reference to serialized srd
  * @return: Serialized workload
  */
-void Workload::serialize_srd(std::string &sered_srd)
+crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
 {
     sgx_thread_mutex_lock(&g_srd_mutex);
+    
+    // Calculate srd space
+    size_t srd_size = 2;
+    for (auto item : this->srd_path2hashs_m)
+    {
+        srd_size += item.first.size() + 10;
+        srd_size += item.second.size() * (HASH_LENGTH * 2 + 3);
+    }
+    uint8_t *srd_buffer = (uint8_t *)enc_malloc(srd_size);
+    if (srd_buffer == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(srd_buffer, 0, srd_size);
 
+    // Copy srd information to buffer
     size_t i = 0;
-    sered_srd.append("{");
+    size_t srd_offset = 0;
+    memcpy(srd_buffer, "{", 1);
+    srd_offset += 1;
     for (auto it = this->srd_path2hashs_m.begin(); it != this->srd_path2hashs_m.end(); it++, i++)
     {
-        sered_srd.append("\"").append(it->first).append("\":[");
+        std::string tmp1 = "\"" + it->first + "\":[";
+        memcpy(srd_buffer + srd_offset, tmp1.c_str(), tmp1.size());
+        srd_offset += tmp1.size();
         for (size_t j = 0; j < it->second.size(); j++)
         {
-            sered_srd.append("\"").append(hexstring_safe(it->second[j], HASH_LENGTH)).append("\"");
+            std::string tmp2 = "\"" + hexstring_safe(it->second[j], HASH_LENGTH) + "\"";
             if (j != it->second.size() - 1)
             {
-                sered_srd.append(",");
+                tmp2.append(",");
             }
+            memcpy(srd_buffer + srd_offset, tmp2.c_str(), tmp2.size());
+            srd_offset += tmp2.size();
         }
-        sered_srd.append("]");
+        std::string tmp3("]");
         if (i != this->srd_path2hashs_m.size() - 1)
         {
-            sered_srd.append(",");
+            tmp3.append(",");
         }
+        memcpy(srd_buffer + srd_offset, tmp3.c_str(), tmp3.size());
+        srd_offset += tmp3.size();
     }
-    sered_srd.append("}");
+    memcpy(srd_buffer + srd_offset, "}", 1);
+    srd_offset += 1;
+    
+    *p_data = srd_buffer;
+    *data_size = srd_offset;
 
     sgx_thread_mutex_unlock(&g_srd_mutex);
+
+    return CRUST_SUCCESS;
 }
 
 /**
