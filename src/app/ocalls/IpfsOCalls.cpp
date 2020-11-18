@@ -41,12 +41,17 @@ crust_status_t ocall_ipfs_cat(const char *cid, unsigned char **p_data, size_t *l
  * @description: Add file to ipfs	
  * @return: Status	
  * */
-crust_status_t ocall_ipfs_add(unsigned char *p_data, size_t len)
+crust_status_t ocall_ipfs_add(unsigned char *p_data, size_t len, char **cid, size_t *cid_len)
 {
-    std::string cid = Ipfs::get_instance()->add(p_data, len);
-    if (cid.size() == 0)
+    std::string cid_str = Ipfs::get_instance()->add(p_data, len);
+    if (cid_str.size() == 0)
     {
         return CRUST_STORAGE_IPFS_ADD_ERROR;
     }
+
+    *cid = new char[cid_str.length() + 1];
+    strcpy(*cid, cid_str.c_str());
+    *cid_len = cid_str.length();
+
     return CRUST_SUCCESS;
 }

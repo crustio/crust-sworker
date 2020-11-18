@@ -66,6 +66,13 @@ bool test_all_utils()
     }
     print_success("+ Test base58_encode successfully!\n");
 
+    if (!test_hash_to_cid())
+    {
+        print_err("x Test hash_to_cid failed!\n");
+        ret = ret && false;
+    }
+    print_success("+ Test hash_to_cid successfully!\n");
+
     return ret;
 }
 
