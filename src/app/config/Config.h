@@ -36,7 +36,7 @@ public:
     int srd_thread_num;                 /* srd srd files thread number */
 
     // crust storage
-    std::string karst_url;              /* karst websocket url */
+    std::string ipfs_url;              /* ipfs url */
 
     // crust chain
     std::string chain_api_base_url; /* Used to connect to Crust API */

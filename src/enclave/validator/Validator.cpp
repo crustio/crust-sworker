@@ -220,18 +220,6 @@ void validate_meaningful_file()
     }
     sgx_thread_mutex_unlock(&g_new_files_mutex);
 
-    // Initialize validatioin
-    ocall_validate_init(&crust_status);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        if(wl->checked_files.size() != 0)
-        {
-            wl->set_report_file_flag(false);
-        }
-        ocall_validate_close();
-        return;
-    }
-
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->checked_files.size());
@@ -261,8 +249,7 @@ void validate_meaningful_file()
 
         // If new file hasn't been confirmed, skip this validation
         auto status = &wl->checked_files[file_idx][FILE_STATUS];
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED 
-                || status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
@@ -354,11 +341,10 @@ void validate_meaningful_file()
                                     &p_sealed_data, &sealed_data_size);
             if (CRUST_SUCCESS != crust_status)
             {
-                if (CRUST_VALIDATE_KARST_OFFLINE == crust_status)
+                if (CRUST_SERVICE_UNAVAILABLE == crust_status)
                 {
                     log_err("Get file(%s) block:%ld failed!\n", root_hash.c_str(), check_block_idx);
                     wl->set_report_file_flag(false);
-                    ocall_validate_close();
                     return;
                 }
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
@@ -419,8 +405,6 @@ void validate_meaningful_file()
             wl->set_wl_spec(cur_status_c, old_status_c, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
         }
     }
-
-    ocall_validate_close();
 
     // Unlock wl->checked_files
     cf_lock.unlock();

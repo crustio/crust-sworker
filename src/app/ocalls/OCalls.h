@@ -58,9 +58,7 @@ extern "C"
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
 
     // For file validate
-    crust_status_t ocall_validate_init();
     crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash, uint8_t **p_sealed_data, size_t *sealed_data_size);
-    void ocall_validate_close();
 
     // For srd
     void ocall_srd_info_lock();

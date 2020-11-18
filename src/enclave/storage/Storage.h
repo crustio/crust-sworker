@@ -22,8 +22,6 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
 
 crust_status_t storage_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path);
 
-crust_status_t storage_confirm_file(const char *hash);
-
 crust_status_t storage_delete_file(const char *hash);
 
 crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t*> &hashs);

@@ -231,25 +231,6 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
 }
 
 /**
- * @description: Confirm new file
- * @param hash (in) -> New file hash
- * @return: Confirm status
- */
-crust_status_t ecall_confirm_file(const char *hash)
-{
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
-    }
-
-    sched_add(SCHED_CONFIRM_FILE);
-    crust_status_t ret = storage_confirm_file(hash);
-    sched_del(SCHED_CONFIRM_FILE);
-
-    return ret;
-}
-
-/**
  * @description: Add to be deleted file hash to buffer
  * @param hash (in) -> File root hash
  * @return: Delete status

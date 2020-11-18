@@ -10,7 +10,6 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_gen_sgx_measurement", 0},
     {"Ecall_main_loop", 0},
     {"Ecall_gen_and_upload_work_report", 0},
-    {"Ecall_confirm_file", 0},
     {"Ecall_delete_file", 0},
     {"Ecall_gen_upgrade_data", 0},
     {"Ecall_restore_from_upgrade", 0},
@@ -33,13 +32,6 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
             "Ecall_seal_file", 
             "Ecall_unseal_file", 
             "Ecall_gen_and_upload_work_report",
-            "Ecall_confirm_file",
-        }
-    },
-    {
-        "Ecall_confirm_file",
-        {
-            "Ecall_gen_and_upload_work_report",
         }
     },
     {
@@ -55,7 +47,6 @@ std::unordered_set<std::string> g_upgrade_blocked_task_us = {
     "Ecall_unseal_file",
     "Ecall_srd_decrease",
     "Ecall_srd_increase",
-    "Ecall_confirm_file",
     "Ecall_delete_file",
 };
 // Record running task number
@@ -588,26 +579,6 @@ sgx_status_t Ecall_srd_update_metadata(sgx_enclave_id_t eid, const char *hashs, 
     }
 
     ret = ecall_srd_update_metadata(eid, hashs, hashs_len);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
- * @description: Confirm new file
- * @param status -> Pointer to confirm result status
- * @param hash -> New file hash
- */
-sgx_status_t Ecall_confirm_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_confirm_file(eid, status, hash);
 
     free_enclave(__FUNCTION__);
 

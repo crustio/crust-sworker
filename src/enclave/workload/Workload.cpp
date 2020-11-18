@@ -34,8 +34,6 @@ Workload *Workload::get_instance()
 Workload::Workload()
 {
     this->report_files = true;
-    this->wl_spec_info[g_file_status[FILE_STATUS_UNCONFIRMED]]["num"] = 0;
-    this->wl_spec_info[g_file_status[FILE_STATUS_UNCONFIRMED]]["size"] = 0;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
     this->wl_spec_info[g_file_status[FILE_STATUS_LOST]]["num"] = 0;

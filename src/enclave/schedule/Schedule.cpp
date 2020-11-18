@@ -17,7 +17,6 @@ std::map<sched_process_t, std::set<sched_process_t>> g_block_func_m = {
         SCHED_VALIDATE_FILE,
         {
             SCHED_GET_WORKREPORT,
-            SCHED_CONFIRM_FILE,
             SCHED_DELETE_FILE,
         }
     },

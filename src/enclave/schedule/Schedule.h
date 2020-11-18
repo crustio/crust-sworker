@@ -9,7 +9,6 @@
 typedef enum _sched_process_t {
     SCHED_GET_WORKREPORT,
     SCHED_SRD_CHECK_RESERVED,
-    SCHED_CONFIRM_FILE,
     SCHED_DELETE_FILE,
     SCHED_SEAL,
     SCHED_UNSEAL,

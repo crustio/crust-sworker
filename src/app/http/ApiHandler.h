@@ -96,7 +96,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     std::set<std::string> upgrade_block_s = {
         "/workload",
         "/srd/change",
-        "/storage/confirm",
         "/storage/delete",
         "/storage/seal",
         "/storage/unseal",
@@ -336,7 +335,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             res.result(407);
                             break;
                         case CRUST_UPGRADE_NO_FILE:
-                            ret_info = "Cannot get files for check!Please check karst!";
+                            ret_info = "Cannot get files for check!Please check ipfs!";
                             res.result(408);
                             break;
                         default:
@@ -510,31 +509,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
             }
         end_change_srd:
-            goto postcleanup;
-        }
-
-        // --- Confirm new file --- //
-        cur_path = urlendpoint->base + "/storage/confirm";
-        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
-        {
-            res.result(200);
-            std::string ret_info;
-            // Confirm new file
-            json::JSON req_json = json::JSON::Load(req.body());
-            std::string hash = req_json["hash"].ToString();
-            // Check hash
-            if (hash.size() != HASH_LENGTH * 2)
-            {
-                ret_info = "Confirm new file failed!Invalid hash!";
-                p_log->err("%s\n", ret_info.c_str());
-                res.result(402);
-                res.body() = ret_info;
-                goto postcleanup;
-            }
-            storage_add_confirm(hash);
-            ret_info = "Confirming new file task has beening added!";
-            res.body() = ret_info;
-
             goto postcleanup;
         }
 

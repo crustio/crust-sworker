@@ -24,10 +24,9 @@
 #define FILE_OLD_HASH "old_hash"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_STATUS "status"
-#define FILE_STATUS_UNCONFIRMED '0'
-#define FILE_STATUS_VALID '1'
-#define FILE_STATUS_LOST '2'
-#define FILE_STATUS_DELETED '3'
+#define FILE_STATUS_VALID '0'
+#define FILE_STATUS_LOST '1'
+#define FILE_STATUS_DELETED '2'
 // Current status
 #define CURRENT_STATUS 0
 // Wait to sync status

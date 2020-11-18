@@ -403,43 +403,6 @@ void ocall_get_sub_folders_and_files(const char *path, char ***files, size_t *fi
 }
 
 /**
- * @description: Initialize websocket client
- * @return: Initialize status
- */
-crust_status_t ocall_validate_init()
-{
-    if (wssclient != NULL)
-        delete wssclient;
-
-    wssclient = new WebsocketClient();
-    Config *p_config = Config::get_instance();
-    UrlEndPoint *urlendpoint = get_url_end_point(p_config->karst_url);
-    if (! wssclient->websocket_init(urlendpoint->ip, std::to_string(urlendpoint->port), urlendpoint->base))
-    {
-        return CRUST_VALIDATE_INIT_WSS_FAILED;
-    }
-
-    // Send backup to server
-    std::string res;
-    json::JSON backup_json;
-    backup_json["backup"] = p_config->chain_backup;
-    backup_json["password"] = p_config->chain_password;
-    if (! wssclient->websocket_request(backup_json.dump(), res))
-    {
-        p_log->err("Validate meaningful failed! Send backup to server failed! Error: %s\n", res.c_str());
-        return CRUST_VALIDATE_KARST_OFFLINE;
-    }
-    json::JSON res_json = json::JSON::Load(res);
-    if (res_json["status"].ToInt() != 200)
-    {
-        p_log->err("Validate failed! Karst response: %s\n", res.c_str());
-        return CRUST_VALIDATE_WSS_REQUEST_FAILED;
-    }
-
-    return CRUST_SUCCESS;
-}
-
-/**
  * @description: Get validation files
  * @param root_hash -> File tree root hash
  * @param leaf_hash -> File tree leaf hash
@@ -469,7 +432,7 @@ crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_h
     if (! wssclient->websocket_request(req_json.dump(), res))
     {
         p_log->err("Validate meaningful failed! Send request to server failed! Error: %s\n", res.c_str());
-        return CRUST_VALIDATE_WSS_REQUEST_FAILED;
+        return CRUST_VALIDATE_GET_REQUEST_FAILED;
     }
     size_t data_size = res.size();
     if (data_size > _sealed_data_size)
@@ -488,26 +451,6 @@ crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_h
     *sealed_data_size = data_size;
 
     return CRUST_SUCCESS;
-}
-
-/**
- * @description: Close websocket connection
- */
-void ocall_validate_close()
-{
-    if (wssclient != NULL)
-    {
-        wssclient->websocket_close();
-        delete wssclient;
-        wssclient = NULL;
-    }
-
-    if (_sealed_data_buf != NULL)
-    {
-        free(_sealed_data_buf);
-        _sealed_data_buf = NULL;
-        _sealed_data_size = 0;
-    }
 }
 
 /**
