@@ -29,7 +29,6 @@
 #include "Storage.h"
 #include "EnclaveData.h"
 #include "Chain.h"
-#include "tbb/concurrent_unordered_map.h"
 #include "../enclave/include/Parameter.h"
 
 #include <boost/beast/core.hpp>
@@ -74,7 +73,6 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
-extern tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 extern std::mutex srd_info_mutex;
 // Used to show validation status
 long change_srd_num = 0;
@@ -635,7 +633,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 p_log->info("Seal file successfully!\n");
 
-                std::string new_tree_str = sealed_tree_map[org_root_hash_str];
+                std::string new_tree_str = ed->get_sealed_tree(org_root_hash_str);
                 remove_char(new_tree_str, ' ');
                 remove_char(new_tree_str, '\n');
                 remove_char(new_tree_str, '\\');
@@ -644,7 +642,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 ret_json["path"] = std::string(p_new_path, dir_path.size());
                 res.body() = ret_json.dump();
                 res.result(200);
-                sealed_tree_map.unsafe_erase(org_root_hash_str);
+                ed->del_sealed_tree(org_root_hash_str);
             }
 
             if (p_new_path != NULL)

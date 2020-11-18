@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string>
 #include <mutex>
+#include <unordered_map>
 
 #include "Resource.h"
 #include "SafeLock.h"
@@ -23,6 +24,9 @@ public:
     void set_upgrade_data(std::string data);
     upgrade_status_t get_upgrade_status();
     void set_upgrade_status(upgrade_status_t status);
+    void add_sealed_tree(std::string root, std::string tree);
+    std::string get_sealed_tree(std::string root);
+    void del_sealed_tree(std::string root);
 
 private:
     EnclaveData()
@@ -41,6 +45,9 @@ private:
     upgrade_status_t upgrade_status;
     // Upgrade status mutex
     std::mutex upgrade_status_mutex;
+    // Sealed tree map
+    std::unordered_map<std::string, std::string> sealed_tree_map;
+    std::mutex sealed_tree_mutex;
 };
 
 #endif /* !_APP_ENCLAVE_DATA_H_ */

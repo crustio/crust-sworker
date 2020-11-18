@@ -1,6 +1,5 @@
 #include "ApiHandler.h"
 #include "sgx_tseal.h"
-#include "tbb/concurrent_unordered_map.h"
 #include <exception>
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
@@ -12,7 +11,6 @@ using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 
 extern sgx_enclave_id_t global_eid;
-extern tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
 crust::Log *p_log = crust::Log::get_instance();
 

@@ -130,3 +130,40 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
         Ecall_disable_upgrade(global_eid);
     }
 }
+
+/**
+ * @description: Add sealed tree to map
+ * @param root -> Sealed tree root hash
+ * @param tree -> Sealed tree
+ */
+void EnclaveData::add_sealed_tree(std::string root, std::string tree)
+{
+    sealed_tree_mutex.lock();
+    this->sealed_tree_map[root] = tree;
+    sealed_tree_mutex.unlock();
+}
+
+/**
+ * @description: Get sealed tree
+ * @param root -> Sealed tree root hash
+ * @return: Sealed tree
+ */
+std::string EnclaveData::get_sealed_tree(std::string root)
+{
+    sealed_tree_mutex.lock();
+    std::string tree = this->sealed_tree_map[root];
+    sealed_tree_mutex.unlock();
+
+    return tree;
+}
+
+/**
+ * @description: Delete sealed tree from map
+ * @param root -> Sealed tree root hash
+ */
+void EnclaveData::del_sealed_tree(std::string root)
+{
+    sealed_tree_mutex.lock();
+    this->sealed_tree_map.erase(root);
+    sealed_tree_mutex.unlock();
+}
