@@ -846,3 +846,47 @@ std::string base58_encode(const uint8_t *input, size_t len)
 
     return res;
 }
+
+/**
+ * @description: convert hash to cid function
+ * @param hash -> To be encoded hash
+ * @return: CID
+ */
+std::string hash_to_cid(const uint8_t *hash)
+{
+    int length = 0, pbegin = 0, pend = HASH_LENGTH;
+    int size = 1 + base58_ifactor * (double)(pend - pbegin);
+    unsigned char b58[size] = {0};
+    while (pbegin != pend)
+    {
+        unsigned int carry = pbegin == 0 ? 18 : pbegin == 1 ? 32 : hash[pbegin - 2];
+        int i = 0;
+        for (int it1 = size - 1; (carry || i < length) && (it1 != -1); it1--, i++)
+        {
+            carry += 256 * b58[it1];
+            b58[it1] = carry % 58;
+            carry /= 58;
+        }
+        if (carry)
+        {
+            return 0;
+        }
+        length = i;
+        pbegin++;
+    }
+    int it2 = size - length;
+    while ((it2 - size) && !b58[it2])
+    {
+        it2++;
+    }
+
+    std::string res(size - it2, '\0');
+    size_t res_index = 0;
+    for (; it2 < size; ++it2)
+    {
+        res[res_index] = BASE58_ALPHABET[b58[it2]];
+        res_index++;
+    }
+
+    return res;
+}
