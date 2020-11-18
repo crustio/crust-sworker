@@ -50,8 +50,8 @@ crust_status_t ocall_ipfs_add(unsigned char *p_data, size_t len, char **cid, siz
     }
 
     *cid = new char[cid_str.length() + 1];
-    strcpy(cid, cid_str.c_str());
-    *len = cid_str.length();
+    strcpy(*cid, cid_str.c_str());
+    *cid_len = cid_str.length();
 
     return CRUST_SUCCESS;
 }

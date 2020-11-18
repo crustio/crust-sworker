@@ -13,7 +13,7 @@ extern "C"
 bool ocall_ipfs_online();
 crust_status_t ocall_ipfs_block_get(const char *cid, unsigned char **p_data, size_t *len);
 crust_status_t ocall_ipfs_cat(const char *cid, unsigned char **p_data, size_t *len);
-crust_status_t ocall_ipfs_add(unsigned char *p_data, size_t len);
+crust_status_t ocall_ipfs_add(unsigned char *p_data, size_t len, char **cid, size_t *cid_len);
 
 #if defined(__cplusplus)
 }
