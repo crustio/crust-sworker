@@ -13,8 +13,6 @@ uint8_t *_sealed_data_buf = NULL;
 size_t _sealed_data_size = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
-// Used to temporarily store sealed serialized MerkleTree
-tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
 extern std::mutex srd_info_mutex;
 extern bool offline_chain_mode;
@@ -328,7 +326,7 @@ crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_f
 void ocall_store_sealed_merkletree(const char *org_root_hash, const char *tree_data, size_t tree_len)
 {
     std::string org_root_hash_str(org_root_hash);
-    sealed_tree_map[org_root_hash_str] = std::string(tree_data, tree_len);
+    EnclaveData::get_instance()->add_sealed_tree(org_root_hash_str, std::string(tree_data, tree_len));
 }
 
 /**
