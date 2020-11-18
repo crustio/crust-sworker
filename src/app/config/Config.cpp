@@ -51,7 +51,7 @@ Config::Config(std::string path)
     this->srd_thread_num = std::min(omp_get_num_procs() * 2, 8);
 
     // storage configurations
-    this->karst_url = config_value["karst_url"].ToString();
+    this->ipfs_url = config_value["ipfs_url"].ToString();
 
     // crust chain configurations
     this->chain_api_base_url = config_value["chain"]["base_url"].ToString();
@@ -81,7 +81,7 @@ void Config::show(void)
     }
     printf("    'srd init capacity' : %lu,\n", this->srd_capacity);
     printf("    'base url' : '%s',\n", this->base_url.c_str());
-    printf("    'karst url' : '%s',\n", this->karst_url.c_str());
+    printf("    'ipfs url' : '%s',\n", this->ipfs_url.c_str());
 
     printf("    'chain config' : {\n");
     printf("        'base url' : %s,\n", this->chain_api_base_url.c_str());

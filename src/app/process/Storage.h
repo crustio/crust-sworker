@@ -12,7 +12,6 @@ extern "C"
 {
 #endif
 
-void storage_add_confirm(std::string hash);
 void storage_add_delete(std::string hash);
 
 #if defined(__cplusplus)

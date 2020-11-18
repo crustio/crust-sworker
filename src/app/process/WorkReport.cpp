@@ -138,8 +138,8 @@ void work_report_loop(void)
             case CRUST_FIRST_WORK_REPORT_AFTER_REPORT:
                 p_log->warn("Can't generate work report for the first four times after restart\n");
                 break;
-            case CRUST_NO_KARST:
-                p_log->warn("Can't generate work report. You have meaningful files, please start karst\n");
+            case CRUST_SERVICE_UNAVAILABLE:
+                p_log->warn("Can't generate work report. You have meaningful files, please start ipfs\n");
                 break;
             case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
                 p_log->warn("This era cannot report work,please wait for next era.\n");

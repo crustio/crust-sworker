@@ -100,7 +100,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     file_entry_json[FILE_SIZE] = node_size;
     file_entry_json[FILE_OLD_SIZE] = org_node_size;
     file_entry_json[FILE_BLOCK_NUM] = block_num;
-    // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
+    // Status indicates current new file's status, which must be one of valid, lost 
     file_entry_json[FILE_STATUS] = "000";
     free(new_root_hash_u);
     free(org_root_hash_u);
@@ -124,7 +124,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     }
 
     // Print sealed file information
-    log_info("Seal complete, file info; hash: %s -> size: %ld, status: unconfirmed\n",
+    log_info("Seal complete, file info; hash: %s -> size: %ld, status: valid\n",
             file_entry_json[FILE_HASH].ToString().c_str(),
             file_entry_json[FILE_SIZE].ToInt());
 
@@ -132,7 +132,7 @@ crust_status_t storage_seal_file(const char *p_tree, size_t tree_len, const char
     wl->add_new_file(file_entry_json);
 
     // Add info in workload spec
-    wl->set_wl_spec(FILE_STATUS_UNCONFIRMED, file_entry_json[FILE_OLD_SIZE].ToInt());
+    wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_OLD_SIZE].ToInt());
 
     return crust_status;
 }
@@ -432,74 +432,6 @@ cleanup:
 
     if (p_decrypted_data != NULL)
         free(p_decrypted_data);
-
-    return crust_status;
-}
-
-/**
- * @description: Confirm new file
- * @param hash -> Pointer to new file hash
- * @return: Confirm status
- */
-crust_status_t storage_confirm_file(const char *hash)
-{
-    crust_status_t crust_status = CRUST_SUCCESS;
-    json::JSON confirmed_file;
-    Workload *wl = Workload::get_instance();
-
-    // ----- Confirm file items in checked_files ----- //
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    bool is_confirmed = false;
-    for (auto it = wl->checked_files.rbegin(); it != wl->checked_files.rend(); it++)
-    {
-        if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
-        {
-            auto status = &(*it)[FILE_STATUS];
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED)
-            {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
-            }
-            is_confirmed = true;
-            confirmed_file = *it;
-            break;
-        }
-    }
-    // Confirm file items in new_files
-    if (!is_confirmed)
-    {
-        sgx_thread_mutex_lock(&g_new_files_mutex);
-        for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
-        {
-            if ((*it)[FILE_HASH].ToString().compare(hash) == 0)
-            {
-                auto status = &(*it)[FILE_STATUS];
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_UNCONFIRMED)
-                {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
-                    is_confirmed = true;
-                    confirmed_file = *it;
-                    break;
-                }
-            }
-        }
-        sgx_thread_mutex_unlock(&g_new_files_mutex);
-    }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-    // Print confirmed info
-    if (is_confirmed)
-    {
-        log_info("Confirm file:%s successfully! Will be validated.\n", confirmed_file[FILE_HASH].ToString().c_str());
-    }
-    else
-    {
-        log_warn("Confirm file:%s failed(not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
-    }
-
-    // Set workload spec information
-    if (is_confirmed)
-    {
-        wl->set_wl_spec(FILE_STATUS_VALID, FILE_STATUS_UNCONFIRMED, confirmed_file[FILE_OLD_SIZE].ToInt());
-    }
 
     return crust_status;
 }

@@ -90,7 +90,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     else if (!wl->get_report_file_flag())
     {
         // Have files and no karst
-        crust_status = CRUST_NO_KARST;
+        crust_status = CRUST_SERVICE_UNAVAILABLE;
     }
 
     // Don't meet workreport condition
@@ -173,8 +173,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     {
         std::string status = (*it)[FILE_STATUS].ToString();
         if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNCONFIRMED))
+                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED))
         {
             it = wl->checked_files.erase(it);
         }
@@ -217,8 +216,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
             // Generate report files queue
             if (reported_files_acc < WORKREPORT_FILE_LIMIT)
             {
-                if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNCONFIRMED)
-                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
+                if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
