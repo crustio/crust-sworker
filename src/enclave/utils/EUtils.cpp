@@ -854,7 +854,7 @@ std::string base58_encode(const uint8_t *input, size_t len)
  */
 std::string hash_to_cid(const uint8_t *hash)
 {
-    int length = 0, pbegin = 0, pend = HASH_LENGTH;
+    int length = 0, pbegin = 0, pend = HASH_LENGTH + 2;
     int size = 1 + base58_ifactor * (double)(pend - pbegin);
     unsigned char b58[size] = {0};
     while (pbegin != pend)

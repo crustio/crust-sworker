@@ -182,7 +182,7 @@ bool test_hash_to_cid()
     std::string input_str = "8ad1b49139d0c987ed74c5df798c039d3c6eb034907284778974bd63abadc658";
     uint8_t *input = hex_string_to_bytes(input_str.c_str(), input_str.size());
 
-    std::string res = hash_to_cid(input, input_str.size() / 2);
+    std::string res = hash_to_cid(input);
     delete input;
 
     if (res != "QmXgYSFx8vSeGgb5qBEw3wYXmQPwYYLHiVZzxN1FM93SmD")

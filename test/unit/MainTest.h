@@ -6,7 +6,9 @@
 #include <string>
 #include <sgx_urts.h>
 #include <sgx_error.h>
-#include <sgx_uae_service.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
 #include "Enclave_u.h"
 
 #define ENCLAVE_TEST_FILE_PATH   "src/enclave.signed.so"
