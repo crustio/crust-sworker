@@ -913,13 +913,13 @@ void srd_change_test(long change)
                 switch (crust_status)
                 {
                 case CRUST_SUCCESS:
-                    p_log->info("Add left srd task successfully!%ldG has been added, will be executed later.\n", real_change);
+                    p_log->debug("Add left srd task successfully!%ldG has been added, will be executed later.\n", real_change);
                     break;
                 case CRUST_SRD_NUMBER_EXCEED:
                     p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
                     break;
                 default:
-                    p_log->info("Unexpected error has occurred!\n");
+                    p_log->debug("Unexpected error has occurred!\n");
                 }
             }
             //p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
