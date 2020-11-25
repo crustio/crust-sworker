@@ -172,6 +172,12 @@ bool Chain::wait_for_running(void)
     while (true)
     {
         crust::BlockHeader *block_header = this->get_block_header();
+        if (block_header == NULL)
+        {
+            p_log->info("Waiting for chain to run...\n");
+            sleep(3);
+        }
+
         if (block_header->number >= start_block_height)
         {
             break;
@@ -192,7 +198,14 @@ bool Chain::wait_for_running(void)
         else
         {
             crust::BlockHeader *block_header = this->get_block_header();
-            p_log->info("Wait for chain synchronization to complete, currently synchronized to the %lu block\n", block_header->number);
+            if (block_header != NULL)
+            {
+                p_log->info("Wait for chain synchronization to complete, currently synchronized to the %lu block\n", block_header->number);
+            }
+            else
+            {
+                p_log->info("Waiting for chain to run...\n");
+            }
             sleep(6);
         }   
     }
