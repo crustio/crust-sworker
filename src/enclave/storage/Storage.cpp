@@ -492,7 +492,7 @@ crust_status_t storage_confirm_file(const char *hash)
     }
     else
     {
-        log_warn("Confirm file:%s failed(not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
+        log_warn("Confirm file:%s failed (not found)!\n", confirmed_file[FILE_HASH].ToString().c_str());
     }
 
     // Set workload spec information
