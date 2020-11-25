@@ -92,7 +92,7 @@ std::string ApiHandler::websocket_handler(std::string &/*path*/, std::string &/*
 {
     //Config *p_config = Config::get_instance();
     json::JSON res;
-    //UrlEndPoint *url_end_point = get_url_end_point(p_config->base_url);
+    //UrlEndPoint url_end_point = get_url_end_point(p_config->base_url);
     res["status"] = 300;
     res["body"] = "Websocket doesn't provide service now!";
 
