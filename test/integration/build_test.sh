@@ -919,7 +919,7 @@ void srd_change_test(long change)
                     p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
                     break;
                 default:
-                    p_log->debug("Unexpected error has occurred!\n");
+                    p_log->warn("Unexpected error has occurred!\n");
                 }
             }
             //p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
