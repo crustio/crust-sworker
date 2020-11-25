@@ -52,6 +52,11 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
  */
 void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
 {
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
     sched_add(SCHED_SRD_CHECK_RESERVED);
     srd_update_metadata(hashs, hashs_len);
     sched_del(SCHED_SRD_CHECK_RESERVED);
