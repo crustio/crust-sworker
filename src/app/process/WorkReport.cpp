@@ -37,14 +37,14 @@ void work_report_loop(void)
     // Generate target block height
     if (!offline_chain_mode)
     {
-        crust::BlockHeader *block_header = p_chain->get_block_header();
-        if (block_header == NULL)
+        crust::BlockHeader block_header;
+        if (!p_chain->get_block_header(block_header))
         {
             p_log->warn("Cannot get block header! Set target block height %d\n", target_block_height);
         }
         else
         {
-            target_block_height = (block_header->number / REPORT_BLOCK_HEIGHT_BASE + 1) * REPORT_BLOCK_HEIGHT_BASE;
+            target_block_height = (block_header.number / REPORT_BLOCK_HEIGHT_BASE + 1) * REPORT_BLOCK_HEIGHT_BASE;
             p_log->info("Set target block height %d\n", target_block_height);
         }
     }
@@ -56,7 +56,7 @@ void work_report_loop(void)
             break;
         }
 
-        crust::BlockHeader *block_header = NULL;
+        crust::BlockHeader block_header;
 
         // Avoid A competing work-report with B
         if (UPGRADE_STATUS_STOP_WORKREPORT == ed->get_upgrade_status())
@@ -74,19 +74,18 @@ void work_report_loop(void)
         // ----- Report work report ----- //
         if (!offline_chain_mode)
         {
-            block_header = p_chain->get_block_header();
-            if (block_header == NULL)
+            if (!p_chain->get_block_header(block_header))
             {
                 p_log->warn("Cannot get block header!\n");
                 goto loop;
             }
 
-            if (block_header->number < target_block_height)
+            if (block_header.number < target_block_height)
             {
                 goto loop;
             }
 
-            size_t cut_wait_time = (block_header->number - (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
+            size_t cut_wait_time = (block_header.number - (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
 
             size_t wait_time = get_random_wait_time(id_json["pub_key"].ToString());
             if (cut_wait_time >= wait_time)
@@ -99,32 +98,31 @@ void work_report_loop(void)
             }
             wait_time = std::max(wait_time, (size_t)REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT);
 
-            p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header->number + (wait_time / BLOCK_INTERVAL) + 1);
-            block_header->number = (block_header->number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
+            p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header.number + (wait_time / BLOCK_INTERVAL) + 1);
+            block_header.number = (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
             sleep(wait_time);
 
             // Get confirmed block hash
-            block_header->hash = p_chain->get_block_hash(block_header->number);
-            if (block_header->hash == "" || block_header->hash == "0000000000000000000000000000000000000000000000000000000000000000")
+            block_header.hash = p_chain->get_block_hash(block_header.number);
+            if (block_header.hash == "" || block_header.hash == "0000000000000000000000000000000000000000000000000000000000000000")
             {
                 p_log->warn("Get block hash failed");
                 goto loop;
             }
 
-            target_block_height = block_header->number + REPORT_BLOCK_HEIGHT_BASE;
+            target_block_height = block_header.number + REPORT_BLOCK_HEIGHT_BASE;
         }
         else
         {
-            block_header = new crust::BlockHeader();
-            block_header->hash = "1000000000000000000000000000000000000000000000000000000000000001";
-            block_header->number = offline_base_height;
+            block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
+            block_header.number = offline_base_height;
             offline_base_height += REPORT_BLOCK_HEIGHT_BASE;
             sleep(60);
         }
 
         // Get signed validation report
         if (SGX_SUCCESS != Ecall_gen_and_upload_work_report(global_eid, &crust_status,
-                block_header->hash.c_str(), block_header->number))
+                block_header.hash.c_str(), block_header.number))
         {
             p_log->err("Get signed work report failed!Message:Invoke SGX API failed!\n");
         }
