@@ -565,12 +565,12 @@ entry_network_flag:
         if (UPGRADE_STATUS_END == ed->get_upgrade_status())
         {
             p_log->info("Start generating upgrade data...\n");
-            crust::BlockHeader *block_header = crust::Chain::get_instance()->get_block_header();
-            if (block_header == NULL)
+            crust::BlockHeader block_header;
+            if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
                 p_log->err("Get block header failed!Please check your crust-api and crust chain!\n");
             }
-            else if (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, block_header->number)))
+            else if (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, block_header.number)))
             {
                 p_log->err("Generate upgrade metadata failed! Invoke SGX API failed! Error code:%lx.Try next turn!\n", sgx_status);
             }

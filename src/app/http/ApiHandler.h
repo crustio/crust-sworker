@@ -293,14 +293,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
-            crust::BlockHeader *block_header = crust::Chain::get_instance()->get_block_header();
-            if (block_header == NULL)
+            crust::BlockHeader block_header;
+            if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
                 ret_info = "Chain is not running!Get block header failed!";
                 res.result(402);
                 p_log->err("%s\n", ret_info.c_str());
             }
-            else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header->number)))
+            else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header.number)))
             {
                 ret_info = "Invoke SGX API failed!";
                 res.result(403);

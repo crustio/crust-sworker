@@ -51,20 +51,19 @@ Chain::~Chain()
 }
 
 /**
- * @description: get laster block header from chain
- * @return: the point of block header
+ * @description: get latest block header from chain
+ * @return: true or false
  */
-BlockHeader *Chain::get_block_header(void)
+bool Chain::get_block_header(BlockHeader& block_header)
 {
     std::string path = this->url + "/block/header";
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
     {
         json::JSON block_header_json = json::JSON::Load(res.body());
-        BlockHeader *block_header = new BlockHeader();
-        block_header->hash = block_header_json["hash"].ToString().erase(0,2);
-        block_header->number = block_header_json["number"].ToInt();
-        return block_header;
+        block_header.hash = block_header_json["hash"].ToString().erase(0,2);
+        block_header.number = block_header_json["number"].ToInt();
+        return true;
     }
 
     if (res.body().size() != 0)
@@ -76,7 +75,7 @@ BlockHeader *Chain::get_block_header(void)
         p_log->err("%s\n", "return body is null");
     }
 
-    return NULL;
+    return false;
 }
 
 
@@ -171,20 +170,20 @@ bool Chain::wait_for_running(void)
 
     while (true)
     {
-        crust::BlockHeader *block_header = this->get_block_header();
-        if (block_header == NULL)
+        crust::BlockHeader block_header;
+        if (!this->get_block_header(block_header))
         {
             p_log->info("Waiting for chain to run...\n");
             sleep(3);
         }
 
-        if (block_header->number >= start_block_height)
+        if (block_header.number >= start_block_height)
         {
             break;
         }
         else
         {
-            p_log->info("Wait for the chain to execute after %lu blocks, now is %lu ...\n", start_block_height, block_header->number);
+            p_log->info("Wait for the chain to execute after %lu blocks, now is %lu ...\n", start_block_height, block_header.number);
             sleep(3);
         }
     }
@@ -197,10 +196,10 @@ bool Chain::wait_for_running(void)
         }
         else
         {
-            crust::BlockHeader *block_header = this->get_block_header();
-            if (block_header != NULL)
+            crust::BlockHeader block_header;
+            if (this->get_block_header(block_header))
             {
-                p_log->info("Wait for chain synchronization to complete, currently synchronized to the %lu block\n", block_header->number);
+                p_log->info("Wait for chain synchronization to complete, currently synchronized to the %lu block\n", block_header.number);
             }
             else
             {
