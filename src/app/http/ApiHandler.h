@@ -549,6 +549,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             // Parse paramters
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
+            if (cid.size() != CID_LENGTH)
+            {
+                p_log->err("Invalid cid!\n");
+                res.body() = "Invalid cid!";
+                res.result(400);
+                goto postcleanup;
+            }
 
             // ----- Seal file ----- //
             sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str());

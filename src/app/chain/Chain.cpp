@@ -197,7 +197,7 @@ bool Chain::wait_for_running(void)
         }
         else
         {
-			crust::BlockHeader block_header;
+            crust::BlockHeader block_header;
             if (this->get_block_header(block_header))
             {
                 p_log->info("Wait for chain synchronization to complete, currently synchronized to the %lu block\n", block_header.number);

@@ -99,7 +99,7 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
     memset(*p_data_out, 0, res_data.size());
     memcpy(*p_data_out, res_data.c_str(), res_data.size());
 
-    return res.body().size();
+    return res_data.size();
 }
 
 /**	

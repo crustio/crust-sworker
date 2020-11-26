@@ -29,7 +29,7 @@ enclave {
         public crust_status_t ecall_verify_and_upload_identity([in, count=len] char ** IASReport, size_t len);
 
         public crust_status_t ecall_seal_file([in, string] const char *cid);
-        public crust_status_t ecall_unseal_file([in, string] const char *data, size_t data_size);
+        public crust_status_t ecall_unseal_file([in, size=data_size] const char *data, size_t data_size);
         public crust_status_t ecall_delete_file([in, string] const char *hash);
 
         public crust_status_t ecall_gen_upgrade_data(size_t block_height);

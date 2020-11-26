@@ -74,6 +74,11 @@ crust_status_t entry_network()
             sleep(60);
             status = sgx_init_quote(&target_info, &epid_gid);
         }
+        else if (SGX_ERROR_UPDATE_NEEDED == status)
+        {
+            p_log->err("SGX init quote failed!You should upgrade your BIOS.Error code:%lx\n", status);
+            return CRUST_DEVICE_ERROR;
+        }
         else
         {
             p_log->err("SGX init quote failed!Error code: %lx\n", status);

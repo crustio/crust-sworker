@@ -82,9 +82,9 @@ crust_status_t storage_seal_file(const char *cid)
     }
 
     // Print sealed file information
-    log_info("Seal complete, file info; hash: %s -> size: %ld, status: valid\n",
+    log_info("Seal complete, file info; cid: %s -> size: %ld, status: valid\n",
             file_entry_json[FILE_CID].ToString().c_str(),
-            file_entry_json[FILE_SIZE].ToInt());
+            file_entry_json[FILE_OLD_SIZE].ToInt());
 
     // Add new file to buffer
     wl->add_new_file(file_entry_json);
@@ -139,6 +139,11 @@ crust_status_t _storage_seal_file(const char *cid,
     crust_status = storage_ipfs_get_block(cid, &p_block_data, &block_size);
     if (CRUST_SUCCESS != crust_status)
     {
+        if (is_first)
+        {
+            free(sealed_buffer);
+            free(sealed_buffer_offset);
+        }
         return crust_status;
     }
 
@@ -149,6 +154,11 @@ crust_status_t _storage_seal_file(const char *cid,
     if (memcmp(cid, real_cid.c_str(), CID_LENGTH) != 0)
     {
         free(p_block_data);
+        if (is_first)
+        {
+            free(sealed_buffer);
+            free(sealed_buffer_offset);
+        }
         return CRUST_UNEXPECTED_ERROR;
     }
 
@@ -199,25 +209,27 @@ crust_status_t _storage_seal_file(const char *cid,
     free(p_block_data);
     if (CRUST_SUCCESS != crust_status)
     {
+        if (is_first)
+        {
+            free(sealed_buffer);
+            free(sealed_buffer_offset);
+        }
         return crust_status;
     }
-    if (children_hashs.size() > 0)
+    for (size_t i = 0; i < children_hashs.size(); i++)
     {
-        for (size_t i = 0; i < children_hashs.size(); i++)
+        std::string child_cid = hash_to_cid(children_hashs[i]);
+        crust_status = _storage_seal_file(child_cid.c_str(), sealed_size, origin_size, block_num, sealed_buffer, sealed_buffer_offset, tree);
+        if (CRUST_SUCCESS != crust_status)
         {
-            std::string child_cid = hash_to_cid(children_hashs[i]);
-            crust_status = _storage_seal_file(child_cid.c_str(), sealed_size, origin_size, block_num, sealed_buffer, sealed_buffer_offset, tree);
-            if (CRUST_SUCCESS != crust_status)
+            log_err("Seal sub data failed!Error code:%lx\n", crust_status);
+            for (size_t j = i; j < children_hashs.size(); j++)
             {
-                log_err("Seal sub data failed!Error code:%lx\n", crust_status);
-                for (size_t j = i; j < children_hashs.size(); j++)
-                {
-                    free(children_hashs[j]);
-                }
-                break;
+                free(children_hashs[j]);
             }
-            free(children_hashs[i]);
+            break;
         }
+        free(children_hashs[i]);
     }
 
     // ----- Will quit from loop ----- //
