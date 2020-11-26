@@ -72,10 +72,12 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
         return 0;
     }
 
-    *p_data_out = new unsigned char[res.body().size()];
-    std::copy(res.body().begin(), res.body().end(), *p_data_out);
+    std::string res_data = res.body();
+    *p_data_out = (uint8_t *)malloc(res_data.size());
+    memset(*p_data_out, 0, res_data.size());
+    memcpy(*p_data_out, res_data.c_str(), res_data.size());
 
-    return res.body().size();
+    return res_data.size();
 }
 
 /**	
@@ -92,8 +94,10 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
         return 0;
     }
 
-    *p_data_out = new unsigned char[res.body().size()];
-    std::copy(res.body().begin(), res.body().end(), *p_data_out);
+    std::string res_data = res.body();
+    *p_data_out = (uint8_t *)malloc(res_data.size());
+    memset(*p_data_out, 0, res_data.size());
+    memcpy(*p_data_out, res_data.c_str(), res_data.size());
 
     return res.body().size();
 }
@@ -119,4 +123,21 @@ std::string Ipfs::add(unsigned char *p_data_in, size_t size)
     json::JSON obj = json::JSON::Load(res.body());
 
     return obj["Hash"].ToString();
+}
+
+/**	
+ * @description: Delete file	
+ * @return: Delete result
+ * */
+bool Ipfs::del(std::string cid)
+{
+    std::string path = this->url + "/pin/rm?arg=" + cid;
+    http::response<http::string_body> res = ipfs_client->Post(path);
+    if ((int)res.result() != 200)
+    {
+        p_log->err("Delete file error, code is: %d\n", (int)res.result());
+        return false;
+    }
+
+    return true;
 }

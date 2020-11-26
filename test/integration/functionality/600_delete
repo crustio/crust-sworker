@@ -28,7 +28,7 @@ trap 'seal_exit' EXIT
 . $scriptdir/utils.sh
 
 
-declare -A hash_2_use_m
+declare -A cid_2_use_m
 data_arry=($(ls $datadir))
 data_size=${#data_arry[@]}
 acc=6
@@ -37,64 +37,44 @@ acc=6
 while [ $acc -gt 0 ]; do
     # Randomly seal file
     index=$(($RANDOM % $data_size))
-    seal_file $datadir/${data_arry[$index]} $testfiledir &>$TMPFILE
+    seal $datadir/${data_arry[$index]} &>$TMPFILE
     if [ $? -ne 0 ]; then
         verbose ERROR "Seal file failed!" n
         exit 1
     fi
-    sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    if [ x"$sealed_hash" != x"" ] && [ ${#sealed_hash} -ge 64 ]; then
-        sealed_hash=${sealed_hash:0:64}
-        hash_2_use_m[$sealed_hash]=0
+    cid=$(cat $TMPFILE 2>/dev/null)
+    if [ x"$cid" != x"" ] && [ ${#cid} -ge 46 ]; then
+        cid=${cid:0:46}
+        cid_2_use_m[$cid]=0
     else
-        verbose ERROR "Cannot get wrong sealed hash($sealed_hash)!" n
+        verbose ERROR "Cannot get wrong sealed cid($cid)!" n
         exit 1
     fi
     ((acc--))
 done
 
-# Delete unconfirmed file
-acc=2
-for hash in ${!hash_2_use_m[@]}; do
-    delete_file $hash &>$TMPFILE
-    if [ $? -ne 0 ]; then
-        verbose ERROR "delete file failed!" n
-        exit 1
-    fi
-    hash_2_use_m[$hash]=1
-    _store_meta &>/dev/null
-    if ! check_hash "$hash" "deleted"; then
-        verbose ERROR "delete file:$hash failed!Find hash in workload" n
-        exit 1
-    fi
-    ((acc--))
-    if [ $acc -le 0 ]; then
-        break
-    fi
-done
-
-# Delete confirmed file sequently
+# Delete valid file sequently
 acc=0
-confirm_arry=()
-for hash in ${!hash_2_use_m[@]}; do
-    if [ ${hash_2_use_m[$hash]} -eq 0 ]; then
-        confirm_arry[$acc]=$hash
-        confirm $hash &>$TMPFILE &
+valid_arry=()
+for cid in ${!cid_2_use_m[@]}; do
+    if [ ${cid_2_use_m[$cid]} -eq 0 ]; then
+        valid_arry[$acc]=$cid
+        confirm $cid &>$TMPFILE &
         ((acc++))
     fi
 done
 sleep 3
 acc=2
-for hash in ${confirm_arry[@]}; do
-    delete_file $hash &>/dev/null
+for cid in ${valid_arry[@]}; do
+    delete_file $cid &>/dev/null
     if [ $? -ne 0 ]; then
         verbose ERROR "delete file sequently failed!" n
         exit 1
     fi
-    hash_2_use_m[$hash]=1
+    cid_2_use_m[$cid]=1
     _store_meta &>/dev/null
-    if ! check_hash "$hash" "deleted"; then
-        verbose ERROR "delete file:$hash failed!Find hash in workload" n
+    if ! check_hash "$cid" "deleted"; then
+        verbose ERROR "delete file:$cid failed!Find cid in workload" n
         exit 1
     fi
     ((acc--))
@@ -106,16 +86,16 @@ done
 # Delete confirmed file concurrently
 delete_arry=()
 acc=0
-for hash in ${confirm_arry[@]}; do
-    if [ ${hash_2_use_m[$hash]} -eq 0 ]; then
-        delete_file $hash &>/dev/null &
-        delete_arry[$acc]=$hash
+for cid in ${valid_arry[@]}; do
+    if [ ${cid_2_use_m[$cid]} -eq 0 ]; then
+        delete_file $cid &>/dev/null &
+        delete_arry[$acc]=$cid
         ((acc++))
     fi
 done
 _store_meta &>/dev/null
-for hash in ${delete_arry[@]}; do
-    if ! check_hash "$hash" "deleted"; then
+for cid in ${delete_arry[@]}; do
+    if ! check_hash "$cid" "deleted"; then
         verbose ERROR "delete file concurrently failed!" n
         exit 1
     fi

@@ -27,7 +27,6 @@
 #include "DataBase.h"
 #include "Chain.h"
 #include "EntryNetwork.h"
-#include "tbb/concurrent_unordered_map.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -48,11 +47,11 @@ extern "C"
     crust_status_t ocall_save_file(const char *file_path, const unsigned char *data, size_t len);
     size_t ocall_get_folders_number_under_path(const char *path);
     crust_status_t ocall_delete_folder_or_file(const char *path);
-    void ocall_store_sealed_merkletree(const char *org_root_hash, const char *tree_data, size_t tree_len);
     void ocall_get_sub_folders_and_files(const char *path, char ***files, size_t *files_num);
     crust_status_t ocall_replace_file(const char *old_path, const char *new_path, const uint8_t *data, size_t len);
     crust_status_t ocall_get_file(const char *file_path, unsigned char **p_file, size_t *len);
     crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_file, size_t *len);
+    void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_data, size_t unsealed_data_len);
     
     void ocall_usleep(int u);
     crust_status_t ocall_free_outer_buffer(uint8_t **value);

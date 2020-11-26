@@ -237,8 +237,8 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
     sgx_thread_mutex_lock(&g_checked_files_mutex);
 
-    size_t file_item_len = strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
-        + strlen(FILE_OLD_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
+    size_t file_item_len = strlen(FILE_CID) + 3 + CID_LENGTH + 3
+        + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
         + strlen(FILE_SIZE) + 3 + 12 + 1
         + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
         + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1

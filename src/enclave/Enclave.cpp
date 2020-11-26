@@ -29,6 +29,11 @@ void ecall_srd_increase(const char* path)
  */
 size_t ecall_srd_decrease(long change)
 {
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return 0;
+    }
+
     sched_add(SCHED_SRD_CHANGE);
     size_t ret = srd_decrease(change);
     sched_del(SCHED_SRD_CHANGE);
@@ -52,6 +57,11 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
  */
 void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
 {
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
     sched_add(SCHED_SRD_CHECK_RESERVED);
     srd_update_metadata(hashs, hashs_len);
     sched_del(SCHED_SRD_CHECK_RESERVED);
@@ -186,14 +196,10 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 
 /**
  * @description: Seal file according to given path and return new MerkleTree
- * @param p_tree (in) -> Pointer to MerkleTree json structure buffer 
- * @param tree_len -> MerkleTree json structure buffer length
- * @param path (in) -> Reference to file path
- * @param p_new_path (out) -> Pointer to sealed data path
- * @param path_len -> File path length
+ * @param cid (in) -> Pointer to ipfs content id
  * @return: Seal status
  */
-crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *path, char *p_new_path , size_t path_len)
+crust_status_t ecall_seal_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
@@ -201,7 +207,7 @@ crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *
     }
 
     sched_add(SCHED_SEAL);
-    crust_status_t ret = storage_seal_file(p_tree, tree_len, path, path_len, p_new_path);
+    crust_status_t ret = storage_seal_file(cid);
     sched_del(SCHED_SEAL);
 
     return ret;
@@ -209,14 +215,10 @@ crust_status_t ecall_seal_file(const char *p_tree, size_t tree_len, const char *
 
 /**
  * @description: Unseal file according to given path
- * @param files (in) -> Files in root directory
- * @param files_num -> Files number in root directory
- * @param p_dir (in) -> Root directory path
- * @param p_new_path (out) -> Pointer to unsealed data path
- * @param path_len -> Root dir path length
+ * @param data (in) -> Pointer to sealed data
  * @return: Unseal status
  */
-crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_dir, char *p_new_path, uint32_t /*path_len*/)
+crust_status_t ecall_unseal_file(const char *data, size_t data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
@@ -224,7 +226,7 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
     }
 
     sched_add(SCHED_UNSEAL);
-    crust_status_t ret = storage_unseal_file(files, files_num, p_dir, p_new_path);
+    crust_status_t ret = storage_unseal_file(data, data_size);
     sched_del(SCHED_UNSEAL);
 
     return ret;
@@ -235,7 +237,7 @@ crust_status_t ecall_unseal_file(char **files, size_t files_num, const char *p_d
  * @param hash (in) -> File root hash
  * @return: Delete status
  */
-crust_status_t ecall_delete_file(const char *hash)
+crust_status_t ecall_delete_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
@@ -243,7 +245,7 @@ crust_status_t ecall_delete_file(const char *hash)
     }
 
     sched_add(SCHED_DELETE_FILE);
-    crust_status_t ret = storage_delete_file(hash);
+    crust_status_t ret = storage_delete_file(cid);
     sched_del(SCHED_DELETE_FILE);
 
     return ret;

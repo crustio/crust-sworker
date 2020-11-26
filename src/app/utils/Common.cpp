@@ -9,9 +9,9 @@ crust::Log *p_log = crust::Log::get_instance();
  * @param url -> base url, like: http://127.0.0.1:56666/api/v1
  * @return: Url end point
  */
-UrlEndPoint *get_url_end_point(std::string url)
+UrlEndPoint get_url_end_point(std::string url)
 {
-    UrlEndPoint *url_end_point = new UrlEndPoint();
+    UrlEndPoint url_end_point;
     std::string proto_type;
     size_t spos = 0, epos;
 
@@ -30,38 +30,38 @@ UrlEndPoint *get_url_end_point(std::string url)
         epos = url.find("/", spos);
         if (epos == url.npos)
         {
-            url_end_point->ip = url.substr(spos, url.length());
+            url_end_point.ip = url.substr(spos, url.length());
             goto parse_end;
         }
-        url_end_point->ip = url.substr(spos, epos - spos);
-        url_end_point->base = url.substr(epos, url.size());
+        url_end_point.ip = url.substr(spos, epos - spos);
+        url_end_point.base = url.substr(epos, url.size());
         p_log->warn("Parse url warn: Port not indicate, will assign port by protocol.\n");
         if (proto_type.compare("https") == 0)
         {
-            url_end_point->port = 443;
+            url_end_point.port = 443;
         }
         else if (proto_type.compare("http") == 0)
         {
-            url_end_point->port = 80;
+            url_end_point.port = 80;
         }
         else
         {
             p_log->warn("Parse url warn: Cannot assign port by protocal!\n");
         }
-        p_log->info("Parse url warn: Set port to:%d\n", url_end_point->port);
+        p_log->info("Parse url warn: Set port to:%d\n", url_end_point.port);
     }
     else
     {
-        url_end_point->ip = url.substr(spos, epos - spos);
+        url_end_point.ip = url.substr(spos, epos - spos);
         spos = epos + 1;
         epos = url.find("/", spos);
         if (epos == url.npos)
         {
-            url_end_point->port = std::atoi(url.substr(spos, epos - spos).c_str());
+            url_end_point.port = std::atoi(url.substr(spos, epos - spos).c_str());
             goto parse_end;
         }
-        url_end_point->port = std::atoi(url.substr(spos, epos - spos).c_str());
-        url_end_point->base = url.substr(epos, url.size());
+        url_end_point.port = std::atoi(url.substr(spos, epos - spos).c_str());
+        url_end_point.base = url.substr(epos, url.size());
     }
 
 parse_end:

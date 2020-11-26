@@ -61,7 +61,6 @@ confirm $hash &>/dev/null
 validate_file_real &>/dev/null
 test_add_file $file_num &>/dev/null
 validate_file &>/dev/null
-test_valid_file $file_num &>/dev/null
 ans["file($file_num)"]=$(get_exec_time "validate_file_bench &>/dev/null")
 
 # Get current available max per turn

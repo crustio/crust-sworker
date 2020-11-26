@@ -254,31 +254,47 @@ void validate_meaningful_file()
             continue;
         }
 
+        std::string root_cid = wl->checked_files[file_idx][FILE_CID].ToString();
         std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
         size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
-        crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
-        if (CRUST_SUCCESS != crust_status || p_data == NULL)
+        crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
+        if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_hash.c_str());
+            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
                 status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                 changed_idx2lost_um[file_idx] = true;
             }
+            if (p_data != NULL)
+            {
+                free(p_data);
+                p_data = NULL;
+            }
             continue;
         }
         // Validate merkle tree
-        std::string tree_str(reinterpret_cast<char *>(p_data), data_len);
+        std::string tree_str(reinterpret_cast<const char *>(p_data), data_len);
         if (p_data != NULL)
         {
             free(p_data);
             p_data = NULL;
         }
         json::JSON tree_json = json::JSON::Load(tree_str);
-        if (root_hash.compare(tree_json[FILE_HASH].ToString()) != 0 || CRUST_SUCCESS != validate_merkletree_json(tree_json))
+        bool valid_tree = true;
+        if (root_hash.compare(tree_json[MT_HASH].ToString()) != 0)
         {
-            log_err("File:%s merkle tree is not valid!\n", root_hash.c_str());
+            log_err("File:%s merkle tree is not valid!Root hash doesn't equal!\n", root_cid.c_str());
+            valid_tree = false;
+        }
+        if (CRUST_SUCCESS != (crust_status = validate_merkletree_json(tree_json)))
+        {
+            log_err("File:%s merkle tree is not valid!Invalid merkle tree,error code:%lx\n", root_cid.c_str(), crust_status);
+            valid_tree = false;
+        }
+        if (!valid_tree)
+        {
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
                 status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
@@ -288,12 +304,6 @@ void validate_meaningful_file()
         }
 
         // ----- Validate MerkleTree ----- //
-        // Note: should store serialized tree structure as "links_num":x,"hash":"xxxxx","size":
-        // be careful about "links_num", "hash" and "size" sequence
-        size_t spos, epos;
-        spos = epos = 0;
-        std::string stag = "\"" MT_LINKS_NUM "\":0,\"" MT_HASH "\":\"";
-        std::string etag = "\",\"" MT_SIZE "\"";
         // Get to be checked block index
         std::set<size_t> block_idx_s;
         for (size_t i = 0; i < MEANINGFUL_VALIDATE_MIN_BLOCK_NUM && i < file_block_num; i++)
@@ -307,6 +317,12 @@ void validate_meaningful_file()
             }
         }
         // Do check
+        // Note: should store serialized tree structure as "cid":x,"hash":"xxxxx"
+        // be careful to keep "cid", "hash" sequence
+        size_t spos, epos;
+        spos = epos = 0;
+        std::string cid_tag(MT_CID "\":\"");
+        std::string dhash_tag(MT_DATA_HASH "\":\"");
         size_t cur_block_idx = 0;
         bool checked_ret = true;
         for (auto check_block_idx : block_idx_s)
@@ -314,16 +330,16 @@ void validate_meaningful_file()
             // Get leaf node position
             do
             {
-                spos = tree_str.find(stag, spos);
+                spos = tree_str.find(cid_tag, spos);
                 if (spos == tree_str.npos)
                 {
                     break;
                 }
-                spos += stag.size();
+                spos += cid_tag.size();
             } while (cur_block_idx++ < check_block_idx);
-            if (spos == tree_str.npos || (epos = tree_str.find(etag, spos)) == tree_str.npos)
+            if (spos == tree_str.npos)
             {
-                log_err("Find file(%s) leaf node failed!node index:%ld\n", root_hash.c_str(), check_block_idx);
+                log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
                     status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
@@ -332,18 +348,36 @@ void validate_meaningful_file()
                 checked_ret = false;
                 break;
             }
-            // Get block data
-            std::string leaf_hash = tree_str.substr(spos, epos - spos);
-            std::string block_str = std::to_string(check_block_idx).append("_").append(leaf_hash);
+            // Get current node cid
+            std::string cur_cid = tree_str.substr(spos, CID_LENGTH);
+            // Get current node hash
+            epos = tree_str.find(dhash_tag, spos);
+            if (epos == tree_str.npos)
+            {
+                log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
+                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                {
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    changed_idx2lost_um[file_idx] = true;
+                }
+                checked_ret = false;
+                break;
+            }
+            epos += dhash_tag.size();
+            std::string leaf_hash = tree_str.substr(epos, HASH_LENGTH * 2);
+            // Compute current node hash by data
             uint8_t *p_sealed_data = NULL;
             size_t sealed_data_size = 0;
-            ocall_validate_get_file(&crust_status, root_hash.c_str(), block_str.c_str(),
-                                    &p_sealed_data, &sealed_data_size);
+            crust_status = storage_ipfs_cat(cur_cid.c_str(), &p_sealed_data, &sealed_data_size);
             if (CRUST_SUCCESS != crust_status)
             {
+                if (p_sealed_data != NULL)
+                {
+                    free(p_sealed_data);
+                }
                 if (CRUST_SERVICE_UNAVAILABLE == crust_status)
                 {
-                    log_err("Get file(%s) block:%ld failed!\n", root_hash.c_str(), check_block_idx);
+                    log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                     wl->set_report_file_flag(false);
                     return;
                 }
@@ -358,6 +392,10 @@ void validate_meaningful_file()
             // Validate hash
             sgx_sha256_hash_t got_hash;
             sgx_sha256_msg(p_sealed_data, sealed_data_size, &got_hash);
+            if (p_sealed_data != NULL)
+            {
+                free(p_sealed_data);
+            }
             uint8_t *leaf_hash_u = hex_string_to_bytes(leaf_hash.c_str(), leaf_hash.size());
             if (leaf_hash_u == NULL)
             {
@@ -368,9 +406,9 @@ void validate_meaningful_file()
             {
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    log_err("File(%s) Index:%ld block hash is not expected!\n", root_hash.c_str(), check_block_idx);
-                    //log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
-                    //log_err("Org hash : %s\n", leaf_hash.c_str());
+                    log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
+                    log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
+                    log_err("Org hash : %s\n", leaf_hash.c_str());
                     status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
                     changed_idx2lost_um[file_idx] = true;
                 }
@@ -399,13 +437,10 @@ void validate_meaningful_file()
             std::string old_status = (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]);
             std::string cur_status = g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)];
             log_info("File status changed, hash: %s status: %s -> %s\n",
-                    wl->checked_files[it.first][FILE_HASH].ToString().c_str(),
+                    wl->checked_files[it.first][FILE_CID].ToString().c_str(),
                     old_status.c_str(),
                     cur_status.c_str());
             wl->set_wl_spec(cur_status_c, old_status_c, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
         }
     }
-
-    // Unlock wl->checked_files
-    cf_lock.unlock();
 }

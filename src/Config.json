@@ -4,7 +4,7 @@
     "srd_paths" : ["/opt/crust/crust-sworker/<VERSION>/sworker_base_path/test1", "/opt/crust/crust-sworker/<VERSION>/sworker_base_path/test2"],
     "srd_init_capacity" : 4,
     
-    "karst_url":  "ws://0.0.0.0:17000/api/v0/node/data",
+    "ipfs_url":  "http://0.0.0.0:5001/api/v0",
 
     "chain" : {
         "base_url" : "http://127.0.0.1:56666/api/v1",

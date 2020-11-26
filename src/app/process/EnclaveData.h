@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string>
 #include <mutex>
+#include <unordered_map>
 
 #include "Resource.h"
 #include "SafeLock.h"
@@ -23,6 +24,9 @@ public:
     void set_upgrade_data(std::string data);
     upgrade_status_t get_upgrade_status();
     void set_upgrade_status(upgrade_status_t status);
+    void add_unsealed_data(std::string root, uint8_t *data, size_t data_size);
+    void get_unsealed_data(std::string root, const uint8_t **data, size_t *data_size);
+    void del_unsealed_data(std::string root);
 
 private:
     EnclaveData()
@@ -41,6 +45,9 @@ private:
     upgrade_status_t upgrade_status;
     // Upgrade status mutex
     std::mutex upgrade_status_mutex;
+    // Unsealed data map
+    std::unordered_map<std::string, std::pair<uint8_t *, size_t>> unsealed_data_um;
+    std::mutex unsealed_data_mutex;
 };
 
 #endif /* !_APP_ENCLAVE_DATA_H_ */

@@ -86,12 +86,10 @@ sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 
-crust_status_t validate_merkle_tree_c(MerkleTree *root);
 crust_status_t validate_merkletree_json(json::JSON tree);
-std::string serialize_merkletree_to_json_string(MerkleTree *root);
-MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json);
 void *enc_malloc(size_t size);
 void *enc_realloc(void *p, size_t size);
+void *enc_crealloc(void *p, size_t old_size, size_t new_size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
 void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex);

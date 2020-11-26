@@ -48,7 +48,6 @@ public:
     static Config *config;
 
     void show(void);
-    void change_srd_capacity(int change);
     static Config *get_instance();
     std::string get_config_path();
 

@@ -13,8 +13,6 @@ uint8_t *_sealed_data_buf = NULL;
 size_t _sealed_data_size = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
-// Used to temporarily store sealed serialized MerkleTree
-tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 
 extern std::mutex srd_info_mutex;
 extern bool offline_chain_mode;
@@ -320,18 +318,6 @@ crust_status_t ocall_get_storage_file(const char *file_path, unsigned char **p_f
 }
 
 /**
- * @description: Temporarily store sealed MerkleTree structure
- * @param org_root_hash -> Original MerkleTree root hash
- * @param tree_data -> Serialized MerkleTree
- * @param tree_len -> Serialized MerkleTree length 
- */
-void ocall_store_sealed_merkletree(const char *org_root_hash, const char *tree_data, size_t tree_len)
-{
-    std::string org_root_hash_str(org_root_hash);
-    sealed_tree_map[org_root_hash_str] = std::string(tree_data, tree_len);
-}
-
-/**
  * @description: Replace old file with new file
  * @param old_path -> Old file path
  * @param new_path -> New file path
@@ -605,4 +591,15 @@ void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
         str.append(data, data_size);
         EnclaveData::get_instance()->set_upgrade_data(str);
     }
+}
+
+/**
+ * @description: Store unsealed data
+ * @param unsealed_root -> Unsealed data root
+ * @param p_unsealed_data -> Unsealed data
+ * @param unsealed_data_len -> Unsealed data size
+ */
+void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_data, size_t unsealed_data_len)
+{
+    EnclaveData::get_instance()->add_unsealed_data(unsealed_root, p_unsealed_data, unsealed_data_len);
 }

@@ -100,10 +100,15 @@ function check_hash()
 
 function seal()
 {
-    local tree=$1
-    local path=$2
+    local cid=$(add_file "$1" | jq '.Hash')
+    curl -s -XPOST $baseurl/storage/seal --data-raw "{\"cid\":$cid}" &>/dev/null
+    echo $cid
+}
 
-    curl -s -XPOST $baseurl/storage/seal --data-raw "{\"body\":$tree,\"path\":\"$path\"}"
+function add_file()
+{
+    local data_path="$1"
+    curl -s -XPOST 'http://127.0.0.1:5001/api/v0/add'  --form "=@${data_path}"
 }
 
 function seal_file()
@@ -234,15 +239,6 @@ function test_add_file()
         file_num=1000
     fi
     curl -s -XGET $baseurl/test/add_file --data-raw "{\"file_num\":$file_num}"
-}
-
-function test_valid_file()
-{
-    local file_num=$1
-    if [ x"$file_num" = x"" ]; then
-        file_num=1000
-    fi
-    curl -s -XGET $baseurl/test/valid_file --data-raw "{\"file_num\":$file_num}"
 }
 
 function test_lost_file()

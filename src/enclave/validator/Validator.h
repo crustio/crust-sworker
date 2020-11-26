@@ -14,6 +14,7 @@
 #include "EUtils.h"
 #include "Parameter.h"
 #include "SafeLock.h"
+#include "Storage.h"
 
 void validate_srd();
 void validate_meaningful_file();

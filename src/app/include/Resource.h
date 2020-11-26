@@ -2,6 +2,7 @@
 #define _CRUST_RESOURCE_H_
 
 #include <stdint.h>
+#include "../enclave/include/Parameter.h"
 
 #define VERSION "0.6.0"
 
@@ -17,7 +18,6 @@
 // REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT > 0
 #define REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT 10
 
-#define HASH_LENGTH 32
 #define SEAL_BLOCK_MAX_SIZE 2097152 /* 2*1024*1024 */
 #define WEB_TIMEOUT 1000
 #define ENCLAVE_MALLOC_TRYOUT 3
