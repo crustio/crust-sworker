@@ -105,23 +105,6 @@ void Config::show(void)
 }
 
 /**
- * @description: change srd capacity
- * @param change -> the number of srd capacity changed 
- */
-void Config::change_srd_capacity(int change)
-{
-    // Get now srd_capacity
-    if (change >= 0 || (size_t)-change <= this->srd_capacity)
-    {
-        this->srd_capacity += change;
-    }
-    else
-    {
-        this->srd_capacity = 0;
-    }
-}
-
-/**
  * @description: Get configure file path
  * @return: Configure file path
  */

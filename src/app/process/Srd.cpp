@@ -230,7 +230,7 @@ void srd_change(long change)
                     p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
                     break;
                 default:
-                    p_log->info("Unexpected error has occurred!\n");
+                    p_log->err("Unexpected error has occurred!\n");
                 }
             }
             //p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
@@ -270,28 +270,34 @@ void srd_change(long change)
         // ----- Do srd ----- //
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
         ctpl::thread_pool pool(p_config->srd_thread_num);
-        std::vector<std::shared_ptr<std::future<void>>> tasks_v;
+        std::vector<std::shared_ptr<std::future<sgx_status_t>>> tasks_v;
         for (size_t i = 0; i < srd_paths.size(); i++)
         {
             std::string path = srd_paths[i];
             sgx_enclave_id_t eid = global_eid;
             //tasks_v.push_back(std::make_shared<std::future<void>>(std::async(std::launch::async, [eid, path](){
-            tasks_v.push_back(std::make_shared<std::future<void>>(pool.push([eid, path](int /*id*/){
+            tasks_v.push_back(std::make_shared<std::future<sgx_status_t>>(pool.push([eid, path](int /*id*/){
                 if (SGX_SUCCESS != Ecall_srd_increase(eid, path.c_str()))
                 {
                     // If failed, add current task to next turn
                     crust_status_t crust_status = CRUST_SUCCESS;
                     long real_change = 0;
                     Ecall_change_srd_task(global_eid, &crust_status, 1, &real_change);
+                    return SGX_ERROR_UNEXPECTED;
                 }
+                return SGX_SUCCESS;
             })));
         }
         // Wait for srd task
+        size_t srd_success_num = 0;
         for (auto it : tasks_v)
         {
             try 
             {
-                it->get();
+                if (SGX_SUCCESS == it->get())
+                {
+                    srd_success_num++;
+                }
             }
             catch (std::exception &e)
             {
@@ -300,8 +306,14 @@ void srd_change(long change)
             }
         }
 
-        p_config->change_srd_capacity(true_increase);
-        p_log->info("Increase %dG srd files success, the srd workload will change gradually in next validation loops\n", true_increase);
+        if (srd_success_num < true_increase)
+        {
+            p_log->info("Srd task: %dG, success: %dG, failed: %dG. The srd workload will change gradually in next validation loops\n", true_increase, srd_success_num, true_increase - srd_success_num);
+        }
+        else
+        {
+            p_log->info("Increase %dG srd files success, the srd workload will change gradually in next validation loops\n", true_increase);
+        }
     }
     else if (change < 0)
     {
@@ -317,7 +329,6 @@ void srd_change(long change)
         p_log->info("True decreased space is:%d\n", true_decrease);
         Ecall_srd_decrease(global_eid, &ret_size, true_decrease);
         total_decrease_size = ret_size;
-        p_config->change_srd_capacity(total_decrease_size);
         p_log->info("Decrease %luG srd files success, the srd workload will change in next validation loop\n", total_decrease_size);
     }
 }

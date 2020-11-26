@@ -21,6 +21,7 @@ public:
     size_t block_get(const char *cid, unsigned char **p_data_out);
     size_t cat(const char *cid, unsigned char **p_data_out);
     std::string add(unsigned char *p_data_in, size_t size);
+    bool del(std::string cid);
 };
 
 #endif /* !_CRUST_IPFS_H_ */

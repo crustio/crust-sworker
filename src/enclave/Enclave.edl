@@ -28,8 +28,8 @@ enclave {
         public sgx_status_t ecall_gen_key_pair([in, size=len] const char *account_id, size_t len);
         public crust_status_t ecall_verify_and_upload_identity([in, count=len] char ** IASReport, size_t len);
 
-        public crust_status_t ecall_seal_file([in, size=tree_len] const char *p_tree, size_t tree_len, [in, size=path_len] const char *path, [out, size=path_len] char *p_new_path , size_t path_len);
-        public crust_status_t ecall_unseal_file([in, count=files_num] char **files, size_t files_num, [in, string] const char *p_dir, [out, size=path_len] char *p_new_path, uint32_t path_len);
+        public crust_status_t ecall_seal_file([in, string] const char *cid);
+        public crust_status_t ecall_unseal_file([in, size=data_size] const char *data, size_t data_size);
         public crust_status_t ecall_delete_file([in, string] const char *hash);
 
         public crust_status_t ecall_gen_upgrade_data(size_t block_height);
@@ -60,9 +60,10 @@ enclave {
         void ocall_usleep(int u);
 
         bool ocall_ipfs_online();
-        crust_status_t ocall_ipfs_block_get([in, string] const char *cid, [out] unsigned char **p_data, [out] size_t *len);
-        crust_status_t ocall_ipfs_cat([in, string] const char *cid, [out] unsigned char **p_data, [out] size_t *len);
-        crust_status_t ocall_ipfs_add([in, size=len] const uint8_t *p_data, size_t len, [out] char **cid, [out] size_t *cid_len);
+        crust_status_t ocall_ipfs_get_block([in, string] const char *cid, [out] uint8_t **p_data, [out] size_t *data_size);
+        crust_status_t ocall_ipfs_cat([in, string] const char *cid, [out] uint8_t **p_data, [out] size_t *data_size);
+        crust_status_t ocall_ipfs_add([in, size=len] uint8_t *p_data, size_t len, [out, size=cid_len] char *cid, size_t cid_len);
+        crust_status_t ocall_ipfs_del([in, string] const char *cid);
 
         crust_status_t ocall_persist_add([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
         crust_status_t ocall_persist_add_keys([in, string] const char *key, [in, size=keys_len] const char *keys, size_t keys_len);
@@ -87,9 +88,9 @@ enclave {
 
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
 
-        void ocall_store_sealed_merkletree([in, string] const char *org_root_hash, [in, size=tree_len] const char *tree_data, size_t tree_len);
         void ocall_store_enclave_id_info([in, string] const char *info);
         void ocall_store_workload([in, size=data_size] const char *data, size_t data_size, bool cover);
         void ocall_store_upgrade_data([in, size=data_size] const char *data, size_t data_size, bool cover);
+        void ocall_store_unsealed_data([in, string] const char *unsealed_root, [in, size=unsealed_data_len] uint8_t *p_unsealed_data, size_t unsealed_data_len);
     };
 };

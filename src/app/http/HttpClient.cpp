@@ -158,10 +158,10 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
 
     try
     {
-        UrlEndPoint *url_end_point = get_url_end_point(url);
-        auto const host = url_end_point->ip.c_str();
-        auto port = std::to_string(url_end_point->port).c_str();
-        auto const path = url_end_point->base.c_str();
+        UrlEndPoint url_end_point = get_url_end_point(url);
+        auto const host = url_end_point.ip.c_str();
+        auto port = std::to_string(url_end_point.port).c_str();
+        auto const path = url_end_point.base.c_str();
         int version = 10;
         if (std::strncmp(port, "-1", 2) == 0)
         {
@@ -274,10 +274,10 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
 
     try
     {
-        UrlEndPoint *url_end_point = get_url_end_point(url);
-        auto const host = url_end_point->ip.c_str();
-        auto const port = std::to_string(url_end_point->port).c_str();
-        auto const path = url_end_point->base.c_str();
+        UrlEndPoint url_end_point = get_url_end_point(url);
+        auto const host = url_end_point.ip.c_str();
+        auto const port = std::to_string(url_end_point.port).c_str();
+        auto const path = url_end_point.base.c_str();
         int version = 10;
 
         // The io_context is required for all I/O

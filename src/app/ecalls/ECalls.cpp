@@ -499,14 +499,9 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
 /**
  * @description: A wrapper function, Seal file according to given path and return new MerkleTree
  * @param status -> Pointer to seal result status
- * @param p_tree (in) -> Pointer to MerkleTree json structure buffer 
- * @param tree_len -> MerkleTree json structure buffer length
- * @param path (in) -> Reference to file path
- * @param p_new_path (out) -> Pointer to sealed data path
- * @param path_len -> Pointer to file path length
+ * @param cid -> Ipfs content id
  */
-sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *p_tree, size_t tree_len, const char *path, 
-        char *p_new_path , size_t path_len)
+sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -514,7 +509,7 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
         return ret;
     }
 
-    ret = ecall_seal_file(eid, status, p_tree, tree_len, path, p_new_path, path_len);
+    ret = ecall_seal_file(eid, status, cid);
 
     free_enclave(__FUNCTION__);
 
@@ -530,8 +525,7 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
  * @param p_new_path (out) -> Pointer to unsealed data path
  * @param path_len -> Root dir path length
  */
-sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, char **files, size_t files_num, const char *p_dir, 
-        char *p_new_path, uint32_t path_len)
+sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *data, size_t data_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -539,7 +533,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, cha
         return ret;
     }
 
-    ret = ecall_unseal_file(eid, status, files, files_num, p_dir, p_new_path, path_len);
+    ret = ecall_unseal_file(eid, status, data, data_size);
 
     free_enclave(__FUNCTION__);
 

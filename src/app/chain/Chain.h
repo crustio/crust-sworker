@@ -26,7 +26,7 @@ private:
 public:
     static Chain *chain;
     static Chain *get_instance();
-    BlockHeader *get_block_header(void);
+    bool get_block_header(BlockHeader &block_header);
     std::string get_block_hash(size_t block_number);
     bool post_sworker_identity(std::string identity);
     bool post_sworker_work_report(std::string work_report);

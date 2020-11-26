@@ -18,10 +18,10 @@
 #define ID_CHAIN_ACCOUNT_ID "chain_account_id"
 
 // For meaningful file
+#define FILE_CID "cid"
 #define FILE_HASH "hash"
 #define FILE_SIZE "size"
 #define FILE_OLD_SIZE "old_size"
-#define FILE_OLD_HASH "old_hash"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_STATUS "status"
 #define FILE_STATUS_VALID '0'
@@ -34,16 +34,18 @@
 // Old status
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 200000
+#define FILE_CAL_BUFFER_SIZE 8388608
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
 #define DB_WL_SPEC_INFO "wl_spec_info"
 
 // For Merkle tree
-#define MT_LINKS_NUM "links_num"
-#define MT_LINKS "links"
+#define MT_CID "cid"
 #define MT_HASH "hash"
-#define MT_SIZE "size"
+#define MT_DATA_HASH "d_hash"
+#define MT_LINKS "links"
+#define MT_LINKS_NUM "l_num"
 
 // For IAS report
 #define IAS_CERT "ias_cert"
@@ -103,6 +105,7 @@
 
 // Basic parameters
 #define HASH_LENGTH 32
+#define CID_LENGTH 46
 #define ENC_MAX_THREAD_NUM  15
 #define ENCLAVE_MALLOC_TRYOUT 3
 

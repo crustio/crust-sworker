@@ -377,7 +377,7 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
     *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(sealed_data_sz);
-    if (p_sealed_data == NULL)
+    if (*p_sealed_data == NULL)
     {
         log_err("Malloc memory failed!\n");
         return CRUST_MALLOC_FAILED;
@@ -389,77 +389,12 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
     if (SGX_SUCCESS != sgx_status)
     {
         log_err("Seal data failed!Error code:%lx\n", sgx_status);
-        crust_status = CRUST_SEAL_DATA_FAILED;
+        free(*p_sealed_data);
         *p_sealed_data = NULL;
+        return CRUST_SEAL_DATA_FAILED;
     }
 
     *sealed_data_size = (size_t)sealed_data_sz;
-
-    return crust_status;
-}
-
-/**
- * @description: Validate Merkle file tree
- * @param tree -> root of Merkle tree
- * @return: Validate status
- */
-crust_status_t validate_merkle_tree_c(MerkleTree *tree)
-{
-    if (tree == NULL || tree->links_num == 0)
-    {
-        return CRUST_SUCCESS;
-    }
-
-    crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_sha256_hash_t parent_hash;
-
-    uint8_t *parent_hash_org = NULL;
-
-    uint8_t *children_hashs = (uint8_t *)enc_malloc(tree->links_num * HASH_LENGTH);
-    if (children_hashs == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(children_hashs, 0, tree->links_num * HASH_LENGTH);
-    for (uint32_t i = 0; i < tree->links_num; i++)
-    {
-        if (validate_merkle_tree_c(tree->links[i]) != CRUST_SUCCESS)
-        {
-            crust_status = CRUST_INVALID_MERKLETREE;
-            goto cleanup;
-        }
-        uint8_t *tmp_hash = hex_string_to_bytes(tree->links[i]->hash, HASH_LENGTH * 2);
-        if (tmp_hash == NULL)
-        {
-            crust_status = CRUST_INVALID_MERKLETREE;
-            goto cleanup;
-        }
-        memcpy(children_hashs + i * HASH_LENGTH, tmp_hash, HASH_LENGTH);
-        free(tmp_hash);
-    }
-
-    // Compute and compare hash value
-    sgx_sha256_msg(children_hashs, tree->links_num * HASH_LENGTH, &parent_hash);
-
-    parent_hash_org = hex_string_to_bytes(tree->hash, HASH_LENGTH * 2);
-    if (parent_hash_org == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
-    {
-        crust_status = CRUST_INVALID_MERKLETREE;
-        goto cleanup;
-    }
-
-cleanup:
-
-    free(children_hashs);
-
-    if (parent_hash_org != NULL)
-        free(parent_hash_org);
 
     return crust_status;
 }
@@ -471,39 +406,45 @@ cleanup:
  */
 crust_status_t validate_merkletree_json(json::JSON tree)
 {
-    if (tree[MT_LINKS_NUM].ToInt() == 0)
+    if (tree[MT_LINKS].size() == 0)
     {
         return CRUST_SUCCESS;
     }
 
-    if (tree[MT_LINKS_NUM].ToInt() != tree[MT_LINKS].size())
+    if (tree[MT_LINKS].size() < 0)
     {
-        return CRUST_INVALID_MERKLETREE;
+        return CRUST_UNEXPECTED_ERROR;
     }
 
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_sha256_hash_t parent_hash;
-
     uint8_t *parent_hash_org = NULL;
+    uint8_t *parent_data_hash = NULL;
 
-    uint8_t *children_hashs = (uint8_t *)enc_malloc(tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
+    // Validate sub tree and get all sub trees hash data
+    size_t children_buffer_size = tree[MT_LINKS].size() * HASH_LENGTH;
+    uint8_t *children_hashs = (uint8_t *)enc_malloc(children_buffer_size);
     if (children_hashs == NULL)
     {
-        log_err("Malloc memory failed!\n");
         return CRUST_MALLOC_FAILED;
     }
-    memset(children_hashs, 0, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH);
-    for (int i = 0; i < tree[MT_LINKS_NUM].ToInt(); i++)
+    memset(children_hashs, 0, children_buffer_size);
+    for (int i = 0; i < tree[MT_LINKS].size(); i++)
     {
-        if (validate_merkletree_json(tree[MT_LINKS][i]) != CRUST_SUCCESS)
+        if (tree[MT_LINKS][i].hasKey(MT_LINKS))
         {
-            crust_status = CRUST_INVALID_MERKLETREE;
-            goto cleanup;
+            if (validate_merkletree_json(tree[MT_LINKS][i]) != CRUST_SUCCESS)
+            {
+                crust_status = CRUST_INVALID_MERKLETREE;
+                goto cleanup;
+            }
         }
-        uint8_t *tmp_hash = hex_string_to_bytes(tree[MT_LINKS][i][MT_HASH].ToString().c_str(), HASH_LENGTH * 2);
+        std::string hash;
+        hash = tree[MT_LINKS][i][MT_DATA_HASH].ToString();
+        uint8_t *tmp_hash = hex_string_to_bytes(hash.c_str(), hash.size());
         if (tmp_hash == NULL)
         {
-            crust_status = CRUST_INVALID_MERKLETREE;
+            crust_status = CRUST_UNEXPECTED_ERROR;
             goto cleanup;
         }
         memcpy(children_hashs + i * HASH_LENGTH, tmp_hash, HASH_LENGTH);
@@ -511,8 +452,7 @@ crust_status_t validate_merkletree_json(json::JSON tree)
     }
 
     // Compute and compare hash value
-    sgx_sha256_msg(children_hashs, tree[MT_LINKS_NUM].ToInt() * HASH_LENGTH, &parent_hash);
-
+    sgx_sha256_msg(children_hashs, children_buffer_size, &parent_hash);
     parent_hash_org = hex_string_to_bytes(tree[MT_HASH].ToString().c_str(), HASH_LENGTH * 2);
     if (parent_hash_org == NULL)
     {
@@ -521,98 +461,21 @@ crust_status_t validate_merkletree_json(json::JSON tree)
     }
     if (memcmp(parent_hash_org, parent_hash, HASH_LENGTH) != 0)
     {
-        crust_status = CRUST_INVALID_MERKLETREE;
+        crust_status = CRUST_NOT_EQUAL;
         goto cleanup;
     }
 
 cleanup:
+    if (parent_data_hash != NULL)
+        free(parent_data_hash);
 
-    free(children_hashs);
+    if (children_hashs != NULL)
+        free(children_hashs);
 
     if (parent_hash_org != NULL)
         free(parent_hash_org);
 
     return crust_status;
-}
-
-/**
- * @description: Serialize MerkleTree to json string
- * @param root -> MerkleTree root node
- * @return: Json string
- */
-string serialize_merkletree_to_json_string(MerkleTree *root)
-{
-    if (root == NULL)
-    {
-        return "";
-    }
-
-    uint32_t hash_len = strlen(root->hash);
-    string node;
-    std::string hex_hash_str = hexstring_safe(root->hash, hash_len);
-    node.append("{\"" MT_SIZE "\":").append(to_string(root->size)).append(",")
-        .append("\"" MT_LINKS_NUM "\":").append(to_string(root->links_num)).append(",")
-        .append("\"" MT_HASH "\":\"").append(hex_hash_str).append("\",")
-        .append("\"" MT_LINKS "\":[");
-
-    for (size_t i = 0; i < root->links_num; i++)
-    {
-        node.append(serialize_merkletree_to_json_string(root->links[i])).append(",");
-    }
-
-    node.erase(node.size() - 1, 1);
-    node.append("]}");
-
-    return node;
-}
-
-/**
- * @description: Deserialize json string to MerkleTree
- * @param tree_json -> Tree in json format
- * @return: Deseialize tree in Merkle tree format
- */
-MerkleTree *deserialize_json_to_merkletree(json::JSON tree_json)
-{
-    if (tree_json.JSONType() != json::JSON::Class::Object)
-        return NULL;
-
-    MerkleTree *root = new MerkleTree();
-    std::string hash = tree_json[MT_HASH].ToString();
-    size_t hash_len = hash.size() + 1;
-    root->hash = (char *)enc_malloc(hash_len);
-    if (root->hash == NULL)
-    {
-        log_err("Malloc memory failed!\n");
-        return NULL;
-    }
-    memset(root->hash, 0, hash_len);
-    memcpy(root->hash, hash.c_str(), hash.size());
-    root->links_num = tree_json[MT_LINKS_NUM].ToInt();
-    json::JSON children = tree_json[MT_LINKS];
-
-    if (root->links_num != 0)
-    {
-        root->links = (MerkleTree **)enc_malloc(root->links_num * sizeof(MerkleTree *));
-        if (root->links == NULL)
-        {
-            log_err("Malloc memory failed!\n");
-            free(root->hash);
-            return NULL;
-        }
-        for (uint32_t i = 0; i < root->links_num; i++)
-        {
-            MerkleTree *child = deserialize_json_to_merkletree(children[i]);
-            if (child == NULL)
-            {
-                free(root->hash);
-                free(root->links);
-                return NULL;
-            }
-            root->links[i] = child;
-        }
-    }
-
-    return root;
 }
 
 /**
@@ -651,6 +514,48 @@ void *enc_realloc(void *p, size_t size)
     while (tryout++ < ENCLAVE_MALLOC_TRYOUT && p == NULL)
     {
         p = (void *)enc_malloc(size);
+    }
+
+    return p;
+}
+
+/**
+ * @description: Malloc new size and copy old buffer to it
+ * @param p -> Pointer to old buffer
+ * @param old_size -> Old buffer size
+ * @param new_size -> New buffer size
+ * @return: Pointer to new buffer with old buffer data
+ */
+void *enc_crealloc(void *p, size_t old_size, size_t new_size)
+{
+    void *old_p = NULL;
+    if (old_size != 0 && p != NULL)
+    {
+        old_p = (void *)enc_malloc(old_size);
+        if (old_p == NULL)
+        {
+            free(p);
+            return NULL;
+        }
+        memset(old_p, 0, old_size);
+        memcpy(old_p, p, old_size);
+    }
+
+    p = (void *)enc_realloc(p, new_size);
+
+    if (p == NULL)
+    {
+        if (old_p != NULL)
+        {
+            free(old_p);
+        }
+        return NULL;
+    }
+
+    if (old_p != NULL)
+    {
+        memcpy(p, old_p, old_size);
+        free(old_p);
     }
 
     return p;

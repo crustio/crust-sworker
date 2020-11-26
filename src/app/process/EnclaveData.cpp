@@ -130,3 +130,55 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
         Ecall_disable_upgrade(global_eid);
     }
 }
+
+/**
+ * @description: Add unsealed data
+ * @param root -> Unsealed data root hash
+ * @param data -> Pointer to unsealed data
+ * @param data_size -> Unsealed data size
+ */
+void EnclaveData::add_unsealed_data(std::string root, uint8_t *data, size_t data_size)
+{
+    unsealed_data_mutex.lock();
+    unsealed_data_um[root] = std::make_pair(data, data_size);
+    unsealed_data_mutex.unlock();
+}
+
+/**
+ * @description: Get unsealed data
+ * @param root -> Unsealed data root hash
+ * @param data -> Pointer to unsealed data
+ * @param data_size -> Unsealed data size
+ */
+void EnclaveData::get_unsealed_data(std::string root, const uint8_t **data, size_t *data_size)
+{
+    SafeLock sl(unsealed_data_mutex);
+    sl.lock();
+    if (unsealed_data_um.find(root) == unsealed_data_um.end())
+    {
+        return;
+    }
+    auto res = unsealed_data_um[root];
+    *data = res.first;
+    *data_size = res.second;
+}
+
+/**
+ * @description: Delete unsealed data
+ * @param root -> Unsealed data hash
+ */
+void EnclaveData::del_unsealed_data(std::string root)
+{
+    SafeLock sl(unsealed_data_mutex);
+    sl.lock();
+    if (unsealed_data_um.find(root) == unsealed_data_um.end())
+    {
+        return;
+    }
+    auto res = unsealed_data_um[root];
+    if (res.first != NULL)
+    {
+        free(res.first);
+    }
+    unsealed_data_um.erase(root);
+}

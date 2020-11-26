@@ -4,13 +4,13 @@ function _seal()
     local datapath_l=$1
     local storepath_l=$2
     local curtmp=$TMPFILE.$(date +%N)${RANDOM}
-    seal_file $datapath_l $storepath_l &>$curtmp
+    seal $datapath_l &>$curtmp
     if [ $? -ne 0 ]; then
         verbose ERROR "Seal file failed!" n
         rm $curtmp
         exit 1
     fi
-    cat -v $curtmp | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null
+    cat -v $curtmp 2>/dev/null
     rm $curtmp
 }
 
@@ -77,8 +77,7 @@ while [ $i -lt $file_num ]; do
     if [[ $file =~ 128 ]] || [[ $file =~ 256 ]] || [[ $file =~ 512m ]] || [[ $file =~ 1024 ]] ; then
         continue
     fi
-    sealed_hash=$(_seal $datadir/$file $testfiledir)
-    confirm ${sealed_hash:0:64} &>$TMPFILE
+    cid=$(_seal $datadir/$file $testfiledir)
     ((i++))
 done
 # Delete some file

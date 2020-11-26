@@ -29,7 +29,6 @@
 #include "Storage.h"
 #include "EnclaveData.h"
 #include "Chain.h"
-#include "tbb/concurrent_unordered_map.h"
 #include "../enclave/include/Parameter.h"
 
 #include <boost/beast/core.hpp>
@@ -74,7 +73,6 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
-extern tbb::concurrent_unordered_map<std::string, std::string> sealed_tree_map;
 extern std::mutex srd_info_mutex;
 // Used to show validation status
 long change_srd_num = 0;
@@ -89,7 +87,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 {
     Config *p_config = Config::get_instance();
     crust::Log *p_log = crust::Log::get_instance();
-    UrlEndPoint *urlendpoint = get_url_end_point(p_config->base_url);
+    UrlEndPoint urlendpoint = get_url_end_point(p_config->base_url);
     EnclaveData *ed = EnclaveData::get_instance();
     std::string cur_path;
     // Upgrade block service set
@@ -132,14 +130,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     {
         p_log->debug("Http request:%s\n", req_route.c_str());
     }
-    if (memcmp(req_route.c_str(), urlendpoint->base.c_str(), urlendpoint->base.size()) != 0)
+    if (memcmp(req_route.c_str(), urlendpoint.base.c_str(), urlendpoint.base.size()) != 0)
     {
         return send(bad_request("Illegal request-target"));
     }
     std::map<std::string, std::string> params = get_params(req_route);
 
     // Choose service according to upgrade status
-    std::string route_tag = req_route.substr(req_route.find(urlendpoint->base) + urlendpoint->base.size(), req_route.size());
+    std::string route_tag = req_route.substr(req_route.find(urlendpoint.base) + urlendpoint.base.size(), req_route.size());
     if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
     {
         p_log->warn("This process will exit!\n");
@@ -192,7 +190,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         res.set(http::field::content_type, "application/text");
 
         // ----- Get workload ----- //
-        cur_path = urlendpoint->base + "/workload";
+        cur_path = urlendpoint.base + "/workload";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             sgx_status_t sgx_status = SGX_SUCCESS;
@@ -254,7 +252,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Get enclave thread information ----- //
-        cur_path = urlendpoint->base + "/enclave/thread_info";
+        cur_path = urlendpoint.base + "/enclave/thread_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.body() = get_running_ecalls_info();
@@ -262,7 +260,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Get enclave id information ----- //
-        cur_path = urlendpoint->base + "/enclave/id_info";
+        cur_path = urlendpoint.base + "/enclave/id_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_id_get_info(global_eid);
@@ -275,7 +273,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Inform upgrade ----- //
-        cur_path = urlendpoint->base + "/upgrade/start";
+        cur_path = urlendpoint.base + "/upgrade/start";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -294,14 +292,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
-            crust::BlockHeader *block_header = crust::Chain::get_instance()->get_block_header();
-            if (block_header == NULL)
+            crust::BlockHeader block_header;
+            if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
                 ret_info = "Chain is not running!Get block header failed!";
                 res.result(402);
                 p_log->err("%s\n", ret_info.c_str());
             }
-            else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header->number)))
+            else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header.number)))
             {
                 ret_info = "Invoke SGX API failed!";
                 res.result(403);
@@ -350,7 +348,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Get metadata ----- //
-        cur_path = urlendpoint->base + "/upgrade/metadata";
+        cur_path = urlendpoint.base + "/upgrade/metadata";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -372,7 +370,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
         // ----- Inform that new version is already ----- //
         // Use to inform current sworker upgrade result
-        cur_path = urlendpoint->base + "/upgrade/complete";
+        cur_path = urlendpoint.base + "/upgrade/complete";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -437,7 +435,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
 
         // ----- Set debug flag ----- //
-        cur_path = urlendpoint->base + "/debug";
+        cur_path = urlendpoint.base + "/debug";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             // Check input parameters
@@ -460,7 +458,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // --- Srd change API --- //
-        cur_path = urlendpoint->base + "/srd/change";
+        cur_path = urlendpoint.base + "/srd/change";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -513,24 +511,24 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // --- Delete meaningful file --- //
-        cur_path = urlendpoint->base + "/storage/delete";
+        cur_path = urlendpoint.base + "/storage/delete";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
             std::string ret_info;
             // Delete file
             json::JSON req_json = json::JSON::Load(req.body());
-            std::string hash = req_json["hash"].ToString();
-            // Check hash
-            if (hash.size() != HASH_LENGTH * 2)
+            std::string cid = req_json["cid"].ToString();
+            // Check cid
+            if (cid.size() != CID_LENGTH)
             {
-                ret_info = "Delete file failed!Invalid hash!";
+                ret_info = "Delete file failed!Invalid cid!";
                 p_log->err("%s\n", ret_info.c_str());
                 res.result(402);
                 res.body() = ret_info;
                 goto postcleanup;
             }
-            storage_add_delete(hash);
+            storage_add_delete(cid);
             ret_info = "Deleting file task has beening added!";
             res.body() = ret_info;
 
@@ -538,7 +536,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Storage seal file block ----- //
-        cur_path = urlendpoint->base + "/storage/seal";
+        cur_path = urlendpoint.base + "/storage/seal";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -550,30 +548,17 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             // Parse paramters
             json::JSON req_json = json::JSON::Load(req.body());
-            json::JSON tree_json = req_json["body"];
-            std::string dir_path = req_json["path"].ToString();
-
-            // Check if body is validated
-            if (tree_json.size() == 0 || tree_json.size() == -1)
+            std::string cid = req_json["cid"].ToString();
+            if (cid.size() != CID_LENGTH)
             {
-                ret_info = "Validate MerkleTree failed!Error: Empty body!";
-                p_log->err("%s\n", ret_info.c_str());
-                res.body() = ret_info;
-                res.result(402);
+                p_log->err("Invalid cid!\n");
+                res.body() = "Invalid cid!";
+                res.result(400);
                 goto postcleanup;
             }
 
             // ----- Seal file ----- //
-            std::string content;
-            std::string org_root_hash_str = tree_json["hash"].ToString();
-            char *p_new_path = (char*)malloc(dir_path.size());
-            memset(p_new_path, 0, dir_path.size());
-            std::string org_tree_str = tree_json.dump();
-            remove_char(org_tree_str, '\\');
-            remove_char(org_tree_str, '\n');
-            remove_char(org_tree_str, ' ');
-            sgx_status = Ecall_seal_file(global_eid, &crust_status, org_tree_str.c_str(), org_tree_str.size(),
-                    dir_path.c_str(), p_new_path, dir_path.size());
+            sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str());
 
             if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
             {
@@ -609,28 +594,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 p_log->info("Seal file successfully!\n");
 
-                std::string new_tree_str = sealed_tree_map[org_root_hash_str];
-                remove_char(new_tree_str, ' ');
-                remove_char(new_tree_str, '\n');
-                remove_char(new_tree_str, '\\');
-                json::JSON ret_json;
-                ret_json["body"] = new_tree_str;
-                ret_json["path"] = std::string(p_new_path, dir_path.size());
-                res.body() = ret_json.dump();
+                res.body() = "Seal file successfully";
                 res.result(200);
-                sealed_tree_map.unsafe_erase(org_root_hash_str);
-            }
-
-            if (p_new_path != NULL)
-            {
-                free(p_new_path);
             }
 
             goto postcleanup;
         }
 
         // ----- Storage unseal file block ----- //
-        cur_path = urlendpoint->base + "/storage/unseal";
+        cur_path = urlendpoint.base + "/storage/unseal";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -638,31 +610,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             p_log->info("Dealing with unseal request...\n");
             // Parse parameters
             json::JSON req_json;
-            req_json = json::JSON::Load(req.body());
-            std::string dir_path = req_json["path"].ToString();
-
-            // Get sub files' path
-            std::vector<std::string> files_str = get_sub_folders_and_files(dir_path.c_str());
-            std::vector<const char *> sub_files;
-            for (size_t i = 0; i < files_str.size(); i++)
-            {
-                sub_files.push_back(files_str[i].c_str());
-            }
-            if (sub_files.size() == 0)
-            {
-                ret_info = "Empty data directory!";
-                p_log->err("%s\n", ret_info.c_str());
-                res.result(402);
-                res.body() = ret_info;
-                goto postcleanup;
-            }
+            std::string sealed_data = req.body();
 
             // ----- Unseal file ----- //
             crust_status_t crust_status = CRUST_SUCCESS;
-            char *p_new_path = (char*)malloc(dir_path.size());
-            memset(p_new_path, 0, dir_path.size());
-            sgx_status_t sgx_status = Ecall_unseal_file(global_eid, &crust_status,
-                    const_cast<char**>(sub_files.data()), sub_files.size(), dir_path.c_str(), p_new_path, dir_path.size());
+            sgx_status_t sgx_status = Ecall_unseal_file(global_eid, &crust_status, sealed_data.c_str(), sealed_data.size());
 
             if (SGX_SUCCESS != sgx_status || CRUST_SUCCESS != crust_status)
             {
@@ -694,11 +646,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             else
             {
                 p_log->info("Unseal data successfully!\n");
-                res.body() = std::string(p_new_path, dir_path.size());
+                res.body() = "Unseal data successfully";
                 res.result(200);
             }
-
-            free(p_new_path);
 
             goto postcleanup;
         }

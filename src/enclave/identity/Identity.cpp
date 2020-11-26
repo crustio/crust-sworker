@@ -317,7 +317,7 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
     size_t spos = 0;
     size_t epos = 0;
     string ias_quote_body;
-    sgx_quote_t *iasQuote;
+    sgx_quote_t *iasQuote = NULL;
     sgx_report_body_t *iasReportBody;
     char *p_decode_quote_body = NULL;
     size_t qbsz;
@@ -800,8 +800,8 @@ crust_status_t id_store_metadata()
         + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
         + (wl->is_upgrade() ? strlen(ID_PRE_PUB_KEY) + 3 + sizeof(wl->pre_pub_key) * 2 + 3 : 0)
         + strlen(ID_FILE) + 3;
-    size_t file_item_len = strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
-        + strlen(FILE_OLD_HASH) + 3 + strlen(HASH_TAG) + 64 + 3
+    size_t file_item_len = strlen(FILE_CID) + 3 + CID_LENGTH + 3
+        + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
         + strlen(FILE_SIZE) + 3 + 12 + 1
         + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
         + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
