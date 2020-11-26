@@ -39,6 +39,11 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
  */
 crust_status_t ocall_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_size)
 {
+    if (!Ipfs::get_instance()->online())
+    {
+        return CRUST_SERVICE_UNAVAILABLE;
+    }
+
     *data_size = Ipfs::get_instance()->cat(cid, p_data);
     if (*data_size == 0)
     {
