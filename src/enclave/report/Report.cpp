@@ -221,7 +221,9 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
                     file_str.append("{\"").append(FILE_CID).append("\":")
                         .append("\"").append(wl->checked_files[i][FILE_CID].ToString()).append("\",");
                     file_str.append("\"").append(FILE_SIZE).append("\":")
-                        .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
+                        .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append(",");
+                    file_str.append("\"").append(FILE_CHAIN_BLOCK_NUM).append("\":")
+                        .append(std::to_string(wl->checked_files[i][FILE_CHAIN_BLOCK_NUM].ToInt())).append("}");
                     if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
                     {
                         if (deleted_files.size() != 1)
