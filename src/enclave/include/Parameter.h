@@ -21,7 +21,7 @@
 #define FILE_CID "cid"
 #define FILE_HASH "hash"
 #define FILE_SIZE "size"
-#define FILE_OLD_SIZE "old_size"
+#define FILE_SEALED_SIZE "s_size"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_CHAIN_BLOCK_NUM "c_block_num"
 #define FILE_STATUS "status"
@@ -87,8 +87,6 @@
 #define WL_FILES "files"
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
-#define WL_FILE_OLD_HASH "old_hash"
-#define WL_FILE_OLD_SIZE "old_size"
 #define WL_FILE_ROOT_HASH "file_root_hash"
 
 // For srd

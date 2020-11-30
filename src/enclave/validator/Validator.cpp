@@ -5,8 +5,7 @@
 #include <algorithm>
 
 extern sgx_thread_mutex_t g_srd_mutex;
-extern sgx_thread_mutex_t g_checked_files_mutex;
-extern sgx_thread_mutex_t g_new_files_mutex;
+extern sgx_thread_mutex_t g_sealed_files_mutex;
 
 /**
  * @description: Randomly delete punish number of srd
@@ -205,35 +204,20 @@ void validate_meaningful_file()
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
-    // Lock wl->checked_files
-    SafeLock cf_lock(g_checked_files_mutex);
+    // Lock wl->sealed_files
+    SafeLock cf_lock(g_sealed_files_mutex);
     cf_lock.lock();
 
-    // Add new file to validate
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    if (wl->new_files.size() > 0)
-    {
-        // Insert new files to checked files
-        for (auto fj : wl->new_files)
-        {
-            fj[FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_VALID);
-            wl->checked_files.push_back(fj);
-        }
-        // Clear new files
-        wl->new_files.clear();
-    }
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
-
     // Get to be checked files indexes
-    size_t check_file_num = std::max((size_t)(wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
-    check_file_num = std::min(check_file_num, wl->checked_files.size());
+    size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
+    check_file_num = std::min(check_file_num, wl->sealed_files.size());
     std::vector<uint32_t> file_idx_v;
     uint32_t rand_val;
     size_t rand_index = 0;
     for (size_t i = 0; i < check_file_num; i++)
     {
         sgx_read_rand((uint8_t *)&rand_val, 4);
-        rand_index = rand_val % wl->checked_files.size();
+        rand_index = rand_val % wl->sealed_files.size();
         file_idx_v.push_back(rand_index);
     }
 
@@ -244,23 +228,23 @@ void validate_meaningful_file()
     for (auto file_idx : file_idx_v)
     {
         // Check race
-        sched_check(SCHED_VALIDATE_FILE, g_checked_files_mutex);
+        sched_check(SCHED_VALIDATE_FILE, g_sealed_files_mutex);
         // If file has been deleted, go to next check
-        if (file_idx >= wl->checked_files.size())
+        if (file_idx >= wl->sealed_files.size())
         {
             continue;
         }
 
         // If new file hasn't been verified, skip this validation
-        auto status = &wl->checked_files[file_idx][FILE_STATUS];
+        auto status = &wl->sealed_files[file_idx][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
 
-        std::string root_cid = wl->checked_files[file_idx][FILE_CID].ToString();
-        std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
-        size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
+        std::string root_cid = wl->sealed_files[file_idx][FILE_CID].ToString();
+        std::string root_hash = wl->sealed_files[file_idx][FILE_HASH].ToString();
+        size_t file_block_num = wl->sealed_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
         crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status)
@@ -427,14 +411,14 @@ void validate_meaningful_file()
         for (auto it : changed_idx2lost_um)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
-                    wl->checked_files[it.first][FILE_CID].ToString().c_str());
-            std::string cid = wl->checked_files[it.first][FILE_CID].ToString();
+                    wl->sealed_files[it.first][FILE_CID].ToString().c_str());
+            std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
             // Delete real file
             ocall_ipfs_del(&crust_status, cid.c_str());
             // Delete file tree structure
             persist_del(cid);
             // Reduce valid file
-            wl->set_wl_spec(FILE_STATUS_VALID, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
+            wl->set_wl_spec(FILE_STATUS_VALID, wl->sealed_files[it.first][FILE_SIZE].ToInt());
         }
     }
 }

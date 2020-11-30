@@ -197,10 +197,9 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 /**
  * @description: Seal file according to given path and return new MerkleTree
  * @param cid (in) -> Pointer to ipfs content id
- * @param file_size (out) -> Pointer to sealed file size
  * @return: Seal status
  */
-crust_status_t ecall_seal_file(const char *cid, size_t *file_size)
+crust_status_t ecall_seal_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
@@ -208,7 +207,7 @@ crust_status_t ecall_seal_file(const char *cid, size_t *file_size)
     }
 
     sched_add(SCHED_SEAL);
-    crust_status_t ret = storage_seal_file(cid, file_size);
+    crust_status_t ret = storage_seal_file(cid);
     sched_del(SCHED_SEAL);
 
     return ret;

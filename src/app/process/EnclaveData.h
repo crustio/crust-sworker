@@ -30,7 +30,8 @@ public:
     void add_unsealed_data(std::string root, uint8_t *data, size_t data_size);
     std::string get_unsealed_data(std::string root);
     void del_unsealed_data(std::string root);
-    void add_sealed_file_info(std::string cid, size_t file_size);
+    // Sealed information
+    void add_sealed_file_info(std::string cid, std::string info);
     std::string get_sealed_file_info(std::string cid);
     std::string get_sealed_file_info_all();
     void del_sealed_file_info(std::string cid);

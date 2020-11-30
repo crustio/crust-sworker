@@ -803,12 +803,12 @@ crust_status_t id_store_metadata()
     size_t file_item_len = strlen(FILE_CID) + 3 + CID_LENGTH + 3
         + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
         + strlen(FILE_SIZE) + 3 + 12 + 1
-        + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
+        + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
         + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
         + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
         + strlen(FILE_STATUS) + 3 + 3 + 3
         + 2;
-    meta_len += wl->checked_files.size() * file_item_len;
+    meta_len += wl->sealed_files.size() * file_item_len;
     uint8_t *meta_buf = (uint8_t *)enc_malloc(meta_len);
     if (meta_buf == NULL)
     {
@@ -888,15 +888,15 @@ crust_status_t id_store_metadata()
     file_title.append("\"").append(ID_FILE).append("\":[");
     memcpy(meta_buf + offset, file_title.c_str(), file_title.size());
     offset += file_title.size();
-    for (size_t i = 0; i < wl->checked_files.size(); i++)
+    for (size_t i = 0; i < wl->sealed_files.size(); i++)
     {
-        std::string file_str = wl->checked_files[i].dump();
+        std::string file_str = wl->sealed_files[i].dump();
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
         remove_char(file_str, ' ');
         memcpy(meta_buf + offset, file_str.c_str(), file_str.size());
         offset += file_str.size();
-        if (i != wl->checked_files.size() - 1)
+        if (i != wl->sealed_files.size() - 1)
         {
             memcpy(meta_buf + offset, ",", 1);
             offset += 1;
@@ -966,25 +966,27 @@ crust_status_t id_restore_metadata()
     if (meta_json.hasKey(ID_FILE)
             && meta_json[ID_FILE].JSONType() == json::JSON::Class::Array)
     {
-        wl->checked_files.resize(meta_json[ID_FILE].size());
+        wl->sealed_files.resize(meta_json[ID_FILE].size());
         for (int i = 0; i < meta_json[ID_FILE].size(); i++)
         {
-            wl->checked_files[i] = meta_json[ID_FILE][i];
+            wl->sealed_files[i] = meta_json[ID_FILE][i];
         }
         // Retore file info
-        size_t file_info_len = (CID_LENGTH + 3 + strlen(FILE_SIZE) + 3 + 16 + 10) * wl->checked_files.size() + 32;
+        size_t file_info_len = (CID_LENGTH + 3 + strlen(FILE_SIZE) + 3 + 16 + 10) * wl->sealed_files.size() + 32;
         uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
         size_t file_info_offset = 0;
         memset(file_info_buf, 0, file_info_len);
         memcpy(file_info_buf, "{", 1);
         file_info_offset += 1;
-        for (size_t i = 0; i < wl->checked_files.size(); i++)
+        for (size_t i = 0; i < wl->sealed_files.size(); i++)
         {
-            json::JSON file = wl->checked_files[i];
-            std::string info("\"");
-            info.append(file[FILE_CID].ToString()).append("\":\"{ \\\"" FILE_SIZE "\\\" : ");
-            info.append(std::to_string(file[FILE_SIZE].ToInt())).append(" }\"");
-            if (i != wl->checked_files.size() - 1)
+            json::JSON file = wl->sealed_files[i];
+            std::string info;
+            info.append("\"").append(file[FILE_CID].ToString()).append("\":")
+                .append("\"{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+                .append("\\\"sealed_size\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
+                .append("\\\"block_number\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
+            if (i != wl->sealed_files.size() - 1)
             {
                 info.append(",");
             }

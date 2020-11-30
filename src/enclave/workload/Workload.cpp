@@ -2,8 +2,7 @@
 
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-sgx_thread_mutex_t g_checked_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-sgx_thread_mutex_t g_new_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+sgx_thread_mutex_t g_sealed_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_report_flag_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_upgrade_status_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
@@ -140,19 +139,19 @@ json::JSON Workload::gen_workload_info()
 
     // Generate file information
     sgx_sha256_hash_t file_root;
-    if (this->checked_files.size() == 0)
+    if (this->sealed_files.size() == 0)
     {
         memset(&file_root, 0, sizeof(sgx_sha256_hash_t));
         ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
     }
     else
     {
-        uint8_t *f_hashs = (uint8_t *)enc_malloc(this->checked_files.size() * HASH_LENGTH);
-        memset(f_hashs, 0, this->checked_files.size() * HASH_LENGTH);
+        uint8_t *f_hashs = (uint8_t *)enc_malloc(this->sealed_files.size() * HASH_LENGTH);
+        memset(f_hashs, 0, this->sealed_files.size() * HASH_LENGTH);
         size_t f_hashs_len = 0;
-        for (size_t i = 0; i < this->checked_files.size(); i++)
+        for (size_t i = 0; i < this->sealed_files.size(); i++)
         {
-            memcpy(f_hashs + f_hashs_len, this->checked_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
+            memcpy(f_hashs + f_hashs_len, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
             f_hashs_len += HASH_LENGTH;
         }
         sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
@@ -233,17 +232,17 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
  */
 crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
 
     size_t file_item_len = strlen(FILE_CID) + 3 + CID_LENGTH + 3
         + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
         + strlen(FILE_SIZE) + 3 + 12 + 1
-        + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
+        + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
         + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
         + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
         + strlen(FILE_STATUS) + 3 + 3 + 3
         + 2;
-    size_t buffer_size = this->checked_files.size() * file_item_len;
+    size_t buffer_size = this->sealed_files.size() * file_item_len;
     *p_data = (uint8_t *)enc_malloc(buffer_size);
     if (*p_data == NULL)
     {
@@ -254,13 +253,13 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 
     memcpy(*p_data + offset, "[", 1);
     offset += 1;
-    for (size_t i = 0; i < this->checked_files.size(); i++)
+    for (size_t i = 0; i < this->sealed_files.size(); i++)
     {
-        std::string file_str = this->checked_files[i].dump();
+        std::string file_str = this->sealed_files[i].dump();
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
         remove_char(file_str, ' ');
-        if (i != this->checked_files.size() - 1)
+        if (i != this->sealed_files.size() - 1)
         {
             file_str.append(",");
         }
@@ -272,7 +271,7 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 
     *data_size = offset;
 
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     return CRUST_SUCCESS;
 }
@@ -327,24 +326,13 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
  */
 void Workload::restore_file(json::JSON file_json)
 {
-    this->checked_files.clear();
+    this->sealed_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
-        this->checked_files.push_back(file_json[i]);
+        this->sealed_files.push_back(file_json[i]);
         // Restore workload spec info
-        set_wl_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_OLD_SIZE].ToInt());
+        set_wl_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
     }
-}
-
-/**
- * @description: Add new file to new_files
- * @param file -> File json item
- */
-void Workload::add_new_file(json::JSON file)
-{
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    this->new_files.push_back(file);
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
 }
 
 /**
@@ -462,17 +450,17 @@ enc_upgrade_status_t Workload::get_upgrade_status()
 void Workload::handle_report_result()
 {
     // Set file status by report result
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     for (auto i : this->reported_files_idx)
     {
-        if (i < this->checked_files.size())
+        if (i < this->sealed_files.size())
         {
-            auto status = &this->checked_files[i][FILE_STATUS];
+            auto status = &this->sealed_files[i][FILE_STATUS];
             status->set_char(ORIGIN_STATUS, status->get_char(WAITING_STATUS));
         }
     }
     this->reported_files_idx.clear();
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 }
 
 /**

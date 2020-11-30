@@ -9,8 +9,7 @@ using namespace std;
 sgx_thread_mutex_t g_file_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 // Current node public and private key pair
-extern sgx_thread_mutex_t g_new_files_mutex;
-extern sgx_thread_mutex_t g_checked_files_mutex;
+extern sgx_thread_mutex_t g_sealed_files_mutex;
 
 crust_status_t _storage_seal_file(const char *cid, 
                                   size_t &sealed_size, 
@@ -20,28 +19,23 @@ crust_status_t _storage_seal_file(const char *cid,
                                   size_t *sealed_buffer_offset, 
                                   json::JSON &tree);
 
-bool is_file_dup(std::string cid);
+int check_file_dup(std::string cid);
 
 /**
  * @description: Seal file according to given path and return new MerkleTree
  * @param cid -> Pointer to ipfs content id
- * @param file_size -> Pointer to sealed file size
  * @return: Seal status
  */
-crust_status_t storage_seal_file(const char *cid, size_t *file_size)
+crust_status_t storage_seal_file(const char *cid)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
     // Check if file number exceeds upper limit
     size_t file_num = 0;
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    file_num += wl->checked_files.size();
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    file_num += wl->new_files.size();
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    file_num += wl->sealed_files.size();
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     if (file_num >= FILE_NUMBER_UPPER_LIMIT)
     {
@@ -49,7 +43,8 @@ crust_status_t storage_seal_file(const char *cid, size_t *file_size)
     }
 
     // Check if file is duplicated
-    if (is_file_dup(cid))
+    int check_file_res = check_file_dup(cid);
+    if (0 == check_file_res)
     {
         return CRUST_STORAGE_FILE_DUP;
     }
@@ -94,12 +89,19 @@ crust_status_t storage_seal_file(const char *cid, size_t *file_size)
     json::JSON file_entry_json;
     file_entry_json[FILE_CID] = cid_str;
     file_entry_json[FILE_HASH] = root_hash_u;
-    file_entry_json[FILE_SIZE] = sealed_size;
-    file_entry_json[FILE_OLD_SIZE] = origin_size;
+    file_entry_json[FILE_SIZE] = origin_size;
+    file_entry_json[FILE_SEALED_SIZE] = sealed_size;
     file_entry_json[FILE_BLOCK_NUM] = block_num;
     file_entry_json[FILE_CHAIN_BLOCK_NUM] = chain_block_num;
     // Status indicates current new file's status, which must be one of valid, lost and unverified
-    file_entry_json[FILE_STATUS] = "100";
+    if (2 == check_file_res)
+    {
+        file_entry_json[FILE_STATUS] = "111";
+    }
+    else
+    {
+        file_entry_json[FILE_STATUS] = "100";
+    }
     free(root_hash_u);
 
     // Store new tree structure
@@ -112,15 +114,22 @@ crust_status_t storage_seal_file(const char *cid, size_t *file_size)
     // Print sealed file information
     log_info("Seal complete, file info; cid: %s -> size: %ld, status: valid\n",
             file_entry_json[FILE_CID].ToString().c_str(),
-            file_entry_json[FILE_OLD_SIZE].ToInt());
+            file_entry_json[FILE_SIZE].ToInt());
 
     // Add new file to buffer
-    wl->add_new_file(file_entry_json);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    wl->sealed_files.push_back(file_entry_json);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     // Add info in workload spec
-    wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_OLD_SIZE].ToInt());
+    wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SIZE].ToInt());
 
-    *file_size = origin_size;
+    // Store file information
+    std::string file_info;
+    file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(origin_size)).append(" , ")
+        .append("\\\"sealed_size\\\" : ").append(std::to_string(sealed_size)).append(" , ")
+        .append("\\\"block_number\\\" : ").append(std::to_string(chain_block_num)).append(" }");
+    ocall_store_file_info(cid, file_info.c_str());
 
     return crust_status;
 }
@@ -414,59 +423,53 @@ crust_status_t storage_delete_file(const char *cid)
     json::JSON deleted_file;
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    // ----- Delete file items in checked_files ----- //
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    // ----- Delete file items in sealed_files ----- //
+    SafeLock sf_lock(g_sealed_files_mutex);
+    sf_lock.lock();
     Workload *wl = Workload::get_instance();
     bool is_deleted = false;
-    for (size_t i = 0; i < wl->checked_files.size(); i++)
+    for (auto it = wl->sealed_files.begin(); it != wl->sealed_files.end(); it++)
     {
-        std::string cur_cid = wl->checked_files[i][FILE_CID].ToString();
+        std::string cur_cid = (*it)[FILE_CID].ToString();
         if (cur_cid.compare(cid) == 0)
         {
-            deleted_file = wl->checked_files[i];
-            wl->checked_files[i][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+            if ((*it)[FILE_STATUS].get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+            {
+                log_info("file(%s) has been deleted!\n", cid);
+                return CRUST_SUCCESS;
+            }
+            deleted_file = *it;
             is_deleted = true;
+            if ((*it)[FILE_STATUS].get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
+            {
+                wl->sealed_files.erase(it);
+                break;
+            }
+            (*it)[FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             break;
         }
     }
-    // Delete file items in new_files
-    if (!is_deleted)
-    {
-        sgx_thread_mutex_lock(&g_new_files_mutex);
-        for (auto it = wl->new_files.rbegin(); it != wl->new_files.rend(); it++)
-        {
-            std::string cur_cid = (*it)[FILE_CID].ToString();
-            if (cur_cid.compare(cid) == 0)
-            {
-                deleted_file = *it;
-                wl->new_files.erase((++it).base());
-                is_deleted = true;
-                break;
-            }
-        }
-        sgx_thread_mutex_unlock(&g_new_files_mutex);
-    }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sf_lock.unlock();
     // Print deleted info
     if (is_deleted)
     {
-        log_info("Delete file:%s successfully!\n", deleted_file[FILE_CID].ToString().c_str());
+        log_info("Delete file:%s successfully!\n", cid);
     }
     else
     {
-        log_warn("Delete file:%s failed(not found)!\n", deleted_file[FILE_CID].ToString().c_str());
+        log_warn("Delete file:%s failed(not found)!\n", cid);
     }
 
     // ----- Delete file related data ----- //
     if (is_deleted)
     {
-        std::string cid = deleted_file[FILE_CID].ToString();
+        std::string del_cid = deleted_file[FILE_CID].ToString();
         // Delete real file
-        ocall_ipfs_del(&crust_status, cid.c_str());
+        ocall_ipfs_del(&crust_status, del_cid.c_str());
         // Delete file tree structure
-        persist_del(cid);
+        persist_del(del_cid);
         // Update workload spec info
-        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_OLD_SIZE].ToInt());
+        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
     }
 
     return crust_status;
@@ -475,34 +478,41 @@ crust_status_t storage_delete_file(const char *cid)
 /**
  * @description: Check if to be sealed file is duplicated
  * @param cid -> IPFS content id
- * @return: Duplicated or not
+ * @return: 0 -> duplicated
+ *          1 -> not duplicated
+ *          2 -> Will be replaced by new file, but not report
+ *          3 -> Will be replaced by new file, report again
  */
-bool is_file_dup(std::string cid)
+int check_file_dup(std::string cid)
 {
     Workload *wl = Workload::get_instance();
-    SafeLock cf_lock(g_checked_files_mutex);
+    SafeLock cf_lock(g_sealed_files_mutex);
     cf_lock.lock();
-    for (auto file : wl->checked_files)
+    for (auto it = wl->sealed_files.begin(); it != wl->sealed_files.end(); it++)
     {
-        if (file[FILE_CID].ToString().compare(cid) == 0)
+        if ((*it)[FILE_CID].ToString().compare(cid) == 0)
         {
-            return true;
+            char cur_s = (*it)[FILE_STATUS].get_char(CURRENT_STATUS);
+            char org_s = (*it)[FILE_STATUS].get_char(ORIGIN_STATUS);
+            if (cur_s == FILE_STATUS_DELETED)
+            {
+                if (org_s == FILE_STATUS_VALID)
+                {
+                    wl->sealed_files.erase(it);
+                    return 2;
+                }
+                if (org_s == FILE_STATUS_DELETED)
+                {
+                    wl->sealed_files.erase(it);
+                    return 3;
+                }
+            }
+            return 0;
         }
     }
     cf_lock.unlock();
 
-    SafeLock nf_lock(g_new_files_mutex);
-    nf_lock.lock();
-    for (auto file : wl->new_files)
-    {
-        if (file[FILE_CID].ToString().compare(cid) == 0)
-        {
-            return true;
-        }
-    }
-    nf_lock.unlock();
-
-    return false;
+    return 1;
 }
 
 /**

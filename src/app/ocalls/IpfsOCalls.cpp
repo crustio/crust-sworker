@@ -84,7 +84,7 @@ crust_status_t ocall_ipfs_del(const char *cid)
     std::string tree_str;
     if (CRUST_SUCCESS != (crust_status = db->get(cid, tree_str)))
     {
-        p_log->err("Get validate tree(%s) failed! Error code:%lx\n", cid, crust_status);
+        p_log->err("Get validate tree(%s) to delete sealed file block failed! Error code:%lx\n", cid, crust_status);
         return CRUST_UNEXPECTED_ERROR;
     }
 

@@ -29,8 +29,7 @@ class Workload
 public:
     std::map<std::string, std::vector<uint8_t*>> srd_path2hashs_m; // used to store all G srd file collection' hashs
 
-    std::vector<json::JSON> checked_files; // Files have been added into checked queue
-    std::vector<json::JSON> new_files; // Files have not been confirmed
+    std::vector<json::JSON> sealed_files; // Files have been added into checked queue
     std::set<size_t> reported_files_idx; // File indexes reported this turn of workreport
     sgx_ec256_public_t pre_pub_key; // Old version's public key
     
@@ -40,7 +39,6 @@ public:
     ~Workload();
     std::string get_workload(void);
     void clean_srd_buffer();
-    void add_new_file(json::JSON file);
     void set_srd_info(std::string path, long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info();

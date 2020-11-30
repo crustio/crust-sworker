@@ -185,9 +185,9 @@ void EnclaveData::del_unsealed_data(std::string root)
 /**
  * @description: Add sealed file info
  * @param cid -> IPFS content id
- * @param file_size -> Related file size
+ * @param info -> Related file info
  */
-void EnclaveData::add_sealed_file_info(std::string cid, size_t file_size)
+void EnclaveData::add_sealed_file_info(std::string cid, std::string info)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -197,7 +197,7 @@ void EnclaveData::add_sealed_file_info(std::string cid, size_t file_size)
         return;
     }
 
-    this->sealed_file[cid] = std::string("{ \"") + FILE_SIZE + "\" : " + std::to_string(file_size) + " }";
+    this->sealed_file[cid] = info;
 
     crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
 }
@@ -211,18 +211,21 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    json::JSON file_info;
     if (this->sealed_file.hasKey(cid) == 0)
     {
         return "";
     }
-    file_info[cid] = this->sealed_file[cid];
-    std::string ans = file_info.dump();
-    remove_char(ans, '\n');
+
+    std::string ans = this->sealed_file[cid].dump();
     remove_char(ans, '\\');
-    remove_char(ans, ' ');
     replace(ans, "\"{", "{");
     replace(ans, "}\"", "}");
+    json::JSON show_file = json::JSON::Load(ans);
+    std::string tree;
+    crust::DataBase::get_instance()->get(cid, tree);
+    show_file["smerkletree"] = json::JSON::Load(tree);
+
+    ans = show_file.dump();
 
     return ans;
 }
@@ -234,9 +237,13 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
 std::string EnclaveData::get_sealed_file_info_all()
 {
     std::string ans;
-    this->sealed_file_mutex.lock();
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+
+    if (this->sealed_file.size() <= 0)
+        return "{}";
+
     ans = this->sealed_file.dump();
-    this->sealed_file_mutex.unlock();
 
     replace(ans, "\"{", "{");
     replace(ans, "}\"", "}");
@@ -274,8 +281,11 @@ void EnclaveData::del_sealed_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    this->sealed_file.ObjectRange().object->erase(cid);
-    crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
+    if (this->sealed_file.hasKey(cid))
+    {
+        this->sealed_file.ObjectRange().object->erase(cid);
+        crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
+    }
 }
 
 /**
@@ -287,7 +297,6 @@ void EnclaveData::restore_sealed_file_info()
     // Restore file information
     std::string file_info;
     crust::DataBase::get_instance()->get(DB_FILE_INFO, file_info);
-    p_log->info("file info:%s\n", file_info.c_str());
     this->sealed_file = json::JSON::Load(file_info);
     this->sealed_file_mutex.unlock();
 }
