@@ -30,7 +30,7 @@ crust_status_t entry_network()
     memset(spid, 0, sizeof(sgx_spid_t));
     from_hexstring((unsigned char *)spid, IAS_SPID, strlen(IAS_SPID));
     int i = 0;
-    int common_tryout = 3;
+    int common_tryout = 5;
 
     // ----- get nonce ----- //
     for (i = 0; i < 2; ++i)
@@ -62,14 +62,27 @@ crust_status_t entry_network()
         if (SGX_SUCCESS == status)
             break;
 
-        if (SGX_ERROR_BUSY == status)
+        if (SGX_ERROR_BUSY == status || SGX_ERROR_SERVICE_TIMEOUT == status || SGX_ERROR_NETWORK_FAILURE == status)
         {
             if (tryout > common_tryout)
             {
                 p_log->err("Initialize sgx quote tryout!\n");
                 return CRUST_INIT_QUOTE_FAILED;
             }
-            p_log->info("SGX device is busy, trying again(%d time)...\n", tryout);
+            
+            if (SGX_ERROR_BUSY == status)
+            {
+                p_log->info("SGX device is busy, trying again(%d time)...\n", tryout);
+            }
+            else if (SGX_ERROR_SERVICE_TIMEOUT == status)
+            {
+                p_log->info("The request to AE service timed out, trying again(%d time)...\n", tryout);
+            }
+            else
+            {
+                p_log->info("AES network connecting or proxy setting issue is encountered, trying again(%d time)...\n", tryout);
+            }
+            
             tryout++;
             sleep(60);
             status = sgx_init_quote(&target_info, &epid_gid);
