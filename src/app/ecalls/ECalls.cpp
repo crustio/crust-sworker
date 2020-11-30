@@ -500,8 +500,9 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
  * @description: A wrapper function, Seal file according to given path and return new MerkleTree
  * @param status -> Pointer to seal result status
  * @param cid -> Ipfs content id
+ * @param file_size -> Pointer to sealed file size
  */
-sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid, size_t *file_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
@@ -509,7 +510,7 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
         return ret;
     }
 
-    ret = ecall_seal_file(eid, status, cid);
+    ret = ecall_seal_file(eid, status, cid, file_size);
 
     free_enclave(__FUNCTION__);
 

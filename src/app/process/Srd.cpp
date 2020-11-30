@@ -36,12 +36,7 @@ json::JSON get_valid_srd_path(json::JSON srd_paths)
         {
             return ans;
         }
-        char *p_fsid = hexstring_safe(&disk_info.f_fsid, sizeof(disk_info.f_fsid));
-        std::string fsid_str(p_fsid, sizeof(disk_info.f_fsid));
-        if (p_fsid != NULL)
-        {
-            free(p_fsid);
-        }
+        std::string fsid_str = hexstring_safe(&disk_info.f_fsid, sizeof(disk_info.f_fsid));
         if (fsid_s.find(fsid_str) == fsid_s.end())
         {
             ans.append(path);

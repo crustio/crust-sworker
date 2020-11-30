@@ -805,6 +805,7 @@ crust_status_t id_store_metadata()
         + strlen(FILE_SIZE) + 3 + 12 + 1
         + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
         + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+        + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
         + strlen(FILE_STATUS) + 3 + 3 + 3
         + 2;
     meta_len += wl->checked_files.size() * file_item_len;
@@ -970,6 +971,30 @@ crust_status_t id_restore_metadata()
         {
             wl->checked_files[i] = meta_json[ID_FILE][i];
         }
+        // Retore file info
+        size_t file_info_len = (CID_LENGTH + 3 + strlen(FILE_SIZE) + 3 + 16 + 10) * wl->checked_files.size() + 32;
+        uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
+        size_t file_info_offset = 0;
+        memset(file_info_buf, 0, file_info_len);
+        memcpy(file_info_buf, "{", 1);
+        file_info_offset += 1;
+        for (size_t i = 0; i < wl->checked_files.size(); i++)
+        {
+            json::JSON file = wl->checked_files[i];
+            std::string info("\"");
+            info.append(file[FILE_CID].ToString()).append("\":\"{ \\\"" FILE_SIZE "\\\" : ");
+            info.append(std::to_string(file[FILE_SIZE].ToInt())).append(" }\"");
+            if (i != wl->checked_files.size() - 1)
+            {
+                info.append(",");
+            }
+            memcpy(file_info_buf + file_info_offset, info.c_str(), info.size());
+            file_info_offset += info.size();
+        }
+        memcpy(file_info_buf + file_info_offset, "}", 1);
+        file_info_offset += 1;
+        persist_set_unsafe(DB_FILE_INFO, file_info_buf, file_info_offset);
+        free(file_info_buf);
     }
     // Restore id key pair
     std::string id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();

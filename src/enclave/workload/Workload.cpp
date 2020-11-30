@@ -36,8 +36,6 @@ Workload::Workload()
     this->report_files = true;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
-    this->wl_spec_info[g_file_status[FILE_STATUS_LOST]]["num"] = 0;
-    this->wl_spec_info[g_file_status[FILE_STATUS_LOST]]["size"] = 0;
 }
 
 /**
@@ -242,6 +240,7 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
         + strlen(FILE_SIZE) + 3 + 12 + 1
         + strlen(FILE_OLD_SIZE) + 3 + 12 + 1
         + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+        + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
         + strlen(FILE_STATUS) + 3 + 3 + 3
         + 2;
     size_t buffer_size = this->checked_files.size() * file_item_len;

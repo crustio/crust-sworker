@@ -147,20 +147,19 @@ void EnclaveData::add_unsealed_data(std::string root, uint8_t *data, size_t data
 /**
  * @description: Get unsealed data
  * @param root -> Unsealed data root hash
- * @param data -> Pointer to unsealed data
- * @param data_size -> Unsealed data size
+ * @return: Unsealed data
  */
-void EnclaveData::get_unsealed_data(std::string root, const uint8_t **data, size_t *data_size)
+std::string EnclaveData::get_unsealed_data(std::string root)
 {
     SafeLock sl(unsealed_data_mutex);
     sl.lock();
     if (unsealed_data_um.find(root) == unsealed_data_um.end())
     {
-        return;
+        return "";
     }
     auto res = unsealed_data_um[root];
-    *data = res.first;
-    *data_size = res.second;
+
+    return std::string(reinterpret_cast<const char *>(res.first), res.second);
 }
 
 /**
@@ -181,4 +180,114 @@ void EnclaveData::del_unsealed_data(std::string root)
         free(res.first);
     }
     unsealed_data_um.erase(root);
+}
+
+/**
+ * @description: Add sealed file info
+ * @param cid -> IPFS content id
+ * @param file_size -> Related file size
+ */
+void EnclaveData::add_sealed_file_info(std::string cid, size_t file_size)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    if (is_sealed_file_dup(cid, false))
+    {
+        p_log->warn("file(%s) has been sealed!\n", cid.c_str());
+        return;
+    }
+
+    this->sealed_file[cid] = std::string("{ \"") + FILE_SIZE + "\" : " + std::to_string(file_size) + " }";
+
+    crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
+}
+
+/**
+ * @description: Get sealed file information
+ * @param cid -> IPFS content id
+ * @return: Sealed file information
+ */
+std::string EnclaveData::get_sealed_file_info(std::string cid)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    json::JSON file_info;
+    if (this->sealed_file.hasKey(cid) == 0)
+    {
+        return "";
+    }
+    file_info[cid] = this->sealed_file[cid];
+    std::string ans = file_info.dump();
+    remove_char(ans, '\n');
+    remove_char(ans, '\\');
+    remove_char(ans, ' ');
+    replace(ans, "\"{", "{");
+    replace(ans, "}\"", "}");
+
+    return ans;
+}
+
+/**
+ * @description: Get all sealed file information
+ * @return: All sealed file information
+ */
+std::string EnclaveData::get_sealed_file_info_all()
+{
+    std::string ans;
+    this->sealed_file_mutex.lock();
+    ans = this->sealed_file.dump();
+    this->sealed_file_mutex.unlock();
+
+    replace(ans, "\"{", "{");
+    replace(ans, "}\"", "}");
+    remove_char(ans,'\\');
+
+    return ans;
+}
+
+/**
+ * @description: Check if file is duplicated
+ * @param cid -> IPFS content id
+ * @return: Duplicated or not
+ */
+bool EnclaveData::is_sealed_file_dup(std::string cid, bool locked)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    if (locked)
+    {
+        sl.lock();
+    }
+
+    if (this->sealed_file.hasKey(cid))
+    {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @description: Delete sealed file information
+ * @param cid -> IPFS content id
+ */
+void EnclaveData::del_sealed_file_info(std::string cid)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    this->sealed_file.ObjectRange().object->erase(cid);
+    crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
+}
+
+/**
+ * @description: Restore sealed file information
+ */
+void EnclaveData::restore_sealed_file_info()
+{
+    this->sealed_file_mutex.lock();
+    // Restore file information
+    std::string file_info;
+    crust::DataBase::get_instance()->get(DB_FILE_INFO, file_info);
+    p_log->info("file info:%s\n", file_info.c_str());
+    this->sealed_file = json::JSON::Load(file_info);
+    this->sealed_file_mutex.unlock();
 }

@@ -23,9 +23,10 @@
 #define FILE_SIZE "size"
 #define FILE_OLD_SIZE "old_size"
 #define FILE_BLOCK_NUM "block_num"
+#define FILE_CHAIN_BLOCK_NUM "c_block_num"
 #define FILE_STATUS "status"
-#define FILE_STATUS_VALID '0'
-#define FILE_STATUS_LOST '1'
+#define FILE_STATUS_UNVERIFIED '0'
+#define FILE_STATUS_VALID '1'
 #define FILE_STATUS_DELETED '2'
 // Current status
 #define CURRENT_STATUS 0
@@ -38,7 +39,12 @@
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
+#define DB_FILE_INFO "file_info"
 #define DB_WL_SPEC_INFO "wl_spec_info"
+
+// For chain data
+#define CHAIN_BLOCK_NUMBER "c_block_num"
+#define CHAIN_BLOCK_HASH "c_block_hash"
 
 // For Merkle tree
 #define MT_CID "cid"
