@@ -84,7 +84,15 @@ bool initialize_enclave()
     ret = sgx_create_enclave(ENCLAVE_FILE_PATH, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
-        p_log->err("Init enclave failed.Error code:%lx\n", ret);
+        switch (ret)
+        {
+            case SGX_ERROR_NO_DEVICE:
+                p_log->err("Init enclave failed. Open sgx driver failed, please uninstall your sgx driver (OOT driver and DCAP driver) and reinstall it (OOT driver). If it still fails, please try to reinstall the system. Error code:%lx\n", ret);
+                break;
+            default:
+                p_log->err("Init enclave failed.Error code:%lx\n", ret);
+
+        }
         return false;
     }
 
