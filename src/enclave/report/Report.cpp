@@ -127,6 +127,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     uint8_t *sigbuf = NULL;
     uint8_t *p_sigbuf = NULL;
     std::set<size_t> report_valid_idx_s;
+
     // ----- Get srd info ----- //
     sgx_thread_mutex_lock(&g_srd_mutex);
 	size_t srd_workload;
@@ -172,8 +173,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     for (auto it = wl->checked_files.begin(); it != wl->checked_files.end();)
     {
         std::string status = (*it)[FILE_STATUS].ToString();
-        if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED))
+        if (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
         {
             it = wl->checked_files.erase(it);
         }
@@ -203,29 +203,28 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         {
             // Write current status to waiting status
             status->set_char(WAITING_STATUS, status->get_char(CURRENT_STATUS));
-            // Calculate old files size
             if (status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
             {
+                // Calculate old files size
                 files_size += wl->checked_files[i][FILE_OLD_SIZE].ToInt();
-            }
-            // Calculate files(valid) root hash
-            if (status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
-            {
+                // Calculate files(valid) root hash
                 report_valid_idx_s.insert(i);
             }
             // Generate report files queue
             if (reported_files_acc < WORKREPORT_FILE_LIMIT)
             {
-                if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
-                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
+                if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
                     std::string file_str;
                     file_str.append("{\"").append(FILE_CID).append("\":")
                         .append("\"").append(wl->checked_files[i][FILE_CID].ToString()).append("\",");
                     file_str.append("\"").append(FILE_SIZE).append("\":")
-                        .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append("}");
-                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST || status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+                        .append(std::to_string(wl->checked_files[i][FILE_OLD_SIZE].ToInt())).append(",");
+                    file_str.append("\"").append(FILE_CHAIN_BLOCK_NUM).append("\":")
+                        .append(std::to_string(wl->checked_files[i][FILE_CHAIN_BLOCK_NUM].ToInt())).append("}");
+                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
                     {
                         if (deleted_files.size() != 1)
                         {

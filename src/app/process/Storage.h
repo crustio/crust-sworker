@@ -12,7 +12,9 @@ extern "C"
 {
 #endif
 
-void storage_add_delete(std::string hash);
+void storage_add_delete(std::string cid);
+
+void storage_add_seal(std::string cid);
 
 #if defined(__cplusplus)
 }

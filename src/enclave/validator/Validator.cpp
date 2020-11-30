@@ -214,7 +214,11 @@ void validate_meaningful_file()
     if (wl->new_files.size() > 0)
     {
         // Insert new files to checked files
-        wl->checked_files.insert(wl->checked_files.end(), wl->new_files.begin(), wl->new_files.end());
+        for (auto fj : wl->new_files)
+        {
+            fj[FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_VALID);
+            wl->checked_files.push_back(fj);
+        }
         // Clear new files
         wl->new_files.clear();
     }
@@ -247,7 +251,7 @@ void validate_meaningful_file()
             continue;
         }
 
-        // If new file hasn't been confirmed, skip this validation
+        // If new file hasn't been verified, skip this validation
         auto status = &wl->checked_files[file_idx][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
@@ -264,7 +268,7 @@ void validate_meaningful_file()
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                 changed_idx2lost_um[file_idx] = true;
             }
             if (p_data != NULL)
@@ -297,7 +301,7 @@ void validate_meaningful_file()
         {
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                 changed_idx2lost_um[file_idx] = true;
             }
             continue;
@@ -324,7 +328,6 @@ void validate_meaningful_file()
         std::string cid_tag(MT_CID "\":\"");
         std::string dhash_tag(MT_DATA_HASH "\":\"");
         size_t cur_block_idx = 0;
-        bool checked_ret = true;
         for (auto check_block_idx : block_idx_s)
         {
             // Get leaf node position
@@ -342,10 +345,9 @@ void validate_meaningful_file()
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 break;
             }
             // Get current node cid
@@ -357,10 +359,9 @@ void validate_meaningful_file()
                 log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 break;
             }
             epos += dhash_tag.size();
@@ -377,16 +378,16 @@ void validate_meaningful_file()
                 }
                 if (CRUST_SERVICE_UNAVAILABLE == crust_status)
                 {
-                    log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
+                    log_err("IPFS is offline!Please start it!\n");
                     wl->set_report_file_flag(false);
                     return;
                 }
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
+                log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
             }
             // Validate hash
@@ -409,21 +410,14 @@ void validate_meaningful_file()
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 free(leaf_hash_u);
                 break;
             }
             free(leaf_hash_u);
             spos = epos;
-        }
-        // Set lost file back
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && checked_ret)
-        {
-            status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
-            changed_idx2lost_um[file_idx] = false;
         }
     }
 
@@ -432,15 +426,15 @@ void validate_meaningful_file()
     {
         for (auto it : changed_idx2lost_um)
         {
-            char old_status_c = (it.second ? FILE_STATUS_VALID : FILE_STATUS_LOST);
-            char cur_status_c = wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS);
-            std::string old_status = (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]);
-            std::string cur_status = g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)];
-            log_info("File status changed, hash: %s status: %s -> %s\n",
-                    wl->checked_files[it.first][FILE_CID].ToString().c_str(),
-                    old_status.c_str(),
-                    cur_status.c_str());
-            wl->set_wl_spec(cur_status_c, old_status_c, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
+            log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
+                    wl->checked_files[it.first][FILE_CID].ToString().c_str());
+            std::string cid = wl->checked_files[it.first][FILE_CID].ToString();
+            // Delete real file
+            ocall_ipfs_del(&crust_status, cid.c_str());
+            // Delete file tree structure
+            persist_del(cid);
+            // Reduce valid file
+            wl->set_wl_spec(FILE_STATUS_VALID, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
         }
     }
 }

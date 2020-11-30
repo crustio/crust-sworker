@@ -24,9 +24,6 @@
 
 #define OCALL_STORE_THRESHOLD 4194304 /* 4*1024*1024 */
 
-// For db data
-#define DB_SRD_INFO "srd_info"
-
 // For upgrade
 typedef enum _upgrade_status_t
 {

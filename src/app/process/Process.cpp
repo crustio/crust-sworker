@@ -524,6 +524,9 @@ entry_network_flag:
         }
     }
 
+    // Restore sealed file information
+    ed->restore_sealed_file_info();
+
     // Check block height and post report to chain
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
              std::async(std::launch::async, &work_report_loop)), &work_report_loop));

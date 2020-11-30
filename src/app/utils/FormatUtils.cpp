@@ -125,15 +125,15 @@ char *hexstring(const void *vsrc, size_t len)
  * @param vsrc -> Pointer to original data buffer
  * @param len -> Original data buffer length
  * @return: Hexstringed data
- * */
-char *hexstring_safe(const void *vsrc, size_t len)
+ */
+std::string hexstring_safe(const void *vsrc, size_t len)
 {
 	size_t i;
 	const unsigned char *src = (const unsigned char *)vsrc;
     char *hex_buffer = (char*)malloc(len * 2);
     if (hex_buffer == NULL)
     {
-        return NULL;
+        return "";
     }
     memset(hex_buffer, 0, len * 2);
 	char *bp;
@@ -146,17 +146,7 @@ char *hexstring_safe(const void *vsrc, size_t len)
 		++bp;
 	}
 
-	return hex_buffer;
-}
-
-/**
- * @description: Remove indicated character from string
- * @param data -> Reference to string
- * @param c -> Character to be removed
- * */
-void remove_char(std::string &data, char c)
-{
-    data.erase(std::remove(data.begin(), data.end(), c), data.end());
+	return std::string(hex_buffer, len * 2);
 }
 
 /**

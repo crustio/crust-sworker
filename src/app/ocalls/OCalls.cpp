@@ -603,3 +603,31 @@ void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_da
 {
     EnclaveData::get_instance()->add_unsealed_data(unsealed_root, p_unsealed_data, unsealed_data_len);
 }
+
+/**
+ * @description: Get chain block information
+ * @param data -> Pointer to file block information
+ * @param data_size -> Pointer to file block data size
+ * @return: Get result
+ */
+crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
+{
+    crust::BlockHeader block_header;
+    if (!crust::Chain::get_instance()->get_block_header(block_header))
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    json::JSON bh_json;
+    bh_json[CHAIN_BLOCK_NUMBER] = block_header.number;
+    bh_json[CHAIN_BLOCK_HASH] = block_header.hash;
+
+    std::string bh_str = bh_json.dump();
+    remove_char(bh_str, '\n');
+    remove_char(bh_str, '\\');
+    remove_char(bh_str, ' ');
+
+    memcpy(data, bh_str.c_str(), bh_str.size());
+
+    return CRUST_SUCCESS;
+}

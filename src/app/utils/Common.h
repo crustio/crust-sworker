@@ -36,6 +36,7 @@ extern "C"
     std::string flat_urlformat(std::string &url);
     bool is_number(const std::string &s);
     void replace(std::string &data, std::string org_str, std::string det_str);
+    void remove_char(std::string &data, char c);
     void srand_string(std::string seed);
 
 #if defined(__cplusplus)

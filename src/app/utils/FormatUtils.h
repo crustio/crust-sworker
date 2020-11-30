@@ -19,8 +19,7 @@ extern "C"
     int from_hexstring(unsigned char *dest, const void *src, size_t len);
     void print_hexstring(const void *vsrc, size_t len);
     char *hexstring(const void *src, size_t len);
-    char *hexstring_safe(const void *vsrc, size_t len);
-    void remove_char(std::string &data, char c);
+    std::string hexstring_safe(const void *vsrc, size_t len);
 
     char *base64_encode(const char *msg, size_t sz);
     char *base64_decode(const char *msg, size_t *sz);

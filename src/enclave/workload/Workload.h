@@ -21,7 +21,6 @@
 // Show information
 std::map<char, std::string> g_file_status = {
     {FILE_STATUS_VALID, "valid"},
-    {FILE_STATUS_LOST, "lost"},
     {FILE_STATUS_DELETED, "deleted"}
 };
 

@@ -18,7 +18,7 @@ extern "C"
 {
 #endif
 
-crust_status_t storage_seal_file(const char *cid);
+crust_status_t storage_seal_file(const char *cid, size_t *file_size);
 
 crust_status_t storage_unseal_file(const char *data, size_t data_size);
 
