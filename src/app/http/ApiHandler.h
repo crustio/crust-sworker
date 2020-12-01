@@ -476,8 +476,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
             if (cid.size() != CID_LENGTH)
-            res.result(200);
-            res.body() = EnclaveData::get_instance()->get_sealed_file_info(cid);
+            {
+                res.result(400);
+                res.body() = "Invalid cid";
+            }
+            else
+            {
+                res.result(200);
+                res.body() = EnclaveData::get_instance()->get_sealed_file_info(cid);
+            }
             goto postcleanup;
         }
 
