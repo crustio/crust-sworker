@@ -118,7 +118,29 @@ crust_status_t storage_seal_file(const char *cid)
 
     // Add new file to buffer
     sgx_thread_mutex_lock(&g_sealed_files_mutex);
-    wl->sealed_files.push_back(file_entry_json);
+    if (2 == check_file_res)
+    {
+        bool replaced = false;
+        for (size_t i = 0; i < wl->sealed_files.size(); i++)
+        {
+            if (wl->sealed_files[i][FILE_CID].ToString().compare(cid) == 0)
+            {
+                wl->sealed_files[i] = file_entry_json;
+                replaced = true;
+                break;
+            }
+        }
+        // Cannot find related file item, insert this file as a new one
+        if (!replaced)
+        {
+            file_entry_json[FILE_STATUS] = "100";
+            wl->sealed_files.push_back(file_entry_json);
+        }
+    }
+    else
+    {
+        wl->sealed_files.push_back(file_entry_json);
+    }
     sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     // Add info in workload spec
@@ -126,7 +148,7 @@ crust_status_t storage_seal_file(const char *cid)
 
     // Store file information
     std::string file_info;
-    file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(origin_size)).append(" , ")
+    file_info.append("{ \\\"size\\\" : ").append(std::to_string(origin_size)).append(" , ")
         .append("\\\"sealed_size\\\" : ").append(std::to_string(sealed_size)).append(" , ")
         .append("\\\"block_number\\\" : ").append(std::to_string(chain_block_num)).append(" }");
     ocall_store_file_info(cid, file_info.c_str());
@@ -498,7 +520,6 @@ int check_file_dup(std::string cid)
             {
                 if (org_s == FILE_STATUS_VALID)
                 {
-                    wl->sealed_files.erase(it);
                     return 2;
                 }
                 if (org_s == FILE_STATUS_DELETED)

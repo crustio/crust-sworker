@@ -61,15 +61,26 @@ void validate_srd()
         {
             sgx_read_rand((uint8_t *)&rand_val, 4);
             chose_entry = wl->srd_path2hashs_m.begin();
+            if (chose_entry == wl->srd_path2hashs_m.end())
+            {
+                break;
+            }
             uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
             for (uint32_t i = 0; i < path_idx; i++)
             {
                 chose_entry++;
             }
-            sgx_read_rand((uint8_t *)&rand_val, 4);
-            rand_idx = rand_val % chose_entry->second.size();
-            p_chose = std::make_pair(path_idx, rand_idx);
-            validate_srd_idx_s.insert(p_chose);
+            if (0 != chose_entry->second.size())
+            {
+                sgx_read_rand((uint8_t *)&rand_val, 4);
+                rand_idx = rand_val % chose_entry->second.size();
+                p_chose = std::make_pair(path_idx, rand_idx);
+                validate_srd_idx_s.insert(p_chose);
+            }
+            else
+            {
+                wl->srd_path2hashs_m.erase(chose_entry->first);
+            }
         }
     }
     else

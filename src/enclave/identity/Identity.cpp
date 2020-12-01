@@ -983,7 +983,7 @@ crust_status_t id_restore_metadata()
             json::JSON file = wl->sealed_files[i];
             std::string info;
             info.append("\"").append(file[FILE_CID].ToString()).append("\":")
-                .append("\"{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+                .append("\"{ \\\"size\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
                 .append("\\\"sealed_size\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
                 .append("\\\"block_number\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
             if (i != wl->sealed_files.size() - 1)
