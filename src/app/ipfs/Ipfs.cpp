@@ -5,6 +5,10 @@ crust::Log *p_log = crust::Log::get_instance();
 HttpClient *ipfs_client = NULL;
 Ipfs *Ipfs::ipfs = NULL;
 
+std::string block_get_timeout = "300ms";
+std::string cat_timeout = "500ms";
+std::string add_timeout = "500ms";
+
 /**
  * @desination: single instance class function to get instance
  * @return: ipfs instance
@@ -64,7 +68,7 @@ bool Ipfs::online()
  * */
 size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 {
-    std::string path = this->url + "/block/get?arg=" + cid;
+    std::string path = this->url + "/block/get?arg=" + cid + "&timeout=" + block_get_timeout;
     http::response<http::string_body> res = ipfs_client->Post(path);
     if ((int)res.result() != 200)
     {
@@ -86,7 +90,7 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
  * */
 size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
 {
-    std::string path = this->url + "/cat?arg=" + cid;
+    std::string path = this->url + "/cat?arg=" + cid + "&timeout=" + cat_timeout;
     http::response<http::string_body> res = ipfs_client->Post(path);
     if ((int)res.result() != 200)
     {
@@ -108,7 +112,7 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
  * */
 std::string Ipfs::add(unsigned char *p_data_in, size_t size)
 {
-    std::string path = this->url + "/add";
+    std::string path = this->url + "/add" + "?timeout=" + add_timeout;
     std::string data(reinterpret_cast<char const *>(p_data_in), size);
     data = "\r\n--" + this->form_boundary + "\r\nContent-Disposition: form-data; name=\"\"\r\n\r\n" +
            data + "\r\n--" + this->form_boundary + "--\r\n\r\n";

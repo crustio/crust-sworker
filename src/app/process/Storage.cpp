@@ -26,11 +26,8 @@ void storage_add_delete(std::string cid)
         {
             p_log->err("Delete file(%s) failed!Error code:%lx\n", cid.c_str(), crust_status);
         }
-        else
-        {
-            EnclaveData::get_instance()->del_sealed_file_info(cid);
-            p_log->info("Delete file(%s) successfully!\n", cid.c_str());
-        }
+        EnclaveData::get_instance()->del_sealed_file_info(cid);
+        p_log->info("Delete file(%s) successfully!\n", cid.c_str());
     }));
     clean_complete_task();
 }
@@ -43,15 +40,9 @@ void storage_add_seal(std::string cid)
 {
     sgx_enclave_id_t eid = global_eid;
     storage_task_v.push_back(std::async(std::launch::async, [eid, cid](){
-        if (EnclaveData::get_instance()->is_sealed_file_dup(cid))
-        {
-            p_log->info("file(%s) has been sealed!\n", cid.c_str());
-            return;
-        }
         sgx_status_t sgx_status = SGX_SUCCESS;
         crust_status_t crust_status = CRUST_SUCCESS;
-        size_t file_size = 0;
-        if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(eid, &crust_status, cid.c_str(), &file_size)))
+        if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(eid, &crust_status, cid.c_str())))
         {
             p_log->err("Seal file(%s) failed!Invoke SGX API failed!Error code:%lx\n", cid.c_str(), sgx_status);
         }
@@ -68,13 +59,15 @@ void storage_add_seal(std::string cid)
             case CRUST_UPGRADE_IS_UPGRADING:
                 p_log->err("Seal file(%s) failed due to upgrade!\n", cid.c_str());
                 break;
+            case CRUST_STORAGE_FILE_DUP:
+                p_log->err("Seal file(%s) failed!This file has been sealed.\n", cid.c_str());
+                break;
             default:
                 p_log->err("Seal file(%s) failed!Unexpected error!\n", cid.c_str());
             }
         }
         else
         {
-            EnclaveData::get_instance()->add_sealed_file_info(cid, file_size);
             p_log->info("Seal file(%s) successfully!\n", cid.c_str());
         }
     }));

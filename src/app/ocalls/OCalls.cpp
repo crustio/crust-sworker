@@ -631,3 +631,12 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
 
     return CRUST_SUCCESS;
 }
+
+/**
+ * @description: Store file information
+ * @param data -> File information data
+ */
+void ocall_store_file_info(const char* cid, const char *data)
+{
+    EnclaveData::get_instance()->add_sealed_file_info(cid, data);
+}

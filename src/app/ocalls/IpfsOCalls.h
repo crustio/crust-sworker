@@ -5,6 +5,7 @@
 #include "DataBase.h"
 #include "Ipfs.h"
 #include "Log.h"
+#include "EnclaveData.h"
 
 #if defined(__cplusplus)
 extern "C"
