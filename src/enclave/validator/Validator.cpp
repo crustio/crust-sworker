@@ -429,7 +429,7 @@ void validate_meaningful_file()
             // Delete file tree structure
             persist_del(cid);
             // Reduce valid file
-            wl->set_wl_spec(FILE_STATUS_VALID, wl->sealed_files[it.first][FILE_SIZE].ToInt());
+            wl->set_wl_spec(FILE_STATUS_VALID, -wl->sealed_files[it.first][FILE_SIZE].ToInt());
         }
     }
 }
