@@ -87,7 +87,9 @@ bool initialize_enclave()
         switch (ret)
         {
             case SGX_ERROR_NO_DEVICE:
-                p_log->err("Init enclave failed. Open sgx driver failed, please uninstall your sgx driver (OOT driver and DCAP driver) and reinstall it (OOT driver). If it still fails, please try to reinstall the system. Error code:%lx\n", ret);
+                p_log->err("Init enclave failed. Open sgx driver failed, please uninstall your sgx "
+                        "driver (OOT driver and DCAP driver) and reinstall it (OOT driver). "
+                        "If it still fails, please try to reinstall the system. Error code:%lx\n", ret);
                 break;
             default:
                 p_log->err("Init enclave failed.Error code:%lx\n", ret);
@@ -411,6 +413,9 @@ int process_run()
     int upgrade_timeout = 5 * REPORT_BLOCK_HEIGHT_BASE * BLOCK_INTERVAL;
     int upgrade_tryout = upgrade_timeout / check_interval;
     int entry_tryout = 3;
+    size_t srd_task = 0;
+    long srd_real_change = 0;
+    std::string srd_task_str;
     EnclaveData *ed = EnclaveData::get_instance();
     p_log->info("WorkerPID = %d\n", worker_pid);
 
@@ -420,6 +425,13 @@ int process_run()
         p_log->err("Init configuration failed!\n");
         return_status = -1;
         goto cleanup;
+    }
+
+    // Get srd remaining task
+    if (CRUST_SUCCESS == crust::DataBase::get_instance()->get(WL_SRD_REMAINING_TASK, srd_task_str))
+    {
+        std::stringstream sstream(srd_task_str);
+        sstream >> srd_task;
     }
 
     // There are three startup mode: upgrade, restore and normal
@@ -503,25 +515,7 @@ entry_network_flag:
             }
 
             // Srd disk
-            long real_change = 0;
-            if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, p_config->srd_capacity, &real_change)))
-            {
-                p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
-            }
-            else
-            {
-                switch (crust_status)
-                {
-                case CRUST_SUCCESS:
-                    p_log->info("Add init srd task successfully!%ldG has been added, will be executed later.\n", real_change);
-                    break;
-                case CRUST_SRD_NUMBER_EXCEED:
-                    p_log->warn("Add init srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
-                    break;
-                default:
-                    p_log->info("Unexpected error has occurred!\n");
-                }
-            }
+            srd_task = std::max(srd_task, p_config->srd_capacity);
         }
         else
         {
@@ -537,6 +531,34 @@ entry_network_flag:
             }
 
             p_log->info("Restore enclave data successfully!\n");
+            p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
+            if (srd_task > 0)
+            {
+                p_log->info("Detect %ld srd remaining task,will execute later.\n", srd_task);
+            }
+        }
+    }
+
+    // Restore or add srd task
+    if (srd_task > 0)
+    {
+        if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, srd_task, &srd_real_change)))
+        {
+            p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
+        }
+        else
+        {
+            switch (crust_status)
+            {
+            case CRUST_SUCCESS:
+                p_log->info("Add srd task successfully!%ldG has been added, will be executed later.\n", srd_real_change);
+                break;
+            case CRUST_SRD_NUMBER_EXCEED:
+                p_log->warn("Add srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", srd_real_change);
+                break;
+            default:
+                p_log->info("Unexpected error has occurred!\n");
+            }
         }
     }
 

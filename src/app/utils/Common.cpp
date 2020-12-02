@@ -289,3 +289,16 @@ void srand_string(std::string seed)
 
     srand(time(NULL) + seed_number);
 }
+
+/**
+ * @description: Print attention logo
+ */
+void print_attention()
+{
+    std::string gap = std::string(PRINT_GAP, ' ');
+    std::string attention = ATTENTION_LOGO;
+    replace(attention, "%", "\\");
+    replace(attention, "\n", "\n" + gap);
+    attention = HRED + gap + attention + NC;
+    printf("\n%s\n", attention.c_str());
+}

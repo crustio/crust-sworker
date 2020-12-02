@@ -527,9 +527,9 @@ void ocall_srd_change(long change)
  */
 crust_status_t ocall_upload_identity(const char *id)
 {
-    json::JSON id_json = json::JSON::Load(std::string(id));
-    id_json["account_id"] = Config::get_instance()->chain_address;
-    std::string sworker_identity = id_json.dump();
+    json::JSON entrance_info = json::JSON::Load(std::string(id));
+    entrance_info["account_id"] = Config::get_instance()->chain_address;
+    std::string sworker_identity = entrance_info.dump();
     p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());
 
     // Send identity to crust chain
@@ -539,7 +539,7 @@ crust_status_t ocall_upload_identity(const char *id)
     }
 
     // Get all id information
-    json::JSON all_id_info = json::JSON::Load(EnclaveData::get_instance()->get_enclave_id_info());
+    json::JSON id_info = json::JSON::Load(EnclaveData::get_instance()->get_enclave_id_info());
     std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
     if (code_on_chain == "")
     {
@@ -547,17 +547,19 @@ crust_status_t ocall_upload_identity(const char *id)
         return CRUST_UNEXPECTED_ERROR;
     }
 
-    if (all_id_info["mrenclave"].ToString() != code_on_chain)
+    if (id_info["mrenclave"].ToString() != code_on_chain)
     {
-        p_log->err("Attention!!!!! Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
-                "please get the latest sworker by running 'sudo docker pull crustio/crust-sworker:latest' "
-                "and reload your sworker by running 'sudo crust reload sworker'\n", 
-                all_id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str());
+        print_attention();
+        std::string cmd1(HRED "sudo docker pull crustio/crust-sworker:latest" NC);
+        std::string cmd2(HRED "sudo crust reload sworker" NC);
+        p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
+                "please get the latest sworker by running '%s' and reload your sworker by running '%s'\n", 
+                id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str(), cmd2.c_str());
         return CRUST_SWORKER_UPGRADE_NEEDED;
     }
     else
     {
-        p_log->info("Mrenclave is '%s'\n", id_json["mrenclave"].ToString().c_str());
+        p_log->info("Mrenclave is '%s'\n", entrance_info["mrenclave"].ToString().c_str());
     }
 
     if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))

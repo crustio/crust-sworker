@@ -42,4 +42,15 @@ const uint32_t UPGRADE_COMPLETE_TRYOUT = BLOCK_INTERVAL * 10;
 #define ID_METADATA_OLD "metadata_old"
 #define ID_METADATA "metadata"
 
+// For print
+#define PRINT_GAP 20
+#define RED "\033[0;31m"
+#define HRED "\033[1;31m"
+#define NC "\033[0m"
+const std::string ATTENTION_LOGO = "    ___   __  __             __  _                __   __   __\n"
+                                   "   /   | / /_/ /____  ____  / /_(_)___  ____     / /  / /  / /\n"
+                                   "  / /| |/ __/ __/ _ %/ __ %/ __/ / __ %/ __ %   / /  / /  / / \n"
+                                   " / ___ / /_/ /_/  __/ / / / /_/ / /_/ / / / /  /_/  /_/  /_/  \n"
+                                   "/_/  |_%__/%__/%___/_/ /_/%__/_/%____/_/ /_/  (_)  (_)  (_)   \n";
+
 #endif /* !_CRUST_RESOURCE_H_ */

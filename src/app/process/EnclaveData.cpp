@@ -300,3 +300,65 @@ void EnclaveData::restore_sealed_file_info()
     this->sealed_file = json::JSON::Load(file_info);
     this->sealed_file_mutex.unlock();
 }
+
+/**
+ * @description: Generate workload
+ * @return: Workload
+ */
+std::string EnclaveData::gen_workload()
+{
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    // Get srd info
+    if (SGX_SUCCESS != Ecall_get_workload(global_eid))
+    {
+        p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
+    }
+    json::JSON wl_json = json::JSON::Load(get_enclave_workload());
+    if (wl_json.size() == -1)
+    {
+        return "Get workload failed!";
+    }
+    wl_json["srd"]["disk_reserved"] = get_reserved_space();
+    size_t tmp_size = 0;
+    size_t srd_space = 0;
+    json::JSON disk_json = get_increase_srd_info(tmp_size);
+    if (wl_json["srd"]["detail"].JSONType() == json::JSON::Class::Object)
+    {
+        for (auto it = wl_json["srd"]["detail"].ObjectRange().begin(); 
+                it != wl_json["srd"]["detail"].ObjectRange().end(); it++)
+        {
+            srd_space += (it->second)["assigned"].ToInt();
+            (it->second)["available"] = disk_json[it->first]["available"];
+            (it->second)["total"] = disk_json[it->first]["total"];
+            std::string disk_item = (it->second).dump();
+            remove_char(disk_item, '\n');
+            replace(disk_item, "}", "  }");
+            it->second = disk_item;
+        }
+    }
+    wl_json["srd"]["space"] = srd_space;
+    // Get file info
+    json::JSON file_info = wl_json["files"];
+    json::JSON n_file_info;
+    char buf[128];
+    int space_num = 0;
+    for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+    {
+        space_num = std::max(space_num, (int)it->first.size());
+    }
+    for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+    {
+        memset(buf, 0, sizeof(buf));
+        sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
+                std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
+        n_file_info[it->first] = std::string(buf);
+    }
+
+    wl_json["files"] = n_file_info;
+    std::string wl_str = wl_json.dump();
+    replace(wl_str, "\"{", "{");
+    replace(wl_str, ": \" ", ":  ");
+    replace(wl_str, "}\"", "}");
+    remove_char(wl_str, '\\');
+    return wl_str;
+}

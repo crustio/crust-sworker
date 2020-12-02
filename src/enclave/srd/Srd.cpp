@@ -50,8 +50,14 @@ void srd_change()
         return;
     }
 
-    // Get real srd space
     sgx_thread_mutex_lock(&g_srd_task_mutex);
+    // Store remaining task
+    std::string srd_task_str = std::to_string(g_srd_task);
+    if (CRUST_SUCCESS != persist_set_unsafe(WL_SRD_REMAINING_TASK, reinterpret_cast<const uint8_t *>(srd_task_str.c_str()), srd_task_str.size()))
+    {
+        log_warn("Store srd remaining task failed!\n");
+    }
+    // Get real srd space
     long srd_change_num = 0;
     if (g_srd_task > SRD_MAX_PER_TURN)
     {
@@ -401,6 +407,12 @@ crust_status_t change_srd_task(long change, long *real_change)
 
     sgx_thread_mutex_lock(&g_srd_task_mutex);
     g_srd_task += change;
+    // Store remaining task
+    std::string srd_task_str = std::to_string(g_srd_task);
+    if (CRUST_SUCCESS != persist_set_unsafe(WL_SRD_REMAINING_TASK, reinterpret_cast<const uint8_t *>(srd_task_str.c_str()), srd_task_str.size()))
+    {
+        log_warn("Store srd remaining task failed!\n");
+    }
     sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     *real_change = change;
