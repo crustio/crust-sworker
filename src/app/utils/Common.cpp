@@ -296,7 +296,7 @@ void srand_string(std::string seed)
 void print_attention()
 {
     std::string gap = std::string(PRINT_GAP, ' ');
-    std::string attention = ATTENTION_LOGO;
+    std::string attention(ATTENTION_LOGO);
     replace(attention, "%", "\\");
     replace(attention, "\n", "\n" + gap);
     attention = HRED + gap + attention + NC;
