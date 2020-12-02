@@ -5,9 +5,9 @@ crust::Log *p_log = crust::Log::get_instance();
 HttpClient *ipfs_client = NULL;
 Ipfs *Ipfs::ipfs = NULL;
 
-std::string block_get_timeout = "300ms";
-std::string cat_timeout = "500ms";
-std::string add_timeout = "500ms";
+std::string block_get_timeout = "500ms";
+std::string cat_timeout = "1000ms";
+std::string add_timeout = "2000ms";
 
 /**
  * @desination: single instance class function to get instance
