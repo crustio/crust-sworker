@@ -557,7 +557,7 @@ and reload your sworker by running 'sudo crust reload sworker'\n",
     }
     else
     {
-        p_log->info("Mrenclave is '%s'\n", id_json["mrenclave"].ToString());
+        p_log->info("Mrenclave is '%s'\n", id_json["mrenclave"].ToString().c_str());
     }
 
     if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
