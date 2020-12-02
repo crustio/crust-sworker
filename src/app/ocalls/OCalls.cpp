@@ -543,11 +543,11 @@ crust_status_t ocall_upload_identity(const char *id)
     std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
     if (all_id_info["mrenclave"].ToString() != code_on_chain)
     {
-        p_log->err("Attention!!!!! Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, 
-        please get the latest sworker by running 'sudo docker pull crustio/crust-sworker:latest' 
+        p_log->err("Attention!!!!! Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, \
+        please get the latest sworker by running 'sudo docker pull crustio/crust-sworker:latest' \
         and reload your sworker by running 'sudo crust reload sworker'\n", 
         all_id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str());
-        return CRUST_UNEXPECTED_ERROR;
+        return CRUST_SWORKER_UPGRADE_NEEDED;
     }
     else
     {
