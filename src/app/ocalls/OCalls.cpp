@@ -541,6 +541,12 @@ crust_status_t ocall_upload_identity(const char *id)
     // Get all id information
     json::JSON all_id_info = json::JSON::Load(EnclaveData::get_instance()->get_enclave_id_info());
     std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
+    if (code_on_chain == "")
+    {
+        p_log->err("Get sworker code from chain failed! Please check the running status of the chain.");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
     if (all_id_info["mrenclave"].ToString() != code_on_chain)
     {
         p_log->err("Attention!!!!! Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, \
