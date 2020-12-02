@@ -99,7 +99,33 @@ std::string Chain::get_block_hash(size_t block_number)
     }
     else
     {
-        p_log->err("%s\n", "return body is null");
+        p_log->err("%s\n", "Get block return body is null");
+    }
+
+    return "";
+}
+
+
+/**
+ * @description: get block hash by number
+ * @return: swork code on chain
+ */
+std::string Chain::get_swork_code()
+{
+    std::string url = this->url + "/swork/code";
+    http::response<http::string_body> res = pri_chain_client->Get(url.c_str());
+    if ((int)res.result() == 200)
+    {
+        return res.body().substr(3, 64);
+    }
+
+    if (res.body().size() != 0)
+    {
+        p_log->debug("%s\n", res.body().c_str());
+    }
+    else
+    {
+        p_log->err("%s\n", "Get swork code return body is null");
     }
 
     return "";
@@ -141,7 +167,7 @@ bool Chain::is_syncing(void)
     }
     else
     {
-        p_log->err("%s\n", "return body is null");
+        p_log->err("%s\n", "Is syncing return body is null");
     }
 
     return true;

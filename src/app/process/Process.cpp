@@ -474,6 +474,14 @@ entry_network_flag:
             }
             p_log->info("Generate key pair successfully!\n");
 
+            // Get id info
+            if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
+            {
+                p_log->err("Get id info from enclave failed!\n");
+                return_status = -1;
+                goto cleanup;
+            }
+
             // Send identity to chain and send work report
             if (!offline_chain_mode)
             {
