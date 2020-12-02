@@ -315,6 +315,9 @@ crust_status_t entry_network()
         case CRUST_SIGN_PUBKEY_FAILED:
             p_log->err("Sign public key failed!!\n");
             break;
+        case CRUST_SWORKER_UPGRADE_NEEDED:
+            p_log->err("Sworker upgrade needed!!\n");
+            break;
         default:
             p_log->err("Unknown return status!\n");
         }

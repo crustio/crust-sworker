@@ -537,6 +537,29 @@ crust_status_t ocall_upload_identity(const char *id)
     {
         return CRUST_UNEXPECTED_ERROR;
     }
+
+    // Get all id information
+    json::JSON all_id_info = json::JSON::Load(EnclaveData::get_instance()->get_enclave_id_info());
+    std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
+    if (code_on_chain == "")
+    {
+        p_log->err("Get sworker code from chain failed! Please check the running status of the chain.");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    if (all_id_info["mrenclave"].ToString() != code_on_chain)
+    {
+        p_log->err("Attention!!!!! Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
+                "please get the latest sworker by running 'sudo docker pull crustio/crust-sworker:latest' "
+                "and reload your sworker by running 'sudo crust reload sworker'\n", 
+                all_id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str());
+        return CRUST_SWORKER_UPGRADE_NEEDED;
+    }
+    else
+    {
+        p_log->info("Mrenclave is '%s'\n", id_json["mrenclave"].ToString().c_str());
+    }
+
     if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
     {
         p_log->err("Send identity to crust chain failed!\n");

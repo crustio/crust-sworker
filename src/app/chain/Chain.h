@@ -28,6 +28,7 @@ public:
     static Chain *get_instance();
     bool get_block_header(BlockHeader &block_header);
     std::string get_block_hash(size_t block_number);
+    std::string get_swork_code();
     bool post_sworker_identity(std::string identity);
     bool post_sworker_work_report(std::string work_report);
     bool is_online(void);
