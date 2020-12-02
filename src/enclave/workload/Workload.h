@@ -67,8 +67,8 @@ public:
     enc_upgrade_status_t get_upgrade_status();
 
     // For workload spec
-    void set_wl_spec(char file_status, int change);
-    void set_wl_spec(char file_status, char related_file_status, int change);
+    void set_wl_spec(char file_status, long long change);
+    void set_wl_spec(char file_status, char related_file_status, long long change);
     const json::JSON &get_wl_spec();
     void restore_wl_spec_info(std::string data);
 

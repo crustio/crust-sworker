@@ -498,7 +498,7 @@ crust_status_t Workload::try_report_work(size_t block_height)
  * @param file_status -> Workload spec
  * @param change -> Spec information change
  */
-void Workload::set_wl_spec(char file_status, int change)
+void Workload::set_wl_spec(char file_status, long long change)
 {
     sgx_thread_mutex_lock(&wl_spec_info_mutex);
     std::string ws_name = g_file_status[file_status];
@@ -513,7 +513,7 @@ void Workload::set_wl_spec(char file_status, int change)
  * @param related_file_status -> Related workload spec
  * @param change -> Spec information change
  */
-void Workload::set_wl_spec(char file_status, char related_file_status, int change)
+void Workload::set_wl_spec(char file_status, char related_file_status, long long change)
 {
     if (file_status == related_file_status)
     {
