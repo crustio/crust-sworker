@@ -125,6 +125,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     size_t sigbuf_len = 0;
     uint8_t *sigbuf = NULL;
     uint8_t *p_sigbuf = NULL;
+    std::vector<size_t> report_valid_idx_v;
     // Lock variable
     SafeLock sealed_files_sl(g_sealed_files_mutex);
 
@@ -189,30 +190,16 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     added_files = "[";
     deleted_files = "[";
     reported_files_acc = 0;
-    files_root_buffer_len = wl->sealed_files.size() * HASH_LENGTH;
-    files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
-    if (files_root_buffer == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    memset(files_root_buffer, 0, files_root_buffer_len);
     for (uint32_t i = 0; i < wl->sealed_files.size(); i++)
     {
-        // Caculate file identity root hash
-        std::string file_id;
-        file_id.append(wl->sealed_files[i][FILE_CID].ToString())
-            .append(std::to_string(wl->sealed_files[i][FILE_SIZE].ToInt()))
-            .append(wl->sealed_files[i][FILE_STATUS].ToString());
-        sgx_sha256_hash_t file_id_hash;
-        sgx_sha256_msg(reinterpret_cast<const uint8_t *>(file_id.c_str()), file_id.size(), &file_id_hash);
-        memcpy(files_root_buffer + i * HASH_LENGTH, reinterpret_cast<const uint8_t *>(&file_id_hash), HASH_LENGTH);
         // Get report information
         auto status = &wl->sealed_files[i][FILE_STATUS];
         if (is_upgrading)
         {
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
+            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID 
+                    && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
             {
+                report_valid_idx_v.push_back(i);
                 files_size += wl->sealed_files[i][FILE_SIZE].ToInt();
             }
         }
@@ -220,9 +207,12 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         {
             // Write current status to waiting status
             status->set_char(WAITING_STATUS, status->get_char(CURRENT_STATUS));
+            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            {
+                report_valid_idx_v.push_back(i);
+            }
             if (status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
             {
-                // Calculate old files size
                 files_size += wl->sealed_files[i][FILE_SIZE].ToInt();
             }
             // Generate report files queue
@@ -267,8 +257,26 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     added_files.append("]");
     deleted_files.append("]");
     // Generate files information
-    if (files_root_buffer_len != 0)
+    files_root_buffer_len = report_valid_idx_v.size() * HASH_LENGTH;
+    files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
+    if (files_root_buffer == NULL)
     {
+        crust_status = CRUST_MALLOC_FAILED;
+        goto cleanup;
+    }
+    memset(files_root_buffer, 0, files_root_buffer_len);
+    if (files_root_buffer_len > 0)
+    {
+        for (size_t i = 0; i < report_valid_idx_v.size(); i++)
+        {
+            size_t idx = report_valid_idx_v[i];
+            std::string file_id;
+            file_id.append(wl->sealed_files[idx][FILE_CID].ToString())
+                .append(std::to_string(wl->sealed_files[idx][FILE_SIZE].ToInt()));
+            sgx_sha256_hash_t file_id_hash;
+            sgx_sha256_msg(reinterpret_cast<const uint8_t *>(file_id.c_str()), file_id.size(), &file_id_hash);
+            memcpy(files_root_buffer + i * HASH_LENGTH, reinterpret_cast<uint8_t *>(&file_id_hash), HASH_LENGTH);
+        }
         sgx_sha256_msg(files_root_buffer, files_root_buffer_len, &files_root);
         free(files_root_buffer);
     }

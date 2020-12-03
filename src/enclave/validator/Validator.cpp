@@ -136,7 +136,7 @@ void validate_srd()
         ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
         if (m_hashs_org == NULL)
         {
-            log_err("Get m hashs file failed in '%s'.\n", hex_g_hash.c_str());
+            log_err("Get m hashs file(%s) failed.\n", g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -154,7 +154,7 @@ void validate_srd()
         sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
         if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
         {
-            log_err("Wrong m hashs file in '%s'.\n", hex_g_hash.c_str());
+            log_err("Wrong m hashs file(%s).\n", g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -168,7 +168,7 @@ void validate_srd()
 
         if (leaf_data == NULL)
         {
-            log_err("Get leaf file failed in '%s'.\n", hexstring_safe(p_g_hash, HASH_LENGTH).c_str());
+            log_err("Get leaf file(%s) failed.\n", g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -177,7 +177,7 @@ void validate_srd()
         sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
         if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
         {
-            log_err("Wrong leaf data hash in '%s'.\n", hex_g_hash.c_str());
+            log_err("Wrong leaf data hash '%s'(file path:%s).\n", hex_g_hash.c_str(), g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }

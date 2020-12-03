@@ -11,6 +11,7 @@
 #include "Log.h"
 #include "Common.h"
 #include "DataBase.h"
+#include "Srd.h"
 #include "Json.hpp"
 
 class EnclaveData
@@ -37,6 +38,8 @@ public:
     void del_sealed_file_info(std::string cid);
     bool is_sealed_file_dup(std::string cid, bool locked = true);
     void restore_sealed_file_info();
+    // Get workload
+    std::string gen_workload();
 
 private:
     EnclaveData()

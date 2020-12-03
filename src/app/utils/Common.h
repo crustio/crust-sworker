@@ -38,6 +38,7 @@ extern "C"
     void replace(std::string &data, std::string org_str, std::string det_str);
     void remove_char(std::string &data, char c);
     void srand_string(std::string seed);
+    void print_attention();
 
 #if defined(__cplusplus)
 }
