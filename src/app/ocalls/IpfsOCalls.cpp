@@ -79,6 +79,22 @@ crust_status_t ocall_ipfs_add(uint8_t *p_data, size_t len, char *cid, size_t /*c
  */
 crust_status_t ocall_ipfs_del(const char *cid)
 {
+    if (!Ipfs::get_instance()->del(cid))
+    {
+        p_log->warn("Cannot delete sealed block(cid:%s)!\n", cid);
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+/**	
+ * @description: Delete file's all related data
+ * @param cid -> To be deleted file cid
+ * @return: Status
+ */
+crust_status_t ocall_ipfs_del_all(const char *cid)
+{
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::DataBase *db = crust::DataBase::get_instance();
     std::string tree_str;
@@ -104,13 +120,21 @@ crust_status_t ocall_ipfs_del(const char *cid)
  */
 void delete_validated_tree(json::JSON &tree)
 {
-    if (!tree.hasKey(MT_CID))
+    std::string cid;
+    if (tree.hasKey(MT_DATA_CID))
+    {
+        cid = tree[MT_DATA_CID].ToString();
+    }
+    else if (tree.hasKey(MT_CID))
+    {
+        cid = tree[MT_CID].ToString();
+    }
+    else
     {
         return;
     }
 
     // Delete current data
-    std::string cid = tree[MT_CID].ToString();
     if (!Ipfs::get_instance()->del(cid))
     {
         p_log->warn("Cannot delete sealed block(cid:%s)!\n", cid.c_str());

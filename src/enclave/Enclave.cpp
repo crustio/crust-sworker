@@ -83,6 +83,12 @@ void ecall_main_loop()
             break;
         }
 
+        // Store metadata periodically
+        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
+        {
+            log_err("Store enclave data failed!Error code:%lx\n", crust_status);
+        }
+
         // ----- File validate ----- //
         sched_add(SCHED_VALIDATE_FILE);
         validate_meaningful_file();
@@ -97,12 +103,6 @@ void ecall_main_loop()
         sched_add(SCHED_SRD_CHANGE);
         srd_change();
         sched_del(SCHED_SRD_CHANGE);
-
-        // Store metadata periodically
-        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
-        {
-            log_err("Store enclave data failed!Error code:%lx\n", crust_status);
-        }
 
         // Add validated proof
         wl->report_add_validated_proof();

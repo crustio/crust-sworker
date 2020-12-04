@@ -41,9 +41,17 @@ void validate_srd()
     sgx_thread_mutex_lock(&g_srd_mutex);
 
     size_t srd_total_num = 0;
-    for (auto it : wl->srd_path2hashs_m)
+    for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end();)
     {
-        srd_total_num += it.second.size();
+        if (0 == it->second.size())
+        {
+            it = wl->srd_path2hashs_m.erase(it);
+        }
+        else
+        {
+            srd_total_num += it->second.size();
+            it++;
+        }
     }
     size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
     srd_validate_num = std::min(srd_validate_num, srd_total_num);
@@ -76,10 +84,6 @@ void validate_srd()
                 rand_idx = rand_val % chose_entry->second.size();
                 p_chose = std::make_pair(path_idx, rand_idx);
                 validate_srd_idx_s.insert(p_chose);
-            }
-            else
-            {
-                wl->srd_path2hashs_m.erase(chose_entry->first);
             }
         }
     }
@@ -320,7 +324,7 @@ void validate_meaningful_file()
         // be careful to keep "cid", "hash" sequence
         size_t spos, epos;
         spos = epos = 0;
-        std::string cid_tag(MT_CID "\":\"");
+        std::string dcid_tag(MT_DATA_CID "\":\"");
         std::string dhash_tag(MT_DATA_HASH "\":\"");
         size_t cur_block_idx = 0;
         for (auto check_block_idx : block_idx_s)
@@ -328,12 +332,12 @@ void validate_meaningful_file()
             // Get leaf node position
             do
             {
-                spos = tree_str.find(cid_tag, spos);
+                spos = tree_str.find(dcid_tag, spos);
                 if (spos == tree_str.npos)
                 {
                     break;
                 }
-                spos += cid_tag.size();
+                spos += dcid_tag.size();
             } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos)
             {
@@ -425,7 +429,7 @@ void validate_meaningful_file()
                     wl->sealed_files[it.first][FILE_CID].ToString().c_str());
             std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
             // Delete real file
-            ocall_ipfs_del(&crust_status, cid.c_str());
+            ocall_ipfs_del_all(&crust_status, cid.c_str());
             // Delete file tree structure
             persist_del(cid);
             // Reduce valid file

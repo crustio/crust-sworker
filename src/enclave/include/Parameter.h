@@ -48,6 +48,7 @@
 
 // For Merkle tree
 #define MT_CID "cid"
+#define MT_DATA_CID "d_cid"
 #define MT_HASH "hash"
 #define MT_DATA_HASH "d_hash"
 #define MT_LINKS "links"
