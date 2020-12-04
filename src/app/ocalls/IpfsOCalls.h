@@ -17,6 +17,7 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
 crust_status_t ocall_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_size);
 crust_status_t ocall_ipfs_add(uint8_t *p_data, size_t len, char *cid, size_t cid_len);
 crust_status_t ocall_ipfs_del(const char *cid);
+crust_status_t ocall_ipfs_del_all(const char *cid);
 
 #if defined(__cplusplus)
 }

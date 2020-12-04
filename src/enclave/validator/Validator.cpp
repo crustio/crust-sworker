@@ -324,7 +324,7 @@ void validate_meaningful_file()
         // be careful to keep "cid", "hash" sequence
         size_t spos, epos;
         spos = epos = 0;
-        std::string cid_tag(MT_CID "\":\"");
+        std::string dcid_tag(MT_DATA_CID "\":\"");
         std::string dhash_tag(MT_DATA_HASH "\":\"");
         size_t cur_block_idx = 0;
         for (auto check_block_idx : block_idx_s)
@@ -332,12 +332,12 @@ void validate_meaningful_file()
             // Get leaf node position
             do
             {
-                spos = tree_str.find(cid_tag, spos);
+                spos = tree_str.find(dcid_tag, spos);
                 if (spos == tree_str.npos)
                 {
                     break;
                 }
-                spos += cid_tag.size();
+                spos += dcid_tag.size();
             } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos)
             {
@@ -429,7 +429,7 @@ void validate_meaningful_file()
                     wl->sealed_files[it.first][FILE_CID].ToString().c_str());
             std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
             // Delete real file
-            ocall_ipfs_del(&crust_status, cid.c_str());
+            ocall_ipfs_del_all(&crust_status, cid.c_str());
             // Delete file tree structure
             persist_del(cid);
             // Reduce valid file

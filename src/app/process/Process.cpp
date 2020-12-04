@@ -629,14 +629,6 @@ entry_network_flag:
         {
             // Release database
             delete crust::DataBase::get_instance();
-            // Stop web service
-            p_log->info("Kill web service for exit...\n");
-            stop_webservice();
-            // Destroy enclave
-            // TODO: Fix me, why destory enclave leads to coredump
-            p_log->info("Destroy enclave for exit...\n");
-            sgx_destroy_enclave(global_eid);
-            global_eid = 0;
             goto cleanup;
         }
         // Upgrade tryout
@@ -654,11 +646,14 @@ entry_network_flag:
     }
 
 cleanup:
-    if (global_eid != 0)
-    {
-        sgx_destroy_enclave(global_eid);
-        delete crust::DataBase::get_instance();
-    }
+    // Stop web service
+    p_log->info("Kill web service for exit...\n");
+    stop_webservice();
+
+    // Destroy enclave
+    // TODO: Fix me, why destory enclave leads to coredump
+    p_log->info("Destroy enclave for exit...\n");
+    sgx_destroy_enclave(global_eid);
 
     if (ed->get_upgrade_status() == UPGRADE_STATUS_EXIT)
     {
