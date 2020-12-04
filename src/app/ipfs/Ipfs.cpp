@@ -7,7 +7,7 @@ Ipfs *Ipfs::ipfs = NULL;
 
 std::string block_get_timeout = "500ms";
 std::string cat_timeout = "1000ms";
-std::string add_timeout = "2000ms";
+std::string add_timeout = "60s";
 
 /**
  * @desination: single instance class function to get instance

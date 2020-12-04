@@ -1,4 +1,5 @@
-#include "Storage.h"
+#include "Async.h"
+#include "ECalls.h"
 
 void clean_complete_task();
 
@@ -12,7 +13,7 @@ std::vector<std::future<void>> storage_task_v;
  * @description: Add delete meaningful file task
  * @param cid -> Meaningful file root cid
  */
-void storage_add_delete(std::string cid)
+void async_storage_delete(std::string cid)
 {
     sgx_enclave_id_t eid = global_eid;
     storage_task_v.push_back(std::async(std::launch::async, [eid, cid](){
@@ -36,7 +37,7 @@ void storage_add_delete(std::string cid)
  * @description: Add seal meaningful file task
  * @param cid -> Meaningful file root cid
  */
-void storage_add_seal(std::string cid)
+void async_storage_seal(std::string cid)
 {
     sgx_enclave_id_t eid = global_eid;
     storage_task_v.push_back(std::async(std::launch::async, [eid, cid](){

@@ -27,7 +27,7 @@
 #include "Common.h"
 #include "DataBase.h"
 #include "Srd.h"
-#include "Storage.h"
+#include "Async.h"
 #include "EnclaveData.h"
 #include "Chain.h"
 
@@ -510,7 +510,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = ret_info;
                 goto postcleanup;
             }
-            storage_add_delete(cid);
+            async_storage_delete(cid);
             ret_info = "Deleting file task has beening added!";
             res.body() = ret_info;
 
@@ -538,7 +538,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
 
             // ----- Seal file ----- //
-            storage_add_seal(cid);
+            async_storage_seal(cid);
             ret_info = "Sealing file task has beening added!";
             res.body() = ret_info;
 

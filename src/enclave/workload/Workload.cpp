@@ -314,7 +314,10 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
     // Restore srd info
     for (auto it : this->srd_path2hashs_m)
     {
-        this->srd_info_json[it.first]["assigned"] = it.second.size();
+        if (0 != it.second.size())
+        {
+            this->srd_info_json[it.first]["assigned"] = it.second.size();
+        }
     }
 
     return crust_status;
@@ -367,9 +370,9 @@ void Workload::set_srd_info(std::string path, long change)
 {
     sgx_thread_mutex_lock(&this->srd_info_mutex);
     this->srd_info_json[path]["assigned"] = this->srd_info_json[path]["assigned"].ToInt() + change;
-    if (this->srd_info_json[path]["assigned"].ToInt() < 0)
+    if (this->srd_info_json[path]["assigned"].ToInt() <= 0)
     {
-        this->srd_info_json[path]["assigned"] = 0;
+        this->srd_info_json.ObjectRange().object->erase(path);
     }
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 }
@@ -381,6 +384,10 @@ void Workload::set_srd_info(std::string path, long change)
 json::JSON Workload::get_srd_info()
 {
     sgx_thread_mutex_lock(&this->srd_info_mutex);
+    if (this->srd_info_json.size() <= 0)
+    {
+        this->srd_info_json = json::JSON();
+    }
     json::JSON srd_info = this->srd_info_json;
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 

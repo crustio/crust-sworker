@@ -31,7 +31,6 @@ std::unordered_map<std::string, std::unordered_set<std::string>> g_block_tasks_u
         {
             "Ecall_seal_file", 
             "Ecall_unseal_file", 
-            "Ecall_gen_and_upload_work_report",
         }
     },
     {
