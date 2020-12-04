@@ -120,13 +120,21 @@ crust_status_t ocall_ipfs_del_all(const char *cid)
  */
 void delete_validated_tree(json::JSON &tree)
 {
-    if (!tree.hasKey(MT_CID))
+    std::string cid;
+    if (tree.hasKey(MT_DATA_CID))
+    {
+        cid = tree[MT_DATA_CID].ToString();
+    }
+    else if (tree.hasKey(MT_CID))
+    {
+        cid = tree[MT_CID].ToString();
+    }
+    else
     {
         return;
     }
 
     // Delete current data
-    std::string cid = tree[MT_CID].ToString();
     if (!Ipfs::get_instance()->del(cid))
     {
         p_log->warn("Cannot delete sealed block(cid:%s)!\n", cid.c_str());
