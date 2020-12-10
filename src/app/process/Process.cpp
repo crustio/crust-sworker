@@ -427,13 +427,6 @@ int process_run()
         goto cleanup;
     }
 
-    // Get srd remaining task
-    if (CRUST_SUCCESS == crust::DataBase::get_instance()->get(WL_SRD_REMAINING_TASK, srd_task_str))
-    {
-        std::stringstream sstream(srd_task_str);
-        sstream >> srd_task;
-    }
-
     // There are three startup mode: upgrade, restore and normal
     // Upgrade mode will communicate with old version for data transferring.
     // Resotre mode will restore enclave data from database.
@@ -515,7 +508,7 @@ entry_network_flag:
             }
 
             // Srd disk
-            srd_task = std::max(srd_task, p_config->srd_capacity);
+            srd_task = p_config->srd_capacity;
         }
         else
         {
@@ -532,16 +525,22 @@ entry_network_flag:
 
             p_log->info("Restore enclave data successfully!\n");
             p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
-            if (srd_task > 0)
-            {
-                p_log->info("Detect %ld srd remaining task,will execute later.\n", srd_task);
-            }
         }
+    }
+
+    // Get srd remaining task
+    if (CRUST_SUCCESS == crust::DataBase::get_instance()->get(WL_SRD_REMAINING_TASK, srd_task_str))
+    {
+        std::stringstream sstream(srd_task_str);
+        size_t srd_task_remain = 0;
+        sstream >> srd_task_remain;
+        srd_task = std::max(srd_task, srd_task_remain);
     }
 
     // Restore or add srd task
     if (srd_task > 0)
     {
+        p_log->info("Detect %ldGB srd task,will execute later.\n", srd_task);
         if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, srd_task, &srd_real_change)))
         {
             p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);

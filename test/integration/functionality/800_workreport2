@@ -9,16 +9,6 @@ function _test_add_file()
     fi
 }
 
-function _test_lost_file()
-{
-    local num=$1
-    test_lost_file $num &>/dev/null
-    if [ $? -ne 0 ]; then
-        verbose ERROR "lost file failed!" n
-        exit 1
-    fi
-}
-
 function _test_delete_file()
 {
     local num=$1
@@ -103,6 +93,7 @@ rnum=0
 # Test round 1
 _test_add_file 2000
 pres=($(_report_success))
+_test_delete_file 1000
 cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
@@ -116,6 +107,7 @@ _clean 3000
 # Test round 2
 _test_add_file 1500
 pres=($(_report_success))
+_test_delete_file 500
 cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
@@ -143,7 +135,7 @@ _clean 3000
 # Test round 4
 _test_add_file 1500
 pres=($(_report_success))
-_test_lost_file 500
+_test_delete_file 500
 cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
@@ -157,6 +149,7 @@ _clean 3000
 # Test round 5
 _test_add_file 1500
 pres=($(_report_success))
+_test_delete_file 1500
 cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))
 real=${cres[0]}
@@ -171,7 +164,7 @@ _clean 3000
 _test_add_file 1000
 _test_delete_file 500
 pres=($(_report_success))
-_test_lost_file 500
+_test_delete_file 500
 _report_failed &>/dev/null
 cres=($(_report_success))
 expected=$((${pres[0]}+${cres[1]}-${cres[2]}))

@@ -93,12 +93,16 @@ roottmpdir=$instdir/tmp
 sworkerpidfile=$roottmpdir/sworkerpid
 reportheightfile=$roottmpdir/report_file
 configfile=$instdir/config/config.json
+crustdir=/opt/crust
+ipfsdatadir=$crustdir/data/ipfs
 ERA_LENGTH=300
 REPORT_WAIT_BM=15
 cursworkerpid=$$
 pad="$(printf '%0.1s' ' '{1..10})"
 casedir=""
 killed=false
+IPFS_HELPER=$scriptdir/ipfs_helper
+GEN_RANDOM_DATA=$scriptdir/gen_random.sh
 
 trap "success_exit" EXIT
 trap "kill_process" INT
@@ -114,8 +118,11 @@ export benchmarkfile
 export sworkerpidfile
 export reportheightfile
 export configfile
+export ipfsdatadir
 export ERA_LENGTH
 export REPORT_WAIT_BM
+export IPFS_HELPER
+export GEN_RANDOM_DATA
 
 
 printf "%s%s\n"   "$pad" '                             __                __            __ '
@@ -211,18 +218,12 @@ verbose INFO "success" t
 echo $sworkerpid > $sworkerpidfile
 cd - &>/dev/null
 
-### Prepare test data
-verbose INFO "creating test data..." h
-volunm_arry=(512k 1m 2m 4m 8m 16m 32m 64m)
-for v in ${volunm_arry[@]}; do
-    $scriptdir/gen_random.sh $v $datadir/$v
-done
-volunm_arry2=(128m 256m 512m 1024m)
-for v in ${volunm_arry2[@]}; do
-    cat $datadir/$((${v%[a-z]*}/2))${v##*[0-9]} > $datadir/$v
-    cat $datadir/$((${v%[a-z]*}/2))${v##*[0-9]} >> $datadir/$v
-done
-verbose INFO "success" t
+# Generate ipds_helper
+cd $basedir
+go get
+go build ipds_helper.go
+cd - &>/dev/null
+
 # Generate test srd file
 $scriptdir/gen_random.sh 1m $datadir/srd_test
 

@@ -64,7 +64,7 @@ void async_storage_seal(std::string cid)
                 p_log->err("Seal file(%s) failed!This file has been sealed.\n", cid.c_str());
                 break;
             default:
-                p_log->err("Seal file(%s) failed!Unexpected error!\n", cid.c_str());
+                p_log->err("Seal file(%s) failed!Unexpected error, error code:%lx!\n", cid.c_str(), crust_status);
             }
         }
         else

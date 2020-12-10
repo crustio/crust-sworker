@@ -147,8 +147,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::make_tuple(http::status::forbidden, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-        res.body() = "No service will be provided because of upgrade!";
-        res.result(503);
+        json::JSON ret_body;
+        ret_body[HTTP_STATUS_CODE] = 503;
+        ret_body[HTTP_MESSAGE] = "No service will be provided because of upgrade!";
+        res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+        res.body() = ret_body.dump();
         return send(std::move(res));
     }
     if (UPGRADE_STATUS_NONE != ed->get_upgrade_status() 
@@ -162,8 +165,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::make_tuple(http::status::forbidden, req.version())};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-        res.body() = "Current service is closed due to upgrade!";
-        res.result(503);
+        json::JSON ret_body;
+        ret_body[HTTP_STATUS_CODE] = 503;
+        ret_body[HTTP_MESSAGE] = "Current service is closed due to upgrade!";
+        res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+        res.body() = ret_body.dump();
         return send(std::move(res));
     }
 
@@ -202,8 +208,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/enclave/thread_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.body() = get_running_ecalls_info();
             res.result(200);
+            res.body() = get_running_ecalls_info();
             goto getcleanup;
         }
 
@@ -213,16 +219,21 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
             {
-                res.body() = "Get id info failed!Invoke SGX API failed!";
-                res.result(400);
-                goto getcleanup;
+                json::JSON ret_body;
+                ret_body[HTTP_STATUS_CODE] = 400;
+                ret_body[HTTP_MESSAGE] = "Get id info failed!Invoke SGX API failed!";
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
             }
-            json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
-            id_json["account"] = p_config->chain_address;
-            id_json["version"] = VERSION;
-            id_json["sworker_version"] = SWORKER_VERSION;
-            res.body() = id_json.dump();
-            res.result(200);
+            else
+            {
+                json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
+                id_json["account"] = p_config->chain_address;
+                id_json["version"] = VERSION;
+                id_json["sworker_version"] = SWORKER_VERSION;
+                res.body() = id_json.dump();
+                res.result(200);
+            }
             goto getcleanup;
         }
 
@@ -230,8 +241,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/file/info_all";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.body() = EnclaveData::get_instance()->get_sealed_file_info_all();
             res.result(200);
+            res.body() = EnclaveData::get_instance()->get_sealed_file_info_all();
             goto getcleanup;
         }
 
@@ -239,14 +250,16 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/upgrade/start";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
+            int ret_code = 200;
+            json::JSON ret_body;
             std::string ret_info;
             if (UPGRADE_STATUS_NONE != ed->get_upgrade_status()
                     && UPGRADE_STATUS_STOP_WORKREPORT != ed->get_upgrade_status())
             {
-                ret_info = "Another upgrading is still running!";
-                res.result(300);
-                res.body() = ret_info;
+                ret_body[HTTP_STATUS_CODE] = 300;
+                ret_body[HTTP_MESSAGE] = "Another upgrading is still running!";
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
                 goto getcleanup;
             }
 
@@ -259,13 +272,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
                 ret_info = "Chain is not running!Get block header failed!";
-                res.result(402);
+                ret_code = 400;
                 p_log->err("%s\n", ret_info.c_str());
             }
             else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header.number)))
             {
                 ret_info = "Invoke SGX API failed!";
-                res.result(403);
+                ret_code = 401;
                 p_log->err("%sError code:%lx\n", ret_info.c_str(), sgx_status);
             }
             else
@@ -273,6 +286,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 if (CRUST_SUCCESS == crust_status)
                 {
                     ret_info = "Receive upgrade inform successfully!";
+                    ret_code = 200;
                     // Set upgrade status
                     ed->set_upgrade_status(UPGRADE_STATUS_PROCESS);
                     // Give current tasks some time to go into enclave queue.
@@ -285,27 +299,30 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     {
                         case CRUST_UPGRADE_BLOCK_EXPIRE:
                             ret_info = "Block expired!Wait for next era.";
-                            res.result(405);
+                            ret_code = 402;
                             break;
                         case CRUST_UPGRADE_NO_VALIDATE:
                             ret_info = "Necessary validation not completed!";
-                            res.result(406);
+                            ret_code = 403;
                             break;
                         case CRUST_UPGRADE_RESTART:
                             ret_info = "Cannot report due to restart!Wait for next era.";
-                            res.result(407);
+                            ret_code = 404;
                             break;
                         case CRUST_UPGRADE_NO_FILE:
                             ret_info = "Cannot get files for check!Please check ipfs!";
-                            res.result(408);
+                            ret_code = 405;
                             break;
                         default:
                             ret_info = "Unknown error.";
-                            res.result(409);
+                            ret_code = 406;
                     }
                 }
             }
-            res.body() = ret_info;
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
 
             goto getcleanup;
         }
@@ -314,18 +331,20 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/upgrade/metadata";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
             std::string ret_info;
             if (UPGRADE_STATUS_COMPLETE != ed->get_upgrade_status())
             {
-                ret_info = "Metadata is still collecting!";
-                res.result(300);
-                res.body() = ret_info;
+                json::JSON ret_body;
+                ret_body[HTTP_STATUS_CODE] = 300;
+                ret_body[HTTP_MESSAGE] = "Metadata is still collecting!";
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
                 goto getcleanup;
             }
 
             std::string upgrade_data = ed->get_upgrade_data();
             p_log->info("Generate upgrade data successfully!Data size:%ld.\n", upgrade_data.size());
+            res.result(200);
             res.body() = upgrade_data;
 
             goto getcleanup;
@@ -403,21 +422,28 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             // Check input parameters
             std::string ret_info;
+            int ret_code = 400;
+            json::JSON ret_body;
             json::JSON req_json = json::JSON::Load(req.body());
             if (!req_json.hasKey("debug") || req_json["debug"].JSONType() != json::JSON::Class::Boolean)
             {
                 ret_info = "Wrong request body!";
                 p_log->err("%s\n", ret_info.c_str());
-                res.result(400);
-                res.body() = ret_info;
-                goto postcleanup;
+                ret_code = 400;
             }
-            bool debug_flag = req_json["debug"].ToBool();
-            p_log->set_debug(debug_flag);
-            ret_info = "Set debug flag successfully!";
-            p_log->info("%s %s debug.\n", ret_info.c_str(), debug_flag ? "Open" : "Close");
-            res.result(200);
-            res.body() = ret_info;
+            else
+            {
+                bool debug_flag = req_json["debug"].ToBool();
+                p_log->set_debug(debug_flag);
+                ret_info = "Set debug flag successfully!";
+                p_log->info("%s %s debug.\n", ret_info.c_str(), debug_flag ? "Open" : "Close");
+                ret_code = 200;
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+            goto postcleanup;
         }
 
         // ----- Get sealed file information by cid ----- //
@@ -428,8 +454,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string cid = req_json["cid"].ToString();
             if (cid.size() != CID_LENGTH)
             {
-                res.result(400);
-                res.body() = "Invalid cid";
+                json::JSON ret_body;
+                ret_body[HTTP_STATUS_CODE] = 400;
+                ret_body[HTTP_MESSAGE] = "Invalid cid";
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
             }
             else
             {
@@ -443,7 +472,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/srd/change";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
+            json::JSON ret_body;
+            int ret_code = 400;
             std::string ret_info;
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req.body());
@@ -451,10 +481,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             if (change_srd_num == 0)
             {
-                p_log->info("Invalid change\n");
-                res.body() = "Invalid change";
-                res.result(402);
-                goto end_change_srd;
+                ret_info = "Invalid change";
+                p_log->info("%s\n", ret_info.c_str());
+                ret_code = 400;
             }
             else
             {
@@ -464,6 +493,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 if (SGX_SUCCESS != Ecall_change_srd_task(global_eid, &crust_status, change_srd_num, &real_change))
                 {
                     ret_info = "Change srd failed!Invoke SGX api failed!";
+                    ret_code = 401;
                 }
                 else
                 {
@@ -472,23 +502,25 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     switch (crust_status)
                     {
                     case CRUST_SUCCESS:
-                        sprintf(buffer, "Change task:%ldG has been added, will be executed later.\n", real_change);
-                        res.result(403);
+                        sprintf(buffer, "Change task:%ldG has been added, will be executed later.", real_change);
+                        ret_code = 200;
                         break;
                     case CRUST_SRD_NUMBER_EXCEED:
-                        sprintf(buffer, "Only %ldG srd will be added.Rest srd task exceeds upper limit.\n", real_change);
-                        res.result(404);
+                        sprintf(buffer, "Only %ldG srd will be added.Rest srd task exceeds upper limit.", real_change);
+                        ret_code = 402;
                         break;
                     default:
-                        sprintf(buffer, "Unexpected error has occurred!\n");
-                        res.result(405);
+                        sprintf(buffer, "Unexpected error has occurred!");
+                        ret_code = 403;
                     }
                     ret_info.append(buffer);
                 }
-                p_log->info("%s", ret_info.c_str());
-                res.body() = ret_info;
+                p_log->info("%s\n", ret_info.c_str());
             }
-        end_change_srd:
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_code);
+            res.body() = ret_body.dump();
             goto postcleanup;
         }
 
@@ -496,7 +528,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/storage/delete";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
+            json::JSON ret_body;
+            int ret_code = 400;
             std::string ret_info;
             // Delete file
             json::JSON req_json = json::JSON::Load(req.body());
@@ -506,13 +539,18 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 ret_info = "Delete file failed!Invalid cid!";
                 p_log->err("%s\n", ret_info.c_str());
-                res.result(402);
-                res.body() = ret_info;
-                goto postcleanup;
+                ret_code = 400;
             }
-            async_storage_delete(cid);
-            ret_info = "Deleting file task has beening added!";
-            res.body() = ret_info;
+            else
+            {
+                async_storage_delete(cid);
+                ret_info = "Deleting file task has beening added!";
+                ret_code = 200;
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
 
             goto postcleanup;
         }
@@ -521,26 +559,31 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/storage/seal";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
+            json::JSON ret_body;
+            int ret_code = 400;
             std::string ret_info;
-
-            p_log->info("Dealing with seal request...\n");
 
             // Parse paramters
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
+            p_log->info("Dealing with seal request(file cide:'%s')...\n", cid.c_str());
+
             if (cid.size() != CID_LENGTH)
             {
-                p_log->err("Invalid cid!\n");
-                res.body() = "Invalid cid!";
-                res.result(400);
-                goto postcleanup;
+                ret_info = "Invalid cid!";
+                p_log->err("%s\n", ret_info.c_str());
+                ret_code = 400;
             }
-
-            // ----- Seal file ----- //
-            async_storage_seal(cid);
-            ret_info = "Sealing file task has beening added!";
-            res.body() = ret_info;
+            else
+            {
+                async_storage_seal(cid);
+                ret_info = "Sealing file task has beening added!";
+                ret_code = 200;
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_code);
+            res.body() = ret_body.dump();
 
             goto postcleanup;
         }
@@ -549,7 +592,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/storage/unseal";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
             std::string ret_info;
             p_log->info("Dealing with unseal request...\n");
             // Parse parameters
@@ -580,9 +622,12 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     ret_info = "Invoke SGX api failed!";
                 }
+                json::JSON ret_body;
                 p_log->err("Unseal data failed!Error code:%lx(%s)\n", crust_status, ret_info.c_str());
-                res.body() = ret_info;
-                res.result(403);
+                ret_body[HTTP_STATUS_CODE] = 400;
+                ret_body[HTTP_MESSAGE] = ret_info;
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
             }
             else
             {

@@ -1,19 +1,17 @@
 #!/bin/bash
 function _seal()
 {
-    local datapath_l=$1
-    local storepath_l=$2
-    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
-    seal_file $datapath_l $storepath_l &>$curtmp
+    local filesize=$((RANDOM % 17 + 1))m
+    $GEN_RANDOM_DATA ${filesize} $datadir/$filesize
     if [ $? -ne 0 ]; then
-        rm $curtmp
+        verbose ERROR "generate random data failed!"
         return 1
     fi
-    if ! cat $curtmp | jq '.' &>/dev/null; then
-        rm $curtmp
+    local cid_l=$(seal $datadir/$filesize)
+    rm $datadir/$filesize
+    if [ ${#cid_l} -ne 46 ]; then
         return 1
     fi
-    rm $curtmp
 }
 
 function _srd()
@@ -33,6 +31,7 @@ function _srd()
     # Srd task
     local tmp_num=0
     local cur_turn=0
+    verbose INFO "srd num:$srd_num"
     srd_disk_change "$paths" "add" &>/dev/null
     while [ $tmp_num -lt $srd_num ]; do
         if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
@@ -92,24 +91,22 @@ trap '_clean' EXIT
 
 . $scriptdir/utils.sh
 
-data_arry=($(ls $datadir))
 srd_paths=$(get_config ".functionality|.srd_paths")
 srd_limit=$(get_config '.functionality|.srd_limit')
 file_limit=$(get_config '.functionality|.file_limit')
 
 ### Seal file upper limit
 _test_add_file $file_limit
-sidx=$((RANDOM % ${#data_arry[@]}))
-_seal $datadir/${data_arry[$sidx]} $testfiledir
+_seal 2>/dev/null
 if [ $? -eq 0 ]; then
     verbose ERROR "test file upper limit failed!"
     exit 1
 fi
 
 ### Srd upper limit
-#_srd "$srd_paths" "$srd_limit"
-#srd 32
-#if [ $? -eq 0 ]; then
-#    verbose ERROR "test srd upper limit failed!"
-#    exit 1
-#fi
+_srd "$srd_paths" "$srd_limit"
+set_srd 32
+if [ $? -eq 0 ]; then
+    verbose ERROR "test srd upper limit failed!"
+    exit 1
+fi

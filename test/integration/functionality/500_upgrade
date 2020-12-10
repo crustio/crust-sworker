@@ -37,12 +37,14 @@ function srd_backend()
             cur_turn=$((srd_num - tmp_num))
         fi
         srd $cur_turn &>/dev/null
-        if [ $? -ne 0 ]; then
-            verbose ERROR "srd failed!" n
-            exit 1
-        fi
         ((tmp_num+=cur_turn))
     done
+}
+
+function success_exit()
+{
+    ### Delete srd
+    srd -$(get_workload | jq '.srd|.space')
 }
 
 ########## MAIN BODY ##########
@@ -56,6 +58,7 @@ sworkerlog=$instdir/sworker.log
 . $scriptdir/utils.sh
 
 trap 'kill_current' INT
+trap 'success_exit' EXIT
 
 
 cd $testdir
@@ -80,5 +83,5 @@ if [ $x1 -eq 1 ]; then
     ((block_height+=ERA_LENGTH))
     echo $block_height > $reportheightfile
 else
-    return 1
+    exit 1
 fi

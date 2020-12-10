@@ -142,6 +142,9 @@ void work_report_loop(void)
             case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
                 p_log->warn("This era cannot report work,please wait for next era.\n");
                 break;
+            case CRUST_SGX_SIGN_FAILED:
+                p_log->warn("SGX signed failed!");
+                break;
             case CRUST_WORK_REPORT_NOT_VALIDATED:
                 p_log->warn("Validation has not been applied!Please wait for next era.\n");
                 break;

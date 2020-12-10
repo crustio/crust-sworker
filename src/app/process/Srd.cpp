@@ -219,7 +219,7 @@ void srd_change(long change)
                 switch (crust_status)
                 {
                 case CRUST_SUCCESS:
-                    p_log->info("Add left srd task successfully!%ldG has been added, will be executed later.\n", real_change);
+                    //p_log->info("Add left srd task successfully!%ldG has been added, will be executed later.\n", real_change);
                     break;
                 case CRUST_SRD_NUMBER_EXCEED:
                     p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
