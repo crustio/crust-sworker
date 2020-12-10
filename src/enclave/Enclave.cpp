@@ -73,20 +73,25 @@ void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
 void ecall_main_loop()
 {
     Workload *wl = Workload::get_instance();
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+    {
+        return;
+    }
+
+    if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
+    {
+        log_err("Store enclave data failed! Error code:%lx\n", crust_status);
+    }
 
     while (true)
     {
-        crust_status_t crust_status = CRUST_SUCCESS;
+        crust_status = CRUST_SUCCESS;
 
         if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
         {
             break;
-        }
-
-        // Store metadata periodically
-        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
-        {
-            log_err("Store enclave data failed!Error code:%lx\n", crust_status);
         }
 
         // ----- File validate ----- //
@@ -106,6 +111,12 @@ void ecall_main_loop()
 
         // Add validated proof
         wl->report_add_validated_proof();
+
+        // Store metadata periodically
+        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
+        {
+            log_err("Store enclave data failed! Error code:%lx\n", crust_status);
+        }
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }

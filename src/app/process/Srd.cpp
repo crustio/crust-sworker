@@ -212,7 +212,7 @@ void srd_change(long change)
             long real_change = 0;
             if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, left_srd_num, &real_change)))
             {
-                p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
+                p_log->err("Set srd change failed! Invoke SGX api failed! Error code:%lx\n", sgx_status);
             }
             else
             {
@@ -303,7 +303,7 @@ void srd_change(long change)
 
         if (srd_success_num < true_increase)
         {
-            p_log->info("Srd task: %dG, success: %dG, failed: %dG. The srd workload will change gradually in next validation loops\n", true_increase, srd_success_num, true_increase - srd_success_num);
+            p_log->info("Srd task: %dG, success: %dG, left: %dG. The srd workload will change gradually in next validation loops\n", true_increase, srd_success_num, true_increase - srd_success_num);
         }
         else
         {

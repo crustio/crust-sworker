@@ -523,8 +523,8 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            p_log->info("Restore enclave data successfully!\n");
             p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
+            p_log->info("Restore enclave data successfully, sworker is running now...\n");
         }
     }
 
@@ -540,20 +540,20 @@ entry_network_flag:
     // Restore or add srd task
     if (srd_task > 0)
     {
-        p_log->info("Detect %ldGB srd task,will execute later.\n", srd_task);
+        p_log->info("Detect %ldGB remaining srd task, will execute later.\n", srd_task);
         if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, srd_task, &srd_real_change)))
         {
-            p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
+            p_log->err("Set srd change failed!Invoke SGX api failed! Error code:%lx\n", sgx_status);
         }
         else
         {
             switch (crust_status)
             {
             case CRUST_SUCCESS:
-                p_log->info("Add srd task successfully!%ldG has been added, will be executed later.\n", srd_real_change);
+                p_log->info("Add srd task successfully! %ldG has been added, will be executed later.\n", srd_real_change);
                 break;
             case CRUST_SRD_NUMBER_EXCEED:
-                p_log->warn("Add srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", srd_real_change);
+                p_log->warn("Add srd task failed!Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
                 break;
             default:
                 p_log->info("Unexpected error has occurred!\n");
@@ -608,7 +608,7 @@ entry_network_flag:
             crust::BlockHeader block_header;
             if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
-                p_log->err("Get block header failed!Please check your crust-api and crust chain!\n");
+                p_log->err("Get block header failed! Please check your crust-api and crust chain!\n");
             }
             else if (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, block_header.number)))
             {

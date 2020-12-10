@@ -124,7 +124,7 @@ void work_report_loop(void)
         if (SGX_SUCCESS != Ecall_gen_and_upload_work_report(global_eid, &crust_status,
                 block_header.hash.c_str(), block_header.number))
         {
-            p_log->err("Get signed work report failed!Message:Invoke SGX API failed!\n");
+            p_log->err("Get signed work report failed! Message:Invoke SGX API failed!\n");
         }
         else if (CRUST_SUCCESS != crust_status)
         {
@@ -137,16 +137,16 @@ void work_report_loop(void)
                 p_log->warn("Can't generate work report for the first four times after restart\n");
                 break;
             case CRUST_SERVICE_UNAVAILABLE:
-                p_log->warn("Can't generate work report. You have meaningful files, please start ipfs\n");
+                p_log->warn("Can't generate work report. You have meaningful files, please start ipfs or use delete interface to remove those files\n");
                 break;
             case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
-                p_log->warn("This era cannot report work,please wait for next era.\n");
+                p_log->warn("This era cannot report work, please wait for next era.\n");
                 break;
             case CRUST_SGX_SIGN_FAILED:
                 p_log->warn("SGX signed failed!");
                 break;
             case CRUST_WORK_REPORT_NOT_VALIDATED:
-                p_log->warn("Validation has not been applied!Please wait for next era.\n");
+                p_log->warn("Validation has not been applied! Please wait for next era.\n");
                 break;
             default:
                 p_log->err("Get signed validation report failed! Error code: %x\n", crust_status);
