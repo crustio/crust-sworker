@@ -140,7 +140,7 @@ void work_report_loop(void)
                 p_log->warn("Can't generate work report. You have meaningful files, please start ipfs or use delete interface to remove those files\n");
                 break;
             case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
-                p_log->warn("This era cannot report work, please wait for next era.\n");
+                p_log->warn("Can't report work in this era, please wait for next era.\n");
                 break;
             case CRUST_SGX_SIGN_FAILED:
                 p_log->warn("SGX signed failed!");
@@ -149,7 +149,7 @@ void work_report_loop(void)
                 p_log->warn("Validation has not been applied! Please wait for next era.\n");
                 break;
             default:
-                p_log->err("Get signed validation report failed! Error code: %x\n", crust_status);
+                p_log->err("Get work report or upload failed! Error code: %x\n", crust_status);
             }
         }
 

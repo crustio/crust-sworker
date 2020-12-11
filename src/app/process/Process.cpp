@@ -524,7 +524,7 @@ entry_network_flag:
             }
 
             p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
-            p_log->info("Restore enclave data successfully, sworker is running now...\n");
+            p_log->info("Restore enclave data successfully, sworker is running now.\n");
         }
     }
 
@@ -540,7 +540,7 @@ entry_network_flag:
     // Restore or add srd task
     if (srd_task > 0)
     {
-        p_log->info("Detect %ldGB remaining srd task, will execute later.\n", srd_task);
+        p_log->info("Detect %ldGB srd task, will execute later.\n", srd_task);
         if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, srd_task, &srd_real_change)))
         {
             p_log->err("Set srd change failed!Invoke SGX api failed! Error code:%lx\n", sgx_status);

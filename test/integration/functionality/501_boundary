@@ -31,7 +31,6 @@ function _srd()
     # Srd task
     local tmp_num=0
     local cur_turn=0
-    verbose INFO "srd num:$srd_num"
     srd_disk_change "$paths" "add" &>/dev/null
     while [ $tmp_num -lt $srd_num ]; do
         if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then

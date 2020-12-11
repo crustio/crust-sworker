@@ -12,8 +12,8 @@
         "validate": {
             "srd_num": 20,
             "deleted_srd": 5,
-            "file_num": 5,
-            "deleted_file": 2
+            "file_num": 100,
+            "deleted_file": 16
         }
     },
     "benchmark" : {

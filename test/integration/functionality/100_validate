@@ -1,7 +1,7 @@
 #!/bin/bash
 function _seal()
 {
-    local filesize=$((RANDOM % 17 + 1))m
+    local filesize=$((RANDOM % 8 + 1))m
     $GEN_RANDOM_DATA ${filesize} $datadir/$filesize
     if [ $? -ne 0 ]; then
         verbose ERROR "generate random data failed!"

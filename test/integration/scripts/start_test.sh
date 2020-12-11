@@ -218,10 +218,10 @@ verbose INFO "success" t
 echo $sworkerpid > $sworkerpidfile
 cd - &>/dev/null
 
-# Generate ipds_helper
+# Generate ipfs_helper
 cd $basedir
 go get
-go build ipds_helper.go
+go build ipfs_helper.go
 cd - &>/dev/null
 
 # Generate test srd file
