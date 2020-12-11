@@ -1,7 +1,28 @@
 #!/bin/bash
+function _seal()
+{
+    local filesize=$1
+    $GEN_RANDOM_DATA ${filesize} $datadir/$filesize
+    if [ $? -ne 0 ]; then
+        verbose ERROR "generate random data failed!"
+        exit 1
+    fi
+    local cid_l=$(seal $datadir/$filesize)
+    rm $datadir/$filesize
+    if [ ${#cid_l} -ne 46 ]; then
+        verbose ERROR "seal file failed!"
+        exit 1
+    fi
+    echo $cid_l
+}
+
 function report_exit()
 {
     rm -rf $tmpdir
+
+    get_file_info_all | jq 'keys|.[]' | sed "s/\"//g" | while read cid_l; do
+        delete_file $cid_l
+    done
 }
 
 ########## MAIN BODY ##########
@@ -64,17 +85,10 @@ done
 # Delete previous file
 clean_file
 # Make file volunm
-for file in ${file_arry[@]}; do
-    seal_file $datadir/$file $testfiledir &>$TMPFILE
+for filesize in ${file_arry[@]}; do
+    _seal $filesize &>$TMPFILE
     if [ $? -ne 0 ]; then
         verbose ERROR "seal file failed!" n
-        exit 1
-    fi
-    sealed_hash=$(cat $TMPFILE | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    sealed_hash=${sealed_hash::64}
-    confirm $sealed_hash &>/dev/null
-    if [ $? -ne 0 ]; then
-        verbose ERROR "confirm file failed!" n
         exit 1
     fi
 done
@@ -89,8 +103,8 @@ fi
 res=$(cat $TMPFILE)
 # Get report info
 ret=0
-added_fn=$(echo $res | jq '.added_files | .[] | .hash' | wc -l 2>/dev/null)
-deleted_fn=$(echo $res | jq '.deleted_files | .[] | .hash' | wc -l 2>/dev/null)
+added_fn=$(echo $res | jq '.added_files | .[] | .cid' | wc -l 2>/dev/null)
+deleted_fn=$(echo $res | jq '.deleted_files | .[] | .cid' | wc -l 2>/dev/null)
 reserved=$(echo $res | jq '.reserved' 2>/dev/null)
 reserved_e=$((srd_num * 1024 * 1024 * 1024))
 if [ x"$reserved" != x"$reserved_e" ]; then

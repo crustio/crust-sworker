@@ -257,7 +257,7 @@ sgx_status_t try_get_enclave(const char *name)
             timeout++;
             if (timeout >= ENC_TASK_TIMEOUT)
             {
-                p_log->debug("task:%s(thread id:%s) needs to make way for other tasks.\n", name, this_id.c_str());
+                //p_log->debug("task:%s(thread id:%s) needs to make way for other tasks.\n", name, this_id.c_str());
                 sgx_status = SGX_ERROR_SERVICE_TIMEOUT;
                 break;
             }

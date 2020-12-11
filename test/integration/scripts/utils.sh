@@ -1,78 +1,7 @@
 #!/bin/bash
-function crust_split()
-{
-    local filepath=$1
-    local storepath=$2
-    if [ ! -s "$filepath" ]; then
-        verbose ERROR "File path is invalid!"
-        return 1
-    fi
-    if [ ! -e "$storepath" ]; then
-        verbose ERROR "Store path is not existed!"
-        return 1
-    fi
-    # Generated dir name
-    local detdir="dettmp.$(date +%N)"
-    detdir=$storepath/$detdir
-    mkdir -p $detdir
-    local filename=$(basename $filepath)
-    cp $filepath $detdir
-    local oldfiledir=$(dirname $filepath)
-    filepath=$detdir/$filename
-
-    # Get block number
-    local fz=$(wc -c < $filepath) 
-    local blocknum=$((fz/1024/1024))
-    if [ $((blocknum*1024*1024)) -lt $fz ]; then
-        ((blocknum++))
-    fi
-    local suffixLen=${#blocknum}
-    
-    cd $detdir
-    # Split file
-    split -e -b 1m $filepath -d -a $suffixLen
-    # Change file name
-	ls | sed -n '/^x/p' | while read line; do 
-        n=${line#*x}
-        n=$(expr $n + 0)
-        mv $line $n
-    done
-    # Get real file
-    local i=0
-    local mt_json="{\"size\":$fz,\"links_num\":$blocknum,\"links\":["
-    local item=""
-    local tmphash=""
-    local totalhash=""
-    while [ $i -lt $blocknum ]; do
-        tmphash=$(cat $i | sha256sum | awk '{print $1}')
-        totalhash="${totalhash}${tmphash}"
-        item="{\"hash\":\"$tmphash\",\"size\":$(wc -c < $i),\"links_num\":0,\"links\":[]}"
-        mt_json="${mt_json}${item}"
-        if [ $((i+1)) -ne $blocknum ]; then
-            mt_json="${mt_json},"
-        fi
-        mv $i ${i}_$tmphash
-        ((i++))
-    done
-    totalhash=$(echo $totalhash | xxd -r -p | sha256sum | awk '{print $1}')
-    mt_json="$mt_json],\"hash\":\"${totalhash}\"}"
-    local newdetdir="$(dirname $detdir)/${totalhash}.${RANDOM}$(date +%N)"
-    echo "$mt_json $newdetdir"
-    cd - &>/dev/null
-    rm $filepath
-    mv $detdir $newdetdir
-    rm -rf $detdir &>/dev/null
-}
-
 function get_workload()
 {
     curl -s $baseurl/workload
-}
-
-function get_file_info()
-{
-    local hash="$1"
-    curl -s -XGET $baseurl/file_info --data-raw "{\"hash\":\"$hash\"}"
 }
 
 function check_hash()
@@ -100,45 +29,23 @@ function check_hash()
 
 function seal()
 {
-    local cid=$(add_file "$1" | jq '.Hash')
-    curl -s -XPOST $baseurl/storage/seal --data-raw "{\"cid\":$cid}" &>/dev/null
-    echo $cid
+    local cid=$(add_file "$1")
+    if [ x"${#cid}" != x"46" ]; then
+        verbose ERROR "add file to IPFS failed!"
+        return 1
+    fi
+    local ret_code=$(curl -s -XPOST $baseurl/storage/seal_sync --data-raw "{\"cid\":\"$cid\"}" -o /dev/null -w "%{http_code}")
+    if [ ${ret_code} -eq 200 ]; then
+        echo $cid
+    else
+        echo ""
+    fi
 }
 
 function add_file()
 {
     local data_path="$1"
-    curl -s -XPOST 'http://127.0.0.1:5001/api/v0/add'  --form "=@${data_path}"
-}
-
-function seal_file()
-{
-    local data_path=$1
-    local store_path=$2
-    local tmp_file=""
-    if [ x"$tmpdir" = x"" ]; then
-        tmp_file=tmp_file.${RANDOM}$(date +%N)
-    else
-        tmp_file=$tmpdir/tmp_file.${RANDOM}$(date +%N)
-    fi
-
-    ### Split file
-    crust_split $data_path $store_path &>$tmp_file
-    if [ $? -ne 0 ]; then
-        rm $tmp_file
-        return 1
-    fi
-    local mt_json=($(cat $tmp_file))
-
-    ### Seal file block
-    seal ${mt_json[0]} ${mt_json[1]} >$tmp_file
-    if [ $? -ne 0 ]; then
-        rm $tmp_file
-        return 1
-    fi
-
-    cat $tmp_file
-    rm $tmp_file
+    curl -s -XPOST 'http://127.0.0.1:5001/api/v0/add'  --form "=@${data_path}" | jq '.Hash' | sed "s/\"//g"
 }
 
 function unseal()
@@ -148,32 +55,89 @@ function unseal()
     curl -s -XPOST $baseurl/storage/unseal --data-raw "{\"path\":\"$path\"}"
 }
 
-function confirm()
-{
-    local hash=$1
-
-    curl -s -XPOST $baseurl/storage/confirm --data-raw "{\"hash\":\"$hash\"}"
-}
-
 function delete_file()
 {
     local hash=$1
 
-    curl -s -XPOST $baseurl/storage/delete --data-raw "{\"hash\":\"$hash\"}"
+    local ret_code=$(curl -s -XPOST $baseurl/storage/delete_sync --data-raw "{\"cid\":\"$cid\"}" -o /dev/null -w "%{http_code}")
+    if [ ${ret_code} -eq 200 ]; then
+        return 0
+    fi
+
+    return 1
+}
+
+function delete_file_block_random()
+{
+    local rootcid=$1
+    local file_info=$(get_file_info $rootcid)
+    if ! echo $file_info | jq . &>/dev/null; then
+        verbose ERROR "get file information failed!"
+        return 1
+    fi
+    local block_num=$(echo $file_info | jq '.smerkletree|.links|length')
+    if [ x"$block_num" = x"0" ]; then
+        verbose ERROR "file($rootcid) block number is 0!"
+        return 1
+    fi
+    for cid in $(echo $file_info | jq '.smerkletree|.links|.[]|.d_cid' | sed -n "${index}p" | sed "s/\"//g"); do
+        if [ x"${#cid}" != x"46" ]; then
+            verbose ERROR "get cid failed!"
+            return 1
+        fi
+        local dskey=$($IPFS_HELPER $cid)
+        if [ x"$dskey" = x"" ]; then
+            verbose ERROR "get dskey from cid failed!"
+            return 1
+        fi
+        find $ipfsdatadir -name "*${dskey}*" | xargs -I {} rm {}
+    done
+}
+
+function get_file_info()
+{
+    curl -s -XPOST $baseurl/file/info --data-raw "{\"cid\":\"$1\"}"
+}
+
+function get_file_info_all()
+{
+    curl -s -XGET $baseurl/file/info_all
+}
+
+function set_srd()
+{
+    local change=$1
+
+    local ret_code=$(curl -s -XPOST $baseurl/srd/set_change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
+    if [ $ret_code -eq 200 ]; then
+        return 0
+    fi
+
+    return 1
 }
 
 function srd_real()
 {
     local change=$1
 
-    curl -s -XPOST $baseurl/srd/change_real --data-raw "{\"change\":$change}"
+    local ret_code=$(curl -s -XPOST $baseurl/srd/change_real --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
+    if [ $ret_code -eq 200 ]; then
+        return 0
+    fi
+
+    return 1
 }
 
 function srd()
 {
     local change=$1
 
-    curl -s -XPOST $baseurl/srd/change --data-raw "{\"change\":$change}"
+    local ret_code=$(curl -s -XPOST $baseurl/srd/change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
+    if [ $ret_code -eq 200 ]; then
+        return 0
+    fi
+
+    return 1
 }
 
 function srd_disk_change()

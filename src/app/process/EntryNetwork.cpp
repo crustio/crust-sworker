@@ -55,48 +55,42 @@ crust_status_t entry_network()
     // ----- Get SGX quote ----- //
     memset(&report, 0, sizeof(report));
 
-    status = sgx_init_quote(&target_info, &epid_gid);
     int tryout = 1;
     do
     {
+        status = sgx_init_quote(&target_info, &epid_gid);
+
         if (SGX_SUCCESS == status)
             break;
 
-        if (SGX_ERROR_BUSY == status || SGX_ERROR_SERVICE_TIMEOUT == status || SGX_ERROR_NETWORK_FAILURE == status)
+        switch (status)
         {
-            if (tryout > common_tryout)
-            {
-                p_log->err("Initialize sgx quote tryout!\n");
-                return CRUST_INIT_QUOTE_FAILED;
-            }
-            
-            if (SGX_ERROR_BUSY == status)
-            {
+            case SGX_ERROR_BUSY:
                 p_log->info("SGX device is busy, trying again(%d time)...\n", tryout);
-            }
-            else if (SGX_ERROR_SERVICE_TIMEOUT == status)
-            {
+                break;
+            case SGX_ERROR_SERVICE_TIMEOUT:
                 p_log->info("The request to AE service timed out, trying again(%d time)...\n", tryout);
-            }
-            else
-            {
+                break;
+            case SGX_ERROR_NETWORK_FAILURE:
                 p_log->info("AES network connecting or proxy setting issue is encountered, trying again(%d time)...\n", tryout);
-            }
-            
-            tryout++;
-            sleep(60);
-            status = sgx_init_quote(&target_info, &epid_gid);
+                break;
+            case SGX_ERROR_UPDATE_NEEDED:
+                p_log->err("SGX init quote failed!You should upgrade your BIOS.Error code:%lx\n", status);
+                return CRUST_DEVICE_ERROR;
+            default:
+                p_log->err("SGX init quote failed!Error code: %lx\n", status);
+                return CRUST_INIT_QUOTE_FAILED;
         }
-        else if (SGX_ERROR_UPDATE_NEEDED == status)
+
+        if (tryout > common_tryout)
         {
-            p_log->err("SGX init quote failed!You should upgrade your BIOS.Error code:%lx\n", status);
-            return CRUST_DEVICE_ERROR;
-        }
-        else
-        {
-            p_log->err("SGX init quote failed!Error code: %lx\n", status);
+            p_log->err("Initialize sgx quote tryout!\n");
             return CRUST_INIT_QUOTE_FAILED;
         }
+
+        tryout++;
+        sleep(60);
+
     } while (true);
 
     status = Ecall_get_quote_report(global_eid, &sgxrv, &report, &target_info);
@@ -271,7 +265,7 @@ crust_status_t entry_network()
         switch (crust_status)
         {
         case CRUST_SUCCESS:
-            p_log->info("Verify IAS report in enclave successfully!\n");
+            p_log->info("Entry network application has been sent successfully!\n");
             break;
         case CRUST_IAS_BADREQUEST:
             p_log->err("Verify IAS report failed! Bad request!!\n");

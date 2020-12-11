@@ -258,15 +258,15 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     deleted_files.append("]");
     // Generate files information
     files_root_buffer_len = report_valid_idx_v.size() * HASH_LENGTH;
-    files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
-    if (files_root_buffer == NULL)
-    {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    memset(files_root_buffer, 0, files_root_buffer_len);
     if (files_root_buffer_len > 0)
     {
+        files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
+        if (files_root_buffer == NULL)
+        {
+            crust_status = CRUST_MALLOC_FAILED;
+            goto cleanup;
+        }
+        memset(files_root_buffer, 0, files_root_buffer_len);
         for (size_t i = 0; i < report_valid_idx_v.size(); i++)
         {
             size_t idx = report_valid_idx_v[i];

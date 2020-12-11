@@ -197,8 +197,6 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
  */
 void srd_change(long change)
 {
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    crust_status_t crust_status = CRUST_SUCCESS;
     Config *p_config = Config::get_instance();
 
     if (change > 0)
@@ -208,27 +206,7 @@ void srd_change(long change)
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
-            long left_srd_num = change - true_increase;
-            long real_change = 0;
-            if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, left_srd_num, &real_change)))
-            {
-                p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
-            }
-            else
-            {
-                switch (crust_status)
-                {
-                case CRUST_SUCCESS:
-                    p_log->info("Add left srd task successfully!%ldG has been added, will be executed later.\n", real_change);
-                    break;
-                case CRUST_SRD_NUMBER_EXCEED:
-                    p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
-                    break;
-                default:
-                    p_log->err("Unexpected error has occurred!\n");
-                }
-            }
-            //p_log->info("%ldG srd task left, add it to next srd.\n", left_srd_num);
+            p_log->warn("No enough space for %ldG srd, can only do %ldG srd.\n", change, true_increase);
         }
         if (true_increase == 0)
         {
@@ -303,11 +281,12 @@ void srd_change(long change)
 
         if (srd_success_num < true_increase)
         {
-            p_log->info("Srd task: %dG, success: %dG, failed: %dG. The srd workload will change gradually in next validation loops\n", true_increase, srd_success_num, true_increase - srd_success_num);
+            p_log->info("Srd task: %dG, success: %dG, failed: %dG due to timeout or no more disk space.\n", 
+                    true_increase, srd_success_num, true_increase - srd_success_num);
         }
         else
         {
-            p_log->info("Increase %dG srd files success, the srd workload will change gradually in next validation loops\n", true_increase);
+            p_log->info("Increase %dG srd files success.\n", true_increase);
         }
     }
     else if (change < 0)
@@ -324,7 +303,7 @@ void srd_change(long change)
         p_log->info("True decreased space is:%d\n", true_decrease);
         Ecall_srd_decrease(global_eid, &ret_size, true_decrease);
         total_decrease_size = ret_size;
-        p_log->info("Decrease %luG srd files success, the srd workload will change in next validation loop\n", total_decrease_size);
+        p_log->info("Decrease %luG srd files success.\n", total_decrease_size);
     }
 }
 

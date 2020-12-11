@@ -1,26 +1,26 @@
 function generateNK()
 {
-    true > $filename
+    true > $filepath
     local cap=$((val*1024))
-    head -c $cap /dev/urandom > $filename
+    head -c $cap /dev/urandom > $filepath
 }
 
 function generateNM()
 {
-    true > $filename
+    true > $filepath
     local unit=$((1024*1024))
     for k in $(seq 1 $val); do
-        head -c $unit /dev/urandom >> $filename
+        head -c $unit /dev/urandom >> $filepath
     done
 }
 
 function generateNG()
 {
-    true > $filename
+    true > $filepath
     for k in $(seq 1 $val); do
         for i in {1..1024} ; do
             for j in {1..8}; do
-                head -c 131072 /dev/urandom >> $filename
+                head -c 131072 /dev/urandom >> $filepath
             done
         done
     done
@@ -28,11 +28,14 @@ function generateNG()
 
 ############### main body ###############
 basedir=$(cd `dirname $0`;pwd)
-gdir=$basedir/big
 volunm=$1
 tag=${volunm##*[0-9]}
 val=${volunm%[a-zA-Z]*}
-filename=$2
+filepath=$2
+if [ ! -d "$(dirname $filepath)" ]; then
+    echo "File path($filepath) diretory not exist!"
+    exit 1
+fi
 str=""
 
 [[ ! "$val" =~ [0-9]+ ]] && { echo "[ERROR] wrong param"; exit 1; }

@@ -53,4 +53,8 @@ const char* ATTENTION_LOGO = "    ___   __  __             __  _                
                              " / ___ / /_/ /_/  __/ / / / /_/ / /_/ / / / /  /_/  /_/  /_/  \n"
                              "/_/  |_%__/%__/%___/_/ /_/%__/_/%____/_/ /_/  (_)  (_)  (_)   \n";
 
+// Webserver return format
+#define HTTP_STATUS_CODE "status_code"
+#define HTTP_MESSAGE "message"
+
 #endif /* !_CRUST_RESOURCE_H_ */

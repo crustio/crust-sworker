@@ -69,11 +69,6 @@ void ecall_test_add_file(long file_num)
     Workload::get_instance()->test_add_file(file_num);
 }
 
-void ecall_test_lost_file(uint32_t file_num)
-{
-    Workload::get_instance()->test_lost_file(file_num);
-}
-
 void ecall_test_delete_file(uint32_t file_num)
 {
     Workload::get_instance()->test_delete_file(file_num);
@@ -109,40 +104,35 @@ void ecall_clean_file()
 {
     Workload *wl = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    wl->checked_files.clear();
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    wl->new_files.clear();
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    wl->sealed_files.clear();
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 }
 
 crust_status_t ecall_get_file_info(const char *data)
 {
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_UNEXPECTED_ERROR;
-    for (int i = wl->checked_files.size() - 1; i >= 0; i--)
+    for (int i = wl->sealed_files.size() - 1; i >= 0; i--)
     {
-        if (wl->checked_files[i][FILE_HASH].ToString().compare(data) == 0)
+        if (wl->sealed_files[i][FILE_HASH].ToString().compare(data) == 0)
         {
-            std::string file_info_str = wl->checked_files[i].dump();
+            std::string file_info_str = wl->sealed_files[i].dump();
             remove_char(file_info_str, '\n');
             remove_char(file_info_str, '\\\\');
             remove_char(file_info_str, ' ');
-            ocall_store_file_info(file_info_str.c_str());
+            ocall_store_file_info_test(file_info_str.c_str());
             crust_status = CRUST_SUCCESS;
         }
     }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     return crust_status;
 }
 EOF
 
-    sed -i '/using namespace std;/a extern sgx_thread_mutex_t g_checked_files_mutex;' $enclave_cpp
-    sed -i '/using namespace std;/a extern sgx_thread_mutex_t g_new_files_mutex;' $enclave_cpp
+    sed -i '/using namespace std;/a extern sgx_thread_mutex_t g_sealed_files_mutex;' $enclave_cpp
 }
 
 ########## enclave_edl_test ##########
@@ -160,7 +150,6 @@ cat << EOF > $TMPFILE
         public void ecall_handle_report_result();
 
         public void ecall_test_add_file(long file_num);
-        public void ecall_test_lost_file(uint32_t file_num);
         public void ecall_test_delete_file(uint32_t file_num);
         public void ecall_test_delete_file_unsafe(uint32_t file_num);
         public void ecall_clean_file();
@@ -171,7 +160,7 @@ EOF
     local pos=$(sed -n '/ecall_get_workload()/=' $enclave_edl)
     sed -i "$pos r $TMPFILE" $enclave_edl
 
-    sed -i "/void ocall_store_upgrade_data(/a \\\t\\tvoid ocall_store_file_info([in, string] const char *info);" $enclave_edl
+    sed -i "/void ocall_store_upgrade_data(/a \\\t\\tvoid ocall_store_file_info_test([in, string] const char *info);" $enclave_edl
     sed -i "/void ocall_store_upgrade_data(/a \\\t\\tcrust_status_t ocall_get_file_block([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);" $enclave_edl
     sed -i "/void ocall_store_upgrade_data(/a \\\t\\tcrust_status_t ocall_get_file_bench([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);" $enclave_edl
         
@@ -189,7 +178,6 @@ cat << EOF >$TMPFILE
 	{"Ecall_store_metadata", 0},
     {"Ecall_handle_report_result", 0},
 	{"Ecall_test_add_file", 1},
-	{"Ecall_test_lost_file", 1},
 	{"Ecall_test_delete_file", 1},
 	{"Ecall_test_delete_file_unsafe", 1},
 	{"Ecall_clean_file", 1},
@@ -322,21 +310,6 @@ sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num)
     return ret;
 }
 
-sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_test_lost_file(eid, file_num);
-
-    free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
 sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num)
 {
     sgx_status_t ret = SGX_SUCCESS;
@@ -445,7 +418,6 @@ sgx_status_t Ecall_srd_decrease_test(sgx_enclave_id_t eid, size_t *size, size_t 
 sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid);
 
 sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num);
-sgx_status_t Ecall_test_lost_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_delete_file(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_test_delete_file_unsafe(sgx_enclave_id_t eid, uint32_t file_num);
 sgx_status_t Ecall_clean_file(sgx_enclave_id_t eid);
@@ -477,10 +449,10 @@ function process_cpp_test()
     sed -i "$((pos4+1)) a \\\t\t\tg_block_height += REPORT_BLOCK_HEIGHT_BASE;" $process_cpp
 }
 
-########## storage_cpp_test ##########
-function storage_cpp_test()
+########## async_cpp_test ##########
+function async_cpp_test()
 {
-cat << EOF >> $storage_cpp
+cat << EOF >> $async_cpp
 
 /**
  * @description: Add delete meaningful file task
@@ -500,11 +472,11 @@ void report_add_callback()
 EOF
 }
 
-########## storage_h_test ##########
-function storage_h_test()
+########## async_h_test ##########
+function async_h_test()
 {
-    local spos=$(sed -n "/void storage_add_delete(/=" $storage_h)
-    sed -i "$spos a void report_add_callback();" $storage_h
+    local spos=$(sed -n "/void async_storage_delete(/=" $async_h)
+    sed -i "$spos a void report_add_callback();" $async_h
 }
 
 ########## apihandler_h_test ##########
@@ -512,13 +484,15 @@ function apihandler_h_test()
 {
 cat << EOF > $TMPFILE
 
-        cur_path = urlendpoint->base + "/report/work";
+        cur_path = urlendpoint.base + "/report/work";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             crust_status_t crust_status = CRUST_SUCCESS;
             uint8_t *hash_u = (uint8_t *)malloc(32);
             int tmp_int;
-            res.result(200);
+            int ret_code = 400;
+            std::string ret_info;
+            json::JSON ret_body;
             for (uint32_t i = 0; i < 32 / sizeof(tmp_int); i++)
             {
                 tmp_int = rand();
@@ -532,39 +506,49 @@ cat << EOF > $TMPFILE
             if (SGX_SUCCESS != Ecall_gen_and_upload_work_report(global_eid, &crust_status,
                     block_hash.c_str(), block_height+REPORT_BLOCK_HEIGHT_BASE))
             {
-                p_log->err("Get signed work report failed!\\n");
                 res.result(400);
+                ret_info = "Get signed work report failed!";
+                p_log->err("%s\n", ret_info.c_str());
             }
             else
             {
                 if (CRUST_SUCCESS == crust_status)
                 {
                     // Send signed validation report to crust chain
-                    p_log->info("Send work report successfully!\\n");
+                    p_log->info("Send work report successfully!\n");
                     std::string work_str = ed->get_enclave_workreport();
                     res.body() = work_str;
+                    res.result(200);
+                    goto getcleanup;
                 }
-                else if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
+                if (crust_status == CRUST_BLOCK_HEIGHT_EXPIRED)
                 {
-                    p_log->info("Block height expired.\\n");
-                    res.result(401);
+                    ret_code = 401;
+                    ret_info = "Block height expired.";
+                    p_log->info("%s\n", ret_info.c_str());
                 }
                 else if (crust_status == CRUST_FIRST_WORK_REPORT_AFTER_REPORT)
                 {
-                    p_log->info("Can't generate work report for the first time after restart\\n");
-                    res.result(402);
+                    ret_code = 402;
+                    ret_info = "Can't generate work report for the first time after restart";
+                    p_log->info("%s\n", ret_info.c_str());
                 }
                 else
                 {
-                    p_log->err("Get signed validation report failed! Error code: %x\\n", crust_status);
-                    res.result(403);
+                    ret_code = 403;
+                    ret_info = "Get signed validation report failed!";
+                    p_log->err("%s Error code: %x\n", ret_info.c_str(), crust_status);
                 }
             }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
             goto getcleanup;
         }
 
         // --- Srd change API --- //
-        cur_path = urlendpoint->base + "/report/result";
+        cur_path = urlendpoint.base + "/report/result";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
@@ -577,43 +561,43 @@ cat << EOF > $TMPFILE
             goto getcleanup;
         }
 
-        cur_path = urlendpoint->base + "/validate/srd";
+        cur_path = urlendpoint.base + "/validate/srd";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_srd(global_eid);
         }
 
-        cur_path = urlendpoint->base + "/validate/srd_real";
+        cur_path = urlendpoint.base + "/validate/srd_real";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_srd_real(global_eid);
         }
 
-        cur_path = urlendpoint->base + "/validate/file";
+        cur_path = urlendpoint.base + "/validate/file";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_file(global_eid);
         }
 
-        cur_path = urlendpoint->base + "/validate/file_real";
+        cur_path = urlendpoint.base + "/validate/file_real";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_file_real(global_eid);
         }
 
-        cur_path = urlendpoint->base + "/validate/file_bench";
+        cur_path = urlendpoint.base + "/validate/file_bench";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_validate_file_bench(global_eid);
         }
 
-        cur_path = urlendpoint->base + "/store_metadata";
+        cur_path = urlendpoint.base + "/store_metadata";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_store_metadata(global_eid);
         }
 
-        cur_path = urlendpoint->base + "/test/add_file";
+        cur_path = urlendpoint.base + "/test/add_file";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
@@ -622,16 +606,7 @@ cat << EOF > $TMPFILE
             res.body() = "Add file successfully!";
         }
 
-        cur_path = urlendpoint->base + "/test/lost_file";
-        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
-        {
-            json::JSON req_json = json::JSON::Load(req.body());
-            uint32_t file_num = req_json["file_num"].ToInt();
-            Ecall_test_lost_file(global_eid, file_num);
-            res.body() = "Lost file successfully!";
-        }
-
-        cur_path = urlendpoint->base + "/test/delete_file";
+        cur_path = urlendpoint.base + "/test/delete_file";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
@@ -640,7 +615,7 @@ cat << EOF > $TMPFILE
             res.body() = "Delete file successfully!";
         }
 
-        cur_path = urlendpoint->base + "/test/delete_file_unsafe";
+        cur_path = urlendpoint.base + "/test/delete_file_unsafe";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
@@ -649,14 +624,14 @@ cat << EOF > $TMPFILE
             res.body() = "Delete file successfully!";
         }
 
-        cur_path = urlendpoint->base + "/clean_file";
+        cur_path = urlendpoint.base + "/clean_file";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             Ecall_clean_file(global_eid);
             res.body() = "Clean file successfully!";
         }
 
-        cur_path = urlendpoint->base + "/file_info";
+        cur_path = urlendpoint.base + "/file_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON req_json = json::JSON::Load(req.body());
@@ -678,10 +653,134 @@ EOF
 
 cat << EOF > $TMPFILE2
 
-        cur_path = urlendpoint->base + "/srd/change_real";
+        cur_path = urlendpoint.base + "/storage/seal_sync";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
+            std::string ret_info;
+            int ret_code = 400;
+            json::JSON ret_body;
+
+            p_log->info("Dealing with seal request...\n");
+
+            // Parse paramters
+            json::JSON req_json = json::JSON::Load(req.body());
+            std::string cid = req_json["cid"].ToString();
+            if (cid.size() != CID_LENGTH)
+            {
+                p_log->err("Invalid cid!\n");
+                ret_body[HTTP_STATUS_CODE] = 400;
+                ret_body[HTTP_MESSAGE] = "Invalid cid!";
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
+                goto postcleanup;
+            }
+
+            // ----- Seal file ----- //
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            crust_status_t crust_status = CRUST_SUCCESS;
+            if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str())))
+            {
+                ret_code = 401;
+                ret_info = "Sealing file failed!Invoke SGX API failed!";
+                p_log->err("Seal file(%s) failed!Invoke SGX API failed!Error code:%lx\n", cid.c_str(), sgx_status);
+            }
+            else if (CRUST_SUCCESS != crust_status)
+            {
+                switch (crust_status)
+                {
+                case CRUST_SEAL_DATA_FAILED:
+                    p_log->err("Seal file(%s) failed!Internal error: seal data failed!\n", cid.c_str());
+                    break;
+                case CRUST_FILE_NUMBER_EXCEED:
+                    p_log->err("Seal file(%s) failed!No more file can be sealed!File number reachs the upper limit!\n", cid.c_str());
+                    break;
+                case CRUST_UPGRADE_IS_UPGRADING:
+                    p_log->err("Seal file(%s) failed due to upgrade!\n", cid.c_str());
+                    break;
+                case CRUST_STORAGE_FILE_DUP:
+                    p_log->err("Seal file(%s) failed!This file has been sealed.\n", cid.c_str());
+                    break;
+                default:
+                    p_log->err("Seal file(%s) failed!Unexpected error!\n", cid.c_str());
+                }
+                ret_info = "Sealing file failed!";
+                ret_code = 402;
+            }
+            else
+            {
+                ret_code = 200;
+                ret_info = "Sealing file successfully!";
+                p_log->info("Seal file(%s) successfully!\n", cid.c_str());
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+
+            goto postcleanup;
+        }
+
+        cur_path = urlendpoint.base + "/storage/delete_sync";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            res.result(200);
+            std::string ret_info;
+            int ret_code = 400;
+            json::JSON ret_body;
+            // Delete file
+            json::JSON req_json = json::JSON::Load(req.body());
+            std::string cid = req_json["cid"].ToString();
+            // Check cid
+            if (cid.size() != CID_LENGTH)
+            {
+                ret_info = "Delete file failed!Invalid cid!";
+                p_log->err("%s\n", ret_info.c_str());
+                ret_code = 400;
+                ret_body[HTTP_STATUS_CODE] = ret_code;
+                ret_body[HTTP_MESSAGE] = ret_info;
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
+                goto postcleanup;
+            }
+            
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            crust_status_t crust_status = CRUST_SUCCESS;
+            ret_info = "Deleting file failed!";
+            if (SGX_SUCCESS != (sgx_status = Ecall_delete_file(global_eid, &crust_status, cid.c_str())))
+            {
+                ret_code = 401;
+                ret_info = "Delete file failed!";
+                p_log->err("Delete file(%s) failed!Invoke SGX API failed!Error code:%lx\n", cid.c_str(), sgx_status);
+            }
+            else if (CRUST_SUCCESS != crust_status)
+            {
+                ret_code = 402;
+                ret_info = "Delete file failed!";
+                p_log->err("Delete file(%s) failed!Error code:%lx\n", cid.c_str(), crust_status);
+            }
+            else
+            {
+                EnclaveData::get_instance()->del_sealed_file_info(cid);
+                p_log->info("Delete file(%s) successfully!\n", cid.c_str());
+                res.result(200);
+                res.body() = "Deleting file successfully!";
+                goto postcleanup;
+            }
+
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+
+            goto postcleanup;
+        }
+
+        cur_path = urlendpoint.base + "/srd/set_change";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            json::JSON ret_body;
+            int ret_code = 400;
             std::string ret_info;
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req.body());
@@ -690,23 +789,83 @@ cat << EOF > $TMPFILE2
             if (change_srd_num == 0)
             {
                 p_log->info("Invalid change\n");
-                res.body() = "Invalid change";
-                res.result(402);
-                goto end_change_srd_real;
+                ret_info = "Invalid change";
+                ret_code = 400;
+            }
+            else
+            {
+                // Start changing srd
+                crust_status_t crust_status = CRUST_SUCCESS;
+                long real_change = 0;
+                if (SGX_SUCCESS != Ecall_change_srd_task(global_eid, &crust_status, change_srd_num, &real_change))
+                {
+                    ret_info = "Change srd failed!Invoke SGX api failed!";
+                    ret_code = 401;
+                }
+                else
+                {
+                    char buffer[256];
+                    memset(buffer, 0, 256);
+                    switch (crust_status)
+                    {
+                    case CRUST_SUCCESS:
+                        sprintf(buffer, "Change task:%ldG has been added, will be executed later.\n", real_change);
+                        ret_code = 200;
+                        break;
+                    case CRUST_SRD_NUMBER_EXCEED:
+                        sprintf(buffer, "Only %ldG srd will be added.Rest srd task exceeds upper limit.\n", real_change);
+                        ret_code = 402;
+                        break;
+                    default:
+                        sprintf(buffer, "Unexpected error has occurred!\n");
+                        ret_code = 403;
+                    }
+                    ret_info.append(buffer);
+                }
+                p_log->info("%s", ret_info.c_str());
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+            goto postcleanup;
+        }
+
+        cur_path = urlendpoint.base + "/srd/change_real";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            json::JSON ret_body;
+            int ret_code = 400;
+            std::string ret_info;
+            // Check input parameters
+            json::JSON req_json = json::JSON::Load(req.body());
+            change_srd_num = req_json["change"].ToInt();
+
+            if (change_srd_num == 0)
+            {
+                p_log->info("Invalid change\n");
+                ret_info = "Invalid change";
+                ret_code = 400;
             }
             else
             {
                 // Start changing srd
 				srd_change(change_srd_num);
+                ret_info = "Change srd successfully!";
+                ret_code = 200;
             }
-        end_change_srd_real:
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
             goto postcleanup;
         }
 
-        cur_path = urlendpoint->base + "/srd/change_disk";
+        cur_path = urlendpoint.base + "/srd/change_disk";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
+            json::JSON ret_body;
+            int ret_code = 400;
             std::string ret_info;
 
             // Change srd disk 
@@ -720,11 +879,9 @@ cat << EOF > $TMPFILE2
             }
             if (paths.JSONType() != json::JSON::Class::Array)
             {
+                ret_code = 400;
                 ret_info = "Wrong paths structure!";
-                p_log->err("%s\\n", ret_info.c_str());
-                res.result(400);
-                res.body() = ret_info;
-                goto postcleanup;
+                p_log->err("%s\n", ret_info.c_str());
             }
             else
             {
@@ -737,6 +894,8 @@ cat << EOF > $TMPFILE2
                             p_config->srd_paths.append(paths[i].ToString());
                         }
                     }
+                    ret_code = 200;
+                    ret_info = "Add srd path successfully!";
                 }
                 else if (op.compare("delete") == 0)
                 {
@@ -757,19 +916,21 @@ cat << EOF > $TMPFILE2
                             p_config->srd_paths.append(it->first);
                         }
                     }
+                    ret_code = 200;
+                    ret_info = "Delete srd path successfully!";
                 }
                 else
                 {
+                    ret_code = 401;
                     ret_info = "Please indicate operation: add or delete!";
-                    p_log->err("%s\\n", ret_info.c_str());
-                    res.body() = ret_info;
-                    goto postcleanup;
+                    p_log->err("%s\n", ret_info.c_str());
                 }
-                p_log->info("paths:%s\\n", p_config->srd_paths.dump().c_str());
-                ret_info = "New disks paths have been changed successfully!";
-                p_log->info("%s\\n", ret_info.c_str());
-                res.body() = ret_info;
+                p_log->info("paths:%s\n", p_config->srd_paths.dump().c_str());
             }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
 
             goto postcleanup;
         }
@@ -780,25 +941,32 @@ EOF
     ((pos-=2))
     sed -i "$pos r $TMPFILE" $apihandler_h
 
-    # Add srd change disk API
-    pos=$(sed -n '/end_change_srd:/=' $apihandler_h)
-    ((pos+=3))
+    # Srd directly
+    pos=$(sed -n '/Ecall_change_srd_task/=' $apihandler_h)
+    sed -i "$((pos-2)),$((pos+24)) d " $apihandler_h
+cat << EOF > $TMPFILE
+				if (!srd_change_test(change_srd_num))
+                {
+                    ret_info = "Change srd failed!";
+                    ret_code = 401;
+                }
+                else
+                {
+                    ret_info = "Change srd successfully!";
+                    ret_code = 200;
+                }
+EOF
+    sed -i "$((pos-2)) r $TMPFILE" $apihandler_h
+
+    # Add POST APIs
+    pos=$(sed -n '/srd_change_test(/=' $apihandler_h)
+    ((pos+=16))
     sed -i "$pos r $TMPFILE2" $apihandler_h
 
     # Upgrade start
-    pos=$(sed -n '/crust::BlockHeader \*block_header =/=' $apihandler_h)
-cat << EOF > $TMPFILE
-            if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))
-EOF
-    sed -i "$((pos+7)) r $TMPFILE" $apihandler_h
-    sed -i "$pos,$((pos+7)) d" $apihandler_h
-
-    # Srd directly
-    #pos=$(sed -n '/cur_path = urlendpoint->base + "\/srd\/change";/=' $apihandler_h)
-    #sed -i "$((pos+5)),$((pos+22))d" $apihandler_h
-    pos=$(sed -n '/Ecall_change_srd_task/=' $apihandler_h)
-    sed -i "$((pos-2)),$((pos+24)) d " $apihandler_h
-    sed -i "$((pos-2)) a \\\t\t\t\tsrd_change_test(change_srd_num);" $apihandler_h
+    pos=$(sed -n '/crust::BlockHeader block_header;/=' $apihandler_h)
+    sed -i "$pos, $((pos+6)) d" $apihandler_h
+    sed -i "/Ecall_enable_upgrade/ c \\\t\t\tif (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))" $apihandler_h
 
     # Record block height
     sed -i "/long change_srd_num = 0;/ a size_t g_block_height = 0;" $apihandler_h
@@ -850,17 +1018,18 @@ function enclavedata_h_test
 
 function srd_h_test()
 {
-    sed -i "/size_t get_reserved_space();/ a void srd_change_test(long change);" $srd_h
+    sed -i "/size_t get_reserved_space();/ a bool srd_change_test(long change);" $srd_h
 }
 
 function srd_cpp_test()
 {
 cat << EOF >> $srd_cpp
-void srd_change_test(long change)
+bool srd_change_test(long change)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     Config *p_config = Config::get_instance();
+    bool res = true;
 
     if (change > 0)
     {
@@ -874,6 +1043,7 @@ void srd_change_test(long change)
             if (SGX_SUCCESS != (sgx_status = Ecall_change_srd_task(global_eid, &crust_status, left_srd_num, &real_change)))
             {
                 p_log->err("Set srd change failed!Invoke SGX api failed!Error code:%lx\n", sgx_status);
+                res = false;
             }
             else
             {
@@ -884,8 +1054,10 @@ void srd_change_test(long change)
                     break;
                 case CRUST_SRD_NUMBER_EXCEED:
                     p_log->warn("Add left srd task failed!Srd number has reached the upper limit!Real srd task is %ldG.\n", real_change);
+                    res = false;
                     break;
                 default:
+                    res = false;
                     p_log->info("Unexpected error has occurred!\n");
                 }
             }
@@ -894,7 +1066,7 @@ void srd_change_test(long change)
         if (true_increase == 0)
         {
             //p_log->warn("No available space for srd!\n");
-            return;
+            return res;
         }
         // Print disk info
         auto disk_range = disk_info_json.ObjectRange();
@@ -967,13 +1139,15 @@ void srd_change_test(long change)
         if (true_decrease == 0)
         {
             p_log->warn("No srd space to delete!\n");
-            return;
+            return res;
         }
         p_log->info("True decreased space is:%d\n", true_decrease);
         Ecall_srd_decrease_test(global_eid, &ret_size, true_decrease);
         total_decrease_size = ret_size;
         p_log->info("Decrease %luG srd files success, the srd workload will change in next validation loop\n", total_decrease_size);
     }
+
+    return res;
 }
 EOF
 }
@@ -1023,20 +1197,27 @@ void validate_srd()
         return;
     }
 
-    crust_status_t crust_status = CRUST_SUCCESS;
-
     Workload *wl = Workload::get_instance();
 
     sgx_thread_mutex_lock(&g_srd_mutex);
 
     size_t srd_total_num = 0;
-    for (auto it : wl->srd_path2hashs_m)
+    for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end();)
     {
-        srd_total_num += it.second.size();
+        if (0 == it->second.size())
+        {
+            it = wl->srd_path2hashs_m.erase(it);
+        }
+        else
+        {
+            srd_total_num += it->second.size();
+            it++;
+        }
     }
     size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
-
-    log_debug("validate srd start, num:%d\n", srd_validate_num);
+    srd_validate_num = std::min(srd_validate_num, srd_total_num);
+    size_t srd_validate_failed_num = 0;
+    
     // Randomly choose validate srd files
     std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
@@ -1049,15 +1230,22 @@ void validate_srd()
         {
             sgx_read_rand((uint8_t *)&rand_val, 4);
             chose_entry = wl->srd_path2hashs_m.begin();
+            if (chose_entry == wl->srd_path2hashs_m.end())
+            {
+                break;
+            }
             uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
             for (uint32_t i = 0; i < path_idx; i++)
             {
                 chose_entry++;
             }
-            sgx_read_rand((uint8_t *)&rand_val, 4);
-            rand_idx = rand_val % chose_entry->second.size();
-            p_chose = std::make_pair(path_idx, rand_idx);
-            validate_srd_idx_s.insert(p_chose);
+            if (0 != chose_entry->second.size())
+            {
+                sgx_read_rand((uint8_t *)&rand_val, 4);
+                rand_idx = rand_val % chose_entry->second.size();
+                p_chose = std::make_pair(path_idx, rand_idx);
+                validate_srd_idx_s.insert(p_chose);
+            }
         }
     }
     else
@@ -1089,15 +1277,7 @@ void validate_srd()
             continue;
         }
 
-        uint8_t *m_hashs_org = NULL;
         uint8_t *m_hashs = NULL;
-        size_t m_hashs_size = 0;
-        sgx_sha256_hash_t m_hashs_sha256;
-        size_t srd_block_index = 0;
-        std::string leaf_path;
-        uint8_t *leaf_data = NULL;
-        size_t leaf_data_len = 0;
-        sgx_sha256_hash_t leaf_hash;
         std::string hex_g_hash;
         std::string dir_path;
         std::string g_path;
@@ -1110,54 +1290,26 @@ void validate_srd()
         g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
 
         // Get M hashs
-        ocall_get_file_bench(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
-        if (m_hashs_org == NULL)
-        {
-            log_err("Get m hashs file failed in '%s'.\n", hex_g_hash.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
-        if (m_hashs == NULL)
-        {
-            log_err("Malloc memory failed!\n");
-            goto nextloop;
-        }
-        memset(m_hashs, 0, m_hashs_size);
-        memcpy(m_hashs, m_hashs_org, m_hashs_size);
 
         // Compare M hashs
-        sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-        if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH)) {}
 
         // Get leaf data
-        uint32_t rand_val;
-        sgx_read_rand((uint8_t*)&rand_val, 4);
-        srd_block_index = rand_val % SRD_RAND_DATA_NUM;
-        leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
-        ocall_get_file_bench(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
-
-        if (leaf_data == NULL)
-        {
-            log_err("Get leaf file failed in '%s'.\n", hexstring_safe(p_g_hash, HASH_LENGTH).c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
 
         // Compare leaf data
-        sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
-        if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH)) {}
 
 
-    nextloop:
         if (m_hashs != NULL)
         {
             free(m_hashs);
         }
     }
-    log_debug("validate srd end, num:%d\n", srd_validate_num);
 
+    // Delete indicated punished files
+    for (auto it : del_path2idx_m)
+    {
+        srd_validate_failed_num += it.second.size();
+    }
+    srd_random_delete(SRD_PUNISH_FACTOR * srd_validate_failed_num, &del_path2idx_m);
 
     sgx_thread_mutex_unlock(&g_srd_mutex);
 }
@@ -1175,32 +1327,23 @@ void validate_srd_real()
 
     sgx_thread_mutex_lock(&g_srd_mutex);
 
-    size_t srd_num_threshold = 1 / SRD_VALIDATE_RATE * SRD_VALIDATE_MIN_NUM;
     size_t srd_total_num = 0;
-    for (auto it : wl->srd_path2hashs_m)
+    for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end();)
     {
-        srd_total_num += it.second.size();
-    }
-    size_t srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
-    size_t srd_validate_failed_num = 0;
-    
-    // Caculate srd validated variable
-    if (srd_total_num >= srd_num_threshold)
-    {
-        srd_validate_num = srd_total_num * SRD_VALIDATE_RATE;
-    }
-    else
-    {
-        if (srd_total_num < SRD_VALIDATE_MIN_NUM)
+        if (0 == it->second.size())
         {
-            srd_validate_num = srd_total_num;
+            it = wl->srd_path2hashs_m.erase(it);
         }
         else
         {
-            srd_validate_num = SRD_VALIDATE_MIN_NUM;
+            srd_total_num += it->second.size();
+            it++;
         }
     }
-
+    size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
+    srd_validate_num = std::min(srd_validate_num, srd_total_num);
+    size_t srd_validate_failed_num = 0;
+    
     // Randomly choose validate srd files
     std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
@@ -1213,15 +1356,22 @@ void validate_srd_real()
         {
             sgx_read_rand((uint8_t *)&rand_val, 4);
             chose_entry = wl->srd_path2hashs_m.begin();
+            if (chose_entry == wl->srd_path2hashs_m.end())
+            {
+                break;
+            }
             uint32_t path_idx = rand_val % wl->srd_path2hashs_m.size();
             for (uint32_t i = 0; i < path_idx; i++)
             {
                 chose_entry++;
             }
-            sgx_read_rand((uint8_t *)&rand_val, 4);
-            rand_idx = rand_val % chose_entry->second.size();
-            p_chose = std::make_pair(path_idx, rand_idx);
-            validate_srd_idx_s.insert(p_chose);
+            if (0 != chose_entry->second.size())
+            {
+                sgx_read_rand((uint8_t *)&rand_val, 4);
+                rand_idx = rand_val % chose_entry->second.size();
+                p_chose = std::make_pair(path_idx, rand_idx);
+                validate_srd_idx_s.insert(p_chose);
+            }
         }
     }
     else
@@ -1277,7 +1427,7 @@ void validate_srd_real()
         ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
         if (m_hashs_org == NULL)
         {
-            log_err("Get m hashs file failed in '%s'.\n", hex_g_hash.c_str());
+            log_err("Get m hashs file(%s) failed.\n", g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -1295,7 +1445,7 @@ void validate_srd_real()
         sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
         if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
         {
-            log_err("Wrong m hashs file in '%s'.\n", hex_g_hash.c_str());
+            log_err("Wrong m hashs file(%s).\n", g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -1309,7 +1459,7 @@ void validate_srd_real()
 
         if (leaf_data == NULL)
         {
-            log_err("Get leaf file failed in '%s'.\n", hexstring_safe(p_g_hash, HASH_LENGTH).c_str());
+            log_err("Get leaf file(%s) failed.\n", g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -1318,7 +1468,7 @@ void validate_srd_real()
         sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
         if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
         {
-            log_err("Wrong leaf data hash in '%s'.\n", hex_g_hash.c_str());
+            log_err("Wrong leaf data hash '%s'(file path:%s).\n", hex_g_hash.c_str(), g_path.c_str());
             del_path2idx_m[dir_path].insert(srd_idx.second);
             goto nextloop;
         }
@@ -1353,31 +1503,20 @@ void validate_meaningful_file_bench()
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
-    // Lock wl->checked_files
-    SafeLock cf_lock(g_checked_files_mutex);
+    // Lock wl->sealed_files
+    SafeLock cf_lock(g_sealed_files_mutex);
     cf_lock.lock();
 
-    // Add new file to validate
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    if (wl->new_files.size() > 0)
-    {
-        // Insert new files to checked files
-        wl->checked_files.insert(wl->checked_files.end(), wl->new_files.begin(), wl->new_files.end());
-        // Clear new files
-        wl->new_files.clear();
-    }
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
-
     // Get to be checked files indexes
-    size_t check_file_num = std::max((size_t)(wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
-    check_file_num = std::min(check_file_num, wl->checked_files.size());
+    size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
+    check_file_num = std::min(check_file_num, wl->sealed_files.size());
     std::vector<uint32_t> file_idx_v;
     uint32_t rand_val;
     size_t rand_index = 0;
     for (size_t i = 0; i < check_file_num; i++)
     {
         sgx_read_rand((uint8_t *)&rand_val, 4);
-        rand_index = rand_val % wl->checked_files.size();
+        rand_index = rand_val % wl->sealed_files.size();
         file_idx_v.push_back(rand_index);
     }
 
@@ -1388,32 +1527,31 @@ void validate_meaningful_file_bench()
     for (auto file_idx : file_idx_v)
     {
         // Check race
-        sched_check(SCHED_VALIDATE_FILE, g_checked_files_mutex);
+        sched_check(SCHED_VALIDATE_FILE, g_sealed_files_mutex);
         // If file has been deleted, go to next check
-        if (file_idx >= wl->checked_files.size())
+        if (file_idx >= wl->sealed_files.size())
         {
             continue;
         }
 
-        // If new file hasn't been confirmed, skip this validation
-        auto status = &wl->checked_files[file_idx][FILE_STATUS];
+        // If new file hasn't been verified, skip this validation
+        auto status = &wl->sealed_files[file_idx][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
 
-        file_idx = 0;
-        std::string root_cid = wl->checked_files[file_idx][FILE_CID].ToString();
-        std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
-        size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
+        std::string root_cid = wl->sealed_files[file_idx][FILE_CID].ToString();
+        std::string root_hash = wl->sealed_files[file_idx][FILE_HASH].ToString();
+        size_t file_block_num = wl->sealed_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
-        crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
+        crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                 changed_idx2lost_um[file_idx] = true;
             }
             if (p_data != NULL)
@@ -1446,7 +1584,7 @@ void validate_meaningful_file_bench()
         {
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                 changed_idx2lost_um[file_idx] = true;
             }
             continue;
@@ -1470,31 +1608,29 @@ void validate_meaningful_file_bench()
         // be careful to keep "cid", "hash" sequence
         size_t spos, epos;
         spos = epos = 0;
-        std::string cid_tag(MT_CID "\":\"");
+        std::string dcid_tag(MT_DATA_CID "\":\"");
         std::string dhash_tag(MT_DATA_HASH "\":\"");
         size_t cur_block_idx = 0;
-        bool checked_ret = true;
         for (auto check_block_idx : block_idx_s)
         {
             // Get leaf node position
             do
             {
-                spos = tree_str.find(cid_tag, spos);
+                spos = tree_str.find(dcid_tag, spos);
                 if (spos == tree_str.npos)
                 {
                     break;
                 }
-                spos += cid_tag.size();
+                spos += dcid_tag.size();
             } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 break;
             }
             // Get current node cid
@@ -1506,10 +1642,9 @@ void validate_meaningful_file_bench()
                 log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 break;
             }
             epos += dhash_tag.size();
@@ -1526,16 +1661,16 @@ void validate_meaningful_file_bench()
                 }
                 if (CRUST_SERVICE_UNAVAILABLE == crust_status)
                 {
-                    log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
+                    log_err("IPFS is offline!Please start it!\n");
                     wl->set_report_file_flag(false);
                     return;
                 }
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
+                log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
             }
             // Validate hash
@@ -1558,21 +1693,14 @@ void validate_meaningful_file_bench()
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 free(leaf_hash_u);
                 break;
             }
             free(leaf_hash_u);
             spos = epos;
-        }
-        // Set lost file back
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && checked_ret)
-        {
-            status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
-            changed_idx2lost_um[file_idx] = false;
         }
     }
 
@@ -1581,15 +1709,15 @@ void validate_meaningful_file_bench()
     {
         for (auto it : changed_idx2lost_um)
         {
-            char old_status_c = (it.second ? FILE_STATUS_VALID : FILE_STATUS_LOST);
-            char cur_status_c = wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS);
-            std::string old_status = (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]);
-            std::string cur_status = g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)];
-            log_info("File status changed, hash: %s status: %s -> %s\n",
-                    wl->checked_files[it.first][FILE_CID].ToString().c_str(),
-                    old_status.c_str(),
-                    cur_status.c_str());
-            wl->set_wl_spec(cur_status_c, old_status_c, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
+            log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
+                    wl->sealed_files[it.first][FILE_CID].ToString().c_str());
+            std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
+            // Delete real file
+            ocall_ipfs_del_all(&crust_status, cid.c_str());
+            // Delete file tree structure
+            persist_del(cid);
+            // Reduce valid file
+            wl->set_wl_spec(FILE_STATUS_VALID, -wl->sealed_files[it.first][FILE_SIZE].ToInt());
         }
     }
 }
@@ -1606,31 +1734,20 @@ void validate_meaningful_file_real()
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
-    // Lock wl->checked_files
-    SafeLock cf_lock(g_checked_files_mutex);
+    // Lock wl->sealed_files
+    SafeLock cf_lock(g_sealed_files_mutex);
     cf_lock.lock();
 
-    // Add new file to validate
-    sgx_thread_mutex_lock(&g_new_files_mutex);
-    if (wl->new_files.size() > 0)
-    {
-        // Insert new files to checked files
-        wl->checked_files.insert(wl->checked_files.end(), wl->new_files.begin(), wl->new_files.end());
-        // Clear new files
-        wl->new_files.clear();
-    }
-    sgx_thread_mutex_unlock(&g_new_files_mutex);
-
     // Get to be checked files indexes
-    size_t check_file_num = std::max((size_t)(wl->checked_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
-    check_file_num = std::min(check_file_num, wl->checked_files.size());
+    size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
+    check_file_num = std::min(check_file_num, wl->sealed_files.size());
     std::vector<uint32_t> file_idx_v;
     uint32_t rand_val;
     size_t rand_index = 0;
     for (size_t i = 0; i < check_file_num; i++)
     {
         sgx_read_rand((uint8_t *)&rand_val, 4);
-        rand_index = rand_val % wl->checked_files.size();
+        rand_index = rand_val % wl->sealed_files.size();
         file_idx_v.push_back(rand_index);
     }
 
@@ -1641,31 +1758,31 @@ void validate_meaningful_file_real()
     for (auto file_idx : file_idx_v)
     {
         // Check race
-        sched_check(SCHED_VALIDATE_FILE, g_checked_files_mutex);
+        sched_check(SCHED_VALIDATE_FILE, g_sealed_files_mutex);
         // If file has been deleted, go to next check
-        if (file_idx >= wl->checked_files.size())
+        if (file_idx >= wl->sealed_files.size())
         {
             continue;
         }
 
-        // If new file hasn't been confirmed, skip this validation
-        auto status = &wl->checked_files[file_idx][FILE_STATUS];
+        // If new file hasn't been verified, skip this validation
+        auto status = &wl->sealed_files[file_idx][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
 
-        std::string root_cid = wl->checked_files[file_idx][FILE_CID].ToString();
-        std::string root_hash = wl->checked_files[file_idx][FILE_HASH].ToString();
-        size_t file_block_num = wl->checked_files[file_idx][FILE_BLOCK_NUM].ToInt();
+        std::string root_cid = wl->sealed_files[file_idx][FILE_CID].ToString();
+        std::string root_hash = wl->sealed_files[file_idx][FILE_HASH].ToString();
+        size_t file_block_num = wl->sealed_files[file_idx][FILE_BLOCK_NUM].ToInt();
         // Get tree string
-        crust_status = persist_get_unsafe(root_hash, &p_data, &data_len);
+        crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status)
         {
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                 changed_idx2lost_um[file_idx] = true;
             }
             if (p_data != NULL)
@@ -1698,7 +1815,7 @@ void validate_meaningful_file_real()
         {
             if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                 changed_idx2lost_um[file_idx] = true;
             }
             continue;
@@ -1722,31 +1839,29 @@ void validate_meaningful_file_real()
         // be careful to keep "cid", "hash" sequence
         size_t spos, epos;
         spos = epos = 0;
-        std::string cid_tag(MT_CID "\":\"");
+        std::string dcid_tag(MT_DATA_CID "\":\"");
         std::string dhash_tag(MT_DATA_HASH "\":\"");
         size_t cur_block_idx = 0;
-        bool checked_ret = true;
         for (auto check_block_idx : block_idx_s)
         {
             // Get leaf node position
             do
             {
-                spos = tree_str.find(cid_tag, spos);
+                spos = tree_str.find(dcid_tag, spos);
                 if (spos == tree_str.npos)
                 {
                     break;
                 }
-                spos += cid_tag.size();
+                spos += dcid_tag.size();
             } while (cur_block_idx++ < check_block_idx);
             if (spos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 break;
             }
             // Get current node cid
@@ -1758,10 +1873,9 @@ void validate_meaningful_file_real()
                 log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 break;
             }
             epos += dhash_tag.size();
@@ -1778,16 +1892,16 @@ void validate_meaningful_file_real()
                 }
                 if (CRUST_SERVICE_UNAVAILABLE == crust_status)
                 {
-                    log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
+                    log_err("IPFS is offline!Please start it!\n");
                     wl->set_report_file_flag(false);
                     return;
                 }
                 if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
+                log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
             }
             // Validate hash
@@ -1810,21 +1924,14 @@ void validate_meaningful_file_real()
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
+                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     changed_idx2lost_um[file_idx] = true;
                 }
-                checked_ret = false;
                 free(leaf_hash_u);
                 break;
             }
             free(leaf_hash_u);
             spos = epos;
-        }
-        // Set lost file back
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && checked_ret)
-        {
-            status->set_char(CURRENT_STATUS, FILE_STATUS_VALID);
-            changed_idx2lost_um[file_idx] = false;
         }
     }
 
@@ -1833,15 +1940,15 @@ void validate_meaningful_file_real()
     {
         for (auto it : changed_idx2lost_um)
         {
-            char old_status_c = (it.second ? FILE_STATUS_VALID : FILE_STATUS_LOST);
-            char cur_status_c = wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS);
-            std::string old_status = (it.second ? g_file_status[FILE_STATUS_VALID] : g_file_status[FILE_STATUS_LOST]);
-            std::string cur_status = g_file_status[wl->checked_files[it.first][FILE_STATUS].get_char(CURRENT_STATUS)];
-            log_info("File status changed, hash: %s status: %s -> %s\n",
-                    wl->checked_files[it.first][FILE_CID].ToString().c_str(),
-                    old_status.c_str(),
-                    cur_status.c_str());
-            wl->set_wl_spec(cur_status_c, old_status_c, wl->checked_files[it.first][FILE_OLD_SIZE].ToInt());
+            log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
+                    wl->sealed_files[it.first][FILE_CID].ToString().c_str());
+            std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
+            // Delete real file
+            ocall_ipfs_del_all(&crust_status, cid.c_str());
+            // Delete file tree structure
+            persist_del(cid);
+            // Reduce valid file
+            wl->set_wl_spec(FILE_STATUS_VALID, -wl->sealed_files[it.first][FILE_SIZE].ToInt());
         }
     }
 }
@@ -2052,7 +2159,6 @@ function enc_wl_h_test()
 cat << EOF > $TMPFILE
 
     void test_add_file(long file_num);
-    void test_lost_file(uint32_t file_num);
     void test_delete_file(uint32_t file_num);
     void test_delete_file_unsafe(uint32_t file_num);
 EOF
@@ -2069,7 +2175,7 @@ cat << EOF >> $enclave_workload_cpp
 
 void Workload::test_add_file(long file_num)
 {
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     long acc = 0;
     for (long i = 0; i < file_num; i++)
     {
@@ -2085,66 +2191,36 @@ void Workload::test_add_file(long file_num)
         file_entry_json[FILE_CID] = hexstring_safe(p_cid_buffer, CID_LENGTH / 2);
         file_entry_json[FILE_HASH] = reinterpret_cast<uint8_t *>(hash);
         file_entry_json[FILE_SIZE] = 10000;
-        file_entry_json[FILE_OLD_SIZE] = 9999;
+        file_entry_json[FILE_SEALED_SIZE] = 9999;
         file_entry_json[FILE_BLOCK_NUM] = 1000;
         // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
-        file_entry_json[FILE_STATUS] = "000";
+        file_entry_json[FILE_STATUS] = "100";
         free(p_cid_buffer);
         free(n_u);
-        this->checked_files.push_back(file_entry_json);
-        this->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_OLD_SIZE].ToInt());
+        this->sealed_files.push_back(file_entry_json);
+        this->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
         acc++;
     }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
-}
-
-void Workload::test_lost_file(uint32_t file_num)
-{
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    if (this->checked_files.size() == 0)
-    {
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
-        return;
-    }
-    for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
-    {
-        uint32_t index = 0;
-        sgx_read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(uint32_t));
-        index = index % this->checked_files.size();
-        auto status = &this->checked_files[index][FILE_STATUS];
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
-        {
-            this->set_wl_spec(FILE_STATUS_LOST, status->get_char(CURRENT_STATUS), this->checked_files[index][FILE_OLD_SIZE].ToInt());
-            status->set_char(CURRENT_STATUS, FILE_STATUS_LOST);
-            this->set_wl_spec(FILE_STATUS_LOST, status->get_char(CURRENT_STATUS), this->checked_files[index][FILE_OLD_SIZE].ToInt());
-            i++;
-            j = 0;
-        }
-        else
-        {
-            j++;
-        }
-    }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 }
 
 void Workload::test_delete_file(uint32_t file_num)
 {
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    if (this->checked_files.size() == 0)
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    if (this->sealed_files.size() == 0)
     {
-        sgx_thread_mutex_unlock(&g_checked_files_mutex);
+        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
         return;
     }
     for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
     {
         uint32_t index = 0;
         sgx_read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(uint32_t));
-        index = index % this->checked_files.size();
-        auto status = &this->checked_files[index][FILE_STATUS];
+        index = index % this->sealed_files.size();
+        auto status = &this->sealed_files[index][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) != FILE_STATUS_DELETED)
         {
-            this->set_wl_spec(status->get_char(CURRENT_STATUS), -this->checked_files[index][FILE_OLD_SIZE].ToInt());
+            this->set_wl_spec(status->get_char(CURRENT_STATUS), -this->sealed_files[index][FILE_SEALED_SIZE].ToInt());
             status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             i++;
             j = 0;
@@ -2154,15 +2230,15 @@ void Workload::test_delete_file(uint32_t file_num)
             j++;
         }
     }
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 }
 
 void Workload::test_delete_file_unsafe(uint32_t file_num)
 {
-    sgx_thread_mutex_lock(&g_checked_files_mutex);
-    file_num = std::min(this->checked_files.size(), (size_t)file_num);
-    this->checked_files.erase(this->checked_files.begin(), this->checked_files.begin() + file_num);
-    sgx_thread_mutex_unlock(&g_checked_files_mutex);
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    file_num = std::min(this->sealed_files.size(), (size_t)file_num);
+    this->sealed_files.erase(this->sealed_files.begin(), this->sealed_files.begin() + file_num);
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 }
 EOF
 
@@ -2267,7 +2343,7 @@ crust_status_t ocall_get_file_bench(const char */*file_path*/, unsigned char **p
     return crust_status;
 }
 
-void ocall_store_file_info(const char *info)
+void ocall_store_file_info_test(const char *info)
 {
     EnclaveData::get_instance()->set_file_info(info);
 }
@@ -2375,14 +2451,15 @@ EOF
 
     sed -i "/p_log->info(\"Sending work report/ a \\\tEnclaveData::get_instance()->set_enclave_workreport(work_str);" $ocalls_cpp
 
+    # Delete identity uploading process
     spos=$(sed -n '/\/\/ Send identity to crust chain/=' $ocalls_cpp)
-    sed -i "$spos,$((spos+9)) d" $ocalls_cpp
+    sed -i "$spos,$((spos+34)) d" $ocalls_cpp
 }
 
 ########## ocalls_h_test ##########
 function ocalls_h_test()
 {
-    sed -i '/ocall_store_upgrade_data(/a void ocall_store_file_info(const char *info);' $ocalls_h
+    sed -i '/ocall_store_upgrade_data(/a void ocall_store_file_info_test(const char *info);' $ocalls_h
     sed -i '/ocall_store_upgrade_data(/a crust_status_t ocall_get_file_bench(const char *file_path, unsigned char **p_file, size_t *len);' $ocalls_h
     sed -i '/ocall_store_upgrade_data(/a crust_status_t ocall_get_file_block(const char *file_path, unsigned char **p_file, size_t *len);' $ocalls_h
 }
@@ -2435,8 +2512,8 @@ enclave_edl=$encdir/Enclave.edl
 ecalls_cpp=$appdir/ecalls/ECalls.cpp
 ecalls_h=$appdir/ecalls/ECalls.h
 process_cpp=$appdir/process/Process.cpp
-storage_cpp=$appdir/process/Storage.cpp
-storage_h=$appdir/process/Storage.h
+async_cpp=$appdir/process/Async.cpp
+async_h=$appdir/process/Async.h
 resource_h=$appdir/include/Resource.h
 apihandler_h=$appdir/http/ApiHandler.h
 webserver_cpp=$appdir/http/WebServer.cpp
@@ -2485,8 +2562,8 @@ resource_h_test
 ecalls_cpp_test
 ecalls_h_test
 process_cpp_test
-storage_cpp_test
-storage_h_test
+async_cpp_test
+async_h_test
 apihandler_h_test
 webserver_cpp_test
 enclavedata_cpp_test

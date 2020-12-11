@@ -1,4 +1,21 @@
 #!/bin/bash
+function _seal()
+{
+    local filesize=$((RANDOM % 17 + 1))m
+    $GEN_RANDOM_DATA ${filesize} $datadir/$filesize
+    if [ $? -ne 0 ]; then
+        verbose ERROR "generate random data failed!"
+        exit 1
+    fi
+    local cid_l=$(seal $datadir/$filesize)
+    rm $datadir/$filesize
+    if [ ${#cid_l} -ne 46 ]; then
+        verbose ERROR "seal file failed!"
+        exit 1
+    fi
+    echo $cid_l
+}
+
 function _store_meta()
 {
     validate_file
@@ -37,11 +54,7 @@ acc=6
 while [ $acc -gt 0 ]; do
     # Randomly seal file
     index=$(($RANDOM % $data_size))
-    seal $datadir/${data_arry[$index]} &>$TMPFILE
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Seal file failed!" n
-        exit 1
-    fi
+    _seal &>$TMPFILE
     cid=$(cat $TMPFILE 2>/dev/null)
     if [ x"$cid" != x"" ] && [ ${#cid} -ge 46 ]; then
         cid=${cid:0:46}
@@ -54,31 +67,19 @@ while [ $acc -gt 0 ]; do
 done
 
 # Delete valid file sequently
-acc=0
-valid_arry=()
-for cid in ${!cid_2_use_m[@]}; do
-    if [ ${cid_2_use_m[$cid]} -eq 0 ]; then
-        valid_arry[$acc]=$cid
-        confirm $cid &>$TMPFILE &
-        ((acc++))
-    fi
-done
-sleep 3
 acc=2
-for cid in ${valid_arry[@]}; do
+for cid in ${!cid_2_use_m[@]}; do
     delete_file $cid &>/dev/null
     if [ $? -ne 0 ]; then
         verbose ERROR "delete file sequently failed!" n
         exit 1
     fi
     cid_2_use_m[$cid]=1
-    _store_meta &>/dev/null
-    if ! check_hash "$cid" "deleted"; then
+    if get_file_info_all | grep "$cid" &>/dev/null; then
         verbose ERROR "delete file:$cid failed!Find cid in workload" n
         exit 1
     fi
-    ((acc--))
-    if [ $acc -le 0 ]; then
+    if [ $((acc--)) -le 0 ]; then
         break
     fi
 done
@@ -86,16 +87,16 @@ done
 # Delete confirmed file concurrently
 delete_arry=()
 acc=0
-for cid in ${valid_arry[@]}; do
+for cid in ${!cid_2_use_m[@]}; do
     if [ ${cid_2_use_m[$cid]} -eq 0 ]; then
         delete_file $cid &>/dev/null &
         delete_arry[$acc]=$cid
         ((acc++))
     fi
 done
-_store_meta &>/dev/null
+sleep 10
 for cid in ${delete_arry[@]}; do
-    if ! check_hash "$cid" "deleted"; then
+    if get_file_info_all | grep "$cid" &>/dev/null; then
         verbose ERROR "delete file concurrently failed!" n
         exit 1
     fi
