@@ -63,8 +63,6 @@ extern "C"
     crust_status_t ocall_validate_get_file(const char *root_hash, const char *leaf_hash, uint8_t **p_sealed_data, size_t *sealed_data_size);
 
     // For srd
-    void ocall_srd_info_lock();
-    void ocall_srd_info_unlock();
     void ocall_srd_change(long change);
 
     // For enclave data to app

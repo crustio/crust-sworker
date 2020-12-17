@@ -51,6 +51,7 @@ function _clean()
 {
     local file_num=$file_limit
     _test_delete_file_unsafe $file_limit
+    srd -${srd_limit}
 }
 
 function _test_add_file()

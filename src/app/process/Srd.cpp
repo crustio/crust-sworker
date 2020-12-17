@@ -6,7 +6,6 @@
 crust::Log *p_log = crust::Log::get_instance();
 
 size_t g_srd_reserved_space = DEFAULT_SRD_RESERVED;
-std::mutex srd_info_mutex;
 
 extern sgx_enclave_id_t global_eid;
 
@@ -134,9 +133,7 @@ json::JSON get_decrease_srd_info(size_t &true_srd_capacity)
     std::string disk_info_str;
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    srd_info_mutex.lock();
     crust_status = db->get(DB_SRD_INFO, disk_info_str);
-    srd_info_mutex.unlock();
     if (CRUST_SUCCESS != crust_status)
     {
         p_log->err("Srd info not found!Decrease srd space failed!\n");
@@ -327,9 +324,7 @@ void srd_check_reserved(void)
         std::string srd_info_str;
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
-        srd_info_mutex.lock();
         crust_status = db->get(DB_SRD_INFO, srd_info_str);
-        srd_info_mutex.unlock();
         if (CRUST_SUCCESS != crust_status)
         {
             //p_log->debug("Srd info not found!Check srd reserved failed!\n");

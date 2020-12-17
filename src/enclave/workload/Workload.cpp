@@ -169,7 +169,8 @@ json::JSON Workload::gen_workload_info()
  */
 crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
 {
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    SafeLock sl(g_srd_mutex);
+    sl.lock();
     
     // Calculate srd space
     size_t srd_size = 2;
@@ -219,7 +220,7 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
     *p_data = srd_buffer;
     *data_size = srd_offset;
 
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sl.unlock();
 
     return CRUST_SUCCESS;
 }
@@ -730,4 +731,234 @@ bool Workload::report_has_validated_proof()
     sgx_thread_mutex_unlock(&this->validated_mutex);
 
     return res;
+}
+
+/**
+ * @description: Add deleted srd to buffer
+ * @param path -> Srd deleted path
+ * @param index -> Srd index in indicated path
+ * @return: Add result
+ */
+bool Workload::add_srd_to_deleted_buffer(std::string path, uint32_t index)
+{
+    sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
+    auto ret_val = this->srd_del_path2idx_um[path].insert(index);
+    sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+
+    return ret_val.second;
+}
+
+/**
+ * @description: Has given srd been added to buffer
+ * @param path -> Srd deleted path
+ * @param index -> Srd index in indicated path
+ * @return: Added to deleted buffer or not
+ */
+bool Workload::is_srd_in_deleted_buffer(std::string path, uint32_t index)
+{
+    sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
+    bool ret = (this->srd_del_path2idx_um[path].find(index) != this->srd_del_path2idx_um[path].end());
+    sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+
+    return ret;
+}
+
+/**
+ * @description: Delete invalid srd from metadata
+ * @param locked -> Lock srd_path2hashs_m or not
+ */
+void Workload::deal_deleted_srd(bool locked)
+{
+    // Delete related srd from metadata by mainloop thread
+    if (locked)
+    {
+        sgx_thread_mutex_lock(&g_srd_mutex);
+    }
+
+    sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
+    std::unordered_map<std::string, std::set<uint32_t>> tmp_del_path2idx_um;
+    // Put to be deleted srd to a buffer map and clean the old one
+    tmp_del_path2idx_um.insert(this->srd_del_path2idx_um.begin(), this->srd_del_path2idx_um.end());
+    this->srd_del_path2idx_um.clear();
+    sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+
+    for (auto path2idx : tmp_del_path2idx_um)
+    {
+        std::string del_dir = path2idx.first;
+        std::set<uint32_t> *deleted_idx = &path2idx.second;
+        if (this->srd_path2hashs_m.find(del_dir) != this->srd_path2hashs_m.end())
+        {
+            size_t del_num = 0;
+            std::vector<uint8_t *> *p_hashs = &this->srd_path2hashs_m[del_dir];
+            for (auto index_rit = deleted_idx->rbegin(); index_rit != deleted_idx->rend(); index_rit++)
+            {
+                if (*index_rit < p_hashs->size())
+                {
+                    if ((*p_hashs)[*index_rit] != NULL)
+                    {
+                        free((*p_hashs)[*index_rit]);
+                    }
+                    p_hashs->erase(p_hashs->begin() + *index_rit);
+                    del_num++;
+                    if (0 == p_hashs->size())
+                    {
+                        this->srd_path2hashs_m.erase(del_dir);
+                        break;
+                    }
+                }
+            }
+            this->set_srd_info(del_dir, -del_num);
+        }
+    }
+
+    if (locked)
+    {
+        sgx_thread_mutex_unlock(&g_srd_mutex);
+    }
+}
+
+/**
+ * @description: Add file to deleted buffer
+ * @param index -> File index
+ * @return: Added result
+ */
+bool Workload::add_to_deleted_file_buffer(uint32_t index)
+{
+    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    auto ret = this->file_del_idx_s.insert(index);
+    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
+
+    return ret.second;
+}
+
+/**
+ * @description: Is deleted file in buffer
+ * @param index -> File index
+ * @return: Check result
+ */
+bool Workload::is_in_deleted_file_buffer(uint32_t index)
+{
+    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    bool ret = (this->file_del_idx_s.find(index) != this->file_del_idx_s.end());
+    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
+
+    return ret;
+}
+
+/**
+ * @description: Recover file from deleted buffer
+ * @param index -> File index
+ */
+void Workload::recover_from_deleted_file_buffer(uint32_t index)
+{
+    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    this->file_del_idx_s.erase(index);
+    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
+}
+
+/**
+ * @description: Deal with deleted file
+ */
+void Workload::deal_deleted_file()
+{
+    SafeLock sealed_files_sl(g_sealed_files_mutex);
+    sealed_files_sl.lock();
+
+    std::set<uint32_t> tmp_del_idx_s;
+    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    tmp_del_idx_s.insert(this->file_del_idx_s.begin(), this->file_del_idx_s.end());
+    this->file_del_idx_s.clear();
+    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
+
+    for (auto index : tmp_del_idx_s)
+    {
+        this->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+    }
+    // Deleted invalid file item
+    for (auto it = this->sealed_files.begin(); it != this->sealed_files.end();)
+    {
+        std::string status = (*it)[FILE_STATUS].ToString();
+        if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
+                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED))
+        {
+            it = this->sealed_files.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+    }
+    sealed_files_sl.unlock();
+}
+
+/**
+ * @description: Is file duplicated
+ * @param cid -> File's content id
+ * @return: File duplicated or not
+ */
+bool Workload::is_file_dup(std::string cid)
+{
+    size_t pos = 0;
+    return is_file_dup(cid, pos);
+}
+
+/**
+ * @description: Is file duplicated
+ * @param cid -> File's content id
+ * @param pos -> Duplicated file's position
+ * @return: Duplicated or not
+ */
+bool Workload::is_file_dup(std::string cid, size_t &pos)
+{
+    long spos = 0;
+    long epos = this->sealed_files.size();
+    while (spos < epos)
+    {
+        long mpos = (spos + epos) / 2;
+        int ret = cid.compare(this->sealed_files[mpos][FILE_CID].ToString());
+        if (ret > 0)
+        {
+            spos = mpos + 1;
+        }
+        else if (ret < 0)
+        {
+            epos = mpos - 1;
+        }
+        else
+        {
+            pos = mpos;
+            return true;;
+        }
+    }
+
+    pos = spos;
+    return false;
+}
+
+/**
+ * @description: Add sealed file
+ * @param file -> File content
+ * @param pos -> Inserted position
+ */
+void Workload::add_sealed_file(json::JSON file, size_t pos)
+{
+    if (pos <= this->sealed_files.size())
+    {
+        this->sealed_files.insert(this->sealed_files.begin() + pos, file);
+    }
+}
+
+/**
+ * @description: Add sealed file
+ * @param file -> File content
+ */
+void Workload::add_sealed_file(json::JSON file)
+{
+    size_t pos = 0;
+    if (is_file_dup(file[FILE_CID].ToString(), pos))
+    {
+        return;
+    }
+
+    this->sealed_files.insert(this->sealed_files.begin() + pos, file);
 }

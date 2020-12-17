@@ -30,6 +30,5 @@
 #include "Validator.h"
 #include "Srd.h"
 #include "Report.h"
-#include "Schedule.h"
 
 #endif /* !_CRUST_ENCLAVE_H_ */

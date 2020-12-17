@@ -22,37 +22,27 @@ void ecall_handle_report_result()
 
 void ecall_validate_srd()
 {
-    sched_add(SCHED_VALIDATE_SRD);
     validate_srd();
-    sched_del(SCHED_VALIDATE_SRD);
 }
 
 void ecall_validate_srd_real()
 {
-    sched_add(SCHED_VALIDATE_SRD);
     validate_srd_real();
-    sched_del(SCHED_VALIDATE_SRD);
 }
 
 void ecall_validate_file()
 {
-    sched_add(SCHED_VALIDATE_FILE);
     validate_meaningful_file();
-    sched_del(SCHED_VALIDATE_FILE);
 }
 
 void ecall_validate_file_real()
 {
-    sched_add(SCHED_VALIDATE_FILE);
     validate_meaningful_file_real();
-    sched_del(SCHED_VALIDATE_FILE);
 }
 
 void ecall_validate_file_bench()
 {
-    sched_add(SCHED_VALIDATE_FILE);
     validate_meaningful_file_bench();
-    sched_del(SCHED_VALIDATE_FILE);
 }
 
 void ecall_store_metadata()
@@ -86,16 +76,12 @@ void ecall_srd_increase_test(const char* path)
         return;
     }
 
-    sched_add(SCHED_SRD_CHANGE);
     srd_increase_test(path);
-    sched_del(SCHED_SRD_CHANGE);
 }
 
 size_t ecall_srd_decrease_test(long change)
 {
-    sched_add(SCHED_SRD_CHANGE);
     size_t ret = srd_decrease_test(change);
-    sched_del(SCHED_SRD_CHANGE);
 
     return ret;
 }
@@ -159,6 +145,10 @@ EOF
     
     local pos=$(sed -n '/ecall_get_workload()/=' $enclave_edl)
     sed -i "$pos r $TMPFILE" $enclave_edl
+    if [ $? -ne 0 ]; then
+        echo "Replace enclave_edl_test failed!"
+        exit 1
+    fi
 
     sed -i "/void ocall_store_upgrade_data(/a \\\t\\tvoid ocall_store_file_info_test([in, string] const char *info);" $enclave_edl
     sed -i "/void ocall_store_upgrade_data(/a \\\t\\tcrust_status_t ocall_get_file_block([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);" $enclave_edl
@@ -187,6 +177,10 @@ cat << EOF >$TMPFILE
 EOF
     local pos=$(sed -n '/{"Ecall_delete_file", 0},/=' $ecalls_cpp)
     sed -i "$pos r $TMPFILE" $ecalls_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace ecalls_cpp_test failed!"
+        exit 1
+    fi
 
 cat << EOF >>$ecalls_cpp
 
@@ -426,6 +420,10 @@ EOF
 
     local pos=$(sed -n '/sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid);/=' $ecalls_h)
     sed -i "$((pos+1)) r $TMPFILE" $ecalls_h
+    if [ $? -ne 0 ]; then
+        echo "Replace ecalls_h_test failed!"
+        exit 1
+    fi
 }
 
 ########## process_cpp_test ##########
@@ -433,20 +431,41 @@ function process_cpp_test()
 {
     local pos1=$(sed -n '/&work_report_loop/=' $process_cpp)
     sed -i "$((pos1-1)),$pos1 d" $process_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace work_report_loop failed!"
+        exit 1
+    fi
 
     local pos2=$(sed -n '/&srd_check_reserved/=' $process_cpp)
     sed -i "$((pos2-1)),$pos2 d" $process_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace srd_check_reserved failed!"
+        exit 1
+    fi
 
     local pos3=$(sed -n '/&main_loop/=' $process_cpp)
     sed -i "$((pos3-1)),$pos3 d" $process_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace main_loop failed!"
+        exit 1
+    fi
 
     # Get block to gen upgrade data
     local pos4=$(sed -n '/crust::BlockHeader/=' $process_cpp)
+    local arry=($pos4)
+    if [ ${#arry[@]} -ne 1 ]; then
+        echo "Replace blockheader failed!"
+        exit 1
+    fi
     sed -i "$pos4,$((pos4+5)) d" $process_cpp
     sed -i "$((pos4-1)) a \\\t\t\tif (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))" $process_cpp
     sed -i "/extern bool g_upgrade_flag;/ a extern size_t g_block_height;" $process_cpp
     pos4=$(sed -n '/if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status(/=' $process_cpp)
     sed -i "$((pos4+1)) a \\\t\t\tg_block_height += REPORT_BLOCK_HEIGHT_BASE;" $process_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace get_upgrade_status failed!"
+        exit 1
+    fi
 }
 
 ########## async_cpp_test ##########
@@ -477,6 +496,10 @@ function async_h_test()
 {
     local spos=$(sed -n "/void async_storage_delete(/=" $async_h)
     sed -i "$spos a void report_add_callback();" $async_h
+    if [ $? -ne 0 ]; then
+        echo "Replace async_storage_delete failed!"
+        exit 1
+    fi
 }
 
 ########## apihandler_h_test ##########
@@ -940,10 +963,18 @@ EOF
     local pos=$(sed -n '/getcleanup:/=' $apihandler_h)
     ((pos-=2))
     sed -i "$pos r $TMPFILE" $apihandler_h
+    if [ $? -ne 0 ]; then
+        echo "Replace apihandler_h 1 failed!"
+        exit 1
+    fi
 
     # Srd directly
     pos=$(sed -n '/Ecall_change_srd_task/=' $apihandler_h)
     sed -i "$((pos-2)),$((pos+24)) d " $apihandler_h
+    if [ $? -ne 0 ]; then
+        echo "Replace apihandler_h 2 failed!"
+        exit 1
+    fi
 cat << EOF > $TMPFILE
 				if (!srd_change_test(change_srd_num))
                 {
@@ -962,10 +993,18 @@ EOF
     pos=$(sed -n '/srd_change_test(/=' $apihandler_h)
     ((pos+=16))
     sed -i "$pos r $TMPFILE2" $apihandler_h
+    if [ $? -ne 0 ]; then
+        echo "Replace apihandler_h 3 failed!"
+        exit 1
+    fi
 
     # Upgrade start
     pos=$(sed -n '/crust::BlockHeader block_header;/=' $apihandler_h)
     sed -i "$pos, $((pos+6)) d" $apihandler_h
+    if [ $? -ne 0 ]; then
+        echo "Replace apihandler_h 4 failed!"
+        exit 1
+    fi
     sed -i "/Ecall_enable_upgrade/ c \\\t\t\tif (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))" $apihandler_h
 
     # Record block height
@@ -1128,7 +1167,7 @@ bool srd_change_test(long change)
             }
         }
 
-        p_log->info("Increase %dG srd files success, the srd workload will change gradually in next validation loops\n", true_increase);
+        p_log->info("Increase %dG srd files success\n", true_increase);
     }
     else if (change < 0)
     {
@@ -1157,6 +1196,10 @@ function enc_report_cpp_test()
 {
     local spos=$(sed -n '/crust_status_t gen_work_report(/=' $enclave_report_cpp)
     sed -i "$((spos+15)),$((spos+19)) d" $enclave_report_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_report_cpp_test failed!"
+        exit 1
+    fi
 
     sed -i "/ocall_usleep(/ c //ocall_usleep(" $enclave_report_cpp
     sed -i "/Workload::get_instance()->handle_report_result(/ c //Workload::get_instance()->handle_report_result(" $enclave_report_cpp
@@ -1173,20 +1216,14 @@ function enc_validate_h_test()
 ########## enc_validate_cpp_test ##########
 function enc_validate_cpp_test()
 {
-    ### Delete validate srd mechanism
-    local spos=$(sed -n "/dir_path = chose_entry->first;/=" $enclave_validate_cpp)
-    local epos=$(sed -n "/\/\/ Compare leaf data/=" $enclave_validate_cpp)
-    sed -i "$spos,$((epos+7)) d" $enclave_validate_cpp
-
-    ### Delete validate file mechanism
-    spos=$(sed -n '/Compute current node hash by data/=' $enclave_validate_cpp)
-    epos=$(sed -n '/free(leaf_hash_u);/=' $enclave_validate_cpp | tail -n 1)
-    sed -i "$spos,$epos d" $enclave_validate_cpp
-
     ### Delete old validate srd func
     spos=$(sed -n '/void validate_srd()/=' $enclave_validate_cpp)
     epos=$(sed -n "$spos,$ {/^}/=}" $enclave_validate_cpp | head -n 1)
     sed -i "$spos,$epos d" $enclave_validate_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_validate_cpp_test 3 failed!"
+        exit 1
+    fi
 
 cat << EOF >>$enclave_validate_cpp
 
@@ -1196,6 +1233,8 @@ void validate_srd()
     {
         return;
     }
+
+    crust_status_t crust_status = CRUST_SUCCESS;
 
     Workload *wl = Workload::get_instance();
 
@@ -1216,10 +1255,9 @@ void validate_srd()
     }
     size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
     srd_validate_num = std::min(srd_validate_num, srd_total_num);
-    size_t srd_validate_failed_num = 0;
     
     // Randomly choose validate srd files
-    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
+    std::unordered_map<std::string, std::set<std::pair<int, uint8_t *>>> validate_srd_idx_um;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
     if (srd_validate_num < srd_total_num)
     {
@@ -1243,8 +1281,7 @@ void validate_srd()
             {
                 sgx_read_rand((uint8_t *)&rand_val, 4);
                 rand_idx = rand_val % chose_entry->second.size();
-                p_chose = std::make_pair(path_idx, rand_idx);
-                validate_srd_idx_s.insert(p_chose);
+                validate_srd_idx_um[chose_entry->first].insert(std::make_pair(rand_idx, chose_entry->second[rand_idx]));
             }
         }
     }
@@ -1255,63 +1292,51 @@ void validate_srd()
         {
             for (size_t j = 0; j < it->second.size(); j++)
             {
-                validate_srd_idx_s.insert(make_pair(i, j));
+                validate_srd_idx_um[it->first].insert(std::make_pair(j, it->second[j]));
             }
         }
     }
+    sgx_thread_mutex_unlock(&g_srd_mutex);
 
     // ----- Validate SRD ----- //
-    std::map<std::string, std::set<size_t>> del_path2idx_m;
-    for (auto srd_idx : validate_srd_idx_s)
+    std::map<std::string, std::vector<uint8_t *>> del_path2hashs_m;
+    for (auto path2srds : validate_srd_idx_um)
     {
-        // Check sched func
-        sched_check(SCHED_VALIDATE_SRD, g_srd_mutex);
-        // If srd has been deleted, go to next check
-        std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
-        for (size_t i = 0; i < srd_idx.first && chose_entry != wl->srd_path2hashs_m.end(); i++)
+        std::string dir_path = path2srds.first;
+        for (auto idx_hash_item : path2srds.second)
         {
-            chose_entry++;
-        }
-        if (chose_entry == wl->srd_path2hashs_m.end() || srd_idx.second >= chose_entry->second.size())
-        {
-            continue;
-        }
+            std::string hex_g_hash;
+            std::string g_path;
 
-        uint8_t *m_hashs = NULL;
-        std::string hex_g_hash;
-        std::string dir_path;
-        std::string g_path;
+            uint8_t *p_g_hash = idx_hash_item.second;
 
-        dir_path = chose_entry->first;
-        uint8_t *p_g_hash = chose_entry->second[srd_idx.second];
+            // Get g_hash corresponding path
+            hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
+            g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
 
-        // Get g_hash corresponding path
-        hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
-        g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
+            // Get M hashs
 
-        // Get M hashs
+            // Compare M hashs
 
-        // Compare M hashs
+            // Get leaf data
 
-        // Get leaf data
+            // Compare leaf data
 
-        // Compare leaf data
-
-
-        if (m_hashs != NULL)
-        {
-            free(m_hashs);
         }
     }
 
-    // Delete indicated punished files
-    for (auto it : del_path2idx_m)
+    // Delete failed srd metadata
+    for (auto path2hashs : del_path2hashs_m)
     {
-        srd_validate_failed_num += it.second.size();
+        std::string del_dir = path2hashs.first;
+        for (auto g_hash : path2hashs.second)
+        {
+            std::string del_path = del_dir + "/" + hexstring_safe(g_hash, HASH_LENGTH);
+            ocall_delete_folder_or_file(&crust_status, del_path.c_str());
+        }
+        // Reduce assigned space in srd info
+        wl->set_srd_info(del_dir, -(long)(path2hashs.second.size()));
     }
-    srd_random_delete(SRD_PUNISH_FACTOR * srd_validate_failed_num, &del_path2idx_m);
-
-    sgx_thread_mutex_unlock(&g_srd_mutex);
 }
 
 void validate_srd_real()
@@ -1342,10 +1367,9 @@ void validate_srd_real()
     }
     size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
     srd_validate_num = std::min(srd_validate_num, srd_total_num);
-    size_t srd_validate_failed_num = 0;
     
     // Randomly choose validate srd files
-    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
+    std::unordered_map<std::string, std::set<std::pair<int, uint8_t *>>> validate_srd_idx_um;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
     if (srd_validate_num < srd_total_num)
     {
@@ -1369,8 +1393,7 @@ void validate_srd_real()
             {
                 sgx_read_rand((uint8_t *)&rand_val, 4);
                 rand_idx = rand_val % chose_entry->second.size();
-                p_chose = std::make_pair(path_idx, rand_idx);
-                validate_srd_idx_s.insert(p_chose);
+                validate_srd_idx_um[chose_entry->first].insert(std::make_pair(rand_idx, chose_entry->second[rand_idx]));
             }
         }
     }
@@ -1381,114 +1404,121 @@ void validate_srd_real()
         {
             for (size_t j = 0; j < it->second.size(); j++)
             {
-                validate_srd_idx_s.insert(make_pair(i, j));
+                validate_srd_idx_um[it->first].insert(std::make_pair(j, it->second[j]));
+            }
+        }
+    }
+    sgx_thread_mutex_unlock(&g_srd_mutex);
+
+    // ----- Validate SRD ----- //
+    std::map<std::string, std::vector<uint8_t *>> del_path2hashs_m;
+    for (auto path2srds : validate_srd_idx_um)
+    {
+        std::string dir_path = path2srds.first;
+        for (auto idx_hash_item : path2srds.second)
+        {
+            uint8_t *m_hashs_org = NULL;
+            uint8_t *m_hashs = NULL;
+            size_t m_hashs_size = 0;
+            sgx_sha256_hash_t m_hashs_sha256;
+            size_t srd_block_index = 0;
+            std::string leaf_path;
+            uint8_t *leaf_data = NULL;
+            size_t leaf_data_len = 0;
+            sgx_sha256_hash_t leaf_hash;
+            std::string hex_g_hash;
+            std::string g_path;
+
+            uint32_t g_hash_index = idx_hash_item.first;
+            uint8_t *p_g_hash = idx_hash_item.second;
+
+            // Get g_hash corresponding path
+            hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
+            g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
+
+            // Get M hashs
+            ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
+            if (m_hashs_org == NULL)
+            {
+                if (wl->is_srd_in_deleted_buffer(dir_path, g_hash_index))
+                {
+                    goto nextloop;
+                }
+                log_err("Get m hashs file(%s) failed.\n", g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                wl->add_srd_to_deleted_buffer(dir_path, g_hash_index);
+                goto nextloop;
+            }
+
+            m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
+            if (m_hashs == NULL)
+            {
+                log_err("Malloc memory failed!\n");
+                goto nextloop;
+            }
+            memset(m_hashs, 0, m_hashs_size);
+            memcpy(m_hashs, m_hashs_org, m_hashs_size);
+
+            // Compare M hashs
+            sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
+            if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
+            {
+                log_err("Wrong m hashs file(%s).\n", g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                wl->add_srd_to_deleted_buffer(dir_path, g_hash_index);
+                goto nextloop;
+            }
+
+            // Get leaf data
+            uint32_t rand_val;
+            sgx_read_rand((uint8_t*)&rand_val, 4);
+            srd_block_index = rand_val % SRD_RAND_DATA_NUM;
+            leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
+            ocall_get_file(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
+
+            if (leaf_data == NULL)
+            {
+                if (wl->is_srd_in_deleted_buffer(dir_path, g_hash_index))
+                {
+                    goto nextloop;
+                }
+                log_err("Get leaf file(%s) failed.\n", g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                wl->add_srd_to_deleted_buffer(dir_path, g_hash_index);
+                goto nextloop;
+            }
+
+            // Compare leaf data
+            sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
+            if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
+            {
+                log_err("Wrong leaf data hash '%s'(file path:%s).\n", hex_g_hash.c_str(), g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                wl->add_srd_to_deleted_buffer(dir_path, g_hash_index);
+                goto nextloop;
+            }
+
+
+        nextloop:
+            if (m_hashs != NULL)
+            {
+                free(m_hashs);
             }
         }
     }
 
-    // ----- Validate SRD ----- //
-    std::map<std::string, std::set<size_t>> del_path2idx_m;
-    for (auto srd_idx : validate_srd_idx_s)
+    // Delete failed srd metadata
+    for (auto path2hashs : del_path2hashs_m)
     {
-        // Check sched func
-        sched_check(SCHED_VALIDATE_SRD, g_srd_mutex);
-        // If srd has been deleted, go to next check
-        std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
-        for (size_t i = 0; i < srd_idx.first && chose_entry != wl->srd_path2hashs_m.end(); i++)
+        std::string del_dir = path2hashs.first;
+        for (auto g_hash : path2hashs.second)
         {
-            chose_entry++;
+            std::string del_path = del_dir + "/" + hexstring_safe(g_hash, HASH_LENGTH);
+            ocall_delete_folder_or_file(&crust_status, del_path.c_str());
         }
-        if (chose_entry == wl->srd_path2hashs_m.end() || srd_idx.second >= chose_entry->second.size())
-        {
-            continue;
-        }
-
-        uint8_t *m_hashs_org = NULL;
-        uint8_t *m_hashs = NULL;
-        size_t m_hashs_size = 0;
-        sgx_sha256_hash_t m_hashs_sha256;
-        size_t srd_block_index = 0;
-        std::string leaf_path;
-        uint8_t *leaf_data = NULL;
-        size_t leaf_data_len = 0;
-        sgx_sha256_hash_t leaf_hash;
-        std::string hex_g_hash;
-        std::string dir_path;
-        std::string g_path;
-
-        dir_path = chose_entry->first;
-        uint8_t *p_g_hash = chose_entry->second[srd_idx.second];
-
-        // Get g_hash corresponding path
-        hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
-        g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
-
-        // Get M hashs
-        ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
-        if (m_hashs_org == NULL)
-        {
-            log_err("Get m hashs file(%s) failed.\n", g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
-        if (m_hashs == NULL)
-        {
-            log_err("Malloc memory failed!\n");
-            goto nextloop;
-        }
-        memset(m_hashs, 0, m_hashs_size);
-        memcpy(m_hashs, m_hashs_org, m_hashs_size);
-
-        // Compare M hashs
-        sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-        if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
-        {
-            log_err("Wrong m hashs file(%s).\n", g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        // Get leaf data
-        uint32_t rand_val;
-        sgx_read_rand((uint8_t*)&rand_val, 4);
-        srd_block_index = rand_val % SRD_RAND_DATA_NUM;
-        leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
-        ocall_get_file(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
-
-        if (leaf_data == NULL)
-        {
-            log_err("Get leaf file(%s) failed.\n", g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        // Compare leaf data
-        sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
-        if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
-        {
-            log_err("Wrong leaf data hash '%s'(file path:%s).\n", hex_g_hash.c_str(), g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-
-    nextloop:
-        if (m_hashs != NULL)
-        {
-            free(m_hashs);
-        }
+        // Reduce assigned space in srd info
+        wl->set_srd_info(del_dir, -(long)(path2hashs.second.size()));
     }
-
-    // Delete indicated punished files
-    for (auto it : del_path2idx_m)
-    {
-        srd_validate_failed_num += it.second.size();
-    }
-    srd_random_delete(SRD_PUNISH_FACTOR * srd_validate_failed_num, &del_path2idx_m);
-
-    sgx_thread_mutex_unlock(&g_srd_mutex);
 }
 
 void validate_meaningful_file_bench()
@@ -1504,55 +1534,50 @@ void validate_meaningful_file_bench()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    SafeLock cf_lock(g_sealed_files_mutex);
-    cf_lock.lock();
-
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->sealed_files.size());
-    std::vector<uint32_t> file_idx_v;
+    std::map<uint32_t, json::JSON> validate_sealed_files_m;
     uint32_t rand_val;
     size_t rand_index = 0;
     for (size_t i = 0; i < check_file_num; i++)
     {
         sgx_read_rand((uint8_t *)&rand_val, 4);
         rand_index = rand_val % wl->sealed_files.size();
-        file_idx_v.push_back(rand_index);
+        validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     // ----- Validate file ----- //
-    // TODO: Do we allow to store duplicated files?
     // Used to indicate which meaningful file status has been changed
-    std::unordered_map<size_t, bool> changed_idx2lost_um;
-    for (auto file_idx : file_idx_v)
+    std::unordered_set<size_t> deleted_index_us;
+    for (auto idx2file : validate_sealed_files_m)
     {
-        // Check race
-        sched_check(SCHED_VALIDATE_FILE, g_sealed_files_mutex);
-        // If file has been deleted, go to next check
-        if (file_idx >= wl->sealed_files.size())
-        {
-            continue;
-        }
-
         // If new file hasn't been verified, skip this validation
-        auto status = &wl->sealed_files[file_idx][FILE_STATUS];
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+        uint32_t file_idx = idx2file.first;
+        json::JSON file = idx2file.second;
+        auto status = file[FILE_STATUS];
+        if (status.get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
 
-        std::string root_cid = wl->sealed_files[file_idx][FILE_CID].ToString();
-        std::string root_hash = wl->sealed_files[file_idx][FILE_HASH].ToString();
-        size_t file_block_num = wl->sealed_files[file_idx][FILE_BLOCK_NUM].ToInt();
+        std::string root_cid = file[FILE_CID].ToString();
+        std::string root_hash = file[FILE_HASH].ToString();
+        size_t file_block_num = file[FILE_BLOCK_NUM].ToInt();
         // Get tree string
         crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            if (wl->is_in_deleted_file_buffer(file_idx))
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                changed_idx2lost_um[file_idx] = true;
+                continue;
+            }
+            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
+            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            {
+                deleted_index_us.insert(file_idx);
             }
             if (p_data != NULL)
             {
@@ -1582,10 +1607,9 @@ void validate_meaningful_file_bench()
         }
         if (!valid_tree)
         {
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                changed_idx2lost_um[file_idx] = true;
+                deleted_index_us.insert(file_idx);
             }
             continue;
         }
@@ -1626,10 +1650,9 @@ void validate_meaningful_file_bench()
             if (spos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 break;
             }
@@ -1640,10 +1663,9 @@ void validate_meaningful_file_bench()
             if (epos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 break;
             }
@@ -1665,10 +1687,13 @@ void validate_meaningful_file_bench()
                     wl->set_report_file_flag(false);
                     return;
                 }
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (wl->is_in_deleted_file_buffer(file_idx))
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    continue;
+                }
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                {
+                    deleted_index_us.insert(file_idx);
                 }
                 log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
@@ -1688,13 +1713,12 @@ void validate_meaningful_file_bench()
             }
             if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
             {
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 free(leaf_hash_u);
                 break;
@@ -1705,20 +1729,27 @@ void validate_meaningful_file_bench()
     }
 
     // Change file status
-    if (changed_idx2lost_um.size() > 0)
+    if (deleted_index_us.size() > 0)
     {
-        for (auto it : changed_idx2lost_um)
+        sgx_thread_mutex_lock(&g_sealed_files_mutex);
+        for (auto index : deleted_index_us)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
-                    wl->sealed_files[it.first][FILE_CID].ToString().c_str());
-            std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
-            // Delete real file
-            ocall_ipfs_del_all(&crust_status, cid.c_str());
-            // Delete file tree structure
-            persist_del(cid);
-            // Reduce valid file
-            wl->set_wl_spec(FILE_STATUS_VALID, -wl->sealed_files[it.first][FILE_SIZE].ToInt());
+                    validate_sealed_files_m[index][FILE_CID].ToString().c_str());
+            std::string cid = validate_sealed_files_m[index][FILE_CID].ToString();
+            // Change file status
+            if (validate_sealed_files_m[index][FILE_CHAIN_BLOCK_NUM].ToInt() >= wl->sealed_files[index][FILE_CHAIN_BLOCK_NUM].ToInt())
+            {
+                wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+                // Delete real file
+                ocall_ipfs_del_all(&crust_status, cid.c_str());
+                // Delete file tree structure
+                persist_del(cid);
+                // Reduce valid file
+                wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
+            }
         }
+        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
     }
 }
 
@@ -1735,55 +1766,50 @@ void validate_meaningful_file_real()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    SafeLock cf_lock(g_sealed_files_mutex);
-    cf_lock.lock();
-
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->sealed_files.size());
-    std::vector<uint32_t> file_idx_v;
+    std::map<uint32_t, json::JSON> validate_sealed_files_m;
     uint32_t rand_val;
     size_t rand_index = 0;
     for (size_t i = 0; i < check_file_num; i++)
     {
         sgx_read_rand((uint8_t *)&rand_val, 4);
         rand_index = rand_val % wl->sealed_files.size();
-        file_idx_v.push_back(rand_index);
+        validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     // ----- Validate file ----- //
-    // TODO: Do we allow to store duplicated files?
     // Used to indicate which meaningful file status has been changed
-    std::unordered_map<size_t, bool> changed_idx2lost_um;
-    for (auto file_idx : file_idx_v)
+    std::unordered_set<size_t> deleted_index_us;
+    for (auto idx2file : validate_sealed_files_m)
     {
-        // Check race
-        sched_check(SCHED_VALIDATE_FILE, g_sealed_files_mutex);
-        // If file has been deleted, go to next check
-        if (file_idx >= wl->sealed_files.size())
-        {
-            continue;
-        }
-
         // If new file hasn't been verified, skip this validation
-        auto status = &wl->sealed_files[file_idx][FILE_STATUS];
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+        uint32_t file_idx = idx2file.first;
+        json::JSON file = idx2file.second;
+        auto status = file[FILE_STATUS];
+        if (status.get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
 
-        std::string root_cid = wl->sealed_files[file_idx][FILE_CID].ToString();
-        std::string root_hash = wl->sealed_files[file_idx][FILE_HASH].ToString();
-        size_t file_block_num = wl->sealed_files[file_idx][FILE_BLOCK_NUM].ToInt();
+        std::string root_cid = file[FILE_CID].ToString();
+        std::string root_hash = file[FILE_HASH].ToString();
+        size_t file_block_num = file[FILE_BLOCK_NUM].ToInt();
         // Get tree string
         crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            if (wl->is_in_deleted_file_buffer(file_idx))
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                changed_idx2lost_um[file_idx] = true;
+                continue;
+            }
+            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
+            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            {
+                deleted_index_us.insert(file_idx);
             }
             if (p_data != NULL)
             {
@@ -1813,10 +1839,9 @@ void validate_meaningful_file_real()
         }
         if (!valid_tree)
         {
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                changed_idx2lost_um[file_idx] = true;
+                deleted_index_us.insert(file_idx);
             }
             continue;
         }
@@ -1857,10 +1882,9 @@ void validate_meaningful_file_real()
             if (spos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 break;
             }
@@ -1871,10 +1895,9 @@ void validate_meaningful_file_real()
             if (epos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 break;
             }
@@ -1896,10 +1919,13 @@ void validate_meaningful_file_real()
                     wl->set_report_file_flag(false);
                     return;
                 }
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (wl->is_in_deleted_file_buffer(file_idx))
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    continue;
+                }
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                {
+                    deleted_index_us.insert(file_idx);
                 }
                 log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
@@ -1919,13 +1945,12 @@ void validate_meaningful_file_real()
             }
             if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
             {
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 free(leaf_hash_u);
                 break;
@@ -1936,20 +1961,27 @@ void validate_meaningful_file_real()
     }
 
     // Change file status
-    if (changed_idx2lost_um.size() > 0)
+    if (deleted_index_us.size() > 0)
     {
-        for (auto it : changed_idx2lost_um)
+        sgx_thread_mutex_lock(&g_sealed_files_mutex);
+        for (auto index : deleted_index_us)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
-                    wl->sealed_files[it.first][FILE_CID].ToString().c_str());
-            std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
-            // Delete real file
-            ocall_ipfs_del_all(&crust_status, cid.c_str());
-            // Delete file tree structure
-            persist_del(cid);
-            // Reduce valid file
-            wl->set_wl_spec(FILE_STATUS_VALID, -wl->sealed_files[it.first][FILE_SIZE].ToInt());
+                    validate_sealed_files_m[index][FILE_CID].ToString().c_str());
+            std::string cid = validate_sealed_files_m[index][FILE_CID].ToString();
+            // Change file status
+            if (validate_sealed_files_m[index][FILE_CHAIN_BLOCK_NUM].ToInt() >= wl->sealed_files[index][FILE_CHAIN_BLOCK_NUM].ToInt())
+            {
+                wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+                // Delete real file
+                ocall_ipfs_del_all(&crust_status, cid.c_str());
+                // Delete file tree structure
+                persist_del(cid);
+                // Reduce valid file
+                wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
+            }
         }
+        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
     }
 }
 EOF
@@ -1959,7 +1991,7 @@ EOF
 function enc_srd_h_test()
 {
     sed -i "/^#define SRD_MAX_PER_TURN 64/ c #define SRD_MAX_PER_TURN 1000" $enclave_srd_h
-    sed -i "/crust_status_t change_srd_task(/ a size_t srd_decrease_test(long change, std::map<std::string, std::set<size_t>> *srd_del_index_m = NULL);" $enclave_srd_h
+    sed -i "/crust_status_t change_srd_task(/ a size_t srd_decrease_test(long change);" $enclave_srd_h
     sed -i "/crust_status_t change_srd_task(/ a void srd_increase_test(const char *path);" $enclave_srd_h
 }
 
@@ -2049,24 +2081,17 @@ void srd_increase_test(const char *path)
     wl->set_srd_info(path_str, 1);
 }
 
-size_t srd_decrease_test(long change, std::map<std::string, std::set<size_t>> *srd_del_index_m)
+size_t srd_decrease_test(long change)
 {
-    crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
-    uint32_t change_num = 0;
+    uint32_t real_change = 0;
     uint32_t srd_total_num = 0;
-    uint32_t srd_del_num = 0;
 
+    // Choose to be deleted g_hash index
+    SafeLock sl(g_srd_mutex);
+    sl.lock();
+    wl->deal_deleted_srd(false);
     // Set delete set
-    std::map<std::string, std::set<size_t>> tmp_m;
-    if (srd_del_index_m == NULL)
-    {
-        srd_del_index_m = &tmp_m;
-    }
-    for (auto it : (*srd_del_index_m))
-    {
-        srd_del_num += it.second.size();
-    }
     for (auto it : wl->srd_path2hashs_m)
     {
         srd_total_num += it.second.size();
@@ -2076,70 +2101,61 @@ size_t srd_decrease_test(long change, std::map<std::string, std::set<size_t>> *s
     {
         return 0;
     }
-
-    // Choose to be deleted g_hash index
-    std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
-    size_t sAcc = 1;
-    bool end_of_traverse = false;
-    while (srd_del_num < change && !end_of_traverse)
+    // Sort path by srd number
+    std::unordered_map<std::string, std::vector<uint8_t *>> srd_del_path2hashs_um;
+    std::vector<std::pair<std::string, uint32_t>> ordered_srd_path2hashs_v;
+    for (auto path2hashs: wl->srd_path2hashs_m)
     {
-        end_of_traverse = true;
-        for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end(); it++)
+        ordered_srd_path2hashs_v.push_back(std::make_pair(path2hashs.first, path2hashs.second.size()));
+    }
+    std::sort(ordered_srd_path2hashs_v.begin(), ordered_srd_path2hashs_v.end(), 
+        [](std::pair<std::string, uint32_t> &v1, std::pair<std::string, uint32_t> &v2)
         {
-            if (it->second.size() >= sAcc)
+            return v1.second < v2.second;
+        }
+    );
+    // Do delete
+    size_t disk_num = wl->srd_path2hashs_m.size();
+    for (auto it = ordered_srd_path2hashs_v.begin(); it != ordered_srd_path2hashs_v.end() && change > 0; it++, disk_num--)
+    {
+        std::string path = it->first;
+        size_t del_num = change / disk_num;
+        size_t left_num = change % disk_num;
+        if (left_num > 0)
+        {
+            del_num++;
+            left_num--;
+        }
+        if (wl->srd_path2hashs_m[path].size() > del_num)
+        {
+            if (it + 1 == ordered_srd_path2hashs_v.end() && left_num > 0)
             {
-                size_t tIdx = it->second.size() - sAcc;
-                if ((*srd_del_index_m)[it->first].find(tIdx) == (*srd_del_index_m)[it->first].end())
-                {
-                    (*srd_del_index_m)[it->first].insert(tIdx);
-                    srd_del_num++;
-                }
-                end_of_traverse = false;
+                del_num = std::min(del_num + left_num, wl->srd_path2hashs_m[path].size());
             }
         }
-        sAcc++;
-    }
-
-    // Delete chose hashs in srd_path2hashs_m
-    std::map<std::string, std::vector<std::string>> del_path2hashs_m;
-    for (auto it : (*srd_del_index_m))
-    {
-        for (auto rit = it.second.rbegin(); rit != it.second.rend(); rit++)
+        else
         {
-            std::vector<uint8_t*> *p_entry = &wl->srd_path2hashs_m[it.first];
-            if ((*p_entry)[*rit] != NULL)
-            {
-                del_path2hashs_m[it.first].push_back(hexstring_safe((*p_entry)[*rit], HASH_LENGTH));
-                free((*p_entry)[*rit]);
-            }
-            p_entry->erase(p_entry->begin() + *rit);
+            del_num = wl->srd_path2hashs_m[path].size();
         }
+        auto sit = wl->srd_path2hashs_m[path].begin();
+        auto eit = sit + del_num;
+        srd_del_path2hashs_um[path].insert(srd_del_path2hashs_um[path].end(), sit, eit);
+        // Delete related srd from meta
+        wl->srd_path2hashs_m[path].erase(sit, eit);
+        // Delete related path if there is no srd
+        if (wl->srd_path2hashs_m[path].size() == 0)
+        {
+            wl->srd_path2hashs_m.erase(path);
+        }
+        change -= del_num;
+        real_change += del_num;
+        wl->set_srd_info(path, -del_num);
     }
+    sl.unlock();
 
     // ----- Delete corresponding items ----- //
-    // Do delete
-    for (auto path_2_hash : del_path2hashs_m)
-    {
-        std::string del_dir = path_2_hash.first;
-        for (auto del_hash : path_2_hash.second)
-        {
-            // --- Delete srd file --- //
-            std::string del_path = path_2_hash.first + "/" + del_hash;
-            //ocall_delete_folder_or_file(&crust_status, del_path.c_str());
-            if (CRUST_SUCCESS != crust_status)
-            {
-                log_warn("Delete path:%s failed! Error code:%lx\n", del_path.c_str(), crust_status);
-            }
-            else
-            {
-                change_num++;
-            }
-        }
-        // Reduce assigned space in srd info
-        wl->set_srd_info(del_dir, -(long)(path_2_hash.second.size()));
-    }
 
-    return change_num;
+    return real_change;
 }
 EOF
 
@@ -2166,6 +2182,10 @@ EOF
     local spos=$(sed -n '/handle_report_result(/=' $enclave_workload_h)
     ((spos++))
     sed -i "$spos r $TMPFILE" $enclave_workload_h
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_wl_h_test failed!"
+        exit 1
+    fi
 }
 
 ########## enc_wl_cpp_test ##########
@@ -2244,6 +2264,10 @@ EOF
 
     local spos=$(sed -n "/this->report_has_validated_proof(/=" $enclave_workload_cpp)
     sed -i "$spos, $((spos+4)) d" $enclave_workload_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_wl_cpp_test failed!"
+        exit 1
+    fi
 }
 
 ########## enc_id_cpp_test ##########
@@ -2257,6 +2281,10 @@ cat << EOF >$TMPFILE
 EOF
     local pos=$(sed -n '/size_t random_time = 0;/=' $enclave_identity_cpp)
     sed -i "$pos r $TMPFILE" $enclave_identity_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_id_cpp_test failed!"
+        exit 1
+    fi
 
 cat << EOF >$TMPFILE
     // Check root
@@ -2271,9 +2299,17 @@ cat << EOF >$TMPFILE
 EOF
     pos=$(sed -n '/crust_status = wl->serialize_file(/=' $enclave_identity_cpp)
     sed -i "$((pos+5)) r $TMPFILE" $enclave_identity_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_id_cpp_test 2 failed!"
+        exit 1
+    fi
 
     pos=$(sed -n '/ocall_get_block_hash(/=' $enclave_identity_cpp)
     sed -i "$pos a \\\tsgx_read_rand(reinterpret_cast<uint8_t *>(report_hash), HASH_LENGTH);" $enclave_identity_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace enc_id_cpp_test 3 failed!"
+        exit 1
+    fi
     sed -i "$((pos+1)) a \\\tmemcpy(report_hash, hexstring_safe(report_hash, HASH_LENGTH).c_str(), HASH_LENGTH * 2);" $enclave_identity_cpp
     sed -i "$pos d" $enclave_identity_cpp
 }
@@ -2439,21 +2475,37 @@ EOF
     local spos=$(sed -n '/size_t _sealed_data_size = 0;/=' $ocalls_cpp)
     sed -i -e "$spos a uint8_t *_validate_data_buf = NULL;" \
         -e "$((spos++)) a size_t _validate_data_size = 0;" $ocalls_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace ocalls_cpp_test failed!"
+        exit 1
+    fi
 
     spos=$(sed -n '/ocall_validate_get_file(/=' $ocalls_cpp)
     ((spos+=3))
     local epos=$(sed -n "$spos,$ {/^\}/=}" $ocalls_cpp | head -n 1)
     sed -i "$spos,$((epos-1)) d" $ocalls_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace ocalls_cpp_test 2 failed!"
+        exit 1
+    fi
     sed -i "$((spos-=1)) r $TMPFILE" $ocalls_cpp
 
     spos=$(sed -n '/p_log->info("Sending work report:/=' $ocalls_cpp)
     sed -i "$((spos+1)),$((spos+8)) d" $ocalls_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace ocalls_cpp_test 3 failed!"
+        exit 1
+    fi
 
     sed -i "/p_log->info(\"Sending work report/ a \\\tEnclaveData::get_instance()->set_enclave_workreport(work_str);" $ocalls_cpp
 
     # Delete identity uploading process
     spos=$(sed -n '/\/\/ Send identity to crust chain/=' $ocalls_cpp)
     sed -i "$spos,$((spos+34)) d" $ocalls_cpp
+    if [ $? -ne 0 ]; then
+        echo "Replace ocalls_cpp_test 4 failed!"
+        exit 1
+    fi
 }
 
 ########## ocalls_h_test ##########

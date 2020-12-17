@@ -23,7 +23,6 @@ std::vector<std::pair<std::shared_ptr<std::future<void>>, task_func_t>> g_tasks_
 crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
 extern int g_start_server_success;
-extern std::mutex srd_info_mutex;
 extern bool g_upgrade_flag;
 
 /**

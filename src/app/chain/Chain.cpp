@@ -217,7 +217,7 @@ bool Chain::wait_for_running(void)
 
     while (true)
     {
-        if (!this->is_syncing())
+        if (!this->is_syncing() && !this->is_syncing())
         {
             break;
         }

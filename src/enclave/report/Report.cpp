@@ -105,7 +105,6 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
 
     ecc_key_pair id_key_pair = wl->get_key_pair();
     sgx_status_t sgx_status;
-    size_t srd_hashs_len = 0;
     sgx_sha256_hash_t files_root;
     long long files_size = 0;
     size_t files_root_buffer_len = 0;
@@ -132,59 +131,46 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     // ----- Get srd info ----- //
     SafeLock srd_sl(g_srd_mutex);
     srd_sl.lock();
-	size_t srd_workload;
+    // Compute srd root hash
+    size_t srd_workload;
     sgx_sha256_hash_t srd_root;
-    // Get hashs for hashing
     size_t g_hashs_num = 0;
     for (auto it : wl->srd_path2hashs_m)
     {
         g_hashs_num += it.second.size();
     }
-    uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
-    if (hashs == NULL)
+    if (g_hashs_num > 0)
     {
-        log_err("Malloc memory failed!\n");
-        crust_status =  CRUST_MALLOC_FAILED;
-        goto cleanup;
-    }
-    for (auto it : wl->srd_path2hashs_m)
-    {
-        for (auto g_hash : it.second)
+        uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
+        if (hashs == NULL)
         {
-            memcpy(hashs + srd_hashs_len, g_hash, HASH_LENGTH);
-            srd_hashs_len += HASH_LENGTH;
+            log_err("Malloc memory failed!\n");
+            crust_status =  CRUST_MALLOC_FAILED;
+            goto cleanup;
         }
+        size_t hashs_offset = 0;
+        for (auto it : wl->srd_path2hashs_m)
+        {
+            for (auto g_hash : it.second)
+            {
+                memcpy(hashs + hashs_offset, g_hash, HASH_LENGTH);
+                hashs_offset += HASH_LENGTH;
+            }
+        }
+        // Generate srd information
+        srd_workload = g_hashs_num * 1024 * 1024 * 1024;
+        sgx_sha256_msg(hashs, (uint32_t)(g_hashs_num * HASH_LENGTH), &srd_root);
+        free(hashs);
     }
-    // Generate srd information
-    if (srd_hashs_len == 0)
+    else
     {
         srd_workload = 0;
         memset(srd_root, 0, HASH_LENGTH);
     }
-    else
-    {
-        srd_workload = (srd_hashs_len / HASH_LENGTH) * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)srd_hashs_len, &srd_root);
-    }
-    free(hashs);
     srd_sl.unlock();
 
     // ----- Get files info ----- //
     sealed_files_sl.lock();
-    // Deleted invalid file item
-    for (auto it = wl->sealed_files.begin(); it != wl->sealed_files.end();)
-    {
-        std::string status = (*it)[FILE_STATUS].ToString();
-        if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED))
-        {
-            it = wl->sealed_files.erase(it);
-        }
-        else
-        {
-            it++;
-        }
-    }
     // Clear reported_files_idx
     wl->reported_files_idx.clear();
     added_files = "[";

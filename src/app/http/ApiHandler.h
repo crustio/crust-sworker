@@ -73,7 +73,6 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
-extern std::mutex srd_info_mutex;
 // Used to show validation status
 long change_srd_num = 0;
 
