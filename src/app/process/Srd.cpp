@@ -332,16 +332,14 @@ void srd_check_reserved(void)
             continue;
         }
         json::JSON srd_info_json = json::JSON::Load(srd_info_str);
-        json::JSON del_info_json;
+        json::JSON del_info_json = json::Object();
         auto p_obj = srd_info_json.ObjectRange();
-        bool is_changed = false;
         for (auto sit = p_obj.begin(); sit != p_obj.end(); sit++)
         {
             size_t avail_space = get_avail_space_under_dir_g(sit->first);
             long del_space = 0;
             if ((long)avail_space < srd_reserved_space)
             {
-                is_changed = true;
                 del_space = srd_reserved_space - avail_space;
                 if (del_space > sit->second["assigned"].ToInt())
                 {
@@ -352,7 +350,7 @@ void srd_check_reserved(void)
         }
 
         // Do update
-        if (is_changed)
+        if (del_info_json.size() > 0)
         {
             // Update srd metadata
             std::string del_info_str = del_info_json.dump();

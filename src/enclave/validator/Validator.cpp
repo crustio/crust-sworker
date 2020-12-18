@@ -140,7 +140,6 @@ void validate_srd()
             }
 
             // Get leaf data
-            ocall_usleep(3000000);
             uint32_t rand_val;
             sgx_read_rand((uint8_t*)&rand_val, 4);
             srd_block_index = rand_val % SRD_RAND_DATA_NUM;
@@ -187,6 +186,9 @@ void validate_srd()
             ocall_delete_folder_or_file(&crust_status, del_path.c_str());
         }
     }
+
+    // Clean deleted srd
+    wl->deal_deleted_srd();
 }
 
 /**
@@ -422,4 +424,7 @@ void validate_meaningful_file()
         }
         sgx_thread_mutex_unlock(&g_sealed_files_mutex);
     }
+
+    // Clean deleted file
+    wl->deal_deleted_file();
 }

@@ -249,24 +249,16 @@ size_t srd_decrease(long change)
     );
     // Do delete
     size_t disk_num = wl->srd_path2hashs_m.size();
-    for (auto it = ordered_srd_path2hashs_v.begin(); it != ordered_srd_path2hashs_v.end() && change > 0; it++, disk_num--)
+    for (auto it = ordered_srd_path2hashs_v.begin(); 
+            it != ordered_srd_path2hashs_v.end() && change > 0 && disk_num > 0; it++, disk_num--)
     {
         std::string path = it->first;
         size_t del_num = change / disk_num;
-        size_t left_num = change % disk_num;
-        if (left_num > 0)
+        if ((double)change / (double)disk_num - (double)del_num > 0)
         {
             del_num++;
-            left_num--;
         }
-        if (wl->srd_path2hashs_m[path].size() > del_num)
-        {
-            if (it + 1 == ordered_srd_path2hashs_v.end() && left_num > 0)
-            {
-                del_num = std::min(del_num + left_num, wl->srd_path2hashs_m[path].size());
-            }
-        }
-        else
+        if (wl->srd_path2hashs_m[path].size() <= del_num)
         {
             del_num = wl->srd_path2hashs_m[path].size();
         }
@@ -316,7 +308,7 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
     json::JSON del_hashs_json = json::JSON::Load(std::string(hashs, hashs_len));
-    std::unordered_map<std::string, std::vector<uint8_t *>> del_dir2hashs_um;
+    std::unordered_map<std::string, std::vector<std::string>> del_dir2hashs_um;
 
     sgx_thread_mutex_lock(&g_srd_mutex);
     for (auto it = del_hashs_json.ObjectRange().begin(); it != del_hashs_json.ObjectRange().end(); it++)
@@ -330,13 +322,16 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
             {
                 del_num = p_hashs->size();
             }
-            auto eit = p_hashs->rbegin();
-            auto sit = eit + del_num;
-            del_dir2hashs_um[del_dir].insert(del_dir2hashs_um[del_dir].end(), sit, eit);
-            std::vector<uint32_t> del_index_v(del_num, 0);
-            for (uint32_t i = p_hashs->size() - 1, j = 0; del_num > 0 && i >= 0; del_num--, j++, i--)
+            auto rit = p_hashs->rbegin();
+            size_t reverse_index = p_hashs->size() - 1;
+            std::vector<uint32_t> del_index_v;
+            while (rit != p_hashs->rend() && del_num > 0)
             {
-                del_index_v[j] = i;
+                del_dir2hashs_um[del_dir].push_back(hexstring_safe(*rit, HASH_LENGTH));
+                del_index_v.push_back(reverse_index);
+                rit++;
+                del_num--;
+                reverse_index--;
             }
             wl->add_srd_to_deleted_buffer(del_dir, del_index_v.begin(), del_index_v.end());
         }
@@ -347,10 +342,10 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
     for (auto dir2hashs : del_dir2hashs_um)
     {
         std::string del_dir = dir2hashs.first;
-        log_info("Disk path:%s has not enough space, will delete %ldG srd space.\n", del_dir.c_str(), dir2hashs.second.size());
+        log_debug("Disk path:%s will free %ldG srd space for user data. This is normal.\n", del_dir.c_str(), dir2hashs.second.size());
         for (auto g_hash : dir2hashs.second)
         {
-            std::string del_path = del_dir + "/" + hexstring_safe(g_hash, HASH_LENGTH);
+            std::string del_path = del_dir + "/" + g_hash;
             ocall_delete_folder_or_file(&crust_status, del_path.c_str());
             if (CRUST_SUCCESS != crust_status)
             {
