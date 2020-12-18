@@ -17,9 +17,7 @@ void ecall_srd_increase(const char* path)
         return;
     }
 
-    sched_add(SCHED_SRD_CHANGE);
     srd_increase(path);
-    sched_del(SCHED_SRD_CHANGE);
 }
 
 /**
@@ -34,9 +32,7 @@ size_t ecall_srd_decrease(long change)
         return 0;
     }
 
-    sched_add(SCHED_SRD_CHANGE);
     size_t ret = srd_decrease(change);
-    sched_del(SCHED_SRD_CHANGE);
 
     return ret;
 }
@@ -62,9 +58,7 @@ void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
         return;
     }
 
-    sched_add(SCHED_SRD_CHECK_RESERVED);
     srd_update_metadata(hashs, hashs_len);
-    sched_del(SCHED_SRD_CHECK_RESERVED);
 }
 
 /**
@@ -89,19 +83,17 @@ void ecall_main_loop()
         }
 
         // ----- File validate ----- //
-        sched_add(SCHED_VALIDATE_FILE);
         validate_meaningful_file();
-        sched_del(SCHED_VALIDATE_FILE);
+        // Clean deleted file
+        wl->deal_deleted_file();
 
         // ----- SRD validate ----- //
-        sched_add(SCHED_VALIDATE_SRD);
         validate_srd();
-        sched_del(SCHED_VALIDATE_SRD);
+        // Clean deleted srd
+        wl->deal_deleted_srd();
 
         // ----- SRD ----- //
-        sched_add(SCHED_SRD_CHANGE);
         srd_change();
-        sched_del(SCHED_SRD_CHANGE);
 
         // Add validated proof
         wl->report_add_validated_proof();
@@ -143,9 +135,7 @@ crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t b
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
 
-    sched_add(SCHED_GET_WORKREPORT);
     crust_status_t ret = gen_and_upload_work_report(block_hash, block_height, 0, false);
-    sched_del(SCHED_GET_WORKREPORT);
 
     return ret;
 }
@@ -205,9 +195,7 @@ crust_status_t ecall_seal_file(const char *cid)
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
 
-    sched_add(SCHED_SEAL);
     crust_status_t ret = storage_seal_file(cid);
-    sched_del(SCHED_SEAL);
 
     return ret;
 }
@@ -224,9 +212,7 @@ crust_status_t ecall_unseal_file(const char *data, size_t data_size)
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
 
-    sched_add(SCHED_UNSEAL);
     crust_status_t ret = storage_unseal_file(data, data_size);
-    sched_del(SCHED_UNSEAL);
 
     return ret;
 }
@@ -243,9 +229,7 @@ crust_status_t ecall_delete_file(const char *cid)
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
 
-    sched_add(SCHED_DELETE_FILE);
     crust_status_t ret = storage_delete_file(cid);
-    sched_del(SCHED_DELETE_FILE);
 
     return ret;
 }

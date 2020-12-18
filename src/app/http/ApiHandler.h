@@ -73,7 +73,6 @@ std::string path_cat(beast::string_view base, beast::string_view path);
 std::map<std::string, std::string> get_params(std::string &url);
 
 extern sgx_enclave_id_t global_eid;
-extern std::mutex srd_info_mutex;
 // Used to show validation status
 long change_srd_num = 0;
 
@@ -566,7 +565,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             // Parse paramters
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
-            p_log->info("Dealing with seal request(file cide:'%s')...\n", cid.c_str());
+            p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
 
             if (cid.size() != CID_LENGTH)
             {

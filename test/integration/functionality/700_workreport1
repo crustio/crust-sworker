@@ -64,7 +64,7 @@ fi
 workload=$(cat $TMPFILE)
 
 # Delete previous srd
-srd -$(echo $workload | jq '.srd|.space' | sed 's/"//g' 2>/dev/null) &>/dev/null
+#srd -$(echo $workload | jq '.srd|.space' | sed 's/"//g' 2>/dev/null) &>/dev/null
 
 # Make srd volunm
 srd_disk_change "$srd_paths" "add" &>/dev/null

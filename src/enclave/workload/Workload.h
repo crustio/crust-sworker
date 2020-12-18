@@ -87,6 +87,26 @@ public:
     // Report height
     void set_report_height(size_t height);
     size_t get_report_height();
+    // Srd related
+    bool add_srd_to_deleted_buffer(std::string path, uint32_t index);
+    template <class InputIterator>
+    void add_srd_to_deleted_buffer(std::string path, InputIterator begin, InputIterator end)
+    {
+        sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
+        this->srd_del_path2idx_um[path].insert(begin, end);
+        sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+    }
+    bool is_srd_in_deleted_buffer(std::string path, uint32_t index);
+    void deal_deleted_srd(bool locked = true);
+    // File related
+    bool add_to_deleted_file_buffer(uint32_t index);
+    bool is_in_deleted_file_buffer(uint32_t index);
+    void recover_from_deleted_file_buffer(uint32_t index);
+    void deal_deleted_file();
+    bool is_file_dup(std::string cid);
+    bool is_file_dup(std::string cid, size_t &pos);
+    void add_sealed_file(json::JSON file);
+    void add_sealed_file(json::JSON file, size_t pos);
 
     sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workreport mutex
     sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workload mutex
@@ -114,6 +134,12 @@ private:
     enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE; // Initial value indicates no upgrade
     json::JSON wl_spec_info; // For workload statistics
     sgx_thread_mutex_t wl_spec_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    // Deleted srd map, first map's key is path, second map key is srd index in metadata while the value indicates whether
+    // this srd metadata has been deleted by other thread
+    std::unordered_map<std::string, std::set<uint32_t>> srd_del_path2idx_um;
+    sgx_thread_mutex_t srd_del_path2idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
+    std::set<uint32_t> file_del_idx_s;
+    sgx_thread_mutex_t file_del_idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */

@@ -14,7 +14,6 @@ size_t _sealed_data_size = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
 
-extern std::mutex srd_info_mutex;
 extern bool offline_chain_mode;
 
 /**
@@ -98,7 +97,7 @@ crust_status_t ocall_create_dir(const char *path)
         {
             if (mkdir(cur_path.c_str(), S_IRWXU) == -1)
             {
-                p_log->err("Create directory:%s failed!\n", cur_path.c_str());
+                p_log->err("Create directory:%s failed!No space or no privilege.\n", cur_path.c_str());
                 return CRUST_MKDIR_FAILED;
             }
         }
@@ -493,22 +492,6 @@ crust_status_t ocall_upload_workreport(const char *work_report)
 crust_status_t ocall_entry_network()
 {
     return entry_network();
-}
-
-/**
- * @description: Lock srd info
- */
-void ocall_srd_info_lock()
-{
-    srd_info_mutex.lock();
-}
-
-/**
- * @description: Unlock srd info
- */
-void ocall_srd_info_unlock()
-{
-    srd_info_mutex.unlock();
 }
 
 /**

@@ -18,7 +18,7 @@ function _seal()
 
 function _validate()
 {
-    local i=10
+    local i=20
     while [ $((i--)) -gt 0 ]; do
         validate_srd_real &>/dev/null
         validate_file_real &>/dev/null
@@ -99,7 +99,7 @@ _validate
 ret=0
 punish_srd=$(ls $srd_path | wc -l)
 ((punish_srd=srd_num-punish_srd))
-if [ $punish_srd -lt $deleted_srd ] || [ $punish_srd -gt $((deleted_srd*2)) ]; then
+if [ $punish_srd -lt $deleted_srd ] || [ $punish_srd -ne $((deleted_srd)) ]; then
     verbose ERROR "srd validate for punishment failed!real punished num:$punish_srd" n
     ret=1
 fi

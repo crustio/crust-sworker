@@ -8,23 +8,6 @@ extern sgx_thread_mutex_t g_srd_mutex;
 extern sgx_thread_mutex_t g_sealed_files_mutex;
 
 /**
- * @description: Randomly delete punish number of srd
- * @param punish_num -> To be deleted srd space for punishment
- * @param del_indexes -> Pointer to to be deleted srd path to hash map
- */
-void srd_random_delete(long punish_num, std::map<std::string, std::set<size_t>> *del_indexes)
-{
-    if (punish_num <= 0 && del_indexes->size() == 0)
-    {
-        return;
-    }
-
-    log_info("Check srd failed! %ldG space will be deleted for punishment!\n", punish_num);
-
-    srd_decrease(punish_num, del_indexes);
-}
-
-/**
  * @description: validate srd disk
  */
 void validate_srd()
@@ -55,10 +38,9 @@ void validate_srd()
     }
     size_t srd_validate_num = std::max((size_t)(srd_total_num * SRD_VALIDATE_RATE), (size_t)SRD_VALIDATE_MIN_NUM);
     srd_validate_num = std::min(srd_validate_num, srd_total_num);
-    size_t srd_validate_failed_num = 0;
     
     // Randomly choose validate srd files
-    std::set<std::pair<uint32_t, uint32_t>> validate_srd_idx_s;
+    std::unordered_map<std::string, std::set<std::pair<int, uint8_t *>>> validate_srd_idx_um;
     std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry;
     if (srd_validate_num < srd_total_num)
     {
@@ -82,8 +64,7 @@ void validate_srd()
             {
                 sgx_read_rand((uint8_t *)&rand_val, 4);
                 rand_idx = rand_val % chose_entry->second.size();
-                p_chose = std::make_pair(path_idx, rand_idx);
-                validate_srd_idx_s.insert(p_chose);
+                validate_srd_idx_um[chose_entry->first].insert(std::make_pair(rand_idx, chose_entry->second[rand_idx]));
             }
         }
     }
@@ -94,114 +75,117 @@ void validate_srd()
         {
             for (size_t j = 0; j < it->second.size(); j++)
             {
-                validate_srd_idx_s.insert(make_pair(i, j));
+                validate_srd_idx_um[it->first].insert(std::make_pair(j, it->second[j]));
+            }
+        }
+    }
+    sgx_thread_mutex_unlock(&g_srd_mutex);
+
+    // ----- Validate SRD ----- //
+    std::map<std::string, std::vector<uint8_t *>> del_path2hashs_m;
+    for (auto path2srds : validate_srd_idx_um)
+    {
+        std::string dir_path = path2srds.first;
+        for (auto idx_hash_item : path2srds.second)
+        {
+            uint8_t *m_hashs_org = NULL;
+            uint8_t *m_hashs = NULL;
+            size_t m_hashs_size = 0;
+            sgx_sha256_hash_t m_hashs_sha256;
+            size_t srd_block_index = 0;
+            std::string leaf_path;
+            uint8_t *leaf_data = NULL;
+            size_t leaf_data_len = 0;
+            sgx_sha256_hash_t leaf_hash;
+            std::string hex_g_hash;
+            std::string g_path;
+
+            uint32_t g_hash_index = idx_hash_item.first;
+            uint8_t *p_g_hash = idx_hash_item.second;
+
+            // Get g_hash corresponding path
+            hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
+            g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
+
+            // Get M hashs
+            ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
+            if (m_hashs_org == NULL)
+            {
+                if (!wl->add_srd_to_deleted_buffer(dir_path, g_hash_index))
+                {
+                    goto nextloop;
+                }
+                log_err("Get m hashs file(%s) failed.\n", g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                goto nextloop;
+            }
+
+            m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
+            if (m_hashs == NULL)
+            {
+                log_err("Malloc memory failed!\n");
+                goto nextloop;
+            }
+            memset(m_hashs, 0, m_hashs_size);
+            memcpy(m_hashs, m_hashs_org, m_hashs_size);
+
+            // Compare M hashs
+            sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
+            if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
+            {
+                log_err("Wrong m hashs file(%s).\n", g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                wl->add_srd_to_deleted_buffer(dir_path, g_hash_index);
+                goto nextloop;
+            }
+
+            // Get leaf data
+            uint32_t rand_val;
+            sgx_read_rand((uint8_t*)&rand_val, 4);
+            srd_block_index = rand_val % SRD_RAND_DATA_NUM;
+            leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
+            ocall_get_file(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
+
+            if (leaf_data == NULL)
+            {
+                if (!wl->add_srd_to_deleted_buffer(dir_path, g_hash_index))
+                {
+                    goto nextloop;
+                }
+                log_err("Get leaf file(%s) failed.\n", g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                goto nextloop;
+            }
+
+            // Compare leaf data
+            sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
+            if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
+            {
+                log_err("Wrong leaf data hash '%s'(file path:%s).\n", hex_g_hash.c_str(), g_path.c_str());
+                del_path2hashs_m[dir_path].push_back(p_g_hash);
+                wl->add_srd_to_deleted_buffer(dir_path, g_hash_index);
+                goto nextloop;
+            }
+
+
+        nextloop:
+            if (m_hashs != NULL)
+            {
+                free(m_hashs);
             }
         }
     }
 
-    // ----- Validate SRD ----- //
-    std::map<std::string, std::set<size_t>> del_path2idx_m;
-    for (auto srd_idx : validate_srd_idx_s)
+    // Delete failed srd metadata
+    for (auto path2hashs : del_path2hashs_m)
     {
-        // Check sched func
-        sched_check(SCHED_VALIDATE_SRD, g_srd_mutex);
-        // If srd has been deleted, go to next check
-        std::map<std::string, std::vector<uint8_t*>>::iterator chose_entry = wl->srd_path2hashs_m.begin();
-        for (size_t i = 0; i < srd_idx.first && chose_entry != wl->srd_path2hashs_m.end(); i++)
+        std::string del_dir = path2hashs.first;
+        for (auto g_hash : path2hashs.second)
         {
-            chose_entry++;
-        }
-        if (chose_entry == wl->srd_path2hashs_m.end() || srd_idx.second >= chose_entry->second.size())
-        {
-            continue;
-        }
-
-        uint8_t *m_hashs_org = NULL;
-        uint8_t *m_hashs = NULL;
-        size_t m_hashs_size = 0;
-        sgx_sha256_hash_t m_hashs_sha256;
-        size_t srd_block_index = 0;
-        std::string leaf_path;
-        uint8_t *leaf_data = NULL;
-        size_t leaf_data_len = 0;
-        sgx_sha256_hash_t leaf_hash;
-        std::string hex_g_hash;
-        std::string dir_path;
-        std::string g_path;
-
-        dir_path = chose_entry->first;
-        uint8_t *p_g_hash = chose_entry->second[srd_idx.second];
-
-        // Get g_hash corresponding path
-        hex_g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
-        g_path = std::string(dir_path).append("/").append(hexstring_safe(p_g_hash, HASH_LENGTH));
-
-        // Get M hashs
-        ocall_get_file(&crust_status, get_m_hashs_file_path(g_path.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
-        if (m_hashs_org == NULL)
-        {
-            log_err("Get m hashs file(%s) failed.\n", g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
-        if (m_hashs == NULL)
-        {
-            log_err("Malloc memory failed!\n");
-            goto nextloop;
-        }
-        memset(m_hashs, 0, m_hashs_size);
-        memcpy(m_hashs, m_hashs_org, m_hashs_size);
-
-        // Compare M hashs
-        sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-        if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
-        {
-            log_err("Wrong m hashs file(%s).\n", g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        // Get leaf data
-        uint32_t rand_val;
-        sgx_read_rand((uint8_t*)&rand_val, 4);
-        srd_block_index = rand_val % SRD_RAND_DATA_NUM;
-        leaf_path = get_leaf_path(g_path.c_str(), srd_block_index, m_hashs + srd_block_index * 32);
-        ocall_get_file(&crust_status, leaf_path.c_str(), &leaf_data, &leaf_data_len);
-
-        if (leaf_data == NULL)
-        {
-            log_err("Get leaf file(%s) failed.\n", g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-        // Compare leaf data
-        sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
-        if (memcmp(m_hashs + srd_block_index * 32, leaf_hash, HASH_LENGTH) != 0)
-        {
-            log_err("Wrong leaf data hash '%s'(file path:%s).\n", hex_g_hash.c_str(), g_path.c_str());
-            del_path2idx_m[dir_path].insert(srd_idx.second);
-            goto nextloop;
-        }
-
-
-    nextloop:
-        if (m_hashs != NULL)
-        {
-            free(m_hashs);
+            std::string del_path = del_dir + "/" + hexstring_safe(g_hash, HASH_LENGTH);
+            ocall_delete_folder_or_file(&crust_status, del_path.c_str());
         }
     }
-
-    // Delete indicated punished files
-    for (auto it : del_path2idx_m)
-    {
-        srd_validate_failed_num += it.second.size();
-    }
-    srd_random_delete(SRD_PUNISH_FACTOR * srd_validate_failed_num, &del_path2idx_m);
-
-    sgx_thread_mutex_unlock(&g_srd_mutex);
 }
 
 /**
@@ -220,55 +204,50 @@ void validate_meaningful_file()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    SafeLock cf_lock(g_sealed_files_mutex);
-    cf_lock.lock();
-
+    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->sealed_files.size());
-    std::vector<uint32_t> file_idx_v;
+    std::map<uint32_t, json::JSON> validate_sealed_files_m;
     uint32_t rand_val;
     size_t rand_index = 0;
     for (size_t i = 0; i < check_file_num; i++)
     {
         sgx_read_rand((uint8_t *)&rand_val, 4);
         rand_index = rand_val % wl->sealed_files.size();
-        file_idx_v.push_back(rand_index);
+        validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
+    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
     // ----- Validate file ----- //
-    // TODO: Do we allow to store duplicated files?
     // Used to indicate which meaningful file status has been changed
-    std::unordered_map<size_t, bool> changed_idx2lost_um;
-    for (auto file_idx : file_idx_v)
+    std::unordered_set<size_t> deleted_index_us;
+    for (auto idx2file : validate_sealed_files_m)
     {
-        // Check race
-        sched_check(SCHED_VALIDATE_FILE, g_sealed_files_mutex);
-        // If file has been deleted, go to next check
-        if (file_idx >= wl->sealed_files.size())
-        {
-            continue;
-        }
-
         // If new file hasn't been verified, skip this validation
-        auto status = &wl->sealed_files[file_idx][FILE_STATUS];
-        if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+        uint32_t file_idx = idx2file.first;
+        json::JSON file = idx2file.second;
+        auto status = file[FILE_STATUS];
+        if (status.get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
             continue;
         }
 
-        std::string root_cid = wl->sealed_files[file_idx][FILE_CID].ToString();
-        std::string root_hash = wl->sealed_files[file_idx][FILE_HASH].ToString();
-        size_t file_block_num = wl->sealed_files[file_idx][FILE_BLOCK_NUM].ToInt();
+        std::string root_cid = file[FILE_CID].ToString();
+        std::string root_hash = file[FILE_HASH].ToString();
+        size_t file_block_num = file[FILE_BLOCK_NUM].ToInt();
         // Get tree string
         crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            if (wl->is_in_deleted_file_buffer(file_idx))
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                changed_idx2lost_um[file_idx] = true;
+                continue;
+            }
+            log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
+            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            {
+                deleted_index_us.insert(file_idx);
             }
             if (p_data != NULL)
             {
@@ -298,10 +277,9 @@ void validate_meaningful_file()
         }
         if (!valid_tree)
         {
-            if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                changed_idx2lost_um[file_idx] = true;
+                deleted_index_us.insert(file_idx);
             }
             continue;
         }
@@ -342,10 +320,9 @@ void validate_meaningful_file()
             if (spos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 break;
             }
@@ -356,10 +333,9 @@ void validate_meaningful_file()
             if (epos == tree_str.npos)
             {
                 log_err("Find file(%s) leaf node hash failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 break;
             }
@@ -381,10 +357,13 @@ void validate_meaningful_file()
                     wl->set_report_file_flag(false);
                     return;
                 }
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (wl->is_in_deleted_file_buffer(file_idx))
                 {
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    continue;
+                }
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                {
+                    deleted_index_us.insert(file_idx);
                 }
                 log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
@@ -404,13 +383,12 @@ void validate_meaningful_file()
             }
             if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
             {
-                if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
+                if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    changed_idx2lost_um[file_idx] = true;
+                    deleted_index_us.insert(file_idx);
                 }
                 free(leaf_hash_u);
                 break;
@@ -421,19 +399,26 @@ void validate_meaningful_file()
     }
 
     // Change file status
-    if (changed_idx2lost_um.size() > 0)
+    if (deleted_index_us.size() > 0)
     {
-        for (auto it : changed_idx2lost_um)
+        sgx_thread_mutex_lock(&g_sealed_files_mutex);
+        for (auto index : deleted_index_us)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
-                    wl->sealed_files[it.first][FILE_CID].ToString().c_str());
-            std::string cid = wl->sealed_files[it.first][FILE_CID].ToString();
-            // Delete real file
-            ocall_ipfs_del_all(&crust_status, cid.c_str());
-            // Delete file tree structure
-            persist_del(cid);
-            // Reduce valid file
-            wl->set_wl_spec(FILE_STATUS_VALID, -wl->sealed_files[it.first][FILE_SIZE].ToInt());
+                    validate_sealed_files_m[index][FILE_CID].ToString().c_str());
+            std::string cid = validate_sealed_files_m[index][FILE_CID].ToString();
+            // Change file status
+            if (validate_sealed_files_m[index][FILE_CHAIN_BLOCK_NUM].ToInt() >= wl->sealed_files[index][FILE_CHAIN_BLOCK_NUM].ToInt())
+            {
+                wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+                // Delete real file
+                ocall_ipfs_del_all(&crust_status, cid.c_str());
+                // Delete file tree structure
+                persist_del(cid);
+                // Reduce valid file
+                wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
+            }
         }
+        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
     }
 }

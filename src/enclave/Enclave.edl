@@ -77,9 +77,6 @@ enclave {
 
         crust_status_t ocall_validate_get_file([in, string] const char *root_hash, [in, string] const char *leaf_hash, [out] uint8_t **p_sealed_data, [out] size_t *sealed_data_size);
 
-        void ocall_srd_info_lock();
-        void ocall_srd_info_unlock();
-
         void ocall_srd_change(long change)
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_change_srd_task);
 

@@ -94,15 +94,8 @@ crust_status_t storage_seal_file(const char *cid)
     file_entry_json[FILE_SEALED_SIZE] = sealed_size;
     file_entry_json[FILE_BLOCK_NUM] = block_num;
     file_entry_json[FILE_CHAIN_BLOCK_NUM] = chain_block_num;
-    // Status indicates current new file's status, which must be one of valid, lost and unverified
-    if (2 == check_file_res)
-    {
-        file_entry_json[FILE_STATUS] = "111";
-    }
-    else
-    {
-        file_entry_json[FILE_STATUS] = "100";
-    }
+    // Status indicates current new file's status, which must be one of valid, unverified and deleted
+    file_entry_json[FILE_STATUS] = "100";
     free(root_hash_u);
 
     // Store new tree structure
@@ -117,30 +110,26 @@ crust_status_t storage_seal_file(const char *cid)
             file_entry_json[FILE_CID].ToString().c_str(),
             file_entry_json[FILE_SIZE].ToInt());
 
-    // Add new file to buffer
+    // Add new file
     sgx_thread_mutex_lock(&g_sealed_files_mutex);
-    if (2 == check_file_res)
+    size_t pos = 0;
+    if (wl->is_file_dup(cid, pos))
     {
-        bool replaced = false;
-        for (size_t i = 0; i < wl->sealed_files.size(); i++)
+        char cur_status = wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS);
+        char org_status = wl->sealed_files[pos][FILE_STATUS].get_char(ORIGIN_STATUS);
+        if (cur_status == FILE_STATUS_DELETED)
         {
-            if (wl->sealed_files[i][FILE_CID].ToString().compare(cid) == 0)
+            if (org_status == FILE_STATUS_VALID)
             {
-                wl->sealed_files[i] = file_entry_json;
-                replaced = true;
-                break;
+                file_entry_json[FILE_STATUS] = "111";
             }
-        }
-        // Cannot find related file item, insert this file as a new one
-        if (!replaced)
-        {
-            file_entry_json[FILE_STATUS] = "100";
-            wl->sealed_files.push_back(file_entry_json);
+            wl->sealed_files[pos] = file_entry_json;
+            wl->recover_from_deleted_file_buffer(pos);
         }
     }
     else
     {
-        wl->sealed_files.push_back(file_entry_json);
+        wl->add_sealed_file(file_entry_json, pos);
     }
     sgx_thread_mutex_unlock(&g_sealed_files_mutex);
 
@@ -458,24 +447,21 @@ crust_status_t storage_delete_file(const char *cid)
     sf_lock.lock();
     Workload *wl = Workload::get_instance();
     bool is_deleted = false;
-    for (auto it = wl->sealed_files.begin(); it != wl->sealed_files.end(); it++)
+    for (size_t i = 0; i < wl->sealed_files.size(); i++)
     {
-        std::string cur_cid = (*it)[FILE_CID].ToString();
+        auto file = &wl->sealed_files[i];
+        std::string cur_cid = (*file)[FILE_CID].ToString();
         if (cur_cid.compare(cid) == 0)
         {
-            if ((*it)[FILE_STATUS].get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+            if ((*file)[FILE_STATUS].get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
             {
-                log_info("file(%s) has been deleted!\n", cid);
+                log_info("File(%s) has been deleted!\n", cid);
                 return CRUST_SUCCESS;
             }
-            deleted_file = *it;
+            deleted_file = *file;
             is_deleted = true;
-            if ((*it)[FILE_STATUS].get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
-            {
-                wl->sealed_files.erase(it);
-                break;
-            }
-            (*it)[FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+            wl->add_to_deleted_file_buffer(i);
+            (*file)[FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             break;
         }
     }
@@ -535,33 +521,30 @@ void clean_remaining_sealed_block(json::JSON &tree)
  * @return: 0 -> duplicated
  *          1 -> not duplicated
  *          2 -> Will be replaced by new file, but not report
- *          3 -> Will be replaced by new file, report again
+ *          3 -> Will be deleted, new file will be added
  */
 int check_file_dup(std::string cid)
 {
     Workload *wl = Workload::get_instance();
     SafeLock cf_lock(g_sealed_files_mutex);
     cf_lock.lock();
-    for (auto it = wl->sealed_files.begin(); it != wl->sealed_files.end(); it++)
+    size_t pos = 0;
+    if (wl->is_file_dup(cid, pos))
     {
-        if ((*it)[FILE_CID].ToString().compare(cid) == 0)
+        char cur_s = wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS);
+        char org_s = wl->sealed_files[pos][FILE_STATUS].get_char(ORIGIN_STATUS);
+        if (cur_s == FILE_STATUS_DELETED)
         {
-            char cur_s = (*it)[FILE_STATUS].get_char(CURRENT_STATUS);
-            char org_s = (*it)[FILE_STATUS].get_char(ORIGIN_STATUS);
-            if (cur_s == FILE_STATUS_DELETED)
+            if (org_s == FILE_STATUS_VALID)
             {
-                if (org_s == FILE_STATUS_VALID)
-                {
-                    return 2;
-                }
-                if (org_s == FILE_STATUS_DELETED)
-                {
-                    wl->sealed_files.erase(it);
-                    return 3;
-                }
+                return 2;
             }
-            return 0;
+            if (org_s == FILE_STATUS_DELETED)
+            {
+                return 3;
+            }
         }
+        return 0;
     }
     cf_lock.unlock();
 
