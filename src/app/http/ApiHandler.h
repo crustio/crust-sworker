@@ -565,7 +565,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             // Parse paramters
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
-            p_log->info("Dealing with seal request(file cide:'%s')...\n", cid.c_str());
+            p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
 
             if (cid.size() != CID_LENGTH)
             {

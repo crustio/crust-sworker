@@ -2116,24 +2116,16 @@ size_t srd_decrease_test(long change)
     );
     // Do delete
     size_t disk_num = wl->srd_path2hashs_m.size();
-    for (auto it = ordered_srd_path2hashs_v.begin(); it != ordered_srd_path2hashs_v.end() && change > 0; it++, disk_num--)
+    for (auto it = ordered_srd_path2hashs_v.begin(); 
+            it != ordered_srd_path2hashs_v.end() && change > 0 && disk_num > 0; it++, disk_num--)
     {
         std::string path = it->first;
         size_t del_num = change / disk_num;
-        size_t left_num = change % disk_num;
-        if (left_num > 0)
+        if ((double)change / (double)disk_num - (double)del_num > 0)
         {
             del_num++;
-            left_num--;
         }
-        if (wl->srd_path2hashs_m[path].size() > del_num)
-        {
-            if (it + 1 == ordered_srd_path2hashs_v.end() && left_num > 0)
-            {
-                del_num = std::min(del_num + left_num, wl->srd_path2hashs_m[path].size());
-            }
-        }
-        else
+        if (wl->srd_path2hashs_m[path].size() <= del_num)
         {
             del_num = wl->srd_path2hashs_m[path].size();
         }
@@ -2158,15 +2150,6 @@ size_t srd_decrease_test(long change)
     return real_change;
 }
 EOF
-
-    #local spos=$(sed -n '/void srd_increase(/=' $enclave_srd_cpp)
-    #((spos += 2))
-    #local epos=$(sed -n "$spos,$ {/^\}/=}" $enclave_srd_cpp | head -n 1)
-    #((epos--))
-    #sed -i "$spos,$epos d" $enclave_srd_cpp
-    #sed -i "$((spos -= 1)) r $TMPFILE" $enclave_srd_cpp
-
-    #sed -i "s/ocall_delete_folder_or_file(/\/\/ocall_delete_folder_or_file(/g" $enclave_srd_cpp
 }
 
 ########## enc_wl_h_test ##########

@@ -137,7 +137,7 @@ void delete_validated_tree(json::JSON &tree)
     // Delete current data
     if (!Ipfs::get_instance()->del(cid))
     {
-        p_log->warn("Cannot delete sealed block(cid:%s)!\n", cid.c_str());
+        p_log->warn("Cannot delete file(cid:%s)!\n", cid.c_str());
     }
 
     // Delete children's data

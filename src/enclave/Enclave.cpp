@@ -84,9 +84,13 @@ void ecall_main_loop()
 
         // ----- File validate ----- //
         validate_meaningful_file();
+        // Clean deleted file
+        wl->deal_deleted_file();
 
         // ----- SRD validate ----- //
         validate_srd();
+        // Clean deleted srd
+        wl->deal_deleted_srd();
 
         // ----- SRD ----- //
         srd_change();

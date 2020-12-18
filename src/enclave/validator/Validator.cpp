@@ -186,9 +186,6 @@ void validate_srd()
             ocall_delete_folder_or_file(&crust_status, del_path.c_str());
         }
     }
-
-    // Clean deleted srd
-    wl->deal_deleted_srd();
 }
 
 /**
@@ -424,7 +421,4 @@ void validate_meaningful_file()
         }
         sgx_thread_mutex_unlock(&g_sealed_files_mutex);
     }
-
-    // Clean deleted file
-    wl->deal_deleted_file();
 }
