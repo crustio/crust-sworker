@@ -4,9 +4,6 @@
 #include "EJson.h"
 #include <algorithm>
 
-extern sgx_thread_mutex_t g_srd_mutex;
-extern sgx_thread_mutex_t g_sealed_files_mutex;
-
 /**
  * @description: validate srd disk
  */
@@ -21,7 +18,7 @@ void validate_srd()
 
     Workload *wl = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    sgx_thread_mutex_lock(&wl->srd_mutex);
 
     size_t srd_total_num = 0;
     for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end();)
@@ -79,7 +76,7 @@ void validate_srd()
             }
         }
     }
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::vector<uint8_t *>> del_path2hashs_m;
@@ -204,7 +201,7 @@ void validate_meaningful_file()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&wl->file_mutex);
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->sealed_files.size());
@@ -217,7 +214,7 @@ void validate_meaningful_file()
         rand_index = rand_val % wl->sealed_files.size();
         validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // ----- Validate file ----- //
     // Used to indicate which meaningful file status has been changed
@@ -401,7 +398,7 @@ void validate_meaningful_file()
     // Change file status
     if (deleted_index_us.size() > 0)
     {
-        sgx_thread_mutex_lock(&g_sealed_files_mutex);
+        sgx_thread_mutex_lock(&wl->file_mutex);
         for (auto index : deleted_index_us)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
@@ -419,6 +416,6 @@ void validate_meaningful_file()
                 wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
             }
         }
-        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+        sgx_thread_mutex_unlock(&wl->file_mutex);
     }
 }

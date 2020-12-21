@@ -27,8 +27,11 @@ void async_storage_delete(std::string cid)
         {
             p_log->err("Delete file(%s) failed!Error code:%lx\n", cid.c_str(), crust_status);
         }
+        else
+        {
+            p_log->info("Delete file(%s) successfully!\n", cid.c_str());
+        }
         EnclaveData::get_instance()->del_sealed_file_info(cid);
-        p_log->info("Delete file(%s) successfully!\n", cid.c_str());
     }));
     clean_complete_task();
 }

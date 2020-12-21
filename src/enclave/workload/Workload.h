@@ -68,7 +68,6 @@ public:
 
     // For workload spec
     void set_wl_spec(char file_status, long long change);
-    void set_wl_spec(char file_status, char related_file_status, long long change);
     const json::JSON &get_wl_spec();
     void restore_wl_spec_info(std::string data);
 
@@ -111,6 +110,8 @@ public:
     sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workreport mutex
     sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workload mutex
     sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Upgrade mutex
+    sgx_thread_mutex_t srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    sgx_thread_mutex_t file_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 private:
     Workload();

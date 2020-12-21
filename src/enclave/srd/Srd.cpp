@@ -1,6 +1,5 @@
 #include "Srd.h"
 
-extern sgx_thread_mutex_t g_srd_mutex;
 long g_srd_task = 0;
 sgx_thread_mutex_t g_srd_task_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 uint8_t *g_base_rand_buffer = NULL;
@@ -194,7 +193,7 @@ void srd_increase(const char *path)
     }
     // Add new g_hash to srd_path2hashs_m
     // Because add this p_hash_u to the srd_path2hashs_m, so we cannot free p_hash_u
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    sgx_thread_mutex_lock(&wl->srd_mutex);
     wl->srd_path2hashs_m[path_str].push_back(p_hash_u);
     size_t srd_total_num = 0;
     for (auto it : wl->srd_path2hashs_m)
@@ -202,7 +201,7 @@ void srd_increase(const char *path)
         srd_total_num += it.second.size();
     }
     log_info("Seal random data -> %s, %luG success\n", hex_g_hash.c_str(), srd_total_num);
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Update srd info ----- //
     wl->set_srd_info(path_str, 1);
@@ -221,7 +220,7 @@ size_t srd_decrease(long change)
     uint32_t srd_total_num = 0;
 
     // Choose to be deleted g_hash index
-    SafeLock sl(g_srd_mutex);
+    SafeLock sl(wl->srd_mutex);
     sl.lock();
     wl->deal_deleted_srd(false);
     // Set delete set
@@ -310,7 +309,7 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
     json::JSON del_hashs_json = json::JSON::Load(std::string(hashs, hashs_len));
     std::unordered_map<std::string, std::vector<std::string>> del_dir2hashs_um;
 
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    sgx_thread_mutex_lock(&wl->srd_mutex);
     for (auto it = del_hashs_json.ObjectRange().begin(); it != del_hashs_json.ObjectRange().end(); it++)
     {
         std::string del_dir = it->first;
@@ -336,7 +335,7 @@ void srd_update_metadata(const char *hashs, size_t hashs_len)
             wl->add_srd_to_deleted_buffer(del_dir, del_index_v.begin(), del_index_v.end());
         }
     }
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // Delete srd file
     for (auto dir2hashs : del_dir2hashs_um)
@@ -386,13 +385,14 @@ crust_status_t change_srd_task(long change, long *real_change)
     // Check if srd number exceeds upper limit
     if (change > 0)
     {
-        sgx_thread_mutex_lock(&g_srd_mutex);
+        Workload *wl = Workload::get_instance();
+        sgx_thread_mutex_lock(&wl->srd_mutex);
         size_t srd_num = 0;
         for (auto srds : Workload::get_instance()->srd_path2hashs_m)
         {
             srd_num += srds.second.size();
         }
-        sgx_thread_mutex_unlock(&g_srd_mutex);
+        sgx_thread_mutex_unlock(&wl->srd_mutex);
         if (srd_num >= SRD_NUMBER_UPPER_LIMIT)
         {
             log_warn("No srd will be added!Srd size has reached the upper limit:%ldG!\n", SRD_NUMBER_UPPER_LIMIT);

@@ -704,65 +704,62 @@ sgx_status_t id_gen_sgx_measurement()
 }
 
 /**
- * @description: Get metadata
- * @param meta_json -> Reference to metadata json
- * @param locked -> Indicate whether lock current operation
+ * @description: For store metadata, get metadata title buffer size
+ * @return: Buffer size
  */
-void id_get_metadata(json::JSON &meta_json, bool locked /*=true*/)
+size_t id_get_metadata_title_size()
 {
-    if (locked)
-        sgx_thread_mutex_lock(&g_metadata_mutex);
-
-    uint8_t *p_data = NULL;
-    size_t data_len = 0;
-    uint8_t *p_id_key = NULL;
-    std::string id_key_pair_str;
     Workload *wl = Workload::get_instance();
-    crust_status_t crust_status = persist_get(ID_METADATA, &p_data, &data_len);
-    if (CRUST_SUCCESS != crust_status || data_len == 0)
+    return strlen(SWORKER_PRIVATE_TAG) + 5
+           + strlen(ID_WORKLOAD) + 5
+           + strlen(ID_KEY_PAIR) + 3 + 256 + 3
+           + strlen(ID_REPORT_HEIGHT) + 3 + 20 + 1
+           + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
+           + (wl->is_upgrade() ? strlen(ID_PRE_PUB_KEY) + 3 + sizeof(wl->pre_pub_key) * 2 + 3 : 0)
+           + strlen(ID_FILE) + 3;
+}
+
+/**
+ * @description: Get srd buffer size
+ * @param srd_path2hashs_m -> Reference to srd metedata
+ * @return: Buffer size
+ */
+size_t id_get_srd_buffer_size(std::map<std::string, std::vector<uint8_t *>> &srd_path2hashs_m)
+{
+    size_t ret = 0;
+    for (auto it : srd_path2hashs_m)
     {
-        meta_json = json::JSON();
-        goto cleanup;
-    }
-    meta_json = json::JSON::Load(p_data + strlen(SWORKER_PRIVATE_TAG), data_len);
-    if (meta_json.size() == 0)
-    {
-        goto cleanup;
-    }
-    // Verify meta data
-    id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();
-    p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
-    if (p_id_key == NULL)
-    {
-        log_err("Identity: Get id key pair failed!\n");
-        crust_status = CRUST_INVALID_META_DATA;
-        goto cleanup;
-    }
-    if (wl->try_get_key_pair() && memcmp(p_id_key, &wl->get_key_pair(), sizeof(ecc_key_pair)) != 0)
-    {
-        log_err("Identity: Get wrong id key pair!\n");
-        crust_status = CRUST_INVALID_META_DATA;
-        goto cleanup;
+        ret += it.first.size() + 10;
+        ret += it.second.size() * (HASH_LENGTH * 2 + 3);
     }
 
-cleanup:
+    return ret;
+}
 
-    if (p_id_key != NULL)
-        free(p_id_key);
+/**
+ * @description: Get file buffer size
+ * @param sealed_files -> Reference to file metedata
+ * @return: Buffer size
+ */
+size_t id_get_file_buffer_size(std::vector<json::JSON> &sealed_files)
+{
+    size_t ret = strlen(FILE_CID) + 3 + CID_LENGTH + 3
+               + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
+               + strlen(FILE_SIZE) + 3 + 12 + 1
+               + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
+               + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+               + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
+               + strlen(FILE_STATUS) + 3 + 3 + 3
+               + 2;
 
-    if (p_data != NULL)
-        free(p_data);
+    ret = sealed_files.size() * ret;
 
-    if (locked)
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
-
-    return;
+    return ret;
 }
 
 /**
  * @description: Store metadata periodically
- * Just store all metadata except meaningful files. Meaningfule files can be added through 
- * 'id_metadata_set_or_append' function
+ * Just store all metadata except meaningful files.
  * @return: Store status
  */
 crust_status_t id_store_metadata()
@@ -786,29 +783,20 @@ crust_status_t id_store_metadata()
     remove_char(wl_spec_info_str, ' ');
     persist_set_unsafe(DB_WL_SPEC_INFO, reinterpret_cast<const uint8_t *>(wl_spec_info_str.c_str()), wl_spec_info_str.size());
 
-    // Calculate metadata volumn
-    size_t meta_len = 0;
-    for (auto it : wl->srd_path2hashs_m)
-    {
-        meta_len += it.second.size() * (64 + 3);
-    }
-    meta_len += wl->srd_path2hashs_m.size() * (128 + 4);
-    meta_len += strlen(SWORKER_PRIVATE_TAG) + 5
-        + strlen(ID_WORKLOAD) + 5
-        + strlen(ID_KEY_PAIR) + 3 + 256 + 3
-        + strlen(ID_REPORT_HEIGHT) + 3 + 20 + 1
-        + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
-        + (wl->is_upgrade() ? strlen(ID_PRE_PUB_KEY) + 3 + sizeof(wl->pre_pub_key) * 2 + 3 : 0)
-        + strlen(ID_FILE) + 3;
-    size_t file_item_len = strlen(FILE_CID) + 3 + CID_LENGTH + 3
-        + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
-        + strlen(FILE_SIZE) + 3 + 12 + 1
-        + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
-        + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
-        + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
-        + strlen(FILE_STATUS) + 3 + 3 + 3
-        + 2;
-    meta_len += wl->sealed_files.size() * file_item_len;
+    // ----- Calculate metadata volumn ----- //
+    // Get srd data copy
+    sgx_thread_mutex_lock(&wl->srd_mutex);
+    std::map<std::string, std::vector<uint8_t *>> srd_path2hashs_m;
+    srd_path2hashs_m.insert(wl->srd_path2hashs_m.begin(), wl->srd_path2hashs_m.end());
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
+    // Get file data copy
+    sgx_thread_mutex_lock(&wl->file_mutex);
+    std::vector<json::JSON> sealed_files;
+    sealed_files.insert(sealed_files.end(), wl->sealed_files.begin(), wl->sealed_files.end());
+    sgx_thread_mutex_unlock(&wl->file_mutex);
+    size_t meta_len = id_get_srd_buffer_size(srd_path2hashs_m)
+                    + id_get_file_buffer_size(sealed_files)
+                    + id_get_metadata_title_size();
     uint8_t *meta_buf = (uint8_t *)enc_malloc(meta_len);
     if (meta_buf == NULL)
     {
@@ -828,7 +816,7 @@ crust_status_t id_store_metadata()
     memcpy(meta_buf + offset, wl_title.c_str(), wl_title.size());
     offset += wl_title.size();
     size_t i = 0;
-    for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end(); it++, i++)
+    for (auto it = srd_path2hashs_m.begin(); it != srd_path2hashs_m.end(); it++, i++)
     {
         std::string path_title;
         path_title.append("\"").append(it->first).append("\":[");
@@ -848,7 +836,7 @@ crust_status_t id_store_metadata()
         }
         memcpy(meta_buf + offset, "]", 1);
         offset += 1;
-        if (i != wl->srd_path2hashs_m.size() - 1)
+        if (i != srd_path2hashs_m.size() - 1)
         {
             memcpy(meta_buf + offset, ",", 1);
             offset += 1;
@@ -888,15 +876,15 @@ crust_status_t id_store_metadata()
     file_title.append("\"").append(ID_FILE).append("\":[");
     memcpy(meta_buf + offset, file_title.c_str(), file_title.size());
     offset += file_title.size();
-    for (size_t i = 0; i < wl->sealed_files.size(); i++)
+    for (size_t i = 0; i < sealed_files.size(); i++)
     {
-        std::string file_str = wl->sealed_files[i].dump();
+        std::string file_str = sealed_files[i].dump();
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
         remove_char(file_str, ' ');
         memcpy(meta_buf + offset, file_str.c_str(), file_str.size());
         offset += file_str.size();
-        if (i != wl->sealed_files.size() - 1)
+        if (i != sealed_files.size() - 1)
         {
             memcpy(meta_buf + offset, ",", 1);
             offset += 1;
@@ -919,17 +907,43 @@ crust_status_t id_store_metadata()
  */
 crust_status_t id_restore_metadata()
 {
-    // Get metadata
+    Workload *wl = Workload::get_instance();
+
+    SafeLock sl(g_metadata_mutex);
+    sl.lock();
+    // ----- Get metadata ----- //
     json::JSON meta_json;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    id_get_metadata(meta_json);
-    if (meta_json.size() <= 0)
+    uint8_t *p_data = NULL;
+    size_t data_len = 0;
+    crust_status_t crust_status = persist_get(ID_METADATA, &p_data, &data_len);
+    if (CRUST_SUCCESS != crust_status)
     {
         log_warn("No metadata, this may be the first start\n");
         return CRUST_UNEXPECTED_ERROR;
     }
+    meta_json = json::JSON::Load(p_data + strlen(SWORKER_PRIVATE_TAG), data_len);
+    free(p_data);
+    if (meta_json.size() == 0)
+    {
+        log_warn("Invalid metadata!\n");
+        return CRUST_INVALID_META_DATA;
+    }
+    // Verify meta data
+    std::string id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();
+    uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
+    if (p_id_key == NULL)
+    {
+        log_err("Identity: Get id key pair failed!\n");
+        return CRUST_INVALID_META_DATA;
+    }
+    if (wl->try_get_key_pair() && memcmp(p_id_key, &wl->get_key_pair(), sizeof(ecc_key_pair)) != 0)
+    {
+        free(p_id_key);
+        log_err("Identity: Get wrong id key pair!\n");
+        return CRUST_INVALID_META_DATA;
+    }
 
-    Workload *wl = Workload::get_instance();
+    // ----- Restore metadata ----- //
     // Restore workload spec information
     uint8_t *p_wl_spec = NULL;
     size_t wl_spec_len = 0;
@@ -999,13 +1013,6 @@ crust_status_t id_restore_metadata()
         free(file_info_buf);
     }
     // Restore id key pair
-    std::string id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();
-    uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
-    if (p_id_key == NULL)
-    {
-        log_err("Identity: restore metadata failed!\n");
-        return CRUST_UNEXPECTED_ERROR;
-    }
     ecc_key_pair tmp_key_pair;
     memcpy(&tmp_key_pair, p_id_key, sizeof(ecc_key_pair));
     wl->set_key_pair(tmp_key_pair);
