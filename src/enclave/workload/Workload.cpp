@@ -1,8 +1,6 @@
 #include "Workload.h"
 
 sgx_thread_mutex_t g_workload_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-sgx_thread_mutex_t g_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-sgx_thread_mutex_t g_sealed_files_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_report_flag_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 sgx_thread_mutex_t g_upgrade_status_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
@@ -169,16 +167,11 @@ json::JSON Workload::gen_workload_info()
  */
 crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
 {
-    SafeLock sl(g_srd_mutex);
+    SafeLock sl(this->srd_mutex);
     sl.lock();
     
     // Calculate srd space
-    size_t srd_size = 2;
-    for (auto item : this->srd_path2hashs_m)
-    {
-        srd_size += item.first.size() + 10;
-        srd_size += item.second.size() * (HASH_LENGTH * 2 + 3);
-    }
+    size_t srd_size = id_get_srd_buffer_size(this->srd_path2hashs_m);
     uint8_t *srd_buffer = (uint8_t *)enc_malloc(srd_size);
     if (srd_buffer == NULL)
     {
@@ -233,17 +226,9 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
  */
 crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&this->file_mutex);
 
-    size_t file_item_len = strlen(FILE_CID) + 3 + CID_LENGTH + 3
-        + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
-        + strlen(FILE_SIZE) + 3 + 12 + 1
-        + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
-        + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
-        + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
-        + strlen(FILE_STATUS) + 3 + 3 + 3
-        + 2;
-    size_t buffer_size = this->sealed_files.size() * file_item_len;
+    size_t buffer_size = id_get_file_buffer_size(this->sealed_files);
     *p_data = (uint8_t *)enc_malloc(buffer_size);
     if (*p_data == NULL)
     {
@@ -272,7 +257,7 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 
     *data_size = offset;
 
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&this->file_mutex);
 
     return CRUST_SUCCESS;
 }
@@ -458,7 +443,7 @@ enc_upgrade_status_t Workload::get_upgrade_status()
 void Workload::handle_report_result()
 {
     // Set file status by report result
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&this->file_mutex);
     for (auto i : this->reported_files_idx)
     {
         if (i < this->sealed_files.size())
@@ -468,7 +453,7 @@ void Workload::handle_report_result()
         }
     }
     this->reported_files_idx.clear();
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&this->file_mutex);
 }
 
 /**
@@ -508,34 +493,14 @@ crust_status_t Workload::try_report_work(size_t block_height)
  */
 void Workload::set_wl_spec(char file_status, long long change)
 {
-    sgx_thread_mutex_lock(&wl_spec_info_mutex);
-    std::string ws_name = g_file_status[file_status];
-    this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
-    this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
-    sgx_thread_mutex_unlock(&wl_spec_info_mutex);
-}
-
-/**
- * @description: Set workload spec information
- * @param file_status -> Workload spec
- * @param related_file_status -> Related workload spec
- * @param change -> Spec information change
- */
-void Workload::set_wl_spec(char file_status, char related_file_status, long long change)
-{
-    if (file_status == related_file_status)
+    if (g_file_status.find(file_status) != g_file_status.end())
     {
-        return;
+        sgx_thread_mutex_lock(&wl_spec_info_mutex);
+        std::string ws_name = g_file_status[file_status];
+        this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
+        this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
+        sgx_thread_mutex_unlock(&wl_spec_info_mutex);
     }
-
-    sgx_thread_mutex_lock(&wl_spec_info_mutex);
-    std::string ws_name = g_file_status[file_status];
-    std::string related_ws_name = g_file_status[related_file_status];
-    this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
-    this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
-    this->wl_spec_info[related_ws_name]["num"] = this->wl_spec_info[related_ws_name]["num"].ToInt() - (change > 0 ? 1 : -1);
-    this->wl_spec_info[related_ws_name]["size"] = this->wl_spec_info[related_ws_name]["size"].ToInt() - change;
-    sgx_thread_mutex_unlock(&wl_spec_info_mutex);
 }
 
 /**
@@ -772,7 +737,7 @@ void Workload::deal_deleted_srd(bool locked)
     // Delete related srd from metadata by mainloop thread
     if (locked)
     {
-        sgx_thread_mutex_lock(&g_srd_mutex);
+        sgx_thread_mutex_lock(&this->srd_mutex);
     }
 
     sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
@@ -813,7 +778,7 @@ void Workload::deal_deleted_srd(bool locked)
 
     if (locked)
     {
-        sgx_thread_mutex_unlock(&g_srd_mutex);
+        sgx_thread_mutex_unlock(&this->srd_mutex);
     }
 }
 
@@ -861,7 +826,7 @@ void Workload::recover_from_deleted_file_buffer(uint32_t index)
  */
 void Workload::deal_deleted_file()
 {
-    SafeLock sealed_files_sl(g_sealed_files_mutex);
+    SafeLock sealed_files_sl(this->file_mutex);
     sealed_files_sl.lock();
 
     std::set<uint32_t> tmp_del_idx_s;

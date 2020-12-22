@@ -4,8 +4,6 @@
 
 std::string g_work_report;
 
-extern sgx_thread_mutex_t g_srd_mutex;
-extern sgx_thread_mutex_t g_sealed_files_mutex;
 extern sgx_thread_mutex_t g_gen_work_report;
 
 /**
@@ -126,10 +124,10 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     uint8_t *p_sigbuf = NULL;
     std::vector<size_t> report_valid_idx_v;
     // Lock variable
-    SafeLock sealed_files_sl(g_sealed_files_mutex);
+    SafeLock sealed_files_sl(wl->file_mutex);
 
     // ----- Get srd info ----- //
-    SafeLock srd_sl(g_srd_mutex);
+    SafeLock srd_sl(wl->srd_mutex);
     srd_sl.lock();
     // Compute srd root hash
     size_t srd_workload;

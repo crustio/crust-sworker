@@ -90,15 +90,15 @@ void ecall_clean_file()
 {
     Workload *wl = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&wl->file_mutex);
     wl->sealed_files.clear();
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 }
 
 crust_status_t ecall_get_file_info(const char *data)
 {
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
     Workload *wl = Workload::get_instance();
+    sgx_thread_mutex_lock(&wl->file_mutex);
     crust_status_t crust_status = CRUST_UNEXPECTED_ERROR;
     for (int i = wl->sealed_files.size() - 1; i >= 0; i--)
     {
@@ -112,13 +112,11 @@ crust_status_t ecall_get_file_info(const char *data)
             crust_status = CRUST_SUCCESS;
         }
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 
     return crust_status;
 }
 EOF
-
-    sed -i '/using namespace std;/a extern sgx_thread_mutex_t g_sealed_files_mutex;' $enclave_cpp
 }
 
 ########## enclave_edl_test ##########
@@ -1238,7 +1236,7 @@ void validate_srd()
 
     Workload *wl = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    sgx_thread_mutex_lock(&wl->srd_mutex);
 
     size_t srd_total_num = 0;
     for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end();)
@@ -1296,7 +1294,7 @@ void validate_srd()
             }
         }
     }
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::vector<uint8_t *>> del_path2hashs_m;
@@ -1350,7 +1348,7 @@ void validate_srd_real()
 
     Workload *wl = Workload::get_instance();
 
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    sgx_thread_mutex_lock(&wl->srd_mutex);
 
     size_t srd_total_num = 0;
     for (auto it = wl->srd_path2hashs_m.begin(); it != wl->srd_path2hashs_m.end();)
@@ -1408,7 +1406,7 @@ void validate_srd_real()
             }
         }
     }
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Validate SRD ----- //
     std::map<std::string, std::vector<uint8_t *>> del_path2hashs_m;
@@ -1534,7 +1532,7 @@ void validate_meaningful_file_bench()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&wl->file_mutex);
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->sealed_files.size());
@@ -1547,7 +1545,7 @@ void validate_meaningful_file_bench()
         rand_index = rand_val % wl->sealed_files.size();
         validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // ----- Validate file ----- //
     // Used to indicate which meaningful file status has been changed
@@ -1731,7 +1729,7 @@ void validate_meaningful_file_bench()
     // Change file status
     if (deleted_index_us.size() > 0)
     {
-        sgx_thread_mutex_lock(&g_sealed_files_mutex);
+        sgx_thread_mutex_lock(&wl->file_mutex);
         for (auto index : deleted_index_us)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
@@ -1749,7 +1747,7 @@ void validate_meaningful_file_bench()
                 wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
             }
         }
-        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+        sgx_thread_mutex_unlock(&wl->file_mutex);
     }
 }
 
@@ -1766,7 +1764,7 @@ void validate_meaningful_file_real()
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&wl->file_mutex);
     // Get to be checked files indexes
     size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
     check_file_num = std::min(check_file_num, wl->sealed_files.size());
@@ -1779,7 +1777,7 @@ void validate_meaningful_file_real()
         rand_index = rand_val % wl->sealed_files.size();
         validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // ----- Validate file ----- //
     // Used to indicate which meaningful file status has been changed
@@ -1963,7 +1961,7 @@ void validate_meaningful_file_real()
     // Change file status
     if (deleted_index_us.size() > 0)
     {
-        sgx_thread_mutex_lock(&g_sealed_files_mutex);
+        sgx_thread_mutex_lock(&wl->file_mutex);
         for (auto index : deleted_index_us)
         {
             log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n",
@@ -1981,7 +1979,7 @@ void validate_meaningful_file_real()
                 wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
             }
         }
-        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+        sgx_thread_mutex_unlock(&wl->file_mutex);
     }
 }
 EOF
@@ -2067,7 +2065,7 @@ void srd_increase_test(const char *path)
     }
     // Add new g_hash to srd_path2hashs_m
     // Because add this p_hash_u to the srd_path2hashs_m, so we cannot free p_hash_u
-    sgx_thread_mutex_lock(&g_srd_mutex);
+    sgx_thread_mutex_lock(&wl->srd_mutex);
     wl->srd_path2hashs_m[path_str].push_back(p_hash_u);
     size_t srd_total_num = 0;
     for (auto it : wl->srd_path2hashs_m)
@@ -2075,7 +2073,7 @@ void srd_increase_test(const char *path)
         srd_total_num += it.second.size();
     }
     log_info("Seal random data -> %s, %luG success\n", hex_g_hash.c_str(), srd_total_num);
-    sgx_thread_mutex_unlock(&g_srd_mutex);
+    sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Update srd info ----- //
     wl->set_srd_info(path_str, 1);
@@ -2088,7 +2086,7 @@ size_t srd_decrease_test(long change)
     uint32_t srd_total_num = 0;
 
     // Choose to be deleted g_hash index
-    SafeLock sl(g_srd_mutex);
+    SafeLock sl(wl->srd_mutex);
     sl.lock();
     wl->deal_deleted_srd(false);
     // Set delete set
@@ -2178,7 +2176,8 @@ cat << EOF >> $enclave_workload_cpp
 
 void Workload::test_add_file(long file_num)
 {
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    Workload *wl = Workload::get_instance();
+    sgx_thread_mutex_lock(&wl->file_mutex);
     long acc = 0;
     for (long i = 0; i < file_num; i++)
     {
@@ -2204,15 +2203,16 @@ void Workload::test_add_file(long file_num)
         this->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
         acc++;
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 }
 
 void Workload::test_delete_file(uint32_t file_num)
 {
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    Workload *wl = Workload::get_instance();
+    sgx_thread_mutex_lock(&wl->file_mutex);
     if (this->sealed_files.size() == 0)
     {
-        sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+        sgx_thread_mutex_unlock(&wl->file_mutex);
         return;
     }
     for (uint32_t i = 0, j = 0; i < file_num && j < 200;)
@@ -2233,15 +2233,16 @@ void Workload::test_delete_file(uint32_t file_num)
             j++;
         }
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 }
 
 void Workload::test_delete_file_unsafe(uint32_t file_num)
 {
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    Workload *wl = Workload::get_instance();
+    sgx_thread_mutex_lock(&wl->file_mutex);
     file_num = std::min(this->sealed_files.size(), (size_t)file_num);
     this->sealed_files.erase(this->sealed_files.begin(), this->sealed_files.begin() + file_num);
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 }
 EOF
 

@@ -5,12 +5,6 @@
 
 using namespace std;
 
-// Lock used to lock outside buffer
-sgx_thread_mutex_t g_file_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-
-// Current node public and private key pair
-extern sgx_thread_mutex_t g_sealed_files_mutex;
-
 crust_status_t _storage_seal_file(const char *cid, 
                                   size_t &sealed_size, 
                                   size_t &origin_size, 
@@ -34,9 +28,9 @@ crust_status_t storage_seal_file(const char *cid)
 
     // Check if file number exceeds upper limit
     size_t file_num = 0;
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&wl->file_mutex);
     file_num += wl->sealed_files.size();
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 
     if (file_num >= FILE_NUMBER_UPPER_LIMIT)
     {
@@ -111,7 +105,7 @@ crust_status_t storage_seal_file(const char *cid)
             file_entry_json[FILE_SIZE].ToInt());
 
     // Add new file
-    sgx_thread_mutex_lock(&g_sealed_files_mutex);
+    sgx_thread_mutex_lock(&wl->file_mutex);
     size_t pos = 0;
     if (wl->is_file_dup(cid, pos))
     {
@@ -131,7 +125,7 @@ crust_status_t storage_seal_file(const char *cid)
     {
         wl->add_sealed_file(file_entry_json, pos);
     }
-    sgx_thread_mutex_unlock(&g_sealed_files_mutex);
+    sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // Add info in workload spec
     wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SIZE].ToInt());
@@ -443,9 +437,9 @@ crust_status_t storage_delete_file(const char *cid)
     crust_status_t crust_status = CRUST_SUCCESS;
 
     // ----- Delete file items in sealed_files ----- //
-    SafeLock sf_lock(g_sealed_files_mutex);
-    sf_lock.lock();
     Workload *wl = Workload::get_instance();
+    SafeLock sf_lock(wl->file_mutex);
+    sf_lock.lock();
     bool is_deleted = false;
     for (size_t i = 0; i < wl->sealed_files.size(); i++)
     {
@@ -526,7 +520,7 @@ void clean_remaining_sealed_block(json::JSON &tree)
 int check_file_dup(std::string cid)
 {
     Workload *wl = Workload::get_instance();
-    SafeLock cf_lock(g_sealed_files_mutex);
+    SafeLock cf_lock(wl->file_mutex);
     cf_lock.lock();
     size_t pos = 0;
     if (wl->is_file_dup(cid, pos))

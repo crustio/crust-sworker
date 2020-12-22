@@ -53,73 +53,12 @@ sgx_status_t id_gen_sgx_measurement();
 crust_status_t id_cmp_chain_account_id(const char *account_id, size_t len);
 void id_get_info();
 
-void id_get_metadata(json::JSON &meta_json, bool locked = true);
-/**
- * @description: Set or append metadata responding key
- * @param key -> Indicated key
- * @param val -> Set or append value
- * @param isSet -> Indicate current operation is set or append, default is set
- * @return: Set or append status
- */
-template<class T>
-crust_status_t id_metadata_set_or_append(const char *key, T val, 
-        metadata_op_e op = ID_UPDATE, bool locked = true)
-{
-    if (locked)
-    {
-        sgx_thread_mutex_lock(&g_metadata_mutex);
-    }
-
-    std::string key_str(key);
-    std::string meta_str(SWORKER_PRIVATE_TAG);
-    json::JSON meta_json;
-    crust_status_t crust_status = CRUST_SUCCESS;
-    id_get_metadata(meta_json, false);
-
-    // Check if corresponding entry is set or append
-    if (ID_APPEND == op)
-    {
-        if (meta_json.hasKey(key_str))
-        {
-            if (meta_json[key_str].JSONType() != json::JSON::Class::Array)
-            {
-                log_err("Store metadata: key:%s is not a Array!\n", key_str.c_str());
-                crust_status = CRUST_UNEXPECTED_ERROR;
-                goto cleanup;
-            }
-            meta_json[key_str].append(val);
-        }
-        else
-        {
-            meta_json[key_str][0] = val;
-        }
-    }
-    else if (ID_UPDATE == op)
-    {
-        meta_json[key_str] = val;
-    }
-    else
-    {
-        log_err("Set or append error, unknown operation type!\n");
-        crust_status = CRUST_UNEXPECTED_ERROR;
-        goto cleanup;
-    }
-    meta_str.append(meta_json.dump());
-    crust_status = persist_set(ID_METADATA, reinterpret_cast<const uint8_t *>(meta_str.c_str()), meta_str.size());
-
-cleanup:
-
-    if (locked)
-    {
-        sgx_thread_mutex_unlock(&g_metadata_mutex);
-    }
-
-    return crust_status;
-}
-
 crust_status_t id_store_metadata();
 crust_status_t id_restore_metadata();
 crust_status_t id_gen_upgrade_data(size_t block_height);
 crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end);
+size_t id_get_metadata_title_size();
+size_t id_get_srd_buffer_size(std::map<std::string, std::vector<uint8_t *>> &srd_path2hashs_m);
+size_t id_get_file_buffer_size(std::vector<json::JSON> &sealed_files);
 
 #endif
