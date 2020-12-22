@@ -769,7 +769,8 @@ crust_status_t id_store_metadata()
         return CRUST_SUCCESS;
     }
 
-    sgx_thread_mutex_lock(&g_metadata_mutex);
+    SafeLock sl(g_metadata_mutex);
+    sl.lock();
 
     // Get original metadata
     Workload *wl = Workload::get_instance();
@@ -896,7 +897,7 @@ crust_status_t id_store_metadata()
     crust_status = persist_set(ID_METADATA, meta_buf, offset);
     free(meta_buf);
 
-    sgx_thread_mutex_unlock(&g_metadata_mutex);
+    sl.unlock();
 
     return crust_status;
 }
