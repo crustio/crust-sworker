@@ -32,21 +32,6 @@ crust_status_t persist_add(std::string key, const uint8_t *value, size_t value_l
 }
 
 /**
- * @description: Add keys to a json object
- * @param key -> Key
- * @param keys -> To be added keys array
- * @param keys_len -> To be added keys array length
- * @return: Add status
- */
-crust_status_t persist_add_keys_unsafe(std::string key, const char *keys, size_t keys_len)
-{
-    crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_persist_add_keys(&crust_status, key.c_str(), keys, keys_len);
-
-    return crust_status;
-}
-
-/**
  * @description: Delete value by key
  * @param key -> Pointer to key
  * @return: Delete status
@@ -55,22 +40,6 @@ crust_status_t persist_del(std::string key)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     ocall_persist_del(&crust_status, key.c_str());
-
-    return crust_status;
-}
-
-/**
- * @description: Get value by key, this value must be a json object,
- * delete keys in this value
- * @param key -> Key
- * @param keys -> To be deleted keys array
- * @param keys_len -> Keys array length
- * @return: Delete status
- */
-crust_status_t persist_del_keys_unsafe(std::string key, const char *keys, size_t keys_len)
-{
-    crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_persist_del_keys(&crust_status, key.c_str(), keys, keys_len);
 
     return crust_status;
 }

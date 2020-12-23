@@ -807,6 +807,7 @@ crust_status_t id_store_metadata()
     size_t offset = 0;
 
     // ----- Store metadata ----- //
+    // Append private data tag
     memcpy(meta_buf, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
     offset += strlen(SWORKER_PRIVATE_TAG);
     memcpy(meta_buf + offset, "{", 1);
@@ -952,13 +953,10 @@ crust_status_t id_restore_metadata()
     {
         log_warn("Cannot get workload spec info, code:%lx\n", crust_status);
     }
-    else
+    else if (p_wl_spec != NULL)
     {
-        if (p_wl_spec != NULL)
-        {
-            wl->restore_wl_spec_info(std::string(reinterpret_cast<const char *>(p_wl_spec), wl_spec_len));
-            free(p_wl_spec);
-        }
+        wl->restore_wl_spec_info(std::string(reinterpret_cast<const char *>(p_wl_spec), wl_spec_len));
+        free(p_wl_spec);
     }
     // Restore srd
     if (meta_json.hasKey(ID_WORKLOAD)
@@ -1144,7 +1142,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         goto cleanup;
     }
     // Send work report
-    // TODO: Wait a random time:[10, 50] block time
+    // Wait a random time:[10, 50] block time
     sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
     random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
     log_info("Upgrade: Will generate and send work reort after %ld blocks...\n", random_time / BLOCK_TIME_BASE);

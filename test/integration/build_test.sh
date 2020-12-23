@@ -2243,6 +2243,18 @@ void Workload::test_delete_file_unsafe(uint32_t file_num)
     file_num = std::min(this->sealed_files.size(), (size_t)file_num);
     this->sealed_files.erase(this->sealed_files.begin(), this->sealed_files.begin() + file_num);
     sgx_thread_mutex_unlock(&wl->file_mutex);
+
+    sgx_thread_mutex_lock(&wl_spec_info_mutex);
+    long ret = this->wl_spec_info["valid"]["num"].ToInt() - file_num;
+    if (ret < 0)
+    {
+        this->wl_spec_info["valid"]["num"] = 0;
+    }
+    else
+    {
+        this->wl_spec_info["valid"]["num"] = ret;
+    }
+    sgx_thread_mutex_unlock(&wl_spec_info_mutex);
 }
 EOF
 
