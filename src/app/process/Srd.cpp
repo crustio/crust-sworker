@@ -10,43 +10,6 @@ size_t g_srd_reserved_space = DEFAULT_SRD_RESERVED;
 extern sgx_enclave_id_t global_eid;
 
 /**
- * @description: If the given paths have same disk, just choose one of the same
- * @param srd_paths -> Input srd paths
- * @return: Final chosen srd paths
- */
-json::JSON get_valid_srd_path(json::JSON srd_paths)
-{
-    json::JSON ans;
-
-    // Get disk info
-    std::unordered_set<std::string> fsid_s;
-    for (int i = 0; i < srd_paths.size(); i++)
-    {
-        std::string path = srd_paths[i].ToString();
-
-        // Create path
-        if (!create_directory(path))
-        {
-            continue;
-        }
-
-        struct statfs disk_info;
-        if (statfs(path.c_str(), &disk_info) == -1)
-        {
-            return ans;
-        }
-        std::string fsid_str = hexstring_safe(&disk_info.f_fsid, sizeof(disk_info.f_fsid));
-        if (fsid_s.find(fsid_str) == fsid_s.end())
-        {
-            ans.append(path);
-            fsid_s.insert(fsid_str);
-        }
-    }
-
-    return ans;
-}
-
-/**
  * @description: Get srd disks info according to configure
  * @param true_srd_capacity -> True assigned size
  * @return: A path to assigned size map
@@ -56,67 +19,27 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     // Get multi-disk info
     Config *p_config = Config::get_instance();
     json::JSON disk_info_json;
-    size_t total_avail = 0;
     long srd_reserved_space = get_reserved_space();
-    if (p_config->srd_paths.size() != 0)
+    // Create path
+    if (create_directory(p_config->srd_path))
     {
-        json::JSON srd_paths = get_valid_srd_path(p_config->srd_paths);
-        for (int i = 0; i < srd_paths.size(); i++)
+        // Calculate free disk
+        disk_info_json[p_config->srd_path]["available"] = get_avail_space_under_dir_g(p_config->srd_path);
+        disk_info_json[p_config->srd_path]["total"] = get_total_space_under_dir_g(p_config->srd_path);
+        if (disk_info_json[p_config->srd_path]["available"].ToInt() <= srd_reserved_space)
         {
-            std::string path = srd_paths[i].ToString();
-            // Calculate free disk
-            disk_info_json[path]["available"] = get_avail_space_under_dir_g(path);
-            disk_info_json[path]["total"] = get_total_space_under_dir_g(path);
-            if (disk_info_json[path]["available"].ToInt() <= srd_reserved_space)
-            {
-                disk_info_json[path]["available"] = 0;
-            }
-            else
-            {
-                disk_info_json[path]["available"] = disk_info_json[path]["available"].ToInt() - srd_reserved_space;
-            }
-            total_avail += disk_info_json[path]["available"].ToInt();
-            disk_info_json[path]["left"] = disk_info_json[path]["available"].ToInt();
+            disk_info_json[p_config->srd_path]["available"] = 0;
         }
+        else
+        {
+            disk_info_json[p_config->srd_path]["available"] = disk_info_json[p_config->srd_path]["available"].ToInt() - srd_reserved_space;
+        }
+        true_srd_capacity = std::min((size_t)disk_info_json[p_config->srd_path]["available"].ToInt(), true_srd_capacity);
+        disk_info_json[p_config->srd_path]["increased"] = true_srd_capacity;
     }
     else
     {
-        // Create path
-        if (create_directory(p_config->srd_path))
-        {
-            // Calculate free disk
-            disk_info_json[p_config->srd_path]["available"] = get_avail_space_under_dir_g(p_config->srd_path);
-            disk_info_json[p_config->srd_path]["total"] = get_total_space_under_dir_g(p_config->srd_path);
-            if (disk_info_json[p_config->srd_path]["available"].ToInt() <= srd_reserved_space)
-            {
-                disk_info_json[p_config->srd_path]["available"] = 0;
-            }
-            else
-            {
-                disk_info_json[p_config->srd_path]["available"] = disk_info_json[p_config->srd_path]["available"].ToInt() - srd_reserved_space;
-            }
-            total_avail = disk_info_json[p_config->srd_path]["available"].ToInt();
-            disk_info_json[p_config->srd_path]["left"] = disk_info_json[p_config->srd_path]["available"].ToInt();
-        }
-    }
-    true_srd_capacity = std::min(total_avail, true_srd_capacity);
-
-    // Assigned srd space to disk
-    size_t increase_acc = true_srd_capacity;
-    auto disk_range = disk_info_json.ObjectRange();
-    for (auto it = disk_range.begin(); increase_acc > 0; )
-    {
-        std::string path = it->first;
-        if (it->second["left"].ToInt() > 0)
-        {
-            it->second["increased"] = it->second["increased"].ToInt() + 1;
-            it->second["left"] = it->second["left"].ToInt() - 1;
-            increase_acc--;
-        }
-        if (++it == disk_range.end())
-        {
-            it = disk_range.begin();
-        }
+        true_srd_capacity = 0;
     }
 
     return disk_info_json;

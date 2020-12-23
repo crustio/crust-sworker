@@ -506,8 +506,8 @@ entry_network_flag:
                 }
             }
 
-            // Srd disk
-            srd_task = p_config->srd_capacity;
+            // Set init srd capacity
+            srd_task = 1;
         }
         else
         {

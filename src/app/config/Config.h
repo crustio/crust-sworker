@@ -26,10 +26,9 @@ class Config
 public:
     // base information
     std::string base_path;              /* sworker base path */
-    json::JSON srd_paths;               /* Srd paths */
     std::string srd_path;               /* srd validation files base path */
+    std::string file_path;              /* meaningful validation files base path */
     std::string db_path;                /* DB path */
-    size_t srd_capacity;                /* Hard drive storage space for srd validation files, The unit is GB */
     std::string base_url;               /* External API base url */
     
     int websocket_thread_num;           /* WebSocket thread number */
