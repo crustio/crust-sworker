@@ -5,12 +5,6 @@ crust::Log *p_log = crust::Log::get_instance();
 // Used to store ocall file data
 uint8_t *ocall_file_data = NULL;
 size_t ocall_file_data_len = 0;
-// Used to store storage related data
-uint8_t *_storage_buffer = NULL;
-size_t _storage_buffer_len = 0;
-// Buffer used to store sealed data
-uint8_t *_sealed_data_buf = NULL;
-size_t _sealed_data_size = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
 

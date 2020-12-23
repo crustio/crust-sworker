@@ -1,5 +1,11 @@
 #include "StoreOcalls.h"
 
+crust::Log *p_log = crust::Log::get_instance();
+
+// Used to store ocall file data
+uint8_t *ocall_file_data = NULL;
+size_t ocall_file_data_len = 0;
+
 /**
  * @description: ocall for creating directory
  * @param path -> the path of directory
