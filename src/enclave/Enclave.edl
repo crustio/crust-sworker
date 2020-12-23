@@ -52,11 +52,7 @@ enclave {
         crust_status_t ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
         crust_status_t ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
         crust_status_t ocall_delete_folder_or_file([in, string] const char *path);
-        size_t ocall_get_folders_number_under_path([in, string] const char *path);
         crust_status_t ocall_get_file([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);
-        crust_status_t ocall_get_storage_file([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);
-        void ocall_get_sub_folders_and_files([in, string] const char *path, [out] char ***files, [out] size_t *files_num);
-        crust_status_t ocall_replace_file([in, string] const char *old_path, [in, string] const char *new_path, [in, size=len] const uint8_t *data, size_t len);
         void ocall_usleep(int u);
         crust_status_t ocall_chain_get_block_info([out, size=data_size] char *data, size_t data_size);
 
@@ -74,9 +70,6 @@ enclave {
         crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
         crust_status_t ocall_persist_get([in, string] const char *key, [out] uint8_t **value, [out] size_t *value_len);
         crust_status_t ocall_free_outer_buffer([in, out] uint8_t **value);
-
-        crust_status_t ocall_validate_get_file([in, string] const char *root_hash, [in, string] const char *leaf_hash, [out] uint8_t **p_sealed_data, [out] size_t *sealed_data_size);
-
         void ocall_srd_change(long change)
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_change_srd_task);
 
