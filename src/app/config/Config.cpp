@@ -34,18 +34,9 @@ Config::Config(std::string path)
 
     // Base configurations
     this->base_path = config_value["base_path"].ToString();
-    if (config_value.hasKey("srd_paths") 
-            && config_value["srd_paths"].JSONType() == json::JSON::Class::Array)
-    {
-        this->srd_paths = config_value["srd_paths"];
-    }
-    else
-    {
-        this->srd_paths = json::Array();
-    }
-    this->srd_path = this->base_path + "/srd_path";
+    this->srd_path = config_value["data_path"].ToString() + "/srd";
+    this->file_path = config_value["data_path"].ToString() + "/file";
     this->db_path = this->base_path + "/db";
-    this->srd_capacity = config_value["srd_init_capacity"].ToInt() < 0 ? 0 : (size_t)config_value["srd_init_capacity"].ToInt();
     this->base_url = config_value["base_url"].ToString();
   
     this->srd_thread_num = std::min(omp_get_num_procs() * 2, 8);
@@ -75,11 +66,8 @@ void Config::show(void)
     printf("Config : {\n");
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
-    for (int i = 0; i < this->srd_paths.size(); i++)
-    {
-        printf("    'srd path %d' : '%s',\n", i + 1, this->srd_paths[i].ToString().c_str());
-    }
-    printf("    'srd init capacity' : %lu,\n", this->srd_capacity);
+    printf("    'srd path' : '%s',\n", this->srd_path.c_str());
+    printf("    'file path' : '%s',\n", this->file_path.c_str());
     printf("    'base url' : '%s',\n", this->base_url.c_str());
     printf("    'ipfs url' : '%s',\n", this->ipfs_url.c_str());
 
