@@ -440,46 +440,37 @@ crust_status_t storage_delete_file(const char *cid)
     Workload *wl = Workload::get_instance();
     SafeLock sf_lock(wl->file_mutex);
     sf_lock.lock();
-    bool is_deleted = false;
-    for (size_t i = 0; i < wl->sealed_files.size(); i++)
+    size_t pos = 0;
+    if (wl->is_file_dup(cid, pos))
     {
-        auto file = &wl->sealed_files[i];
-        std::string cur_cid = (*file)[FILE_CID].ToString();
-        if (cur_cid.compare(cid) == 0)
+        if (wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
-            if ((*file)[FILE_STATUS].get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
-            {
-                log_info("File(%s) has been deleted!\n", cid);
-                return CRUST_SUCCESS;
-            }
-            deleted_file = *file;
-            is_deleted = true;
-            wl->add_to_deleted_file_buffer(i);
-            (*file)[FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-            break;
+            log_info("File(%s) has been deleted!\n", cid);
+            return CRUST_SUCCESS;
         }
+        deleted_file = wl->sealed_files[pos];
+        wl->add_to_deleted_file_buffer(pos);
+        wl->sealed_files[pos][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
     }
     sf_lock.unlock();
-    // Print deleted info
-    if (is_deleted)
+
+    if (deleted_file.size() > 0)
     {
+        // ----- Delete file related data ----- //
+        std::string del_cid = deleted_file[FILE_CID].ToString();
+        // Delete real file
+        crust_status_t del_ret = CRUST_SUCCESS;
+        ocall_ipfs_del_all(&del_ret, del_cid.c_str());
+        // Delete file tree structure
+        persist_del(del_cid);
+        // Update workload spec info
+        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
         log_info("Delete file:%s successfully!\n", cid);
     }
     else
     {
         log_warn("Delete file:%s failed(not found)!\n", cid);
-    }
-
-    // ----- Delete file related data ----- //
-    if (is_deleted)
-    {
-        std::string del_cid = deleted_file[FILE_CID].ToString();
-        // Delete real file
-        ocall_ipfs_del_all(&crust_status, del_cid.c_str());
-        // Delete file tree structure
-        persist_del(del_cid);
-        // Update workload spec info
-        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
+        crust_status = CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
 
     return crust_status;

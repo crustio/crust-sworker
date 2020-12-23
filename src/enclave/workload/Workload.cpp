@@ -826,20 +826,14 @@ void Workload::recover_from_deleted_file_buffer(uint32_t index)
  */
 void Workload::deal_deleted_file()
 {
-    SafeLock sealed_files_sl(this->file_mutex);
-    sealed_files_sl.lock();
-
-    std::set<uint32_t> tmp_del_idx_s;
+    // Clear file deleted buffer
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
-    tmp_del_idx_s.insert(this->file_del_idx_s.begin(), this->file_del_idx_s.end());
     this->file_del_idx_s.clear();
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
-    for (auto index : tmp_del_idx_s)
-    {
-        this->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-    }
     // Deleted invalid file item
+    SafeLock sealed_files_sl(this->file_mutex);
+    sealed_files_sl.lock();
     for (auto it = this->sealed_files.begin(); it != this->sealed_files.end();)
     {
         std::string status = (*it)[FILE_STATUS].ToString();
@@ -877,26 +871,31 @@ bool Workload::is_file_dup(std::string cid, size_t &pos)
 {
     long spos = 0;
     long epos = this->sealed_files.size();
-    while (spos < epos)
+    while (spos <= epos)
     {
         long mpos = (spos + epos) / 2;
+        if (mpos >= (long)this->sealed_files.size())
+        {
+            break;
+        }
         int ret = cid.compare(this->sealed_files[mpos][FILE_CID].ToString());
         if (ret > 0)
         {
             spos = mpos + 1;
+            pos = std::min(spos, (long)this->sealed_files.size());
         }
         else if (ret < 0)
         {
+            pos = mpos;
             epos = mpos - 1;
         }
         else
         {
             pos = mpos;
-            return true;;
+            return true;
         }
     }
 
-    pos = spos;
     return false;
 }
 

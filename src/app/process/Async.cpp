@@ -23,15 +23,10 @@ void async_storage_delete(std::string cid)
         {
             p_log->err("Delete file(%s) failed!Invoke SGX API failed!Error code:%lx\n", cid.c_str(), sgx_status);
         }
-        else if (CRUST_SUCCESS != crust_status)
+        else if (CRUST_SUCCESS == crust_status)
         {
-            p_log->err("Delete file(%s) failed!Error code:%lx\n", cid.c_str(), crust_status);
+            EnclaveData::get_instance()->del_sealed_file_info(cid);
         }
-        else
-        {
-            p_log->info("Delete file(%s) successfully!\n", cid.c_str());
-        }
-        EnclaveData::get_instance()->del_sealed_file_info(cid);
     }));
     clean_complete_task();
 }
