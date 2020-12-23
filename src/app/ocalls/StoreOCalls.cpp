@@ -1,4 +1,4 @@
-#include "StoreOcalls.h"
+#include "StoreOCalls.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 
