@@ -34,7 +34,7 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
         {
             disk_info_json[p_config->srd_path]["available"] = disk_info_json[p_config->srd_path]["available"].ToInt() - srd_reserved_space;
         }
-        true_srd_capacity = std::min(disk_info_json[p_config->srd_path]["available"], true_srd_capacity);
+        true_srd_capacity = std::min(disk_info_json[p_config->srd_path]["available"].ToInt(), true_srd_capacity);
         disk_info_json[p_config->srd_path]["increased"] = true_srd_capacity;
     }
     else
