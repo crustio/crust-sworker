@@ -365,6 +365,10 @@ crust_status_t srd_get_file(const char *path, uint8_t **p_data, size_t *data_siz
     crust_status_t crust_status = CRUST_SUCCESS;
 
     ocall_get_file(&crust_status, path, p_data, data_size, STORE_TYPE_SRD);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return crust_status;
+    }
 
     uint8_t *p_sealed_data = (uint8_t *)enc_malloc(*data_size);
     if (p_sealed_data == NULL)
