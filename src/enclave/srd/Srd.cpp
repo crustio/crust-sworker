@@ -222,27 +222,27 @@ size_t srd_decrease(size_t change)
         return 0;
     }
     // Get change hashs
-    std::vector<uint8_t *> srd_del_hashs;
+    std::vector<std::string> srd_del_hashs;
     std::vector<size_t> srd_del_indexes;
     for (size_t i = 1; i <= change; i++)
     {
         size_t index = wl->srd_hashs.size() - i;
-        srd_del_hashs.push_back(wl->srd_hashs[index]);
+        srd_del_hashs.push_back(hexstring_safe(wl->srd_hashs[index], HASH_LENGTH));
         srd_del_indexes.push_back(index);
     }
     std::reverse(srd_del_indexes.begin(), srd_del_indexes.end());
-    wl->set_srd_info(change);
+    long r_change = -(long)change;
+    wl->set_srd_info(r_change);
     wl->delete_srd_meta(srd_del_indexes);
     sl.unlock();
 
     // Delete srd files
     for (auto hash : srd_del_hashs)
     {
-        std::string hash_str = hexstring_safe(hash, HASH_LENGTH);
-        ocall_delete_folder_or_file(&crust_status, hash_str.c_str(), STORE_TYPE_SRD);
+        ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_warn("Delete path:%s failed! Error code:%lx\n", hash_str.c_str(), crust_status);
+            log_warn("Delete path:%s failed! Error code:%lx\n", hash.c_str(), crust_status);
         }
     }
 
@@ -285,14 +285,6 @@ void srd_remove_space(size_t change)
         {
             log_warn("Delete path:%s failed! Error code:%lx\n", hash.c_str(), crust_status);
         }
-    }
-
-    // Update srd info
-    std::string srd_info_str = wl->get_srd_info().dump();
-    crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
-    if (CRUST_SUCCESS != crust_status)
-    {
-        log_warn("Update srd info failed! Error code:%lx\n", crust_status);
     }
 }
 
