@@ -278,12 +278,16 @@ void srd_remove_space(size_t change)
     sl.unlock();
 
     // Delete srd files
-    for (auto hash : srd_del_hashs)
+    if (srd_del_hashs.size() > 0)
     {
-        ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);
-        if (CRUST_SUCCESS != crust_status)
+        log_info("Will delete %ldG srd space for user data. This is normal.\n", srd_del_hashs.size());
+        for (auto hash : srd_del_hashs)
         {
-            log_warn("Delete path:%s failed! Error code:%lx\n", hash.c_str(), crust_status);
+            ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                log_warn("Delete path:%s failed! Error code:%lx\n", hash.c_str(), crust_status);
+            }
         }
     }
 }

@@ -162,11 +162,7 @@ void srd_check_reserved(void)
         long del_space = 0;
         if ((long)avail_space < srd_reserved_space)
         {
-            long del_space = srd_reserved_space - avail_space;
-            if (del_space > srd_info_json["assigned"].ToInt())
-            {
-                del_space = srd_info_json["assigned"].ToInt();
-            }
+            del_space = std::min((long)(srd_reserved_space - avail_space), (long)srd_info_json["assigned"].ToInt());
         }
 
         // Do remove
