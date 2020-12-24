@@ -132,11 +132,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     // Compute srd root hash
     size_t srd_workload;
     sgx_sha256_hash_t srd_root;
-    size_t g_hashs_num = 0;
-    for (auto it : wl->srd_path2hashs_m)
-    {
-        g_hashs_num += it.second.size();
-    }
+    size_t g_hashs_num = wl->srd_hashs.size();
     if (g_hashs_num > 0)
     {
         uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
@@ -147,13 +143,10 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
             goto cleanup;
         }
         size_t hashs_offset = 0;
-        for (auto it : wl->srd_path2hashs_m)
+        for (auto g_hash : wl->srd_hashs)
         {
-            for (auto g_hash : it.second)
-            {
-                memcpy(hashs + hashs_offset, g_hash, HASH_LENGTH);
-                hashs_offset += HASH_LENGTH;
-            }
+            memcpy(hashs + hashs_offset, g_hash, HASH_LENGTH);
+            hashs_offset += HASH_LENGTH;
         }
         // Generate srd information
         srd_workload = g_hashs_num * 1024 * 1024 * 1024;

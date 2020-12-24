@@ -5,7 +5,8 @@
 
 using namespace std;
 
-crust_status_t _storage_seal_file(const char *cid, 
+crust_status_t _storage_seal_file(const char *root_cid, 
+                                  const char *cid,
                                   size_t &sealed_size, 
                                   size_t &origin_size, 
                                   size_t &block_num, 
@@ -13,7 +14,6 @@ crust_status_t _storage_seal_file(const char *cid,
                                   size_t *sealed_buffer_offset, 
                                   json::JSON &tree);
 
-void clean_remaining_sealed_block(json::JSON &tree);
 int check_file_dup(std::string cid);
 
 /**
@@ -49,7 +49,7 @@ crust_status_t storage_seal_file(const char *cid)
     size_t origin_size = 0;
     size_t block_num = 0;
     json::JSON tree_json;
-    crust_status = _storage_seal_file(cid, sealed_size, origin_size, block_num, NULL, NULL, tree_json);
+    crust_status = _storage_seal_file(cid, cid, sealed_size, origin_size, block_num, NULL, NULL, tree_json);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -151,7 +151,8 @@ crust_status_t storage_seal_file(const char *cid)
  * @param tree -> Reference to current node
  * @return: Seal status
  */
-crust_status_t _storage_seal_file(const char *cid,
+crust_status_t _storage_seal_file(const char *root_cid,
+                                  const char *cid,
                                   size_t &sealed_size,
                                   size_t &origin_size, 
                                   size_t &block_num, 
@@ -165,6 +166,14 @@ crust_status_t _storage_seal_file(const char *cid,
     // Frist loop
     if (sealed_buffer == NULL)
     {
+        // Delete previous directory
+        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE);
+        // Create directory for sealed file
+        ocall_create_dir(&crust_status, root_cid, STORE_TYPE_FILE);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return CRUST_UNEXPECTED_ERROR;
+        }
         tree[MT_LINKS] = json::Array();
         tree[MT_CID] = std::string(cid);
         is_first = true;
@@ -225,9 +234,9 @@ crust_status_t _storage_seal_file(const char *cid,
         }
         sgx_sha256_hash_t sealed_hash;
         sgx_sha256_msg(p_sealed_data, sealed_data_size, &sealed_hash);
+        std::string sealed_path = std::string(root_cid) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
         // Add sealed data to ipfs and get related cid
-        char n_cid[CID_LENGTH];
-        ocall_ipfs_add(&crust_status, p_sealed_data, sealed_data_size, n_cid, CID_LENGTH);
+        ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_FILE);
         free(p_sealed_data);
         if (CRUST_SUCCESS != crust_status)
         {
@@ -237,7 +246,6 @@ crust_status_t _storage_seal_file(const char *cid,
         }
         json::JSON sub_tree;
         sub_tree[MT_DATA_HASH] = hexstring_safe(reinterpret_cast<uint8_t *>(&sealed_hash), HASH_LENGTH);
-        sub_tree[MT_DATA_CID] = std::string(n_cid, CID_LENGTH);
         tree[MT_LINKS].append(sub_tree);
         sealed_size += sealed_data_size;
         origin_size += *sealed_buffer_offset;
@@ -265,7 +273,8 @@ crust_status_t _storage_seal_file(const char *cid,
     for (size_t i = 0; i < children_hashs.size(); i++)
     {
         std::string child_cid = hash_to_cid(children_hashs[i]);
-        crust_status = _storage_seal_file(child_cid.c_str(), sealed_size, origin_size, block_num, sealed_buffer, sealed_buffer_offset, tree);
+        crust_status = _storage_seal_file(root_cid, child_cid.c_str(), sealed_size, origin_size, 
+                block_num, sealed_buffer, sealed_buffer_offset, tree);
         if (CRUST_SUCCESS != crust_status)
         {
             log_err("Seal sub data failed!Error code:%lx\n", crust_status);
@@ -299,9 +308,9 @@ crust_status_t _storage_seal_file(const char *cid,
             }
             sgx_sha256_hash_t sealed_hash;
             sgx_sha256_msg(reinterpret_cast<const uint8_t *>(p_sealed_data), sealed_data_size, &sealed_hash);
+            std::string sealed_path = std::string(root_cid) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
             // Add sealed data to ipfs and get related cid
-            char n_cid[CID_LENGTH];
-            ocall_ipfs_add(&crust_status, p_sealed_data, sealed_data_size, n_cid, CID_LENGTH);
+            ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_FILE);
             free(p_sealed_data);
             if (CRUST_SUCCESS != crust_status)
             {
@@ -309,7 +318,6 @@ crust_status_t _storage_seal_file(const char *cid,
             }
             json::JSON sub_tree;
             sub_tree[MT_DATA_HASH] = hexstring_safe(reinterpret_cast<uint8_t *>(&sealed_hash), HASH_LENGTH);
-            sub_tree[MT_DATA_CID] = std::string(n_cid, CID_LENGTH);
             tree[MT_LINKS].append(sub_tree);
             sealed_size += sealed_data_size;
             origin_size += *sealed_buffer_offset;
@@ -357,7 +365,8 @@ crust_status_t _storage_seal_file(const char *cid,
         // If seal failed, delete sealed file block
         if (CRUST_SUCCESS != crust_status)
         {
-            clean_remaining_sealed_block(tree);
+            ocall_ipfs_del(&crust_status, root_cid);
+            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE);
         }
 
         free(sealed_buffer);
@@ -477,30 +486,6 @@ crust_status_t storage_delete_file(const char *cid)
 }
 
 /**
- * @description: Clean sealed file blocks
- * @param tree -> Reference to json tree node
- */
-void clean_remaining_sealed_block(json::JSON &tree)
-{
-    if (tree.hasKey(MT_CID))
-    {
-        crust_status_t crust_status = CRUST_SUCCESS;
-        ocall_ipfs_del(&crust_status, tree[MT_CID].ToString().c_str());
-    }
-
-    if (tree.hasKey(MT_DATA_CID))
-    {
-        crust_status_t crust_status = CRUST_SUCCESS;
-        ocall_ipfs_del(&crust_status, tree[MT_DATA_CID].ToString().c_str());
-    }
-
-    for (int i = 0; i < tree[MT_LINKS].size(); i++)
-    {
-        clean_remaining_sealed_block(tree[MT_LINKS][i]);
-    }
-}
-
-/**
  * @description: Check if to be sealed file is duplicated
  * @param cid -> IPFS content id
  * @return: 0 -> duplicated
@@ -578,6 +563,35 @@ crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std:
     }
 
     return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Storage get file data
+ * @param path -> File path
+ * @param p_data -> Pointer to pointer file data
+ * @param data_size -> Pointer to data size
+ * @return: Get result
+ */
+crust_status_t storage_get_file(const char *path, uint8_t **p_data, size_t *data_size)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    ocall_get_file(&crust_status, path, p_data, data_size, STORE_TYPE_FILE);
+
+    uint8_t *p_sealed_data = (uint8_t *)enc_malloc(*data_size);
+    if (p_sealed_data == NULL)
+    {
+        ocall_free_outer_buffer(&crust_status, p_data);
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(p_sealed_data, 0, *data_size);
+    memcpy(p_sealed_data, *p_data, *data_size);
+
+    ocall_free_outer_buffer(&crust_status, p_data);
+
+    *p_data = p_sealed_data;
+
+    return crust_status;
 }
 
 /**

@@ -11,7 +11,7 @@
 // For enclave metadata
 #define ID_METADATA "metadata"
 #define ID_FILE "files"
-#define ID_WORKLOAD "workload"
+#define ID_SRD "srd"
 #define ID_KEY_PAIR "id_key_pair"
 #define ID_PRE_PUB_KEY "pre_pub_key"
 #define ID_REPORT_HEIGHT "report_height"
@@ -48,7 +48,6 @@
 
 // For Merkle tree
 #define MT_CID "cid"
-#define MT_DATA_CID "d_cid"
 #define MT_HASH "hash"
 #define MT_DATA_HASH "d_hash"
 #define MT_LINKS "links"
@@ -81,7 +80,7 @@
 
 // For workload
 #define WL_SRD "srd"
-#define WL_SRD_DETAIL "detail"
+#define WL_SRD_ASSIGNED "assigned"
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
 #define WL_SRD_REMAINING_TASK "remaining_task"
@@ -131,5 +130,11 @@ typedef enum _enc_upgrade_status_t {
     ENC_UPGRADE_STATUS_PROCESS,
     ENC_UPGRADE_STATUS_SUCCESS,
 } enc_upgrade_status_t;
+
+typedef enum _store_type_t {
+    STORE_TYPE_REGULAR,
+    STORE_TYPE_SRD,
+    STORE_TYPE_FILE,
+} store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

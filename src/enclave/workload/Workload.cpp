@@ -40,15 +40,12 @@ Workload::Workload()
  */
 Workload::~Workload()
 {
-    for (auto it : this->srd_path2hashs_m)
+    for (auto g_hash : this->srd_hashs)
     {
-        for (auto g_hash : it.second)
-        {
-            if (g_hash != NULL)
-                free(g_hash);
-        }
+        if (g_hash != NULL)
+            free(g_hash);
     }
-    this->srd_path2hashs_m.clear();
+    this->srd_hashs.clear();
 }
 
 /**
@@ -64,7 +61,7 @@ std::string Workload::get_workload(void)
     wl_json[WL_FILES] = this->wl_spec_info;
     sgx_thread_mutex_unlock(&wl_spec_info_mutex);
     // Srd info
-    wl_json[WL_SRD][WL_SRD_DETAIL] = this->get_srd_info();
+    wl_json[WL_SRD][WL_SRD_ASSIGNED] = this->get_srd_info()[WL_SRD_ASSIGNED].ToInt();
     wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_task();
 
     std::string wl_str = wl_json.dump();
@@ -81,16 +78,12 @@ std::string Workload::get_workload(void)
  */
 void Workload::clean_srd_buffer()
 {
-    // Clean srd_path2hashs_m
-    for (auto it : this->srd_path2hashs_m)
+    for (auto g_hash : this->srd_hashs)
     {
-        for (auto g_hash : it.second)
-        {
-            if (g_hash != NULL)
-                free(g_hash);
-        }
+        if (g_hash != NULL)
+            free(g_hash);
     }
-    this->srd_path2hashs_m.clear();
+    this->srd_hashs.clear();
 }
 
 /**
@@ -100,36 +93,27 @@ void Workload::clean_srd_buffer()
 json::JSON Workload::gen_workload_info()
 {
     // Generate srd information
-    long g_num = 0;
     sgx_sha256_hash_t srd_root;
     json::JSON ans;
-    if (this->srd_path2hashs_m.size() == 0)
+    if (this->srd_hashs.size() == 0)
     {
         memset(&srd_root, 0, sizeof(sgx_sha256_hash_t));
         ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
     }
     else
     {
-        for (auto it : this->srd_path2hashs_m)
-        {
-            g_num += it.second.size();
-        }
-        uint8_t *g_hashs = (uint8_t *)enc_malloc(g_num * HASH_LENGTH);
+        uint8_t *g_hashs = (uint8_t *)enc_malloc(this->srd_hashs.size() * HASH_LENGTH);
         if (g_hashs == NULL)
         {
             return ans;
         }
-        memset(g_hashs, 0, g_num * HASH_LENGTH);
-        size_t g_hashs_len = 0;
-        for (auto it : this->srd_path2hashs_m)
+        memset(g_hashs, 0, this->srd_hashs.size() * HASH_LENGTH);
+        size_t g_hashs_len = this->srd_hashs.size() * HASH_LENGTH;
+        for (auto g_hash : this->srd_hashs)
         {
-            for (auto g_hash : it.second)
-            {
-                memcpy(g_hashs + g_hashs_len, g_hash, HASH_LENGTH);
-                g_hashs_len += HASH_LENGTH;
-            }
+            memcpy(g_hashs + g_hashs_len, g_hash, HASH_LENGTH);
         }
-        ans[WL_SRD_SPACE] = g_num * 1024 * 1024 * 1024;
+        ans[WL_SRD_SPACE] = this->srd_hashs.size() * 1024 * 1024 * 1024;
         sgx_sha256_msg(g_hashs, (uint32_t)g_hashs_len, &srd_root);
         free(g_hashs);
         ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
@@ -171,7 +155,7 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
     sl.lock();
     
     // Calculate srd space
-    size_t srd_size = id_get_srd_buffer_size(this->srd_path2hashs_m);
+    size_t srd_size = id_get_srd_buffer_size(this->srd_hashs);
     uint8_t *srd_buffer = (uint8_t *)enc_malloc(srd_size);
     if (srd_buffer == NULL)
     {
@@ -180,40 +164,24 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
     memset(srd_buffer, 0, srd_size);
 
     // Copy srd information to buffer
-    size_t i = 0;
     size_t srd_offset = 0;
-    memcpy(srd_buffer, "{", 1);
+    memcpy(srd_buffer, "[", 1);
     srd_offset += 1;
-    for (auto it = this->srd_path2hashs_m.begin(); it != this->srd_path2hashs_m.end(); it++, i++)
+    for (size_t i = 0; i < this->srd_hashs.size(); i++)
     {
-        std::string tmp1 = "\"" + it->first + "\":[";
-        memcpy(srd_buffer + srd_offset, tmp1.c_str(), tmp1.size());
-        srd_offset += tmp1.size();
-        for (size_t j = 0; j < it->second.size(); j++)
+        std::string tmp = "\"" + hexstring_safe(this->srd_hashs[i], HASH_LENGTH) + "\"";
+        if (i != this->srd_hashs.size() - 1)
         {
-            std::string tmp2 = "\"" + hexstring_safe(it->second[j], HASH_LENGTH) + "\"";
-            if (j != it->second.size() - 1)
-            {
-                tmp2.append(",");
-            }
-            memcpy(srd_buffer + srd_offset, tmp2.c_str(), tmp2.size());
-            srd_offset += tmp2.size();
+            tmp.append(",");
         }
-        std::string tmp3("]");
-        if (i != this->srd_path2hashs_m.size() - 1)
-        {
-            tmp3.append(",");
-        }
-        memcpy(srd_buffer + srd_offset, tmp3.c_str(), tmp3.size());
-        srd_offset += tmp3.size();
+        memcpy(srd_buffer + srd_offset, tmp.c_str(), tmp.size());
+        srd_offset += tmp.size();
     }
-    memcpy(srd_buffer + srd_offset, "}", 1);
+    memcpy(srd_buffer, "]", 1);
     srd_offset += 1;
     
     *p_data = srd_buffer;
     *data_size = srd_offset;
-
-    sl.unlock();
 
     return CRUST_SUCCESS;
 }
@@ -270,41 +238,23 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 crust_status_t Workload::restore_srd(json::JSON g_hashs)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
+    this->clean_srd_buffer();
+    
+    // Restore srd_hashs
+    for (auto it : g_hashs.ArrayRange())
+    {
+        std::string hex_g_hash = it.ToString();
+        uint8_t *g_hash = hex_string_to_bytes(hex_g_hash.c_str(), hex_g_hash.size());
+        if (g_hash == NULL)
+        {
+            this->clean_srd_buffer();
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        this->srd_hashs.push_back(g_hash);
+    }
 
-    // Clean srd_path2hashs_m
-    for (auto it : this->srd_path2hashs_m)
-    {
-        for (auto g_hash : it.second)
-        {
-            if (g_hash != NULL)
-                free(g_hash);
-        }
-    }
-    this->srd_path2hashs_m.clear(); // Clear current srd_path2hashs_m
-    // Restore g_hashs
-    auto p_obj = g_hashs.ObjectRange();
-    for (auto it = p_obj.begin(); it != p_obj.end(); it++)
-    {
-        for (int i = 0; i < it->second.size(); i++)
-        {
-            std::string hex_g_hash = it->second[i].ToString();
-            uint8_t *g_hash = hex_string_to_bytes(hex_g_hash.c_str(), hex_g_hash.size());
-            if (g_hash == NULL)
-            {
-                clean_srd_buffer();
-                return CRUST_UNEXPECTED_ERROR;
-            }
-            this->srd_path2hashs_m[it->first].push_back(g_hash);
-        }
-    }
     // Restore srd info
-    for (auto it : this->srd_path2hashs_m)
-    {
-        if (0 != it.second.size())
-        {
-            this->srd_info_json[it.first]["assigned"] = it.second.size();
-        }
-    }
+    this->srd_info_json["assigned"] = this->srd_hashs.size();
 
     return crust_status;
 }
@@ -352,13 +302,13 @@ bool Workload::get_report_file_flag()
  * @param path -> Changed path
  * @param change -> Change number
  */
-void Workload::set_srd_info(std::string path, long change)
+void Workload::set_srd_info(long change)
 {
     sgx_thread_mutex_lock(&this->srd_info_mutex);
-    this->srd_info_json[path]["assigned"] = this->srd_info_json[path]["assigned"].ToInt() + change;
-    if (this->srd_info_json[path]["assigned"].ToInt() <= 0)
+    this->srd_info_json["assigned"] = this->srd_info_json["assigned"].ToInt() + change;
+    if (this->srd_info_json["assigned"].ToInt() <= 0)
     {
-        this->srd_info_json.ObjectRange().object->erase(path);
+        this->srd_info_json["assigned"] = 0;
     }
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 }
@@ -704,11 +654,11 @@ bool Workload::report_has_validated_proof()
  * @param index -> Srd index in indicated path
  * @return: Add result
  */
-bool Workload::add_srd_to_deleted_buffer(std::string path, uint32_t index)
+bool Workload::add_srd_to_deleted_buffer(uint32_t index)
 {
-    sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
-    auto ret_val = this->srd_del_path2idx_um[path].insert(index);
-    sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+    sgx_thread_mutex_lock(&this->srd_del_idx_mutex);
+    auto ret_val = this->srd_del_idx_s.insert(index);
+    sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
 
     return ret_val.second;
 }
@@ -719,18 +669,18 @@ bool Workload::add_srd_to_deleted_buffer(std::string path, uint32_t index)
  * @param index -> Srd index in indicated path
  * @return: Added to deleted buffer or not
  */
-bool Workload::is_srd_in_deleted_buffer(std::string path, uint32_t index)
+bool Workload::is_srd_in_deleted_buffer(uint32_t index)
 {
-    sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
-    bool ret = (this->srd_del_path2idx_um[path].find(index) != this->srd_del_path2idx_um[path].end());
-    sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+    sgx_thread_mutex_lock(&this->srd_del_idx_mutex);
+    bool ret = (this->srd_del_idx_s.find(index) != this->srd_del_idx_s.end());
+    sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
 
     return ret;
 }
 
 /**
  * @description: Delete invalid srd from metadata
- * @param locked -> Lock srd_path2hashs_m or not
+ * @param locked -> Lock srd_hashs or not
  */
 void Workload::deal_deleted_srd(bool locked)
 {
@@ -740,41 +690,16 @@ void Workload::deal_deleted_srd(bool locked)
         sgx_thread_mutex_lock(&this->srd_mutex);
     }
 
-    sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
-    std::unordered_map<std::string, std::set<uint32_t>> tmp_del_path2idx_um;
+    sgx_thread_mutex_lock(&this->srd_del_idx_mutex);
+    std::set<uint32_t> tmp_del_idx_s;
     // Put to be deleted srd to a buffer map and clean the old one
-    tmp_del_path2idx_um.insert(this->srd_del_path2idx_um.begin(), this->srd_del_path2idx_um.end());
-    this->srd_del_path2idx_um.clear();
-    sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+    tmp_del_idx_s.insert(this->srd_del_idx_s.begin(), this->srd_del_idx_s.end());
+    this->srd_del_idx_s.clear();
+    sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
 
-    for (auto path2idx : tmp_del_path2idx_um)
-    {
-        std::string del_dir = path2idx.first;
-        std::set<uint32_t> *deleted_idx = &path2idx.second;
-        if (this->srd_path2hashs_m.find(del_dir) != this->srd_path2hashs_m.end())
-        {
-            size_t del_num = 0;
-            std::vector<uint8_t *> *p_hashs = &this->srd_path2hashs_m[del_dir];
-            for (auto index_rit = deleted_idx->rbegin(); index_rit != deleted_idx->rend(); index_rit++)
-            {
-                if (*index_rit < p_hashs->size())
-                {
-                    if ((*p_hashs)[*index_rit] != NULL)
-                    {
-                        free((*p_hashs)[*index_rit]);
-                    }
-                    p_hashs->erase(p_hashs->begin() + *index_rit);
-                    del_num++;
-                    if (0 == p_hashs->size())
-                    {
-                        this->srd_path2hashs_m.erase(del_dir);
-                        break;
-                    }
-                }
-            }
-            this->set_srd_info(del_dir, -del_num);
-        }
-    }
+    // Delete hashs
+    long del_num = this->delete_srd_meta(tmp_del_idx_s);
+    this->set_srd_info(-del_num);
 
     if (locked)
     {

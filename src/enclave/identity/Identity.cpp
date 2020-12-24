@@ -711,7 +711,7 @@ size_t id_get_metadata_title_size()
 {
     Workload *wl = Workload::get_instance();
     return strlen(SWORKER_PRIVATE_TAG) + 5
-           + strlen(ID_WORKLOAD) + 5
+           + strlen(ID_SRD) + 5
            + strlen(ID_KEY_PAIR) + 3 + 256 + 3
            + strlen(ID_REPORT_HEIGHT) + 3 + 20 + 1
            + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
@@ -721,19 +721,12 @@ size_t id_get_metadata_title_size()
 
 /**
  * @description: Get srd buffer size
- * @param srd_path2hashs_m -> Reference to srd metedata
+ * @param srd_hashs -> Reference to srd metedata
  * @return: Buffer size
  */
-size_t id_get_srd_buffer_size(std::map<std::string, std::vector<uint8_t *>> &srd_path2hashs_m)
+size_t id_get_srd_buffer_size(std::vector<uint8_t *> &srd_hashs)
 {
-    size_t ret = 0;
-    for (auto it : srd_path2hashs_m)
-    {
-        ret += it.first.size() + 10;
-        ret += it.second.size() * (HASH_LENGTH * 2 + 3);
-    }
-
-    return ret;
+    return srd_hashs.size() * (HASH_LENGTH * 2 + 3) + 10;
 }
 
 /**
@@ -787,15 +780,18 @@ crust_status_t id_store_metadata()
     // ----- Calculate metadata volumn ----- //
     // Get srd data copy
     sgx_thread_mutex_lock(&wl->srd_mutex);
-    std::map<std::string, std::vector<uint8_t *>> srd_path2hashs_m;
-    srd_path2hashs_m.insert(wl->srd_path2hashs_m.begin(), wl->srd_path2hashs_m.end());
+    std::vector<uint8_t *> srd_hashs;
+    srd_hashs.insert(srd_hashs.end(), wl->srd_hashs.begin(), wl->srd_hashs.end());
     sgx_thread_mutex_unlock(&wl->srd_mutex);
+
     // Get file data copy
     sgx_thread_mutex_lock(&wl->file_mutex);
     std::vector<json::JSON> sealed_files;
     sealed_files.insert(sealed_files.end(), wl->sealed_files.begin(), wl->sealed_files.end());
     sgx_thread_mutex_unlock(&wl->file_mutex);
-    size_t meta_len = id_get_srd_buffer_size(srd_path2hashs_m)
+    
+    // Get meta buffer
+    size_t meta_len = id_get_srd_buffer_size(srd_hashs)
                     + id_get_file_buffer_size(sealed_files)
                     + id_get_metadata_title_size();
     uint8_t *meta_buf = (uint8_t *)enc_malloc(meta_len);
@@ -812,39 +808,25 @@ crust_status_t id_store_metadata()
     offset += strlen(SWORKER_PRIVATE_TAG);
     memcpy(meta_buf + offset, "{", 1);
     offset += 1;
+
     // Append srd
     std::string wl_title;
-    wl_title.append("\"").append(ID_WORKLOAD).append("\":{");
+    wl_title.append("\"").append(ID_SRD).append("\":[");
     memcpy(meta_buf + offset, wl_title.c_str(), wl_title.size());
     offset += wl_title.size();
-    size_t i = 0;
-    for (auto it = srd_path2hashs_m.begin(); it != srd_path2hashs_m.end(); it++, i++)
+    for (size_t i = 0; i < wl->srd_hashs.size(); i++)
     {
-        std::string path_title;
-        path_title.append("\"").append(it->first).append("\":[");
-        memcpy(meta_buf + offset, path_title.c_str(), path_title.size());
-        offset += path_title.size();
-        for (size_t j = 0; j < it->second.size(); j++)
-        {
-            std::string hash_str;
-            hash_str.append("\"").append(hexstring_safe(it->second[j], HASH_LENGTH)).append("\"");
-            memcpy(meta_buf + offset, hash_str.c_str(), hash_str.size());
-            offset += hash_str.size();
-            if (j != it->second.size() - 1)
-            {
-                memcpy(meta_buf + offset, ",", 1);
-                offset += 1;
-            }
-        }
-        memcpy(meta_buf + offset, "]", 1);
-        offset += 1;
-        if (i != srd_path2hashs_m.size() - 1)
+        std::string hash_str;
+        hash_str.append("\"").append(hexstring_safe(wl->srd_hashs[i], HASH_LENGTH)).append("\"");
+        memcpy(meta_buf + offset, hash_str.c_str(), hash_str.size());
+        offset += hash_str.size();
+        if (i != wl->srd_hashs.size() - 1)
         {
             memcpy(meta_buf + offset, ",", 1);
             offset += 1;
         }
     }
-    memcpy(meta_buf + offset, "},", 2);
+    memcpy(meta_buf + offset, "],", 2);
     offset += 2;
     // Append id key pair
     std::string key_pair_str;
@@ -959,10 +941,10 @@ crust_status_t id_restore_metadata()
         free(p_wl_spec);
     }
     // Restore srd
-    if (meta_json.hasKey(ID_WORKLOAD)
-            && meta_json[ID_WORKLOAD].JSONType() == json::JSON::Class::Object)
+    if (meta_json.hasKey(ID_SRD)
+            && meta_json[ID_SRD].JSONType() == json::JSON::Class::Array)
     {
-        crust_status = wl->restore_srd(meta_json[ID_WORKLOAD]);
+        crust_status = wl->restore_srd(meta_json[ID_SRD]);
         if (CRUST_SUCCESS != crust_status)
         {
             return CRUST_BAD_SEAL_DATA;

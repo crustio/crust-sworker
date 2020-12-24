@@ -32,6 +32,8 @@ crust_status_t storage_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_
 
 crust_status_t storage_ipfs_add(uint8_t *p_data, size_t data_size, char **cid);
 
+crust_status_t storage_get_file(const char *path, uint8_t **p_data, size_t *data_size);
+
 #if defined(__cplusplus)
 }
 #endif
