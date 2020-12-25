@@ -10,14 +10,14 @@ using namespace std;
  * @description: Seal one G srd files under directory, can be called from multiple threads
  * @param path (in) -> the directory path
  */
-void ecall_srd_increase(const char* path)
+void ecall_srd_increase()
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
 
-    srd_increase(path);
+    srd_increase();
 }
 
 /**
@@ -25,7 +25,7 @@ void ecall_srd_increase(const char* path)
  * @param change -> reduction
  * @return: Deleted srd space
  */
-size_t ecall_srd_decrease(long change)
+size_t ecall_srd_decrease(size_t change)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
@@ -47,18 +47,18 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 }
 
 /**
- * @description: Update srd_path2hashs_m
+ * @description: Update srd_metadata
  * @param hashs (in) -> Pointer to the address of to be deleted hashs array
  * @param hashs_len -> Hashs array length
  */
-void ecall_srd_update_metadata(const char *hashs, size_t hashs_len)
+void ecall_srd_remove_space(size_t change)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
 
-    srd_update_metadata(hashs, hashs_len);
+    srd_remove_space(change);
 }
 
 /**

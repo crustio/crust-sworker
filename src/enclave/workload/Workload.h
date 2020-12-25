@@ -26,8 +26,7 @@ std::map<char, std::string> g_file_status = {
 class Workload
 {
 public:
-    std::map<std::string, std::vector<uint8_t*>> srd_path2hashs_m; // used to store all G srd file collection' hashs
-
+    std::vector<uint8_t*> srd_hashs; // used to store all G srd file collection' hashs
     std::vector<json::JSON> sealed_files; // Files have been added into checked queue
     std::set<size_t> reported_files_idx; // File indexes reported this turn of workreport
     sgx_ec256_public_t pre_pub_key; // Old version's public key
@@ -38,7 +37,7 @@ public:
     ~Workload();
     std::string get_workload(void);
     void clean_srd_buffer();
-    void set_srd_info(std::string path, long change);
+    void set_srd_info(long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info();
 
@@ -87,15 +86,41 @@ public:
     void set_report_height(size_t height);
     size_t get_report_height();
     // Srd related
-    bool add_srd_to_deleted_buffer(std::string path, uint32_t index);
+    bool add_srd_to_deleted_buffer(uint32_t index);
     template <class InputIterator>
-    void add_srd_to_deleted_buffer(std::string path, InputIterator begin, InputIterator end)
+    void add_srd_to_deleted_buffer(InputIterator begin, InputIterator end)
     {
-        sgx_thread_mutex_lock(&this->srd_del_path2idx_mutex);
-        this->srd_del_path2idx_um[path].insert(begin, end);
-        sgx_thread_mutex_unlock(&this->srd_del_path2idx_mutex);
+        sgx_thread_mutex_lock(&this->srd_del_idx_mutex);
+        this->srd_del_idx_s.insert(begin, end);
+        sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
     }
-    bool is_srd_in_deleted_buffer(std::string path, uint32_t index);
+    template <class InputContainer>
+    long delete_srd_meta(InputContainer &indexes)
+    {
+        if (indexes.size() == 0)
+        {
+            return 0;
+        }
+
+        long del_num = 0;
+    
+        for (auto rit = indexes.rbegin(); rit != indexes.rend(); rit++)
+        {
+            if (*rit < this->srd_hashs.size())
+            {
+                uint8_t *hash = this->srd_hashs[*rit];
+                if (hash != NULL)
+                {
+                    free(hash);
+                }
+                this->srd_hashs.erase(this->srd_hashs.begin() + *rit);
+                del_num++;
+            }
+        }
+
+        return del_num;
+    }
+    bool is_srd_in_deleted_buffer(uint32_t index);
     void deal_deleted_srd(bool locked = true);
     // File related
     bool add_to_deleted_file_buffer(uint32_t index);
@@ -135,10 +160,10 @@ private:
     enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE; // Initial value indicates no upgrade
     json::JSON wl_spec_info; // For workload statistics
     sgx_thread_mutex_t wl_spec_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-    // Deleted srd map, first map's key is path, second map key is srd index in metadata while the value indicates whether
+    // Deleted srd index in metadata while the value indicates whether
     // this srd metadata has been deleted by other thread
-    std::unordered_map<std::string, std::set<uint32_t>> srd_del_path2idx_um;
-    sgx_thread_mutex_t srd_del_path2idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
+    std::set<uint32_t> srd_del_idx_s;
+    sgx_thread_mutex_t srd_del_idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
     std::set<uint32_t> file_del_idx_s;
     sgx_thread_mutex_t file_del_idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
 };

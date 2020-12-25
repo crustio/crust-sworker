@@ -6,15 +6,16 @@ enclave {
     include "MerkleTree.h"
     include "CrustStatus.h"
 	include "IASReport.h"
+	include "Parameter.h"
 
     from "sgx_tstdc.edl" import sgx_thread_wait_untrusted_event_ocall, sgx_thread_set_untrusted_event_ocall, sgx_thread_setwait_untrusted_events_ocall, sgx_thread_set_multiple_untrusted_events_ocall;
     from "sgx_tsgxssl.edl" import *;
 
     trusted {
         // Srd ecalls for srd files
-        public void ecall_srd_increase([in, string] const char* path);
-        public size_t ecall_srd_decrease(long change);  
-        public void ecall_srd_update_metadata([in, size=hashs_len] const char *hashs, size_t hashs_len);
+        public void ecall_srd_increase();
+        public size_t ecall_srd_decrease(size_t change);  
+        public void ecall_srd_remove_space(size_t change);
         public crust_status_t ecall_change_srd_task(long change, [out] long *real_change);
 
         public void ecall_main_loop();
@@ -48,11 +49,11 @@ enclave {
         void ocall_log_warn([in, string] const char *str);
         void ocall_log_err([in, string] const char *str);
         void ocall_log_debug([in, string] const char *str);
-        crust_status_t ocall_create_dir([in, string] const char *path);
-        crust_status_t ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path);
-        crust_status_t ocall_save_file([in, string] const char *file_path, [in, size=len] const unsigned char *data, size_t len);
-        crust_status_t ocall_delete_folder_or_file([in, string] const char *path);
-        crust_status_t ocall_get_file([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);
+        crust_status_t ocall_create_dir([in, string] const char *path, store_type_t type);
+        crust_status_t ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path, store_type_t type);
+        crust_status_t ocall_save_file([in, string] const char *file_path, [in, size=len] const uint8_t *data, size_t len, store_type_t type);
+        crust_status_t ocall_delete_folder_or_file([in, string] const char *path, store_type_t type);
+        crust_status_t ocall_get_file([in, string] const char *file_path, [out] uint8_t **p_file, [out] size_t *len, store_type_t type);
         void ocall_usleep(int u);
         crust_status_t ocall_chain_get_block_info([out, size=data_size] char *data, size_t data_size);
 

@@ -1,7 +1,5 @@
 #include "IpfsOCalls.h"
 
-void delete_validated_tree(json::JSON &tree);
-
 crust::Log *p_log = crust::Log::get_instance();
 
 /**	
@@ -104,45 +102,12 @@ crust_status_t ocall_ipfs_del_all(const char *cid)
         return CRUST_UNEXPECTED_ERROR;
     }
 
-    // Delete related ipfs data
-    json::JSON tree = json::JSON::Load(tree_str);
-    delete_validated_tree(tree);
+    // Delete sealed file data
+    std::string sealed_file_path = Config::get_instance()->file_path + "/" + cid;
+    rm_dir(sealed_file_path);
 
     // Delete statistics information
     EnclaveData::get_instance()->del_sealed_file_info(cid);
 
     return CRUST_SUCCESS;
-}
-
-/**
- * @description: Delete validated merkle tree
- * @param tree -> Reference to tree json
- */
-void delete_validated_tree(json::JSON &tree)
-{
-    std::string cid;
-    if (tree.hasKey(MT_DATA_CID))
-    {
-        cid = tree[MT_DATA_CID].ToString();
-    }
-    else if (tree.hasKey(MT_CID))
-    {
-        cid = tree[MT_CID].ToString();
-    }
-    else
-    {
-        return;
-    }
-
-    // Delete current data
-    if (!Ipfs::get_instance()->del(cid))
-    {
-        p_log->warn("Cannot delete file(cid:%s)!\n", cid.c_str());
-    }
-
-    // Delete children's data
-    for (int i = 0; i < tree[MT_LINKS].size(); i++)
-    {
-        delete_validated_tree(tree[MT_LINKS][i]);
-    }
 }
