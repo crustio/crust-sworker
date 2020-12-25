@@ -547,7 +547,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 memset(ret_info_buffer, 0, 512);
                 if (SGX_SUCCESS != (sgx_status = Ecall_delete_file(global_eid, &crust_status, cid.c_str())))
                 {
-                    sprintf(ret_info_buffer, "Delete file '%s' failed! Invoke SGX API failed! Error code:%d", cid.c_str(), sgx_status);
+                    sprintf(ret_info_buffer, "Delete file '%s' failed! Invoke SGX API failed! Error code:%lx", cid.c_str(), (long unsigned int)sgx_status);
                     ret_info.append(ret_info_buffer);
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 500;
@@ -607,7 +607,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 memset(ret_info_buffer, 0, 512);
                 if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str())))
                 {
-                    sprintf(ret_info_buffer, "Seal file '%s' failed! Invoke SGX API failed! Error code:%d", cid.c_str(), sgx_status);
+                    sprintf(ret_info_buffer, "Seal file '%s' failed! Invoke SGX API failed! Error code:%lx", cid.c_str(), (long unsigned int)sgx_status);
                     ret_info.append(ret_info_buffer);
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 500;
@@ -641,8 +641,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         p_log->info("%s\n", ret_info.c_str());
                         ret_code = 200;
                         break;
+                    case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
+                        sprintf(ret_info_buffer, "Seal file '%s' failed! Can't get block from ipfs", cid.c_str());
+                        ret_info.append(ret_info_buffer);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 404;
+                        break;
                     default:
-                        sprintf(ret_info_buffer, "Seal file '%s' failed! Unexpected error, error code:%d", cid.c_str(), crust_status);
+                        sprintf(ret_info_buffer, "Seal file '%s' failed! Unexpected error, error code:%lx", cid.c_str(), (long unsigned int)crust_status);
                         ret_info.append(ret_info_buffer);
                         p_log->err("%s\n", ret_info.c_str());
                         ret_code = 500;
