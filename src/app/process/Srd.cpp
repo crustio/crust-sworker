@@ -114,7 +114,7 @@ void srd_change(long change)
 
         if (srd_success_num < true_increase)
         {
-            p_log->info("Srd task: %dG, success: %dG, failed: %dG due to timeout or no more disk space.\n", 
+            p_log->info("Srd task: %dG, success: %dG, left: %dG.\n", 
                     true_increase, srd_success_num, true_increase - srd_success_num);
         }
         else
