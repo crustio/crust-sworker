@@ -567,7 +567,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 else
                 {
-                    sprintf(ret_info_buffer, "Unexpected error: %d", crust_status);
+                    sprintf(ret_info_buffer, "Unexpected error: %lx", (long unsigned int)crust_status);
                     ret_info.append(ret_info_buffer);
                     ret_code = 500;
                 }  
