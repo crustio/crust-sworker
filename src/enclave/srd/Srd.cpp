@@ -317,8 +317,9 @@ crust_status_t change_srd_task(long change, long *real_change)
     {
         Workload *wl = Workload::get_instance();
         sgx_thread_mutex_lock(&wl->srd_mutex);
-        size_t srd_num = wl->srd_hashs.size();
+        long srd_num = (long)wl->srd_hashs.size();
         sgx_thread_mutex_unlock(&wl->srd_mutex);
+        srd_num += get_srd_task();
 
         if (srd_num >= SRD_NUMBER_UPPER_LIMIT)
         {
