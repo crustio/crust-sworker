@@ -14,7 +14,6 @@
 #include "CrustStatus.h"
 #include "FormatUtils.h"
 #include "EnclaveData.h"
-#include "Async.h"
 
 void work_report_loop(void);
 

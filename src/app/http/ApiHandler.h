@@ -27,7 +27,6 @@
 #include "Common.h"
 #include "DataBase.h"
 #include "Srd.h"
-#include "Async.h"
 #include "EnclaveData.h"
 #include "Chain.h"
 
@@ -536,15 +535,42 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             // Check cid
             if (cid.size() != CID_LENGTH)
             {
-                ret_info = "Delete file failed!Invalid cid!";
+                ret_info = "Delete file failed! Invalid cid!";
                 p_log->err("%s\n", ret_info.c_str());
                 ret_code = 400;
             }
             else
             {
-                async_storage_delete(cid);
-                ret_info = "Deleting file task has beening added!";
-                ret_code = 200;
+                sgx_status_t sgx_status = SGX_SUCCESS;
+                crust_status_t crust_status = CRUST_SUCCESS;
+                char ret_info_buffer[512];
+                memset(ret_info_buffer, 0, 512);
+                if (SGX_SUCCESS != (sgx_status = Ecall_delete_file(global_eid, &crust_status, cid.c_str())))
+                {
+                    sprintf(ret_info_buffer, "Delete file '%s' failed! Invoke SGX API failed! Error code:%lx", cid.c_str(), (long unsigned int)sgx_status);
+                    ret_info.append(ret_info_buffer);
+                    p_log->err("%s\n", ret_info.c_str());
+                    ret_code = 500;
+                }
+                else if (CRUST_SUCCESS == crust_status)
+                {
+                    EnclaveData::get_instance()->del_sealed_file_info(cid);
+                    sprintf(ret_info_buffer, "Deleting file '%s' successfully", cid.c_str());
+                    ret_info.append(ret_info_buffer);
+                    ret_code = 200;
+                }
+                else if (CRUST_STORAGE_NEW_FILE_NOTFOUND == crust_status)
+                {
+                    sprintf(ret_info_buffer, "File '%s' doesn't in sworker", cid.c_str());
+                    ret_info.append(ret_info_buffer);
+                    ret_code = 404;
+                }
+                else
+                {
+                    sprintf(ret_info_buffer, "Unexpected error: %lx", (long unsigned int)crust_status);
+                    ret_info.append(ret_info_buffer);
+                    ret_code = 500;
+                }  
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;
             ret_body[HTTP_MESSAGE] = ret_info;
@@ -575,9 +601,66 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                async_storage_seal(cid);
-                ret_info = "Sealing file task has beening added!";
-                ret_code = 200;
+                sgx_status_t sgx_status = SGX_SUCCESS;
+                crust_status_t crust_status = CRUST_SUCCESS;
+                char ret_info_buffer[512];
+                memset(ret_info_buffer, 0, 512);
+                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str())))
+                {
+                    sprintf(ret_info_buffer, "Seal file '%s' failed! Invoke SGX API failed! Error code:%lx", cid.c_str(), (long unsigned int)sgx_status);
+                    ret_info.append(ret_info_buffer);
+                    p_log->err("%s\n", ret_info.c_str());
+                    ret_code = 500;
+                
+                }
+                else if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_SEAL_DATA_FAILED:
+                        sprintf(ret_info_buffer, "Seal file '%s' failed! Internal error: seal data failed", cid.c_str());
+                        ret_info.append(ret_info_buffer);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
+                    case CRUST_FILE_NUMBER_EXCEED:
+                        sprintf(ret_info_buffer, "Seal file '%s' failed! No more file can be sealed! File number reachs the upper limit", cid.c_str());
+                        ret_info.append(ret_info_buffer);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 400;
+                        break;
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        sprintf(ret_info_buffer, "Seal file '%s' stoped due to upgrade", cid.c_str());
+                        ret_info.append(ret_info_buffer);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 503;
+                        break;
+                    case CRUST_STORAGE_FILE_DUP:
+                        sprintf(ret_info_buffer, "This file '%s' has been sealed", cid.c_str());
+                        ret_info.append(ret_info_buffer);
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 200;
+                        break;
+                    case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
+                        sprintf(ret_info_buffer, "Seal file '%s' failed! Can't get block from ipfs", cid.c_str());
+                        ret_info.append(ret_info_buffer);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 404;
+                        break;
+                    default:
+                        sprintf(ret_info_buffer, "Seal file '%s' failed! Unexpected error, error code:%lx", cid.c_str(), (long unsigned int)crust_status);
+                        ret_info.append(ret_info_buffer);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                    }
+                }
+                else
+                {
+                    sprintf(ret_info_buffer, "Seal file '%s' successfully", cid.c_str());
+                    ret_info.append(ret_info_buffer);
+                    p_log->info("%s\n", ret_info.c_str());
+                    ret_code = 200;
+                }
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;
             ret_body[HTTP_MESSAGE] = ret_info;
