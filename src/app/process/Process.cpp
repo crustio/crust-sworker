@@ -626,6 +626,7 @@ entry_network_flag:
         if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
             // Release database
+            p_log->info("Release database for exit...\n");
             delete crust::DataBase::get_instance();
             goto cleanup;
         }

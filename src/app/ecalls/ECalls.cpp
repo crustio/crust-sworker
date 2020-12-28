@@ -47,6 +47,7 @@ std::unordered_set<std::string> g_upgrade_blocked_task_us = {
     "Ecall_srd_decrease",
     "Ecall_srd_increase",
     "Ecall_delete_file",
+    "Ecall_srd_remove_space",
 };
 // Record running task number
 int g_running_task_num;

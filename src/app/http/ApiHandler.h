@@ -171,7 +171,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         return send(std::move(res));
     }
 
-
     // ----- Respond to HEAD request ----- //
     if(req.method() == http::verb::head)
     {
@@ -181,7 +180,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         //res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
-
 
     // ----- Respond to GET request ----- //
     if(req.method() == http::verb::get)
@@ -199,6 +197,16 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             res.body() = EnclaveData::get_instance()->gen_workload();
+            goto getcleanup;
+        }
+
+        // ----- Stop sworker ----- //
+        cur_path = urlendpoint.base + "/stop";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            res.result(200);
+            res.body() = "{\"code\":200}";
+            ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
             goto getcleanup;
         }
 

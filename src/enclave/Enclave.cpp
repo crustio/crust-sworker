@@ -7,61 +7,6 @@
 using namespace std;
 
 /**
- * @description: Seal one G srd files under directory, can be called from multiple threads
- * @param path (in) -> the directory path
- */
-void ecall_srd_increase()
-{
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return;
-    }
-
-    srd_increase();
-}
-
-/**
- * @description: Decrease srd files under directory
- * @param change -> reduction
- * @return: Deleted srd space
- */
-size_t ecall_srd_decrease(size_t change)
-{
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return 0;
-    }
-
-    size_t ret = srd_decrease(change);
-
-    return ret;
-}
-
-/**
- * @description: Change srd number
- * @param change -> Will be changed srd number
- */
-crust_status_t ecall_change_srd_task(long change, long *real_change)
-{
-    return change_srd_task(change, real_change);
-}
-
-/**
- * @description: Update srd_metadata
- * @param hashs (in) -> Pointer to the address of to be deleted hashs array
- * @param hashs_len -> Hashs array length
- */
-void ecall_srd_remove_space(size_t change)
-{
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return;
-    }
-
-    srd_remove_space(change);
-}
-
-/**
  * @description: Ecall main loop
  */
 void ecall_main_loop()
@@ -100,6 +45,89 @@ void ecall_main_loop()
 
         ocall_usleep(MAIN_LOOP_WAIT_TIME);
     }
+}
+
+/************************************SRD****************************************/
+
+/**
+ * @description: Seal one G srd files under directory, can be called from multiple threads
+ * @param path (in) -> the directory path
+ */
+void ecall_srd_increase()
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
+    srd_increase();
+}
+
+/**
+ * @description: Decrease srd files under directory
+ * @param change -> reduction
+ * @return: Deleted srd space
+ */
+size_t ecall_srd_decrease(size_t change)
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return 0;
+    }
+
+    size_t ret = srd_decrease(change);
+
+    return ret;
+}
+
+/**
+ * @description: Change srd number
+ * @param change -> Will be changed srd number
+ */
+crust_status_t ecall_change_srd_task(long change, long *real_change)
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
+    return change_srd_task(change, real_change);
+}
+
+/**
+ * @description: Update srd_metadata
+ * @param hashs (in) -> Pointer to the address of to be deleted hashs array
+ * @param hashs_len -> Hashs array length
+ */
+void ecall_srd_remove_space(size_t change)
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
+    srd_remove_space(change);
+}
+
+/************************************System****************************************/
+
+/**
+ * @description: Stop enclave
+ * @return: Status
+ */
+crust_status_t ecall_stop_all()
+{
+    Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Restore enclave data from file
+ * @return: Restore status
+ */
+crust_status_t ecall_restore_metadata()
+{
+    return id_restore_metadata();
 }
 
 /**
@@ -183,6 +211,8 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
     return id_verify_and_upload_identity(IASReport, len);
 }
 
+/************************************Files****************************************/
+
 /**
  * @description: Seal file according to given path and return new MerkleTree
  * @param cid (in) -> Pointer to ipfs content id
@@ -234,6 +264,8 @@ crust_status_t ecall_delete_file(const char *cid)
     return ret;
 }
 
+/************************************Upgrade****************************************/
+
 /**
  * @description: Check if upgrade can be done right now
  * @param block_height -> Current block height
@@ -258,6 +290,7 @@ void ecall_disable_upgrade()
 {
     Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_NONE);
 }
+
 
 /**
  * @description: Generate upgrade data
@@ -286,6 +319,8 @@ crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, siz
 
     return id_restore_from_upgrade(meta, meta_len, total_size, transfer_end);
 }
+
+/************************************Tools****************************************/
 
 /**
  * @description: Get enclave id information

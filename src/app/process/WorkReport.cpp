@@ -53,6 +53,7 @@ void work_report_loop(void)
     {
         if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
+            p_log->info("Stop work report for exit...\n");
             break;
         }
 
@@ -100,8 +101,19 @@ void work_report_loop(void)
 
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header.number + (wait_time / BLOCK_INTERVAL) + 1);
             block_header.number = (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
-            sleep(wait_time);
-
+            
+            // Wait
+            for (size_t i = 0; i < wait_time; i++)
+            {
+                if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+                {
+                    p_log->info("Stop work report for exit...\n");
+                    return;
+                }
+                
+                sleep(1);
+            }
+            
             // Get confirmed block hash
             block_header.hash = p_chain->get_block_hash(block_header.number);
             if (block_header.hash == "" || block_header.hash == "0000000000000000000000000000000000000000000000000000000000000000")

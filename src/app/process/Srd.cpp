@@ -144,6 +144,7 @@ void srd_check_reserved(void)
     {
         if (UPGRADE_STATUS_EXIT == EnclaveData::get_instance()->get_upgrade_status())
         {
+            p_log->info("Stop srd check reserved for exit...\n");
             break;
         }
 
