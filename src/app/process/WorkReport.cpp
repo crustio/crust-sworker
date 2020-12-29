@@ -17,6 +17,25 @@ size_t get_random_wait_time(std::string seed)
 }
 
 /**
+ * @description: Judge whether need to exit while waiting
+ * @return true for exiting
+ */
+bool wait_and_check_exit(size_t t)
+{
+    for (size_t i = 0; i < t; i++)
+    {
+        if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+        {
+            p_log->info("Stop work report for exit...\n");
+            return true;
+        }
+        sleep(1);
+    }
+
+    return false;
+}
+
+/**
  * @description: Check if there is enough height, send signed work report to chain
  */
 void work_report_loop(void)
@@ -103,14 +122,9 @@ void work_report_loop(void)
             block_header.number = (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
             
             // Wait
-            for (size_t i = 0; i < wait_time; i++)
+            if(wait_and_check_exit(wait_time))
             {
-                if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
-                {
-                    p_log->info("Stop work report for exit...\n");
-                    return;
-                }
-                sleep(1);
+                return;
             }
             
             // Get confirmed block hash
@@ -130,14 +144,9 @@ void work_report_loop(void)
             offline_base_height += REPORT_BLOCK_HEIGHT_BASE;
 
             // Wait
-            for (size_t i = 0; i < 60; i++)
+            if(wait_and_check_exit(60))
             {
-                if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
-                {
-                    p_log->info("Stop work report for exit...\n");
-                    return;
-                }
-                sleep(1);
+                return;
             }
         }
 
@@ -174,14 +183,9 @@ void work_report_loop(void)
             }
         }
     loop:
-        for (size_t i = 0; i < wr_wait_time; i++)
+        if(wait_and_check_exit(wr_wait_time))
         {
-            if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
-            {
-                p_log->info("Stop work report for exit...\n");
-                return;
-            }
-            sleep(1);
+            return;
         }
     }
 }
