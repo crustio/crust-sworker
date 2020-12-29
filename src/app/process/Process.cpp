@@ -578,21 +578,6 @@ entry_network_flag:
     // Check loop
     while (true)
     {
-        // Check if work threads still running
-        if (UPGRADE_STATUS_EXIT != ed->get_upgrade_status())
-        {
-            std::future_status f_status;
-            for (auto task : g_tasks_v)
-            {
-                f_status = task.first->wait_for(std::chrono::seconds(0));
-                if (f_status == std::future_status::ready)
-                {
-                    task.first = std::make_shared<std::future<void>>(std::async(
-                            std::launch::async, task.second));
-                }
-            }
-        }
-
         // Deal with upgrade
         if (UPGRADE_STATUS_PROCESS == ed->get_upgrade_status())
         {
@@ -640,11 +625,6 @@ entry_network_flag:
             // Exit
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
-                while (0 != get_all_running_ecalls_num())
-                {
-                    sleep(1);
-                }
-
                 // Release database
                 p_log->info("Release database for exit...\n");
                 delete crust::DataBase::get_instance();
