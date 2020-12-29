@@ -22,6 +22,7 @@ size_t get_random_wait_time(std::string seed)
  */
 bool wait_and_check_exit(size_t t)
 {
+    EnclaveData *ed = EnclaveData::get_instance();
     for (size_t i = 0; i < t; i++)
     {
         if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
