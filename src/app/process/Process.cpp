@@ -625,9 +625,25 @@ entry_network_flag:
             // Exit
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
-                // Release database
-                p_log->info("Release database for exit...\n");
-                delete crust::DataBase::get_instance();
+                // Wait tasks end
+                bool out_tasks_wait = false;
+                while (!out_tasks_wait)
+                {
+                    out_tasks_wait = true;
+                    std::future_status f_status;	
+                    for (auto task : g_tasks_v)	
+                    {
+                        f_status = task.first->wait_for(std::chrono::seconds(0));	
+                        if (f_status != std::future_status::ready)
+                        {
+                            out_tasks_wait = false;
+                            break;
+                        }
+                    }
+                    sleep(1);
+                }
+
+                // End
                 goto cleanup;
             }
             sleep(1);
@@ -635,6 +651,10 @@ entry_network_flag:
     }
 
 cleanup:
+    // Release database
+    p_log->info("Release database for exit...\n");
+    delete crust::DataBase::get_instance();
+
     // Stop web service
     p_log->info("Kill web service for exit...\n");
     stop_webservice();
@@ -643,11 +663,6 @@ cleanup:
     // TODO: Fix me, why destory enclave leads to coredump
     p_log->info("Destroy enclave for exit...\n");
     sgx_destroy_enclave(global_eid);
-
-    if (ed->get_upgrade_status() == UPGRADE_STATUS_EXIT)
-    {
-        exit(return_status);
-    }
 
     return return_status;
 }
