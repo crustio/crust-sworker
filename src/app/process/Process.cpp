@@ -625,11 +625,14 @@ entry_network_flag:
             // Exit
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
+                // Stop webservice
+                sleep(1);
+                stop_webservice();
+
                 // Wait tasks end
-                bool out_tasks_wait = false;
-                while (!out_tasks_wait)
+                while (true)
                 {
-                    out_tasks_wait = true;
+                    bool out_tasks_wait = true;
                     std::future_status f_status;	
                     for (auto task : g_tasks_v)	
                     {
@@ -639,6 +642,11 @@ entry_network_flag:
                             out_tasks_wait = false;
                             break;
                         }
+                    }
+
+                    if (out_tasks_wait)
+                    {
+                        break;
                     }
                     sleep(1);
                 }
