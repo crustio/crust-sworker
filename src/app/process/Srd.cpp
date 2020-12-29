@@ -139,7 +139,7 @@ void srd_check_reserved(void)
     crust::DataBase *db = crust::DataBase::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
-    int check_interval = 10;
+    size_t check_interval = 10;
 
     while (true)
     {
