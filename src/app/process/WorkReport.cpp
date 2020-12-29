@@ -17,6 +17,26 @@ size_t get_random_wait_time(std::string seed)
 }
 
 /**
+ * @description: Judge whether need to exit while waiting
+ * @return true for exiting
+ */
+bool wait_and_check_exit(size_t t)
+{
+    EnclaveData *ed = EnclaveData::get_instance();
+    for (size_t i = 0; i < t; i++)
+    {
+        if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+        {
+            p_log->info("Stop work report for exit...\n");
+            return true;
+        }
+        sleep(1);
+    }
+
+    return false;
+}
+
+/**
  * @description: Check if there is enough height, send signed work report to chain
  */
 void work_report_loop(void)
@@ -53,7 +73,8 @@ void work_report_loop(void)
     {
         if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
-            break;
+            p_log->info("Stop work report for exit...\n");
+            return;
         }
 
         crust::BlockHeader block_header;
@@ -100,8 +121,13 @@ void work_report_loop(void)
 
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header.number + (wait_time / BLOCK_INTERVAL) + 1);
             block_header.number = (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
-            sleep(wait_time);
-
+            
+            // Wait
+            if(wait_and_check_exit(wait_time))
+            {
+                return;
+            }
+            
             // Get confirmed block hash
             block_header.hash = p_chain->get_block_hash(block_header.number);
             if (block_header.hash == "" || block_header.hash == "0000000000000000000000000000000000000000000000000000000000000000")
@@ -117,7 +143,12 @@ void work_report_loop(void)
             block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
             block_header.number = offline_base_height;
             offline_base_height += REPORT_BLOCK_HEIGHT_BASE;
-            sleep(60);
+
+            // Wait
+            if(wait_and_check_exit(60))
+            {
+                return;
+            }
         }
 
         // Get signed validation report
@@ -139,8 +170,8 @@ void work_report_loop(void)
             case CRUST_SERVICE_UNAVAILABLE:
                 p_log->warn("Can't generate work report. You have meaningful files, please start ipfs or use delete interface to remove those files\n");
                 break;
-            case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
-                p_log->warn("Can't report work in this era, please wait for next era.\n");
+            case CRUST_UPGRADE_IS_UPGRADING:
+                p_log->warn("Can't report work in this era, because of upgrading or exiting\n");
                 break;
             case CRUST_SGX_SIGN_FAILED:
                 p_log->warn("SGX signed failed!");
@@ -152,8 +183,10 @@ void work_report_loop(void)
                 p_log->err("Get work report or upload failed! Error code: %x\n", crust_status);
             }
         }
-
     loop:
-        sleep(wr_wait_time);
+        if(wait_and_check_exit(wr_wait_time))
+        {
+            return;
+        }
     }
 }

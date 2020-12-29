@@ -44,6 +44,7 @@ sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change);
 sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change);
 
 sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);
+sgx_status_t Ecall_stop_all(sgx_enclave_id_t eid);
 sgx_status_t Ecall_restore_metadata(sgx_enclave_id_t eid, crust_status_t *status);
 sgx_status_t Ecall_cmp_chain_account_id(sgx_enclave_id_t eid, crust_status_t *status, const char *account_id, size_t len);
 sgx_status_t Ecall_gen_and_upload_work_report(sgx_enclave_id_t eid, crust_status_t *status, const char *block_hash, size_t block_height);
@@ -72,6 +73,8 @@ sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *st
 int get_upgrade_ecalls_num();
 
 std::string get_running_ecalls_info();
+int get_all_running_ecalls_num();
+int get_running_ecalls_num(std::string name);
 
 #if defined(__cplusplus)
 }

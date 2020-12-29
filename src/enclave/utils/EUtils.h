@@ -37,8 +37,8 @@ namespace json
 /* Used to store all M hashs under G path */
 #define SRD_M_HASHS "m-hashs.bin"
 
-/* Main loop waiting time (us) */
-#define MAIN_LOOP_WAIT_TIME 10000000
+/* Main loop waiting time (s) */
+#define MAIN_LOOP_WAIT_TIME 10
 #define LOG_BUF_SIZE 32768 /* 32*1024 */
 /* The length of hash */
 #define HASH_LENGTH 32

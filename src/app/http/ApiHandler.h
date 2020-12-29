@@ -171,7 +171,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         return send(std::move(res));
     }
 
-
     // ----- Respond to HEAD request ----- //
     if(req.method() == http::verb::head)
     {
@@ -181,7 +180,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         //res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
-
 
     // ----- Respond to GET request ----- //
     if(req.method() == http::verb::get)
@@ -199,6 +197,30 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             res.body() = EnclaveData::get_instance()->gen_workload();
+            goto getcleanup;
+        }
+
+        // ----- Stop sworker ----- //
+        cur_path = urlendpoint.base + "/stop";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            if (SGX_SUCCESS == Ecall_stop_all(global_eid))
+            {
+                res.result(200);
+                res.body() = "{\"code\":200,\"message\":\"success\"}";
+                while (0 != get_all_running_ecalls_num())
+                {
+                    sleep(1);
+                }
+                ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
+            }
+            else
+            {
+                res.result(500);
+                p_log->err("Stop enclave failed! Invoke SGX API failed!\n");
+                res.body() = "{\"code\":500,\"message\":\"Stop enclave failed! Invoke SGX API failed!\"}";
+            }
+
             goto getcleanup;
         }
 
@@ -490,7 +512,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 long real_change = 0;
                 if (SGX_SUCCESS != Ecall_change_srd_task(global_eid, &crust_status, change_srd_num, &real_change))
                 {
-                    ret_info = "Change srd failed!Invoke SGX api failed!";
+                    ret_info = "Change srd failed! Invoke SGX api failed!";
                     ret_code = 401;
                 }
                 else
@@ -504,8 +526,12 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_code = 200;
                         break;
                     case CRUST_SRD_NUMBER_EXCEED:
-                        sprintf(buffer, "Only %ldG srd will be added.Rest srd task exceeds upper limit.", real_change);
+                        sprintf(buffer, "Only %ldG srd will be added. Rest srd task exceeds upper limit.", real_change);
                         ret_code = 402;
+                        break;
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        sprintf(buffer, "Change srd interface is stopped due to upgrading or exiting");
+                        ret_code = 503;
                         break;
                     default:
                         sprintf(buffer, "Unexpected error has occurred!");
@@ -564,6 +590,12 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     sprintf(ret_info_buffer, "File '%s' doesn't in sworker", cid.c_str());
                     ret_info.append(ret_info_buffer);
                     ret_code = 404;
+                }
+                else if (CRUST_UPGRADE_IS_UPGRADING == crust_status)
+                {
+                    sprintf(ret_info_buffer, "Deleting file '%s' stoped due to upgrading or exiting", cid.c_str());
+                    ret_info.append(ret_info_buffer);
+                    ret_code = 503;
                 }
                 else
                 {
@@ -630,7 +662,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_code = 400;
                         break;
                     case CRUST_UPGRADE_IS_UPGRADING:
-                        sprintf(ret_info_buffer, "Seal file '%s' stoped due to upgrade", cid.c_str());
+                        sprintf(ret_info_buffer, "Seal file '%s' stoped due to upgrading or exiting", cid.c_str());
                         ret_info.append(ret_info_buffer);
                         p_log->err("%s\n", ret_info.c_str());
                         ret_code = 503;
@@ -675,6 +707,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             std::string ret_info;
+            int ret_code = 200;
             p_log->info("Dealing with unseal request...\n");
             // Parse parameters
             json::JSON req_json;
@@ -691,22 +724,27 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     switch (crust_status)
                     {
                     case CRUST_UNSEAL_DATA_FAILED:
-                        ret_info = "Internal error: unseal data failed!";
+                        ret_info = "Unseal data failed";
+                        ret_code = 400;
                         break;
-                    case CRUST_STORAGE_UPDATE_FILE_FAILED:
-                        ret_info = "Update new file failed!";
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        ret_info = "Unseal file stoped due to upgrading or exiting";
+                        ret_code = 503;
                         break;
                     default:
-                        ret_info = "Unexpected error!";
+                        ret_info = "Unexpected error";
+                        ret_code = 500;
                     }
                 }
                 else
                 {
                     ret_info = "Invoke SGX api failed!";
+                    ret_code = 500;
                 }
+
+                p_log->err("%s. Error code:%lx\n", ret_info.c_str(), crust_status);
                 json::JSON ret_body;
-                p_log->err("Unseal data failed!Error code:%lx(%s)\n", crust_status, ret_info.c_str());
-                ret_body[HTTP_STATUS_CODE] = 400;
+                ret_body[HTTP_STATUS_CODE] = ret_code;
                 ret_body[HTTP_MESSAGE] = ret_info;
                 res.result(ret_body[HTTP_STATUS_CODE].ToInt());
                 res.body() = ret_body.dump();

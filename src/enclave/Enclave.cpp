@@ -7,6 +7,59 @@
 using namespace std;
 
 /**
+ * @description: Ecall main loop
+ */
+void ecall_main_loop()
+{
+    Workload *wl = Workload::get_instance();
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    while (true)
+    {
+        if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+        {
+            log_info("Stop main loop for exit...\n");
+            return;
+        }
+
+        // Store metadata periodically
+        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
+        {
+            log_err("Store enclave data failed! Error code:%lx\n", crust_status);
+        }
+
+        // ----- File validate ----- //
+        validate_meaningful_file();
+        // Clean deleted file
+        wl->deal_deleted_file();
+
+        // ----- SRD validate ----- //
+        validate_srd();
+        // Clean deleted srd
+        wl->deal_deleted_srd();
+
+        // ----- SRD ----- //
+        srd_change();
+
+        // Add validated proof
+        wl->report_add_validated_proof();
+
+        // Wait
+        for (size_t i = 0; i < MAIN_LOOP_WAIT_TIME; i++)
+        {
+            if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+            {
+                log_info("Stop main loop for exit...\n");
+                return;
+            }
+            ocall_usleep(1000000);
+        }
+    }
+}
+
+/************************************SRD****************************************/
+
+/**
  * @description: Seal one G srd files under directory, can be called from multiple threads
  * @param path (in) -> the directory path
  */
@@ -43,6 +96,11 @@ size_t ecall_srd_decrease(size_t change)
  */
 crust_status_t ecall_change_srd_task(long change, long *real_change)
 {
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return CRUST_UPGRADE_IS_UPGRADING;
+    }
+
     return change_srd_task(change, real_change);
 }
 
@@ -61,45 +119,15 @@ void ecall_srd_remove_space(size_t change)
     srd_remove_space(change);
 }
 
+/************************************System****************************************/
+
 /**
- * @description: Ecall main loop
+ * @description: Stop enclave
+ * @return: Status
  */
-void ecall_main_loop()
+void ecall_stop_all()
 {
-    Workload *wl = Workload::get_instance();
-    crust_status_t crust_status = CRUST_SUCCESS;
-
-    while (true)
-    {
-        if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
-        {
-            break;
-        }
-
-        // Store metadata periodically
-        if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
-        {
-            log_err("Store enclave data failed! Error code:%lx\n", crust_status);
-        }
-
-        // ----- File validate ----- //
-        validate_meaningful_file();
-        // Clean deleted file
-        wl->deal_deleted_file();
-
-        // ----- SRD validate ----- //
-        validate_srd();
-        // Clean deleted srd
-        wl->deal_deleted_srd();
-
-        // ----- SRD ----- //
-        srd_change();
-
-        // Add validated proof
-        wl->report_add_validated_proof();
-
-        ocall_usleep(MAIN_LOOP_WAIT_TIME);
-    }
+    Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
 }
 
 /**
@@ -132,7 +160,7 @@ crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t b
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = gen_and_upload_work_report(block_hash, block_height, 0, false);
@@ -183,6 +211,8 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
     return id_verify_and_upload_identity(IASReport, len);
 }
 
+/************************************Files****************************************/
+
 /**
  * @description: Seal file according to given path and return new MerkleTree
  * @param cid (in) -> Pointer to ipfs content id
@@ -192,7 +222,7 @@ crust_status_t ecall_seal_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = storage_seal_file(cid);
@@ -209,7 +239,7 @@ crust_status_t ecall_unseal_file(const char *data, size_t data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = storage_unseal_file(data, data_size);
@@ -226,13 +256,15 @@ crust_status_t ecall_delete_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = storage_delete_file(cid);
 
     return ret;
 }
+
+/************************************Upgrade****************************************/
 
 /**
  * @description: Check if upgrade can be done right now
@@ -259,6 +291,7 @@ void ecall_disable_upgrade()
     Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_NONE);
 }
 
+
 /**
  * @description: Generate upgrade data
  * @param block_height -> Current block height
@@ -281,11 +314,13 @@ crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, siz
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     return id_restore_from_upgrade(meta, meta_len, total_size, transfer_end);
 }
+
+/************************************Tools****************************************/
 
 /**
  * @description: Get enclave id information

@@ -1097,7 +1097,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     // Current era has reported, wait for next era
     if (block_height <= wl->get_report_height())
     {
-        crust_status = CRUST_UNEXPECTED_ERROR;
+        crust_status = CRUST_BLOCK_HEIGHT_EXPIRED;
         goto cleanup;
     }
     if (block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)

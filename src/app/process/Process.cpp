@@ -578,21 +578,6 @@ entry_network_flag:
     // Check loop
     while (true)
     {
-        // Check if work threads still running
-        if (UPGRADE_STATUS_EXIT != ed->get_upgrade_status())
-        {
-            std::future_status f_status;
-            for (auto task : g_tasks_v)
-            {
-                f_status = task.first->wait_for(std::chrono::seconds(0));
-                if (f_status == std::future_status::ready)
-                {
-                    task.first = std::make_shared<std::future<void>>(std::async(
-                            std::launch::async, task.second));
-                }
-            }
-        }
-
         // Deal with upgrade
         if (UPGRADE_STATUS_PROCESS == ed->get_upgrade_status())
         {
@@ -611,11 +596,11 @@ entry_network_flag:
             }
             else if (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, block_header.number)))
             {
-                p_log->err("Generate upgrade metadata failed! Invoke SGX API failed! Error code:%lx.Try next turn!\n", sgx_status);
+                p_log->err("Generate upgrade metadata failed! Invoke SGX API failed! Error code:%lx. Try next turn!\n", sgx_status);
             }
             else if (CRUST_SUCCESS != crust_status)
             {
-                p_log->err("Generate upgrade metadata failed! Error code:%lx.Try next turn!\n", crust_status);
+                p_log->warn("Generate upgrade metadata failed! Code:%lx. Try next turn!\n", crust_status);
             }
             else
             {
@@ -623,12 +608,7 @@ entry_network_flag:
                 ed->set_upgrade_status(UPGRADE_STATUS_COMPLETE);
             }
         }
-        if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
-        {
-            // Release database
-            delete crust::DataBase::get_instance();
-            goto cleanup;
-        }
+
         // Upgrade tryout
         if (UPGRADE_STATUS_NONE != ed->get_upgrade_status())
         {
@@ -640,10 +620,46 @@ entry_network_flag:
             }
         }
 
-        sleep(check_interval);
+        for (size_t i = 0; i < (size_t)check_interval; i++)
+        {
+            // Exit
+            if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+            {
+                // Wait tasks end
+                bool out_tasks_wait = false;
+                while (!out_tasks_wait)
+                {
+                    out_tasks_wait = true;
+                    std::future_status f_status;	
+                    for (auto task : g_tasks_v)	
+                    {
+                        if(task.second == &start_webservice)
+                        {
+                            continue;
+                        }
+
+                        f_status = task.first->wait_for(std::chrono::seconds(0));	
+                        if (f_status != std::future_status::ready)
+                        {
+                            out_tasks_wait = false;
+                            break;
+                        }
+                    }
+                    sleep(1);
+                }
+
+                // End
+                goto cleanup;
+            }
+            sleep(1);
+        }
     }
 
 cleanup:
+    // Release database
+    p_log->info("Release database for exit...\n");
+    delete crust::DataBase::get_instance();
+
     // Stop web service
     p_log->info("Kill web service for exit...\n");
     stop_webservice();
@@ -652,11 +668,6 @@ cleanup:
     // TODO: Fix me, why destory enclave leads to coredump
     p_log->info("Destroy enclave for exit...\n");
     sgx_destroy_enclave(global_eid);
-
-    if (ed->get_upgrade_status() == UPGRADE_STATUS_EXIT)
-    {
-        exit(return_status);
-    }
 
     return return_status;
 }
