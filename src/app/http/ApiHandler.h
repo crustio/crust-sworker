@@ -210,7 +210,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 res.body() = "{\"code\":200,\"message\":\"success\"}";
                 while (0 != get_all_running_ecalls_num())
                 {
-                    p_log->info("Now enclave thread info: %s\n", get_running_ecalls_info().c_str());
                     sleep(1);
                 }
                 ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
