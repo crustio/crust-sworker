@@ -237,13 +237,16 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
 std::string EnclaveData::get_sealed_file_info_all()
 {
     std::string ans;
-    SafeLock sl(this->sealed_file_mutex);
-    sl.lock();
+    this->sealed_file_mutex.lock();
+    json::JSON tmp_sealed_file = this->sealed_file;
+    this->sealed_file_mutex.unlock();
 
-    if (this->sealed_file.size() <= 0)
+    if (tmp_sealed_file.size() <= 0)
+    {
         return "{}";
+    }
 
-    ans = this->sealed_file.dump();
+    ans = tmp_sealed_file.dump();
 
     replace(ans, "\"{", "{");
     replace(ans, "}\"", "}");

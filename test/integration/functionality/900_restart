@@ -15,9 +15,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-testdir=$instdir/test_app
-testfiledir=$testdir/files
-testconfigfile=$testdir/etc/Config.json
 errfile=$scriptdir/err.log
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
@@ -30,8 +27,22 @@ mkdir -p $tmpdir
 . $scriptdir/utils.sh
 
 
-### Restart crust-sworker
+### Add limit srd and file
+srd_limit=$(get_config '.functionality|.srd_limit')
+file_limit=$(get_config '.functionality|.file_limit')
+add_srd $srd_limit &>/dev/null
+if [ $? -ne 0 ]; then
+    verbose ERROR "add srd failed."
+    exit 1
+fi
+test_add_file $file_limit
+if [ $? -ne 0 ]; then
+    verbose ERROR "add file failed."
+    exit 1
+fi
 store_metadata &>/dev/null
+
+### Restart crust-sworker
 sworkerpid=$(cat $sworkerpidfile)
 kill -9 $sworkerpid &>/dev/null
 wait $sworkerpid &>/dev/null

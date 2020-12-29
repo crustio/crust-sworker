@@ -20,8 +20,8 @@ function _validate()
 {
     local i=20
     while [ $((i--)) -gt 0 ]; do
-        validate_srd_real &>/dev/null
-        validate_file_real &>/dev/null
+        validate_srd &>/dev/null
+        validate_file &>/dev/null
     done
 }
 
@@ -42,9 +42,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-testdir=$instdir/test_app
-testconfigfile=$testdir/etc/Config.json
-testfiledir=$testdir/files
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 LOCKFILE=$tmpdir/LOCKFILE
@@ -58,13 +55,13 @@ trap 'validate_exit' EXIT
 
 
 srd_num=$(get_config ".functionality|.validate|.srd_num")
+srd_path=$(get_config ".srd_path")
 deleted_srd=$(get_config ".functionality|.validate|.deleted_srd")
 file_num=$(get_config ".functionality|.validate|.file_num")
 deleted_file=$(get_config ".functionality|.validate|.deleted_file")
 
 ### Srd some space
-srd_real $srd_num &>/dev/null
-srd_path=$(cat $testconfigfile | jq '.srd_paths|.[]' | sed 's/"//g')
+srd_real_sync $srd_num &>/dev/null
 i=0
 # Delete some srd
 for sf in $(ls $srd_path); do
@@ -88,7 +85,7 @@ for cid in ${cid_arry[@]}; do
     if [ $((i++)) -ge $deleted_file ]; then
         break
     fi
-    delete_file_block_random $cid
+    rm -r $testfiledir/$cid
 done
 
 ### Validate
@@ -99,7 +96,7 @@ _validate
 ret=0
 punish_srd=$(ls $srd_path | wc -l)
 ((punish_srd=srd_num-punish_srd))
-if [ $punish_srd -lt $deleted_srd ] || [ $punish_srd -ne $((deleted_srd)) ]; then
+if [ $punish_srd -ne $((deleted_srd)) ]; then
     verbose ERROR "srd validate for punishment failed!real punished num:$punish_srd" n
     ret=1
 fi

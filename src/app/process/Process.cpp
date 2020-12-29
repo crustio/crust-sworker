@@ -581,7 +581,7 @@ entry_network_flag:
         // Deal with upgrade
         if (UPGRADE_STATUS_PROCESS == ed->get_upgrade_status())
         {
-            if (get_upgrade_ecalls_num() == 0)
+            if (EnclaveQueue::get_instance()->get_upgrade_ecalls_num() == 0)
             {
                 ed->set_upgrade_status(UPGRADE_STATUS_END);
             }

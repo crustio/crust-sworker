@@ -391,10 +391,10 @@ public:
         return Internal.List->at(index);
     }
 
-    int length() const
+    long length() const
     {
         if (Type == Class::Array)
-            return (int)Internal.List->size();
+            return (long)Internal.List->size();
         else if (Type == Class::Hash)
             return _hash_length;
         else
@@ -408,12 +408,12 @@ public:
         return false;
     }
 
-    int size() const
+    long size() const
     {
         if (Type == Class::Object)
-            return (int)Internal.Map->size();
+            return (long)Internal.Map->size();
         else if (Type == Class::Array)
-            return (int)Internal.List->size();
+            return (long)Internal.List->size();
         else if (Type == Class::Hash)
             return _hash_length;
         else

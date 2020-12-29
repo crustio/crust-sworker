@@ -177,7 +177,7 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
         memcpy(srd_buffer + srd_offset, tmp.c_str(), tmp.size());
         srd_offset += tmp.size();
     }
-    memcpy(srd_buffer, "]", 1);
+    memcpy(srd_buffer + srd_offset, "]", 1);
     srd_offset += 1;
     
     *p_data = srd_buffer;

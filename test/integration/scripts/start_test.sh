@@ -72,16 +72,19 @@ function print_end()
 ########## MAIN BODY ##########
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
+testrootdir=$(cd $instdir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
 functionalitycasedir=$instdir/functionality
 functionalitytmpdir=$instdir/functionality/tmp
 benchmarktestdir=$instdir/benchmark
 performancetestdir=$instdir/performance
-testdir=$instdir/test_app
+testdir=$testrootdir/test_app
 errfile=$basedir/err.log
 caseresfile=$instdir/case.log
-testfiledir=$testdir/files
+testmetadir=$testdir/sworker_base_path/data
+testfiledir=$testmetadir/file
+testsrddir=$testmetadir/srd
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
 testconfigfile=$testdir/etc/Config.json
@@ -118,6 +121,9 @@ export benchmarkfile
 export sworkerpidfile
 export reportheightfile
 export configfile
+export testdir
+export testfiledir
+export testsrddir
 export ipfsdatadir
 export ERA_LENGTH
 export REPORT_WAIT_BM
@@ -151,6 +157,10 @@ else
     usage
     exit 1
 fi
+
+### Replace predefined parameter in configfile
+tmpstr=$(cat $testconfigfile | jq '.data_path' -r )/srd
+sed -i "/\"srd_path\" : \"%SRDPATH%\",/ c \    \"srd_path\" : \"$tmpstr\"," $configfile
 
 ### Select chose cases
 orgcase_arry=($(ls $casedir | sort))
@@ -192,8 +202,6 @@ fi
 ### Start crust-sworker
 cd $testdir
 rm -rf sworker_base_path
-rm -rf files
-mkdir files
 verbose INFO "starting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
 sworkerpid=$!

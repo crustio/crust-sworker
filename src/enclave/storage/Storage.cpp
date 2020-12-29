@@ -132,9 +132,9 @@ crust_status_t storage_seal_file(const char *cid)
 
     // Store file information
     std::string file_info;
-    file_info.append("{ \\\"size\\\" : ").append(std::to_string(origin_size)).append(" , ")
-        .append("\\\"sealed_size\\\" : ").append(std::to_string(sealed_size)).append(" , ")
-        .append("\\\"block_number\\\" : ").append(std::to_string(chain_block_num)).append(" }");
+    file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(origin_size)).append(" , ")
+        .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(sealed_size)).append(" , ")
+        .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(chain_block_num)).append(" }");
     ocall_store_file_info(cid, file_info.c_str());
 
     return crust_status;

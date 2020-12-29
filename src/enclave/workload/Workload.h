@@ -132,6 +132,15 @@ public:
     void add_sealed_file(json::JSON file);
     void add_sealed_file(json::JSON file, size_t pos);
 
+#ifdef _CRUST_TEST_FLAG_
+    void clean_wl_spec_info()
+    {
+        sgx_thread_mutex_lock(&wl_spec_info_mutex);
+        this->wl_spec_info = json::JSON();
+        sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+    }
+#endif
+
     sgx_thread_mutex_t ocall_wr_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workreport mutex
     sgx_thread_mutex_t ocall_wl_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Workload mutex
     sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Upgrade mutex

@@ -1,0 +1,41 @@
+enclave {
+    include "sgx_tcrypto.h"
+    include "sgx_dh.h"
+    include "sgx_tseal.h"
+    include "stdbool.h"
+    include "MerkleTree.h"
+    include "CrustStatus.h"
+    include "IASReport.h"
+    include "Parameter.h"
+
+    from "sgx_tstdc.edl" import sgx_thread_wait_untrusted_event_ocall, sgx_thread_set_untrusted_event_ocall, sgx_thread_setwait_untrusted_events_ocall, sgx_thread_set_multiple_untrusted_events_ocall;
+    from "sgx_tsgxssl.edl" import *;
+
+    trusted {
+        public void ecall_srd_increase_test();
+        public size_t ecall_srd_decrease_test(size_t change);  
+        public void ecall_add_validate_proof();
+		public void ecall_validate_srd();
+		public void ecall_validate_srd_test();
+		public void ecall_validate_file();
+		public void ecall_validate_file_bench();
+		public void ecall_store_metadata();
+        public void ecall_handle_report_result();
+
+        public void ecall_test_add_file(long file_num);
+        public void ecall_test_delete_file(uint32_t file_num);
+        public void ecall_test_delete_file_unsafe(uint32_t file_num);
+        public void ecall_clean_file();
+        public crust_status_t ecall_gen_upgrade_data_test(size_t block_height);
+        public crust_status_t ecall_gen_and_upload_work_report_test([in, string] const char *block_hash, size_t block_height); 
+
+        public crust_status_t ecall_get_file_info([in, string] const char *data);
+    };
+
+    untrusted {
+        void ocall_store_file_info_test([in, string] const char *info);
+        crust_status_t ocall_get_file_block([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);
+        crust_status_t ocall_get_file_bench([in, string] const char *file_path, [out] unsigned char **p_file, [out] size_t *len);
+        crust_status_t ocall_upload_workreport_test([in, string] const char *work_report);
+    };
+};

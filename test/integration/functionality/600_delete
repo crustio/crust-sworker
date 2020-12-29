@@ -45,8 +45,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-testdir=$instdir/test_app
-testfiledir=$testdir/files
 tmpdir=$basedir/tmp
 deleteLockFile=$tmpdir/deleteLockFile
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
@@ -78,8 +76,6 @@ while [ $i -lt $total_num ]; do
     fi
     ((i++))
 done
-
-get_file_info_all
 
 # Delete valid file sequently
 seq_del_num=10
