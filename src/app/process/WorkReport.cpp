@@ -160,8 +160,8 @@ void work_report_loop(void)
             case CRUST_SERVICE_UNAVAILABLE:
                 p_log->warn("Can't generate work report. You have meaningful files, please start ipfs or use delete interface to remove those files\n");
                 break;
-            case CRUST_UPGRADE_WAIT_FOR_NEXT_ERA:
-                p_log->warn("Can't report work in this era, please wait for next era.\n");
+            case CRUST_UPGRADE_IS_UPGRADING:
+                p_log->warn("Can't report work in this era, because of upgrading or exiting\n");
                 break;
             case CRUST_SGX_SIGN_FAILED:
                 p_log->warn("SGX signed failed!");

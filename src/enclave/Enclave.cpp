@@ -98,7 +98,7 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_SUCCESS;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     return change_srd_task(change, real_change);
@@ -160,7 +160,7 @@ crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t b
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = gen_and_upload_work_report(block_hash, block_height, 0, false);
@@ -222,7 +222,7 @@ crust_status_t ecall_seal_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = storage_seal_file(cid);
@@ -239,7 +239,7 @@ crust_status_t ecall_unseal_file(const char *data, size_t data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = storage_unseal_file(data, data_size);
@@ -256,7 +256,7 @@ crust_status_t ecall_delete_file(const char *cid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     crust_status_t ret = storage_delete_file(cid);
@@ -314,7 +314,7 @@ crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, siz
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     return id_restore_from_upgrade(meta, meta_len, total_size, transfer_end);

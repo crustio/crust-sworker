@@ -596,11 +596,11 @@ entry_network_flag:
             }
             else if (SGX_SUCCESS != (sgx_status = Ecall_gen_upgrade_data(global_eid, &crust_status, block_header.number)))
             {
-                p_log->err("Generate upgrade metadata failed! Invoke SGX API failed! Error code:%lx.Try next turn!\n", sgx_status);
+                p_log->err("Generate upgrade metadata failed! Invoke SGX API failed! Error code:%lx. Try next turn!\n", sgx_status);
             }
             else if (CRUST_SUCCESS != crust_status)
             {
-                p_log->err("Generate upgrade metadata failed! Error code:%lx.Try next turn!\n", crust_status);
+                p_log->warn("Generate upgrade metadata failed! Code:%lx. Try next turn!\n", crust_status);
             }
             else
             {
