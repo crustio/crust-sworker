@@ -635,7 +635,7 @@ entry_network_flag:
             }
         }
 
-        for (size_t i = 0; i < check_interval; i++)
+        for (size_t i = 0; i < (size_t)check_interval; i++)
         {
             // Exit
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())

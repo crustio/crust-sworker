@@ -98,7 +98,7 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return;
+        return CRUST_SUCCESS;
     }
 
     return change_srd_task(change, real_change);
@@ -128,15 +128,6 @@ void ecall_srd_remove_space(size_t change)
 void ecall_stop_all()
 {
     Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
-}
-
-/**
- * @description: Restore enclave data from file
- * @return: Restore status
- */
-crust_status_t ecall_restore_metadata()
-{
-    return id_restore_metadata();
 }
 
 /**
