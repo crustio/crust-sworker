@@ -72,6 +72,8 @@ sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *st
 int get_upgrade_ecalls_num();
 
 std::string get_running_ecalls_info();
+int get_all_running_ecalls_num();
+int get_running_ecalls_num(std::string name);
 
 #if defined(__cplusplus)
 }

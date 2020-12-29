@@ -54,7 +54,7 @@ void work_report_loop(void)
         if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
         {
             p_log->info("Stop work report for exit...\n");
-            break;
+            return;
         }
 
         crust::BlockHeader block_header;
@@ -110,7 +110,6 @@ void work_report_loop(void)
                     p_log->info("Stop work report for exit...\n");
                     return;
                 }
-                
                 sleep(1);
             }
             
@@ -129,7 +128,17 @@ void work_report_loop(void)
             block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
             block_header.number = offline_base_height;
             offline_base_height += REPORT_BLOCK_HEIGHT_BASE;
-            sleep(60);
+
+            // Wait
+            for (size_t i = 0; i < 60; i++)
+            {
+                if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+                {
+                    p_log->info("Stop work report for exit...\n");
+                    return;
+                }
+                sleep(1);
+            }
         }
 
         // Get signed validation report
@@ -164,8 +173,15 @@ void work_report_loop(void)
                 p_log->err("Get work report or upload failed! Error code: %x\n", crust_status);
             }
         }
-
     loop:
-        sleep(wr_wait_time);
+        for (size_t i = 0; i < wr_wait_time; i++)
+        {
+            if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+            {
+                p_log->info("Stop work report for exit...\n");
+                return;
+            }
+            sleep(1);
+        }
     }
 }

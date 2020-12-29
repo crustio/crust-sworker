@@ -623,13 +623,7 @@ entry_network_flag:
                 ed->set_upgrade_status(UPGRADE_STATUS_COMPLETE);
             }
         }
-        if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
-        {
-            // Release database
-            p_log->info("Release database for exit...\n");
-            delete crust::DataBase::get_instance();
-            goto cleanup;
-        }
+
         // Upgrade tryout
         if (UPGRADE_STATUS_NONE != ed->get_upgrade_status())
         {
@@ -641,7 +635,18 @@ entry_network_flag:
             }
         }
 
-        sleep(check_interval);
+        for (size_t i = 0; i < check_interval; i++)
+        {
+            // Exit
+            if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
+            {
+                // Release database
+                p_log->info("Release database for exit...\n");
+                delete crust::DataBase::get_instance();
+                goto cleanup;
+            }
+            sleep(1);
+        }
     }
 
 cleanup:

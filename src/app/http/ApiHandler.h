@@ -204,9 +204,23 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/stop";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            res.result(200);
-            res.body() = "{\"code\":200}";
-            ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
+            if (SGX_SUCCESS != Ecall_stop_all(global_eid))
+            {
+                res.result(200);
+                res.body() = "{\"code\":200,\"message\":\"success\"}";
+                while (0 != get_all_running_ecalls_num())
+                {
+                    sleep(1);
+                }
+                ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
+            }
+            else
+            {
+                res.result(500);
+                p_log->err("Stop enclave failed! Invoke SGX API failed!");
+                res.body() = "{\"code\":500,\"message\":\"Stop enclave failed! Invoke SGX API failed!\"}";
+            }
+
             goto getcleanup;
         }
 

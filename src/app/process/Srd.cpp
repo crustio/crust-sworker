@@ -139,13 +139,14 @@ void srd_check_reserved(void)
     crust::DataBase *db = crust::DataBase::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
+    int check_interval = 10;
 
     while (true)
     {
         if (UPGRADE_STATUS_EXIT == EnclaveData::get_instance()->get_upgrade_status())
         {
             p_log->info("Stop srd check reserved for exit...\n");
-            break;
+            return;
         }
 
         std::string srd_info_str;
@@ -174,8 +175,17 @@ void srd_check_reserved(void)
                 p_log->err("Invoke srd metadata failed! Error code:%lx\n", sgx_status);
             }
         }
-
-        sleep(10);
+        
+        // Wait
+        for (size_t i = 0; i < check_interval; i++)
+        {
+            if (UPGRADE_STATUS_EXIT == EnclaveData::get_instance()->get_upgrade_status())
+            {
+                p_log->info("Stop srd check reserved for exit...\n");
+                return;
+            }
+            sleep(1);
+        }
     }
 }
 

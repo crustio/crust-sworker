@@ -18,7 +18,8 @@ void ecall_main_loop()
     {
         if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
         {
-            break;
+            log_info("Main loop stop for exit...\n");
+            return;
         }
 
         // Store metadata periodically
@@ -43,7 +44,16 @@ void ecall_main_loop()
         // Add validated proof
         wl->report_add_validated_proof();
 
-        ocall_usleep(MAIN_LOOP_WAIT_TIME);
+        // Wait
+        for (size_t i = 0; i < MAIN_LOOP_WAIT_TIME; i++)
+        {
+            if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+            {
+                log_info("Main loop stop for exit...\n");
+                return;
+            }
+            ocall_usleep(1000000);
+        }
     }
 }
 
@@ -115,10 +125,9 @@ void ecall_srd_remove_space(size_t change)
  * @description: Stop enclave
  * @return: Status
  */
-crust_status_t ecall_stop_all()
+void ecall_stop_all()
 {
     Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
-    return CRUST_SUCCESS;
 }
 
 /**

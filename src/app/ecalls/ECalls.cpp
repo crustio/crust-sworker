@@ -9,6 +9,7 @@ std::unordered_map<std::string, int> g_task_priority_um = {
     {"Ecall_verify_and_upload_identity", 0},
     {"Ecall_gen_sgx_measurement", 0},
     {"Ecall_main_loop", 0},
+    {"Ecall_stop_all", 0},
     {"Ecall_gen_and_upload_work_report", 0},
     {"Ecall_delete_file", 0},
     {"Ecall_gen_upgrade_data", 0},
@@ -168,6 +169,23 @@ std::string get_running_ecalls_info()
     g_running_ecalls_mutex.unlock();
 
     return info_json.dump();
+}
+
+/**
+ * @description: Get the number of ecalls
+ * @return: The number of ecalls
+ */
+int get_all_running_ecalls_num()
+{
+    g_running_ecalls_mutex.lock();
+    int num = 0;
+    for (auto item : g_running_ecalls_um)
+    {
+        num += item.second;
+    }
+    g_running_ecalls_mutex.unlock();
+
+    return num;
 }
 
 /**
@@ -351,6 +369,24 @@ sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid)
     }
 
     ret = ecall_main_loop(eid);
+
+    free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: A wrapper function, ecall stop all
+ */
+sgx_status_t Ecall_stop_all(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_stop_all(eid);
 
     free_enclave(__FUNCTION__);
 
