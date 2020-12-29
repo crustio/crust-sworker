@@ -640,6 +640,11 @@ entry_network_flag:
             // Exit
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
+                while (0 != get_all_running_ecalls_num())
+                {
+                    sleep(1);
+                }
+
                 // Release database
                 p_log->info("Release database for exit...\n");
                 delete crust::DataBase::get_instance();
