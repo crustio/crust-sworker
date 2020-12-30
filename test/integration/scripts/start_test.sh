@@ -39,6 +39,7 @@ function success_exit()
     rm $SYNCFILE &>/dev/null
     rm $TMPFILE &>/dev/null
     rm $TMPFILE2 &>/dev/null
+    rm $configfile &>/dev/null
 
     if [ x"$killed" = x"false" ]; then
         print_end
@@ -72,16 +73,19 @@ function print_end()
 ########## MAIN BODY ##########
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
+testrootdir=$(cd $instdir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
 functionalitycasedir=$instdir/functionality
 functionalitytmpdir=$instdir/functionality/tmp
 benchmarktestdir=$instdir/benchmark
 performancetestdir=$instdir/performance
-testdir=$instdir/test_app
+testdir=$testrootdir/test_app
 errfile=$basedir/err.log
 caseresfile=$instdir/case.log
-testfiledir=$testdir/files
+testmetadir=$testdir/sworker_base_path/data
+testfiledir=$testmetadir/file
+testsrddir=$testmetadir/srd
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
 testconfigfile=$testdir/etc/Config.json
@@ -92,16 +96,15 @@ TMPFILE2=$instdir/TMPFILE2
 roottmpdir=$instdir/tmp
 sworkerpidfile=$roottmpdir/sworkerpid
 reportheightfile=$roottmpdir/report_file
-configfile=$instdir/config/config.json
+configfile=$instdir/config/config_real.json
+configfileorg=$instdir/config/config.json
 crustdir=/opt/crust
-ipfsdatadir=$crustdir/data/ipfs
 ERA_LENGTH=300
 REPORT_WAIT_BM=15
 cursworkerpid=$$
 pad="$(printf '%0.1s' ' '{1..10})"
 casedir=""
 killed=false
-IPFS_HELPER=$scriptdir/ipfs_helper
 GEN_RANDOM_DATA=$scriptdir/gen_random.sh
 
 trap "success_exit" EXIT
@@ -118,10 +121,11 @@ export benchmarkfile
 export sworkerpidfile
 export reportheightfile
 export configfile
-export ipfsdatadir
+export testdir
+export testfiledir
+export testsrddir
 export ERA_LENGTH
 export REPORT_WAIT_BM
-export IPFS_HELPER
 export GEN_RANDOM_DATA
 
 
@@ -151,6 +155,11 @@ else
     usage
     exit 1
 fi
+
+### Replace predefined parameter in configfile
+cp $configfileorg $configfile
+tmpstr=$(cat $testconfigfile | jq '.data_path' -r )/srd
+sed -i "/\"srd_path\" : \"%SRDPATH%\",/ c \    \"srd_path\" : \"$tmpstr\"," $configfile
 
 ### Select chose cases
 orgcase_arry=($(ls $casedir | sort))
@@ -192,8 +201,6 @@ fi
 ### Start crust-sworker
 cd $testdir
 rm -rf sworker_base_path
-rm -rf files
-mkdir files
 verbose INFO "starting crust-sworker..." h
 ./bin/crust-sworker -c etc/Config.json --offline --debug &>$sworkerlog &
 sworkerpid=$!
@@ -216,12 +223,6 @@ if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
 fi
 verbose INFO "success" t
 echo $sworkerpid > $sworkerpidfile
-cd - &>/dev/null
-
-# Generate ipfs_helper
-cd $basedir
-go get
-go build ipfs_helper.go
 cd - &>/dev/null
 
 # Generate test srd file

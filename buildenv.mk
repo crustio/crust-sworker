@@ -63,7 +63,7 @@ TBB_LIBRARY_PATH := /opt/crust/tools/onetbb/lib
 
 App_C_Files := $(wildcard app/utils/*.c)
 
-App_Cpp_Files := app/App.cpp $(wildcard app/utils/*.cpp) $(wildcard app/config/*.cpp) \
+App_Cpp_Files := $(wildcard app/*.cpp) $(wildcard app/utils/*.cpp) $(wildcard app/config/*.cpp) \
 	$(wildcard app/log/*.cpp) $(wildcard app/database/*.cpp) $(wildcard app/http/*.cpp) \
 	$(wildcard app/ocalls/*.cpp) $(wildcard app/process/*.cpp) $(wildcard app/chain/*.cpp) \
 	$(wildcard app/ecalls/*.cpp) $(wildcard app/ipfs/*.cpp)
@@ -114,7 +114,7 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := enclave/Enclave.cpp $(wildcard enclave/srd/*.cpp) $(wildcard enclave/utils/*.cpp) \
+Enclave_Cpp_Files := $(wildcard enclave/*.cpp)  $(wildcard enclave/srd/*.cpp) $(wildcard enclave/utils/*.cpp) \
 	$(wildcard enclave/validator/*.cpp) $(wildcard enclave/workload/*.cpp) $(wildcard enclave/identity/*.cpp) \
 	$(wildcard enclave/storage/*.cpp) $(wildcard enclave/persistence/*.cpp) $(wildcard enclave/report/*.cpp)
 

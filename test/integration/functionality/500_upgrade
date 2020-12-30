@@ -8,10 +8,10 @@ function kill_current()
 function srd_backend()
 {
     # Get current available max per turn
-    local srd_paths=$(get_config ".functionality|.srd_paths")
+    local srd_paths=$(get_config ".srd_path")
     local srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
     local real_max_per_turn=0
-    local srd_paths_test=($(echo $srd_paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
+    local srd_paths_test=($srd_paths)
     local tmp=""
     for path in ${srd_paths_test[@]}; do
         if [ ! -d $path ]; then
@@ -29,7 +29,6 @@ function srd_backend()
     local srd_num=200000
     local tmp_num=0
     local cur_turn=0
-    srd_disk_change "$srd_paths" "add" &>/dev/null
     while [ $tmp_num -lt $srd_num ]; do
         if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
             cur_turn=$srd_max_per_turn
@@ -44,7 +43,7 @@ function srd_backend()
 function success_exit()
 {
     ### Delete srd
-    srd -$(get_workload | jq '.srd|.space')
+    srd -$(get_workload | jq '.srd|.assigned')
 }
 
 ########## MAIN BODY ##########
@@ -52,7 +51,6 @@ function success_exit()
 basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
-testdir=$instdir/test_app
 sworkerlog=$instdir/sworker.log
 
 . $scriptdir/utils.sh
@@ -63,6 +61,7 @@ trap 'success_exit' EXIT
 
 cd $testdir
 srd_backend &
+validate_add_proof &>/dev/null
 sleep 10
 ./bin/crust-sworker -c etc/Config.json --offline --debug --upgrade &>${sworkerlog}2 &
 newsworkerpid=$!

@@ -16,8 +16,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-testdir=$instdir/test_app
-testfiledir=$testdir/files
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
@@ -33,13 +31,13 @@ data_arry=($(ls $datadir))
 data_size=${#data_arry[@]}
 
 srd_num=$(get_config ".functionality|.srd_size")
-srd_paths=$(get_config ".functionality|.srd_paths")
+srd_path=$(get_config ".srd_path")
 srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
 tmp_num=0
 real_max_per_turn=0
 
 # Get current available max per turn
-srd_paths_test=($(echo $srd_paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
+srd_paths_test=($srd_path)
 for path in ${srd_paths_test[@]}; do
     if [ ! -d $path ]; then
         mkdir -p $path
@@ -59,14 +57,14 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 tmp_num=0
-p_srd_num=$(cat $TMPFILE | jq '.srd|.space')
+p_srd_num=$(cat $TMPFILE | jq '.srd|.assigned')
 while [ $tmp_num -lt $p_srd_num ]; do
     if [ $((p_srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
         cur_turn=$srd_max_per_turn
     else
         cur_turn=$((p_srd_num - tmp_num))
     fi
-    srd_real "-$cur_turn" &>/dev/null
+    srd_real_sync "-$cur_turn" &>/dev/null
     if [ $? -ne 0 ]; then
         verbose ERROR "remove srd failed!" n
         exit 1
@@ -76,14 +74,13 @@ done
 
 # Srd task
 tmp_num=0
-srd_disk_change "$srd_paths" "add" &>/dev/null
 while [ $tmp_num -lt $srd_num ]; do
     if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
         cur_turn=$srd_max_per_turn
     else
         cur_turn=$((srd_num - tmp_num))
     fi
-    srd_real $cur_turn &>/dev/null
+    srd_real_sync $cur_turn &>/dev/null
     if [ $? -ne 0 ]; then
         verbose ERROR "srd failed!" n
         exit 1
@@ -92,7 +89,7 @@ while [ $tmp_num -lt $srd_num ]; do
 done
 _store_meta &>/dev/null
 get_workload &>$TMPFILE
-if [ x"$(cat $TMPFILE | jq '.srd|.space')" != x"$srd_num" ]; then
-    verbose ERROR "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.space')" n
+if [ x"$(cat $TMPFILE | jq '.srd|.assigned')" != x"$srd_num" ]; then
+    verbose ERROR "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.assigned')" n
     exit 1
 fi

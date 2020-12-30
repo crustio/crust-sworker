@@ -31,8 +31,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-testdir=$instdir/test_app
-testfiledir=$testdir/files
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
@@ -44,7 +42,6 @@ trap 'report_exit' EXIT
 
 
 srd_num=$(get_config ".functionality|.srd_size")
-srd_paths=$(get_config ".functionality|.srd_paths")
 srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
 file_arry=($(get_config ".functionality|.file_arry"))
 added_fn_e=${#file_arry[@]}
@@ -64,10 +61,9 @@ fi
 workload=$(cat $TMPFILE)
 
 # Delete previous srd
-#srd -$(echo $workload | jq '.srd|.space' | sed 's/"//g' 2>/dev/null) &>/dev/null
+srd -$(echo $workload | jq '.srd|.assigned' | sed 's/"//g' 2>/dev/null) &>/dev/null
 
 # Make srd volunm
-srd_disk_change "$srd_paths" "add" &>/dev/null
 while [ $tmp_num -lt $srd_num ]; do
     if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
         cur_turn=$srd_max_per_turn

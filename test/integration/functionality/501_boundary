@@ -14,39 +14,6 @@ function _seal()
     fi
 }
 
-function _srd()
-{
-    # Get current available max per turn
-    local paths=$1
-    local srd_num=$2
-    local tmp=""
-    local srd_max_per_turn=0
-    local srd_paths_test=($(echo $paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
-    for path in ${srd_paths_test[@]}; do
-        tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
-        tmp=${tmp%[a-zA-Z]*}
-        ((srd_max_per_turn+=tmp-55))
-    done
-
-    # Srd task
-    local tmp_num=0
-    local cur_turn=0
-    srd_disk_change "$paths" "add" &>/dev/null
-    while [ $tmp_num -lt $srd_num ]; do
-        if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
-            cur_turn=$srd_max_per_turn
-        else
-            cur_turn=$((srd_num - tmp_num))
-        fi
-        srd $cur_turn &>/dev/null
-        if [ $? -ne 0 ]; then
-            verbose ERROR "srd failed!" n
-            exit 1
-        fi
-        ((tmp_num+=cur_turn))
-    done
-}
-
 function _clean()
 {
     local file_num=$file_limit
@@ -82,8 +49,6 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 datadir=$instdir/data
-testdir=$instdir/test_app
-testfiledir=$testdir/files
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 
@@ -93,7 +58,7 @@ trap '_clean' EXIT
 
 . $scriptdir/utils.sh
 
-srd_paths=$(get_config ".functionality|.srd_paths")
+srd_paths=$(get_config ".srd_path")
 srd_limit=$(get_config '.functionality|.srd_limit')
 file_limit=$(get_config '.functionality|.file_limit')
 
@@ -106,9 +71,9 @@ if [ $? -eq 0 ]; then
 fi
 
 ### Srd upper limit
-#_srd "$srd_paths" "$srd_limit"
-#set_srd 32
-#if [ $? -eq 0 ]; then
-#    verbose ERROR "test srd upper limit failed!"
-#    exit 1
-#fi
+add_srd "$srd_limit"
+srd_real_async 32
+if [ $? -eq 0 ]; then
+    verbose ERROR "test srd upper limit failed!"
+    exit 1
+fi

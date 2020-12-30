@@ -169,6 +169,7 @@ crust_status_t ocall_upload_identity(const char *id)
     std::string sworker_identity = entrance_info.dump();
     p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());
 
+#ifndef _CRUST_TEST_FLAG_
     // Send identity to crust chain
     if (!crust::Chain::get_instance()->wait_for_running())
     {
@@ -204,6 +205,7 @@ crust_status_t ocall_upload_identity(const char *id)
         p_log->err("Send identity to crust chain failed!\n");
         return CRUST_UNEXPECTED_ERROR;
     }
+#endif
     p_log->info("Send identity to crust chain successfully!\n");
 
     return CRUST_SUCCESS;

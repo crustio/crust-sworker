@@ -1,9 +1,6 @@
 {
+    "srd_path" : "%SRDPATH%",
     "functionality" : {
-        "srd_paths": [
-            "/data/srd",
-            "/home/yaoz/srd"
-        ],
         "srd_size": 6,
         "srd_max_per_turn": 800,
         "file_arry": "1m 2m 4m 8m",
@@ -17,10 +14,6 @@
         }
     },
     "benchmark" : {
-        "srd_paths" : [
-            "/data/srd",
-            "/home/yaoz/srd"
-        ],
         "srd_max_per_turn": 800,
         "srd_bench_num" : 10,
         "srd_num" : 204800,
@@ -28,10 +21,6 @@
     },
     "performance" : {
         "srd_num" : 204800,
-        "srd_paths" : [
-            "/data/srd",
-            "/home/yaoz/srd"
-        ],
         "file_num" : 200000
     }
 }

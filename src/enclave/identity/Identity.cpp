@@ -961,27 +961,25 @@ crust_status_t id_restore_metadata()
     if (meta_json.hasKey(ID_FILE)
             && meta_json[ID_FILE].JSONType() == json::JSON::Class::Array)
     {
-        wl->sealed_files.resize(meta_json[ID_FILE].size());
-        for (int i = 0; i < meta_json[ID_FILE].size(); i++)
-        {
-            wl->sealed_files[i] = meta_json[ID_FILE][i];
-        }
         // Retore file info
-        size_t file_info_len = (CID_LENGTH + 3 + strlen(FILE_SIZE) + 3 + 16 + 10) * wl->sealed_files.size() + 32;
+        size_t file_info_len = (CID_LENGTH + 8
+                + strlen(FILE_SIZE) + 12 + 9
+                + strlen(FILE_SEALED_SIZE) + 12 + 9
+                + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 9) * meta_json[ID_FILE].size() + 32;
         uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
         size_t file_info_offset = 0;
         memset(file_info_buf, 0, file_info_len);
         memcpy(file_info_buf, "{", 1);
         file_info_offset += 1;
-        for (size_t i = 0; i < wl->sealed_files.size(); i++)
+        for (long i = 0; i < meta_json[ID_FILE].size(); i++)
         {
-            json::JSON file = wl->sealed_files[i];
+            json::JSON file = meta_json[ID_FILE][i];
             std::string info;
-            info.append("\"").append(file[FILE_CID].ToString()).append("\":")
-                .append("\"{ \\\"size\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
-                .append("\\\"sealed_size\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-                .append("\\\"block_number\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
-            if (i != wl->sealed_files.size() - 1)
+            info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
+                .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+                .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
+                .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
+            if (i != meta_json[ID_FILE].size() - 1)
             {
                 info.append(",");
             }
@@ -992,6 +990,12 @@ crust_status_t id_restore_metadata()
         file_info_offset += 1;
         persist_set_unsafe(DB_FILE_INFO, file_info_buf, file_info_offset);
         free(file_info_buf);
+        // Restore file metadata
+        wl->sealed_files.resize(meta_json[ID_FILE].size());
+        for (int i = 0; i < meta_json[ID_FILE].size(); i++)
+        {
+            wl->sealed_files[i] = meta_json[ID_FILE][i];
+        }
     }
     // Restore id key pair
     ecc_key_pair tmp_key_pair;

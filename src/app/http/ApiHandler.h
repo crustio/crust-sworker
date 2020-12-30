@@ -29,6 +29,9 @@
 #include "Srd.h"
 #include "EnclaveData.h"
 #include "Chain.h"
+#ifdef _CRUST_TEST_FLAG_
+#include "ApiHandlerTest.h"
+#endif
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -87,6 +90,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     crust::Log *p_log = crust::Log::get_instance();
     UrlEndPoint urlendpoint = get_url_end_point(p_config->base_url);
     EnclaveData *ed = EnclaveData::get_instance();
+    EnclaveQueue *eq = EnclaveQueue::get_instance();
     std::string cur_path;
     // Upgrade block service set
     std::set<std::string> upgrade_block_s = {
@@ -181,16 +185,33 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         return send(std::move(res));
     }
 
+    http::response<http::string_body> res{
+        std::piecewise_construct,
+        std::make_tuple("Unknown request target"),
+        std::make_tuple(http::status::bad_request, req.version())};
+    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+    res.set(http::field::content_type, "application/text");
+
+#ifdef _CRUST_TEST_FLAG_
+    json::JSON req_json;
+    req_json["target"] = req_route;
+    req_json["method"] = req.method() == http::verb::get ? "GET" : "POST";
+    req_json["body"] = req.body();
+    json::JSON test_res = http_handler_test(urlendpoint, req_json);
+    if (test_res.size() > 0)
+    {
+        res.result(test_res[HTTP_STATUS_CODE].ToInt());
+        std::string res_body = test_res[HTTP_MESSAGE].ToString();
+        remove_char(res_body, '\\');
+        res.body() = res_body;
+        res.content_length(res.body().size());
+        return send(std::move(res));
+    }
+#endif
+
     // ----- Respond to GET request ----- //
     if(req.method() == http::verb::get)
     {
-        http::response<http::string_body> res{
-            std::piecewise_construct,
-            std::make_tuple("Unknown request target"),
-            std::make_tuple(http::status::bad_request, req.version())};
-        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-        res.set(http::field::content_type, "application/text");
-
         // ----- Get workload ----- //
         cur_path = urlendpoint.base + "/workload";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
@@ -201,6 +222,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         }
 
         // ----- Stop sworker ----- //
+        // TODO: We just need to wait workreport and storing metadata, and then can stop
         cur_path = urlendpoint.base + "/stop";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
@@ -208,7 +230,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 res.result(200);
                 res.body() = "{\"code\":200,\"message\":\"success\"}";
-                while (0 != get_all_running_ecalls_num())
+                while (0 != eq->get_running_ecalls_sum())
                 {
                     sleep(1);
                 }
@@ -229,7 +251,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            res.body() = get_running_ecalls_info();
+            res.body() = eq->get_running_ecalls_info();
             goto getcleanup;
         }
 
@@ -427,10 +449,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     // ----- Respond to POST request ----- //
     if(req.method() == http::verb::post)
     {
-        http::response<http::string_body> res{
-            std::piecewise_construct,
-            std::make_tuple("Unknown request target"),
-            std::make_tuple(http::status::bad_request, req.version())};
         res.result(400);
         res.body() = "Unknown request!";
         json::JSON res_json;
@@ -764,8 +782,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
 
     postcleanup:
-        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-        res.set(http::field::content_type, "application/text");
         res.content_length(res.body().size());
         //res.keep_alive(req.keep_alive());
         return send(std::move(res));

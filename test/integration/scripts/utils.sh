@@ -104,11 +104,43 @@ function get_file_info_all()
     curl -s -XGET $baseurl/file/info_all
 }
 
-function set_srd()
+function add_srd()
+{
+    # Get current available max per turn
+    local srd_num=$1
+    local paths=($(get_config ".srd_path"))
+    local tmp=""
+    local srd_max_per_turn=0
+    local srd_paths_test=($paths)
+    for path in ${srd_paths_test[@]}; do
+        tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
+        tmp=${tmp%[a-zA-Z]*}
+        ((srd_max_per_turn+=tmp-55))
+    done
+
+    # Srd task
+    local tmp_num=0
+    local cur_turn=0
+    while [ $tmp_num -lt $srd_num ]; do
+        if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
+            cur_turn=$srd_max_per_turn
+        else
+            cur_turn=$((srd_num - tmp_num))
+        fi
+        srd $cur_turn &>/dev/null
+        if [ $? -ne 0 ]; then
+            verbose ERROR "srd failed!" n
+            exit 1
+        fi
+        ((tmp_num+=cur_turn))
+    done
+}
+
+function srd_real_async()
 {
     local change=$1
 
-    local ret_code=$(curl -s -XPOST $baseurl/srd/set_change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
+    local ret_code=$(curl -s -XPOST $baseurl/srd/change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
     if [ $ret_code -eq 200 ]; then
         return 0
     fi
@@ -116,7 +148,7 @@ function set_srd()
     return 1
 }
 
-function srd_real()
+function srd_real_sync()
 {
     local change=$1
 
@@ -132,7 +164,7 @@ function srd()
 {
     local change=$1
 
-    local ret_code=$(curl -s -XPOST $baseurl/srd/change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
+    local ret_code=$(curl -s -XPOST $baseurl/srd/set_change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
     if [ $ret_code -eq 200 ]; then
         return 0
     fi
@@ -140,17 +172,19 @@ function srd()
     return 1
 }
 
-function srd_disk_change()
+function validate_add_proof()
 {
-    local paths_json=$1
-    local op=$2
-
-    curl -s -XPOST $baseurl/srd/change_disk --data-raw "{\"paths\":$paths_json,\"op\":\"$op\"}"
+    curl -s $baseurl/validate/add_proof
 }
 
-function validate_srd_real()
+function validate_srd()
 {
-    curl -s $baseurl/validate/srd_real
+    curl -s $baseurl/validate/srd
+}
+
+function validate_srd_test()
+{
+    curl -s $baseurl/validate/srd_test
 }
 
 function validate_srd_bench()
@@ -163,7 +197,7 @@ function validate_file()
     curl -s $baseurl/validate/file
 }
 
-function validate_file_real()
+function validate_file_test()
 {
     curl -s $baseurl/validate/file_real
 }
@@ -182,7 +216,6 @@ function report_work()
     ((block_height+=ERA_LENGTH))
     echo $block_height > $reportheightfile
 
-    validate_file &>/dev/null
     curl -s -XGET $baseurl/report/work --data-raw "{\"block_height\":$block_height}"
 }
 

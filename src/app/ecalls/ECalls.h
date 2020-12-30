@@ -1,37 +1,7 @@
 #ifndef _ECALLS_H_
 #define _ECALLS_H_
 
-#include <iostream>
-#include <sstream>
-#include <unistd.h>
-#include <vector>
-#include <unordered_map>
-#include <unordered_set>
-#include <mutex>
-#include <thread>
-#include <sgx_error.h>
-#include <sgx_eid.h>
-#include "Enclave_u.h"
-#include "Log.h"
-#include "EnclaveData.h"
-#include "CrustStatus.h"
-#include "SafeLock.h"
-#include "Json.hpp"
-
-// Max thread number.
-// Note: If you change this macro name, you should change corresponding name in Makefile
-#define ENC_MAX_THREAD_NUM  15
-// Reserved enclave resource for highest priority task
-#define ENC_RESERVED_THREAD_NUM  1
-// Threshold to trigger timeout mechanism
-#define ENC_PRIO_TIMEOUT_THRESHOLD 1
-// Number of running in enclave permanently
-#define ENC_PERMANENT_TASK_NUM 1
-// Highest priority
-#define ENC_HIGHEST_PRIORITY 0
-// Task timeout number
-#define ENC_TASK_TIMEOUT  30
-
+#include "EnclaveQueue.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -69,12 +39,6 @@ sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, 
 sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid);
 sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
 sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
-
-int get_upgrade_ecalls_num();
-
-std::string get_running_ecalls_info();
-int get_all_running_ecalls_num();
-int get_running_ecalls_num(std::string name);
 
 #if defined(__cplusplus)
 }
