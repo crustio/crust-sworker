@@ -216,7 +216,6 @@ function report_work()
     ((block_height+=ERA_LENGTH))
     echo $block_height > $reportheightfile
 
-    validate_file &>/dev/null
     curl -s -XGET $baseurl/report/work --data-raw "{\"block_height\":$block_height}"
 }
 

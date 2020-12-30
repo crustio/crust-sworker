@@ -97,14 +97,12 @@ sworkerpidfile=$roottmpdir/sworkerpid
 reportheightfile=$roottmpdir/report_file
 configfile=$instdir/config/config.json
 crustdir=/opt/crust
-ipfsdatadir=$crustdir/data/ipfs
 ERA_LENGTH=300
 REPORT_WAIT_BM=15
 cursworkerpid=$$
 pad="$(printf '%0.1s' ' '{1..10})"
 casedir=""
 killed=false
-IPFS_HELPER=$scriptdir/ipfs_helper
 GEN_RANDOM_DATA=$scriptdir/gen_random.sh
 
 trap "success_exit" EXIT
@@ -124,10 +122,8 @@ export configfile
 export testdir
 export testfiledir
 export testsrddir
-export ipfsdatadir
 export ERA_LENGTH
 export REPORT_WAIT_BM
-export IPFS_HELPER
 export GEN_RANDOM_DATA
 
 
@@ -224,12 +220,6 @@ if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
 fi
 verbose INFO "success" t
 echo $sworkerpid > $sworkerpidfile
-cd - &>/dev/null
-
-# Generate ipfs_helper
-cd $basedir
-go get
-go build ipfs_helper.go
 cd - &>/dev/null
 
 # Generate test srd file
