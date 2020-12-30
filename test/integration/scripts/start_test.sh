@@ -39,6 +39,7 @@ function success_exit()
     rm $SYNCFILE &>/dev/null
     rm $TMPFILE &>/dev/null
     rm $TMPFILE2 &>/dev/null
+    rm $configfile &>/dev/null
 
     if [ x"$killed" = x"false" ]; then
         print_end
@@ -95,7 +96,8 @@ TMPFILE2=$instdir/TMPFILE2
 roottmpdir=$instdir/tmp
 sworkerpidfile=$roottmpdir/sworkerpid
 reportheightfile=$roottmpdir/report_file
-configfile=$instdir/config/config.json
+configfile=$instdir/config/config_real.json
+configfileorg=$instdir/config/config.json
 crustdir=/opt/crust
 ERA_LENGTH=300
 REPORT_WAIT_BM=15
@@ -155,6 +157,7 @@ else
 fi
 
 ### Replace predefined parameter in configfile
+cp $configfileorg $configfile
 tmpstr=$(cat $testconfigfile | jq '.data_path' -r )/srd
 sed -i "/\"srd_path\" : \"%SRDPATH%\",/ c \    \"srd_path\" : \"$tmpstr\"," $configfile
 

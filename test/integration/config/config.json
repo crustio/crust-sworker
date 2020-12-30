@@ -1,5 +1,5 @@
 {
-    "srd_path" : "/home/yaoz/crust-sworker/test/test_app/sworker_base_path/data/srd",
+    "srd_path" : "%SRDPATH%",
     "functionality" : {
         "srd_size": 6,
         "srd_max_per_turn": 800,
