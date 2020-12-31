@@ -191,16 +191,16 @@ sgx_status_t EnclaveQueue::try_get_enclave(const char *name)
         // 1. Current task number equal or larger than ENC_MAX_THREAD_NUM
         // 2. Current task priority lower than highest level and remaining resource less than ENC_RESERVED_THREAD_NUM
         // 3. There exists higher priority task waiting
-        running_task_mutex.lock();
+        running_task_num_mutex.lock();
         if (running_task_num >= ENC_MAX_THREAD_NUM 
                 || (cur_task_prio > ENC_HIGHEST_PRIORITY && ENC_MAX_THREAD_NUM - running_task_num <= ENC_RESERVED_THREAD_NUM)
                 || get_higher_prio_waiting_task_num(cur_task_prio) - ENC_PERMANENT_TASK_NUM > 0)
         {
-            running_task_mutex.unlock();
+            running_task_num_mutex.unlock();
             goto loop;
         }
         running_task_num++;
-        running_task_mutex.unlock();
+        running_task_num_mutex.unlock();
 
         // Add current task to running queue and quit
         increase_running_queue(tname);
@@ -233,9 +233,9 @@ sgx_status_t EnclaveQueue::try_get_enclave(const char *name)
  */
 void EnclaveQueue::free_enclave(const char *name)
 {
-    running_task_mutex.lock();
+    running_task_num_mutex.lock();
     running_task_num--;
-    running_task_mutex.unlock();
+    running_task_num_mutex.unlock();
 
     decrease_running_queue(name);
 }
@@ -253,4 +253,23 @@ int EnclaveQueue::get_upgrade_ecalls_num()
     }
 
     return block_task_num;
+}
+
+/**
+ * @description: Is there stopping block task running
+ * @return: Has or not
+ */
+bool EnclaveQueue::has_stopping_block_task()
+{
+    SafeLock sl(running_ecalls_mutex);
+    sl.lock();
+    for (auto task : this->stop_block_task_v)
+    {
+        if (running_ecalls_um[task] > 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

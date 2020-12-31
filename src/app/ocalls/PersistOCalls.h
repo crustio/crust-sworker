@@ -13,10 +13,9 @@ extern "C"
 #endif
 
 crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t value_len);
-crust_status_t ocall_persist_add_keys(const char *key, const char *keys, size_t keys_len);
 crust_status_t ocall_persist_del(const char *key);
-crust_status_t ocall_persist_del_keys(const char *key, const char *keys, size_t keys_len);
-crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len);
+crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len, 
+        size_t total_size, uint8_t **total_buf, size_t offset);
 crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len);
 
 #if defined(__cplusplus)

@@ -416,6 +416,7 @@ int process_run()
     long srd_real_change = 0;
     std::string srd_task_str;
     EnclaveData *ed = EnclaveData::get_instance();
+    crust::DataBase *db = NULL;
     p_log->info("WorkerPID = %d\n", worker_pid);
 
     // Init conifigure
@@ -450,6 +451,7 @@ int process_run()
             return_status = -1;
             goto cleanup;
         }
+        db = crust::DataBase::get_instance();
 
 entry_network_flag:
         // Init enclave
@@ -528,7 +530,7 @@ entry_network_flag:
     }
 
     // Get srd remaining task
-    if (CRUST_SUCCESS == crust::DataBase::get_instance()->get(WL_SRD_REMAINING_TASK, srd_task_str))
+    if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
     {
         std::stringstream sstream(srd_task_str);
         size_t srd_task_remain = 0;
@@ -658,7 +660,10 @@ entry_network_flag:
 cleanup:
     // Release database
     p_log->info("Release database for exit...\n");
-    delete crust::DataBase::get_instance();
+    if (db != NULL)
+    {
+        delete db;
+    }
 
     // Stop web service
     p_log->info("Kill web service for exit...\n");

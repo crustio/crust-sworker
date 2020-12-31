@@ -1,7 +1,7 @@
-.PHONY: build uint_test build_integration functionality_test clean
+.PHONY: build build_test uint_test functionality_test benchmark_test clean
 
 build:
-	@$(MAKE) -C src/ all --no-print-directory
+	@$(MAKE) -C src all -j8 --no-print-directory
 
 build_test:
 	@$(MAKE) -C test build --no-print-directory

@@ -66,10 +66,8 @@ enclave {
         crust_status_t ocall_ipfs_del_all([in, string] const char *cid);
 
         crust_status_t ocall_persist_add([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
-        crust_status_t ocall_persist_add_keys([in, string] const char *key, [in, size=keys_len] const char *keys, size_t keys_len);
         crust_status_t ocall_persist_del([in, string] const char *key);
-        crust_status_t ocall_persist_del_keys([in, string] const char *key, [in, size=keys_len] const char *keys, size_t keys_len);
-        crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len);
+        crust_status_t ocall_persist_set([in, string] const char *key, [in, size=value_len] const uint8_t *value, size_t value_len, size_t total_size, [in, out] uint8_t **total_buf, size_t offset);
         crust_status_t ocall_persist_get([in, string] const char *key, [out] uint8_t **value, [out] size_t *value_len);
         crust_status_t ocall_free_outer_buffer([in, out] uint8_t **value);
         void ocall_srd_change(long change)

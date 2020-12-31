@@ -35,7 +35,7 @@ if [ $? -ne 0 ]; then
     verbose ERROR "add srd failed."
     exit 1
 fi
-test_add_file $file_limit
+test_add_file $file_limit &>/dev/null
 if [ $? -ne 0 ]; then
     verbose ERROR "add file failed."
     exit 1

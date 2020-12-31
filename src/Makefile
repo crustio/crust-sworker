@@ -59,7 +59,7 @@ endif
 ######## App Objects ########
 
 app/Enclave_u.h: $(SGX_EDGER8R) enclave/Enclave.edl
-	cd app && $(SGX_EDGER8R) --untrusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
+	@cd app && $(SGX_EDGER8R) --untrusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
 	@echo "GEN  =>  $@"
 
 app/Enclave_u.c: app/Enclave_u.h

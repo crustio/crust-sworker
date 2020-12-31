@@ -128,6 +128,7 @@ void ecall_srd_remove_space(size_t change)
 void ecall_stop_all()
 {
     Workload::get_instance()->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
+    id_store_metadata();
 }
 
 /**
