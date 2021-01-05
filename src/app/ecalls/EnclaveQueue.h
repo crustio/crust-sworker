@@ -49,6 +49,7 @@ public:
     sgx_status_t try_get_enclave(const char *name);
     void free_enclave(const char *name);
     int get_upgrade_ecalls_num();
+    bool has_stopping_block_task();
     static EnclaveQueue *enclaveQueue;
     static EnclaveQueue *get_instance();
 
@@ -104,9 +105,14 @@ private:
         "Ecall_delete_file",
         "Ecall_srd_remove_space",
     };
+    // Stopping block task
+    std::vector<std::string> stop_block_task_v = {
+        "Ecall_gen_and_upload_work_report",
+        "Ecall_main_loop",
+    };
     // Record running task number
     int running_task_num;
-    std::mutex running_task_mutex;
+    std::mutex running_task_num_mutex;
     // Indicate number of each priority task, higher index represents lower priority
     std::vector<int> waiting_priority_sum_v{std::vector<int>(4, 0)};
     std::mutex waiting_priority_sum_mutex;

@@ -226,22 +226,30 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/stop";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
+            json::JSON ret_body;
+            std::string ret_info;
+            size_t ret_code = 500;
             if (SGX_SUCCESS == Ecall_stop_all(global_eid))
             {
-                res.result(200);
-                res.body() = "{\"code\":200,\"message\":\"success\"}";
-                while (0 != eq->get_running_ecalls_sum())
+                ret_code =200;
+                ret_info = "Stop sworker successfully.";
+                // We just need to wait workreport and storing metadata, and then can stop
+                while (eq->has_stopping_block_task())
                 {
                     sleep(1);
                 }
                 ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
+                p_log->info("%s\n", ret_info.c_str());
             }
             else
             {
-                res.result(500);
-                p_log->err("Stop enclave failed! Invoke SGX API failed!\n");
-                res.body() = "{\"code\":500,\"message\":\"Stop enclave failed! Invoke SGX API failed!\"}";
+                ret_code = 500;
+                ret_info = "Stop enclave failed! Invoke SGX API failed!";
+                p_log->err("%s\n", ret_info.c_str());
             }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.body() = ret_body.dump();
 
             goto getcleanup;
         }

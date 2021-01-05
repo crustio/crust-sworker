@@ -72,7 +72,7 @@ bool Chain::get_block_header(BlockHeader &block_header)
     }
     else
     {
-        p_log->err("%s\n", "return body is null");
+        p_log->err("%s\n", "Get block header:return body is null");
     }
 
     return false;
@@ -99,7 +99,7 @@ std::string Chain::get_block_hash(size_t block_number)
     }
     else
     {
-        p_log->err("%s\n", "Get block return body is null");
+        p_log->err("%s\n", "Get block hash:return body is null");
     }
 
     return "";
@@ -125,7 +125,7 @@ std::string Chain::get_swork_code()
     }
     else
     {
-        p_log->err("%s\n", "Get swork code return body is null");
+        p_log->err("%s\n", "Get swork code:return body is null");
     }
 
     return "";
@@ -167,7 +167,7 @@ bool Chain::is_syncing(void)
     }
     else
     {
-        p_log->err("%s\n", "Is syncing return body is null");
+        p_log->err("%s\n", "Is syncing:return body is null");
     }
 
     return true;
@@ -266,7 +266,7 @@ bool Chain::post_sworker_identity(std::string identity)
         }
         else
         {
-            p_log->err("%s, wait 10s and try again\n", "return body is null");
+            p_log->err("%s, wait 10s and try again\n", "upload identity:return body is null");
         }
 
         sleep(10);
@@ -302,7 +302,7 @@ bool Chain::post_sworker_work_report(std::string work_report)
         }
         else
         {
-            p_log->err("%s, wait 10s and try again\n", "return body is null");
+            p_log->err("%s, wait 10s and try again\n", "upload workreport:return body is null");
         }
         
         sleep(10);

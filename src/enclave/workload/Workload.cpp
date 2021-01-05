@@ -392,6 +392,7 @@ enc_upgrade_status_t Workload::get_upgrade_status()
  */
 void Workload::handle_report_result()
 {
+    bool handled = false;
     // Set file status by report result
     sgx_thread_mutex_lock(&this->file_mutex);
     for (auto i : this->reported_files_idx)
@@ -400,10 +401,17 @@ void Workload::handle_report_result()
         {
             auto status = &this->sealed_files[i][FILE_STATUS];
             status->set_char(ORIGIN_STATUS, status->get_char(WAITING_STATUS));
+            handled = true;
         }
     }
     this->reported_files_idx.clear();
     sgx_thread_mutex_unlock(&this->file_mutex);
+
+    // Store changed metadata
+    if (handled)
+    {
+        id_store_metadata();
+    }
 }
 
 /**
