@@ -164,40 +164,5 @@ crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *
 {
     std::string r_path = get_real_path_by_type(path, type);
 
-    crust_status_t crust_status = CRUST_SUCCESS;
-
-    if (access(r_path.c_str(), 0) == -1)
-    {
-        return CRUST_ACCESS_FILE_FAILED;
-    }
-
-    // Judge if given path is file
-    struct stat s;
-    if (stat (r_path.c_str(), &s) == 0)
-    {
-        if (s.st_mode & S_IFDIR)
-            return CRUST_OPEN_FILE_FAILED;
-    } 
-
-    std::ifstream in;
-
-    in.open(r_path.c_str(), std::ios::out | std::ios::binary);
-    if (! in)
-    {
-        return CRUST_OPEN_FILE_FAILED;
-    }
-
-    in.seekg(0, std::ios::end);
-    *len = in.tellg();
-    in.seekg(0, std::ios::beg);
-
-    uint8_t *p_data = (uint8_t *)malloc(*len);
-    memset(p_data, 0, *len);
-
-    in.read(reinterpret_cast<char *>(p_data), *len);
-    in.close();
-
-    *p_file = p_data;
-
-    return crust_status;
+    return get_file(r_path.c_str(), p_file, len);
 }

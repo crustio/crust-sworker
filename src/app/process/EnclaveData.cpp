@@ -198,8 +198,6 @@ void EnclaveData::add_sealed_file_info(std::string cid, std::string info)
     }
 
     this->sealed_file[cid] = info;
-
-    crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
 }
 
 /**
@@ -287,7 +285,6 @@ void EnclaveData::del_sealed_file_info(std::string cid)
     if (this->sealed_file.hasKey(cid))
     {
         this->sealed_file.ObjectRange().object->erase(cid);
-        crust::DataBase::get_instance()->set(DB_FILE_INFO, this->sealed_file.dump());
     }
 }
 

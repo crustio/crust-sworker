@@ -36,6 +36,7 @@
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 200000
 #define FILE_CAL_BUFFER_SIZE 8388608
+#define FILE_PIECE_SIZE 262144 /* 256*1024 */
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
@@ -52,6 +53,7 @@
 #define MT_DATA_HASH "d_hash"
 #define MT_LINKS "links"
 #define MT_LINKS_NUM "l_num"
+#define MT_SEPARATER "$&SP&$"
 
 // For IAS report
 #define IAS_CERT "ias_cert"

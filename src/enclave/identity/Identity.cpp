@@ -997,6 +997,11 @@ crust_status_t id_restore_metadata()
             wl->sealed_files[i] = meta_json[ID_FILE][i];
         }
     }
+    else
+    {
+        // Clean previous file info
+        persist_del(DB_FILE_INFO);
+    }
     // Restore id key pair
     ecc_key_pair tmp_key_pair;
     memcpy(&tmp_key_pair, p_id_key, sizeof(ecc_key_pair));

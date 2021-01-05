@@ -24,6 +24,7 @@ int rm(std::string path);
 size_t get_free_space_under_directory(std::string path);
 bool create_directory(std::string path);
 std::vector<std::string> get_sub_folders_and_files(const char *path);
+crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size);
 size_t get_total_space_under_dir_k(std::string path);
 size_t get_total_space_under_dir_m(std::string path);
 size_t get_total_space_under_dir_g(std::string path);

@@ -302,3 +302,22 @@ void print_attention()
     attention = HRED + gap + attention + NC;
     printf("\n%s\n", attention.c_str());
 }
+
+/**
+ * @description: Sleep time seconds one second by one second
+ * @param func -> Will be executed function
+ * @return: Function result
+ */
+bool sleep_interval(uint32_t time, std::function<bool()> func)
+{
+    for (uint32_t i = 0; i < time; i++)
+    {
+        if (!func())
+        {
+            return false;
+        }
+        sleep(1);
+    }
+
+    return true;
+}

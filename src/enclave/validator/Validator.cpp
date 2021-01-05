@@ -4,6 +4,8 @@
 #include "EJson.h"
 #include <algorithm>
 
+crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size);
+
 /**
  * @description: validate srd disk
  */
@@ -301,20 +303,19 @@ void validate_meaningful_file()
                 log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
             }
-            // Validate hash
+            // Validate sealed hash
             sgx_sha256_hash_t got_hash;
             sgx_sha256_msg(p_sealed_data, sealed_data_size, &got_hash);
-            if (p_sealed_data != NULL)
-            {
-                free(p_sealed_data);
-            }
             uint8_t *leaf_hash_u = hex_string_to_bytes(leaf_hash.c_str(), leaf_hash.size());
             if (leaf_hash_u == NULL)
             {
                 log_warn("Validate: Hexstring to bytes failed!Skip block:%ld check.\n", check_block_idx);
+                free(p_sealed_data);
                 continue;
             }
-            if (memcmp(leaf_hash_u, got_hash, HASH_LENGTH) != 0)
+            int memret = memcmp(leaf_hash_u, got_hash, HASH_LENGTH);
+            free(leaf_hash_u);
+            if (memret != 0)
             {
                 if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
@@ -323,10 +324,24 @@ void validate_meaningful_file()
                     log_err("Org hash : %s\n", leaf_hash.c_str());
                     deleted_index_us.insert(file_idx);
                 }
-                free(leaf_hash_u);
+                free(p_sealed_data);
                 break;
             }
-            free(leaf_hash_u);
+            // Validate real file piece
+            crust_status = validate_real_file(p_sealed_data, sealed_data_size);
+            free(p_sealed_data);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                if (CRUST_SERVICE_UNAVAILABLE == crust_status)
+                {
+                    wl->set_report_file_flag(false);
+                }
+                else
+                {
+                    deleted_index_us.insert(file_idx);
+                }
+                break;
+            }
         }
     }
 
@@ -343,11 +358,98 @@ void validate_meaningful_file()
             wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             // Delete real file
             ocall_ipfs_del_all(&crust_status, cid.c_str());
-            // Delete file tree structure
-            persist_del(cid);
             // Reduce valid file
             wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
         }
         sgx_thread_mutex_unlock(&wl->file_mutex);
     }
+}
+
+/**
+ * @description: Validate real ipfs file
+ * @param p_sealed_data -> Pointer to sealed data
+ * @param sealed_data_size -> Sealed data size
+ * @return: Validate result
+ */
+crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size)
+{
+    if (sealed_data_size <= 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
+    crust_status_t crust_status = CRUST_SUCCESS;
+    uint8_t *p_unsealed_data = NULL;
+    uint8_t *p_got_piece_data = NULL;
+    do
+    {
+        uint32_t pieces_num = sealed_data_size / FILE_PIECE_SIZE;
+        if (pieces_num == 0)
+        {
+            pieces_num = 1;
+        }
+        // Unseal data
+        uint32_t unsealed_data_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)p_sealed_data);
+        p_unsealed_data = (uint8_t *)enc_malloc(unsealed_data_size);
+        if (p_unsealed_data == NULL)
+        {
+            crust_status = CRUST_MALLOC_FAILED;
+            goto cleanup;
+        }
+        memset(p_unsealed_data, 0, unsealed_data_size);
+        sgx_status_t sgx_status = sgx_unseal_data((sgx_sealed_data_t *)p_sealed_data, NULL, NULL,
+                p_unsealed_data, &unsealed_data_size);
+        if (SGX_SUCCESS != sgx_status)
+        {
+            crust_status = CRUST_UNEXPECTED_ERROR;
+            goto cleanup;
+        }
+        // Choose to be checked file piece
+        uint32_t rand_num = 0;
+        sgx_read_rand((uint8_t *)&rand_num, sizeof(long));
+        long chk_piece_num = rand_num % pieces_num;
+        long chk_spos, chk_epos;
+        chk_spos = chk_epos = 0;
+        do
+        {
+            chk_epos = memfind(p_unsealed_data, unsealed_data_size, MT_SEPARATER, strlen(MT_SEPARATER), chk_spos);
+            if (chk_epos == -1)
+            {
+                chk_epos = sealed_data_size;
+                break;
+            }
+        } while (--chk_piece_num >= 0);
+        // Do check
+        size_t real_piece_size = chk_epos - chk_spos;
+        uint8_t *p_real_piece_data = p_unsealed_data + chk_spos;
+        sgx_sha256_hash_t piece_hash;
+        sgx_sha256_msg(p_real_piece_data, real_piece_size, &piece_hash);
+        std::string piece_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&piece_hash));
+        size_t got_piece_size = 0;
+        crust_status = storage_ipfs_get_block(piece_cid.c_str(), &p_got_piece_data, &got_piece_size);
+        sgx_sha256_hash_t got_piece_hash;
+        sgx_sha256_msg(p_got_piece_data, got_piece_size, &got_piece_hash);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            goto cleanup;
+        }
+        if (memcmp(p_real_piece_data, p_got_piece_data, real_piece_size) != 0)
+        {
+            crust_status = CRUST_UNEXPECTED_ERROR;
+            goto cleanup;
+        }
+    } while (0);
+
+cleanup:
+    if (p_unsealed_data != NULL)
+    {
+        free(p_unsealed_data);
+    }
+
+    if (p_got_piece_data != NULL)
+    {
+        free(p_got_piece_data);
+    }
+
+    return crust_status;
 }

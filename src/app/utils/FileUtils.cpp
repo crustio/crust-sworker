@@ -298,3 +298,54 @@ std::vector<std::string> get_sub_folders_and_files(const char *path)
 
     return dirs;
 }
+
+/**
+ * @description: Get file content
+ * @param path -> Pointer to file path
+ * @param p_data -> Pointer to pointer to file data
+ * @param data_size -> Pointer to file data size
+ */
+crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    if (access(path, 0) == -1)
+    {
+        return CRUST_ACCESS_FILE_FAILED;
+    }
+
+    // Judge if given path is file
+    struct stat s;
+    if (stat(path, &s) == 0)
+    {
+        if (s.st_mode & S_IFDIR)
+            return CRUST_OPEN_FILE_FAILED;
+    } 
+
+    std::ifstream in;
+
+    in.open(path, std::ios::out | std::ios::binary);
+    if (! in)
+    {
+        return CRUST_OPEN_FILE_FAILED;
+    }
+
+    in.seekg(0, std::ios::end);
+    *data_size = in.tellg();
+    in.seekg(0, std::ios::beg);
+
+    uint8_t *p_buf = (uint8_t *)malloc(*data_size);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        in.close();
+        return crust_status;
+    }
+    memset(p_buf, 0, *data_size);
+
+    in.read(reinterpret_cast<char *>(p_buf), *data_size);
+    in.close();
+
+    *p_data = p_buf;
+
+    return crust_status;
+}
