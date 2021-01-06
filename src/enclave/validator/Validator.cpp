@@ -174,18 +174,6 @@ void validate_meaningful_file()
     }
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
-    // Check if IPFS online
-    if (validate_sealed_files_m.size() > 0)
-    {
-        bool online = true;
-        ocall_ipfs_online(&online);
-        if (!online)
-        {
-            wl->set_report_file_flag(false);
-            return;
-        }
-    }
-
     // ----- Validate file ----- //
     // Used to indicate which meaningful file status has been changed
     std::unordered_set<size_t> deleted_index_us;
