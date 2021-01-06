@@ -304,7 +304,8 @@ void print_attention()
 }
 
 /**
- * @description: Sleep time seconds one second by one second
+ * @description: Sleep some time(indicated by 'time') second by second
+ * @param time -> Sleep total time(in second)
  * @param func -> Will be executed function
  * @return: Function result
  */

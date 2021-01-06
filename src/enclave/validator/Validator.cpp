@@ -158,6 +158,15 @@ void validate_meaningful_file()
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
+    // Check if IPFS online
+    bool online = true;
+    ocall_ipfs_online(&online);
+    if (!online)
+    {
+        wl->set_report_file_flag(false);
+        return;
+    }
+
     // Lock wl->sealed_files
     sgx_thread_mutex_lock(&wl->file_mutex);
     // Get to be checked files indexes
@@ -335,6 +344,7 @@ void validate_meaningful_file()
                 if (CRUST_SERVICE_UNAVAILABLE == crust_status)
                 {
                     wl->set_report_file_flag(false);
+                    goto cleanup;
                 }
                 else
                 {
@@ -345,6 +355,7 @@ void validate_meaningful_file()
         }
     }
 
+cleanup:
     // Change file status
     if (deleted_index_us.size() > 0)
     {
@@ -383,11 +394,6 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
     uint8_t *p_got_piece_data = NULL;
     do
     {
-        uint32_t pieces_num = sealed_data_size / FILE_PIECE_SIZE;
-        if (pieces_num == 0)
-        {
-            pieces_num = 1;
-        }
         // Unseal data
         uint32_t unsealed_data_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)p_sealed_data);
         p_unsealed_data = (uint8_t *)enc_malloc(unsealed_data_size);
@@ -404,27 +410,34 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
             crust_status = CRUST_UNEXPECTED_ERROR;
             goto cleanup;
         }
+
         // Choose to be checked file piece
-        uint32_t rand_num = 0;
-        sgx_read_rand((uint8_t *)&rand_num, sizeof(long));
-        long chk_piece_num = rand_num % pieces_num;
-        long chk_spos, chk_epos;
+        std::vector<std::pair<int, int>> piece_pos_v;
+        uint32_t chk_spos, chk_epos;
         chk_spos = chk_epos = 0;
         do
         {
-            chk_epos = memfind(p_unsealed_data, unsealed_data_size, MT_SEPARATER, strlen(MT_SEPARATER), chk_spos);
-            if (chk_epos == -1)
-            {
-                chk_epos = sealed_data_size;
-                break;
-            }
-        } while (--chk_piece_num >= 0);
-        // Do check
+            chk_spos = chk_epos;
+            chk_epos = 0;
+            memcpy(&chk_epos, p_unsealed_data + chk_spos, SEALED_BLOCK_TAG_SIZE);
+            chk_spos += SEALED_BLOCK_TAG_SIZE;
+            chk_epos += chk_spos;
+            piece_pos_v.push_back(std::make_pair(chk_spos, chk_epos));
+        } while (chk_epos < unsealed_data_size);
+        uint32_t rand_num = 0;
+        sgx_read_rand((uint8_t *)&rand_num, sizeof(uint32_t));
+        int chk_index = rand_num % piece_pos_v.size();
+
+        // ----- Do check ----- //
+        // Get cid from unsealed data piece
+        chk_spos = piece_pos_v[chk_index].first;
+        chk_epos = piece_pos_v[chk_index].second;
         size_t real_piece_size = chk_epos - chk_spos;
         uint8_t *p_real_piece_data = p_unsealed_data + chk_spos;
         sgx_sha256_hash_t piece_hash;
         sgx_sha256_msg(p_real_piece_data, real_piece_size, &piece_hash);
         std::string piece_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&piece_hash));
+        // Get related IPFS file data piece
         size_t got_piece_size = 0;
         crust_status = storage_ipfs_get_block(piece_cid.c_str(), &p_got_piece_data, &got_piece_size);
         sgx_sha256_hash_t got_piece_hash;
@@ -433,6 +446,7 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
         {
             goto cleanup;
         }
+        // Compare data piece
         if (memcmp(p_real_piece_data, p_got_piece_data, real_piece_size) != 0)
         {
             crust_status = CRUST_UNEXPECTED_ERROR;

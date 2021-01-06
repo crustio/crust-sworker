@@ -299,6 +299,8 @@ void EnclaveData::restore_sealed_file_info()
     crust::DataBase::get_instance()->get(DB_FILE_INFO, file_info);
     this->sealed_file = json::JSON::Load(file_info);
     this->sealed_file_mutex.unlock();
+
+    crust::DataBase::get_instance()->del(DB_FILE_INFO);
 }
 
 /**

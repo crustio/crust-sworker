@@ -218,7 +218,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
     }
 
     // ----- If buffer overflow, store data ----- //
-    if (*sealed_buffer_offset + block_size + strlen(MT_SEPARATER) >= FILE_CAL_BUFFER_SIZE)
+    if (*sealed_buffer_offset + block_size + SEALED_BLOCK_TAG_SIZE >= FILE_CAL_BUFFER_SIZE)
     {
         // Do seal
         uint8_t *p_sealed_data = NULL;
@@ -254,10 +254,11 @@ crust_status_t _storage_seal_file(const char *root_cid,
     }
 
     // Copy data to caculate buffer
+    uint32_t block_size_u32 = block_size;
+    memcpy(sealed_buffer + *sealed_buffer_offset, &block_size_u32, SEALED_BLOCK_TAG_SIZE);
+    *sealed_buffer_offset += SEALED_BLOCK_TAG_SIZE;
     memcpy(sealed_buffer + *sealed_buffer_offset, p_block_data, block_size);
     *sealed_buffer_offset += block_size;
-    memcpy(sealed_buffer + *sealed_buffer_offset, MT_SEPARATER, strlen(MT_SEPARATER));
-    *sealed_buffer_offset += strlen(MT_SEPARATER);
 
     // Deal with children
     std::vector<uint8_t *> children_hashs;

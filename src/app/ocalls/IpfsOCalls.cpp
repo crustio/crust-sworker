@@ -98,10 +98,7 @@ crust_status_t ocall_ipfs_del(const char *cid)
 crust_status_t ocall_ipfs_del_all(const char *cid)
 {
     // Delete ipfs file
-    if (!Ipfs::get_instance()->del(cid))
-    {
-        p_log->warn("Cannot delete file(cid:%s)!\n", cid);
-    }
+    Ipfs::get_instance()->del(cid);
 
     // Delete sealed tree
     crust::DataBase::get_instance()->del(cid);

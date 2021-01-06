@@ -625,6 +625,7 @@ entry_network_flag:
             }
         }
 
+        // Sleep and check exit flag
         if (!sleep_interval(check_interval, [&ed](void){
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
