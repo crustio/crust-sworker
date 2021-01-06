@@ -218,7 +218,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
     }
 
     // ----- If buffer overflow, store data ----- //
-    if (*sealed_buffer_offset + block_size >= FILE_CAL_BUFFER_SIZE)
+    if (*sealed_buffer_offset + block_size + SEALED_BLOCK_TAG_SIZE >= FILE_CAL_BUFFER_SIZE)
     {
         // Do seal
         uint8_t *p_sealed_data = NULL;
@@ -235,7 +235,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
         sgx_sha256_hash_t sealed_hash;
         sgx_sha256_msg(p_sealed_data, sealed_data_size, &sealed_hash);
         std::string sealed_path = std::string(root_cid) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
-        // Add sealed data to ipfs and get related cid
+        // Save sealed data to local
         ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_FILE);
         free(p_sealed_data);
         if (CRUST_SUCCESS != crust_status)
@@ -254,6 +254,9 @@ crust_status_t _storage_seal_file(const char *root_cid,
     }
 
     // Copy data to caculate buffer
+    uint32_t block_size_u32 = block_size;
+    memcpy(sealed_buffer + *sealed_buffer_offset, &block_size_u32, SEALED_BLOCK_TAG_SIZE);
+    *sealed_buffer_offset += SEALED_BLOCK_TAG_SIZE;
     memcpy(sealed_buffer + *sealed_buffer_offset, p_block_data, block_size);
     *sealed_buffer_offset += block_size;
 

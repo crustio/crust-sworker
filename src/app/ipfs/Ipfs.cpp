@@ -70,9 +70,20 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 {
     std::string path = this->url + "/block/get?arg=" + cid + "&timeout=" + block_get_timeout;
     http::response<http::string_body> res = ipfs_client->Post(path);
-    if ((int)res.result() != 200)
+    int res_code = (int)res.result();
+    if (res_code != 200)
     {
-        p_log->err("Get block from ipfs error, code is: %d\n", (int)res.result());
+        switch (res_code)
+        {
+            case 404:
+                p_log->err("IPFS is offline! Please start it.\n");
+                break;
+            case 500:
+                p_log->err("Get IPFS file block failed!\n");
+                break;
+            default:
+                p_log->err("Get IPFS file block error, code: %d\n", res_code);
+        }
         return 0;
     }
 
@@ -137,9 +148,20 @@ bool Ipfs::del(std::string cid)
 {
     std::string path = this->url + "/pin/rm?arg=" + cid;
     http::response<http::string_body> res = ipfs_client->Post(path);
-    if ((int)res.result() != 200)
+    int res_code = (int)res.result();
+    if (res_code != 200)
     {
-        p_log->err("Delete file error, code is: %d\n", (int)res.result());
+        switch (res_code)
+        {
+            case 404:
+                p_log->err("IPFS is offline! Please start it.\n");
+                break;
+            case 500:
+                p_log->err("Cannot find IPFS file block!\n");
+                break;
+            default:
+                p_log->err("Delete file error, code is: %d\n", res_code);
+        }
         return false;
     }
 

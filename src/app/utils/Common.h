@@ -39,6 +39,7 @@ extern "C"
     void remove_char(std::string &data, char c);
     void srand_string(std::string seed);
     void print_attention();
+    bool sleep_interval(uint32_t time, std::function<bool()> func);
 
 #if defined(__cplusplus)
 }

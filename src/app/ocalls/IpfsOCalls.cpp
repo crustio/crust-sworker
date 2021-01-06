@@ -23,6 +23,10 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
     *data_size = Ipfs::get_instance()->block_get(cid, p_data);
     if (*data_size == 0)
     {
+        if (!Ipfs::get_instance()->online())
+        {
+            return CRUST_SERVICE_UNAVAILABLE;
+        }
         return CRUST_STORAGE_IPFS_BLOCK_GET_ERROR;
     }
     return CRUST_SUCCESS;
@@ -93,14 +97,11 @@ crust_status_t ocall_ipfs_del(const char *cid)
  */
 crust_status_t ocall_ipfs_del_all(const char *cid)
 {
-    crust_status_t crust_status = CRUST_SUCCESS;
-    crust::DataBase *db = crust::DataBase::get_instance();
-    std::string tree_str;
-    if (CRUST_SUCCESS != (crust_status = db->get(cid, tree_str)))
-    {
-        p_log->err("Get validate tree(%s) to delete sealed file block failed! Error code:%lx\n", cid, crust_status);
-        return CRUST_UNEXPECTED_ERROR;
-    }
+    // Delete ipfs file
+    Ipfs::get_instance()->del(cid);
+
+    // Delete sealed tree
+    crust::DataBase::get_instance()->del(cid);
 
     // Delete sealed file data
     std::string sealed_file_path = Config::get_instance()->file_path + "/" + cid;

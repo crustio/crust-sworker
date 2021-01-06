@@ -134,7 +134,10 @@ bool initialize_components(void)
     // Start http service
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
             std::async(std::launch::async, &start_webservice)), &start_webservice));
-    while (g_start_server_success == -1);
+    while (g_start_server_success == -1)
+    {
+        sleep(0.01);
+    }
     if (g_start_server_success == 0)
     {
         p_log->err("Start web service failed!\n");
@@ -567,7 +570,7 @@ entry_network_flag:
 
     // Check block height and post report to chain
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
-             std::async(std::launch::async, &work_report_loop)), &work_report_loop));
+            std::async(std::launch::async, &work_report_loop)), &work_report_loop));
 
     // Start thread to check srd reserved
     g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
@@ -622,39 +625,27 @@ entry_network_flag:
             }
         }
 
-        for (size_t i = 0; i < (size_t)check_interval; i++)
-        {
-            // Exit
+        // Sleep and check exit flag
+        if (!sleep_interval(check_interval, [&ed](void){
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
                 // Wait tasks end
-                bool out_tasks_wait = false;
-                while (!out_tasks_wait)
+                bool has_task_running = false;
+                for (auto task : g_tasks_v)	
                 {
-                    out_tasks_wait = true;
-                    std::future_status f_status;	
-                    for (auto task : g_tasks_v)	
+                    if(task.second == &start_webservice)
                     {
-                        if(task.second == &start_webservice)
-                        {
-                            continue;
-                        }
-
-                        f_status = task.first->wait_for(std::chrono::seconds(0));	
-                        if (f_status != std::future_status::ready)
-                        {
-                            out_tasks_wait = false;
-                            break;
-                        }
+                        continue;
                     }
-                    sleep(1);
+                    if (task.first->wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                    {
+                        has_task_running = true;
+                    }
                 }
-
-                // End
-                goto cleanup;
+                return has_task_running;
             }
-            sleep(1);
-        }
+            return true;
+        })) { goto cleanup; }
     }
 
 cleanup:
