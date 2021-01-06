@@ -158,15 +158,6 @@ void validate_meaningful_file()
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
-    // Check if IPFS online
-    bool online = true;
-    ocall_ipfs_online(&online);
-    if (!online)
-    {
-        wl->set_report_file_flag(false);
-        return;
-    }
-
     // Lock wl->sealed_files
     sgx_thread_mutex_lock(&wl->file_mutex);
     // Get to be checked files indexes
@@ -182,6 +173,18 @@ void validate_meaningful_file()
         validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
     }
     sgx_thread_mutex_unlock(&wl->file_mutex);
+
+    // Check if IPFS online
+    if (validate_sealed_files_m.size() > 0)
+    {
+        bool online = true;
+        ocall_ipfs_online(&online);
+        if (!online)
+        {
+            wl->set_report_file_flag(false);
+            return;
+        }
+    }
 
     // ----- Validate file ----- //
     // Used to indicate which meaningful file status has been changed
