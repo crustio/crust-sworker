@@ -82,10 +82,10 @@
 
 // For workload
 #define WL_SRD "srd"
-#define WL_SRD_ASSIGNED "assigned"
+#define WL_SRD_ASSIGNED "srd_complete"
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
-#define WL_SRD_REMAINING_TASK "remaining_task"
+#define WL_SRD_REMAINING_TASK "srd_remaining_task"
 #define WL_FILES "files"
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"

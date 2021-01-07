@@ -13,12 +13,15 @@ bool upgrade_try_start();
 bool upgrade_try_restore();
 bool upgrade_try_complete(bool restore_res);
 
+bool start_task(task_func_t func);
+bool restore_tasks();
+
 // Global EID shared by multiple threads
 sgx_enclave_id_t global_eid;
 // Pointor to configure instance
 Config *p_config = NULL;
 // Map to record specific task
-std::vector<std::pair<std::shared_ptr<std::future<void>>, task_func_t>> g_tasks_v;
+std::map<task_func_t, std::shared_ptr<std::future<void>>> g_tasks_m;
 
 crust::Log *p_log = crust::Log::get_instance();
 extern bool offline_chain_mode;
@@ -132,13 +135,7 @@ bool initialize_components(void)
     }
 
     // Start http service
-    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
-            std::async(std::launch::async, &start_webservice)), &start_webservice));
-    while (g_start_server_success == -1)
-    {
-        sleep(0.01);
-    }
-    if (g_start_server_success == 0)
+    if (!start_task(start_webservice))
     {
         p_log->err("Start web service failed!\n");
         return false;
@@ -402,6 +399,50 @@ void main_loop(void)
 }
 
 /**
+ * @description: Start task by name
+ * @param func -> Task function indicator
+ * @return: Start result
+ */
+bool start_task(task_func_t func)
+{
+    g_tasks_m[func] = std::make_shared<std::future<void>>(std::async(std::launch::async, func));
+    if (func == start_webservice)
+    {
+        while (g_start_server_success == -1)
+        {
+            sleep(0.01);
+        }
+        if (g_start_server_success == 0)
+        {
+            return false;
+        }
+        g_start_server_success = -1;
+    }
+
+    return true;
+}
+
+/**
+ * @description: Restore tasks
+ * @return: Restore result
+ */
+bool restore_tasks()
+{
+    for (auto it = g_tasks_m.begin(); it != g_tasks_m.end(); it++)
+    {
+        if (it->second->wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+        {
+            if (!start_task(it->first))
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
  * @desination: Main function to start application
  * @return: Start status
  */
@@ -569,16 +610,13 @@ entry_network_flag:
     ed->restore_sealed_file_info();
 
     // Check block height and post report to chain
-    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
-            std::async(std::launch::async, &work_report_loop)), &work_report_loop));
+    start_task(work_report_loop);
 
     // Start thread to check srd reserved
-    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
-            std::async(std::launch::async, &srd_check_reserved)), &srd_check_reserved));
+    start_task(srd_check_reserved);
 
     // Main validate loop
-    g_tasks_v.push_back(std::make_pair(std::make_shared<std::future<void>>(
-            std::async(std::launch::async, &main_loop)), &main_loop));
+    start_task(main_loop);
 
     // Check loop
     while (true)
@@ -622,22 +660,28 @@ entry_network_flag:
                 p_log->err("Upgrade timeout!Current version will restore work!\n");
                 ed->set_upgrade_status(UPGRADE_STATUS_NONE);
                 upgrade_tryout = upgrade_timeout / check_interval;
+                // Restore related work
+                if (!restore_tasks())
+                {
+                    p_log->err("Restore tasks failed! Will exist...\n");
+                    goto cleanup;
+                }
             }
         }
 
         // Sleep and check exit flag
-        if (!sleep_interval(check_interval, [&ed](void){
+        if (!sleep_interval(check_interval, [&ed](void) {
             if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
             {
                 // Wait tasks end
                 bool has_task_running = false;
-                for (auto task : g_tasks_v)	
+                for (auto task : g_tasks_m)	
                 {
-                    if(task.second == &start_webservice)
+                    if(task.first == start_webservice)
                     {
                         continue;
                     }
-                    if (task.first->wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                    if (task.second->wait_for(std::chrono::seconds(0)) != std::future_status::ready)
                     {
                         has_task_running = true;
                     }

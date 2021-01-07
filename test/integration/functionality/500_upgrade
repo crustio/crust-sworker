@@ -43,7 +43,7 @@ function srd_backend()
 function success_exit()
 {
     ### Delete srd
-    srd -$(get_workload | jq '.srd|.assigned')
+    srd -$(get_workload | jq '.srd|.srd_complete')
 }
 
 ########## MAIN BODY ##########

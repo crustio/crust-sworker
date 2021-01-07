@@ -61,7 +61,7 @@ fi
 workload=$(cat $TMPFILE)
 
 # Delete previous srd
-srd -$(echo $workload | jq '.srd|.assigned' | sed 's/"//g' 2>/dev/null) &>/dev/null
+srd -$(echo $workload | jq '.srd|.srd_complete' | sed 's/"//g' 2>/dev/null) &>/dev/null
 
 # Make srd volunm
 while [ $tmp_num -lt $srd_num ]; do

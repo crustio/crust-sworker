@@ -57,7 +57,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 tmp_num=0
-p_srd_num=$(cat $TMPFILE | jq '.srd|.assigned')
+p_srd_num=$(cat $TMPFILE | jq '.srd|.srd_complete')
 while [ $tmp_num -lt $p_srd_num ]; do
     if [ $((p_srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
         cur_turn=$srd_max_per_turn
@@ -89,7 +89,7 @@ while [ $tmp_num -lt $srd_num ]; do
 done
 _store_meta &>/dev/null
 get_workload &>$TMPFILE
-if [ x"$(cat $TMPFILE | jq '.srd|.assigned')" != x"$srd_num" ]; then
-    verbose ERROR "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.assigned')" n
+if [ x"$(cat $TMPFILE | jq '.srd|.srd_complete')" != x"$srd_num" ]; then
+    verbose ERROR "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.srd_complete')" n
     exit 1
 fi
