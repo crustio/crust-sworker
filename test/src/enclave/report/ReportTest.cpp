@@ -67,7 +67,7 @@ crust_status_t gen_work_report_test(const char *block_hash, size_t block_height,
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     // Judge whether block height is expired
-    if (block_height == 0 || block_height - wl->get_report_height() < ERA_LENGTH)
+    if (block_height == 0 || block_height - wl->get_report_height() < REPORT_SLOT)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }

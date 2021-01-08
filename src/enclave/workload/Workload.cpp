@@ -421,7 +421,7 @@ void Workload::handle_report_result()
  */
 crust_status_t Workload::try_report_work(size_t block_height)
 {
-    if (block_height == 0 || block_height - this->get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
+    if (block_height == 0 || block_height - this->get_report_height() - WORKREPORT_REPORT_INTERVAL < REPORT_SLOT)
     {
         return CRUST_UPGRADE_BLOCK_EXPIRE;
     }

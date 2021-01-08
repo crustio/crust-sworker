@@ -14,8 +14,8 @@ bool srd_change_test(long change)
 
     if (change > 0)
     {
-        size_t true_increase = change;
-        json::JSON disk_info_json = get_increase_srd_info(true_increase);
+        json::JSON disk_info_json = get_increase_srd_info();
+        size_t true_increase = std::min(disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(), change);
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
@@ -28,9 +28,9 @@ bool srd_change_test(long change)
         }
         // Print disk info
         p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
-                disk_info_json["available"].ToInt(),
+                disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                 p_config->srd_path.c_str(),
-                disk_info_json["increased"].ToInt());
+                true_increase);
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
 

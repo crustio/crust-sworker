@@ -93,5 +93,5 @@ show_help:
  */
 int main_daemon()
 {
-    return process_run();
+    return process_run_test();
 }

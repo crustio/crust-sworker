@@ -64,19 +64,7 @@ workload=$(cat $TMPFILE)
 srd -$(echo $workload | jq '.srd|.srd_complete' | sed 's/"//g' 2>/dev/null) &>/dev/null
 
 # Make srd volunm
-while [ $tmp_num -lt $srd_num ]; do
-    if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
-        cur_turn=$srd_max_per_turn
-    else
-        cur_turn=$((srd_num - tmp_num))
-    fi
-    srd $cur_turn &>/dev/null
-    if [ $? -ne 0 ]; then
-        verbose ERROR "srd failed!" n
-        exit 1
-    fi
-    ((tmp_num+=cur_turn))
-done
+add_srd $srd_num
 
 # Delete previous file
 clean_file

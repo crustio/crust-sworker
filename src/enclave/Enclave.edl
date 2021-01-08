@@ -56,7 +56,7 @@ enclave {
         crust_status_t ocall_delete_folder_or_file([in, string] const char *path, store_type_t type);
         crust_status_t ocall_get_file([in, string] const char *file_path, [out] uint8_t **p_file, [out] size_t *len, store_type_t type);
         void ocall_usleep(int u);
-        crust_status_t ocall_chain_get_block_info([out, size=data_size] char *data, size_t data_size);
+        crust_status_t ocall_chain_get_block_info([in, out, size=data_size] char *data, size_t data_size);
 
         bool ocall_ipfs_online();
         crust_status_t ocall_ipfs_get_block([in, string] const char *cid, [out] uint8_t **p_data, [out] size_t *data_size);

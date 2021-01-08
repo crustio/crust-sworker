@@ -70,15 +70,19 @@ crust_status_t storage_seal_file(const char *cid)
     // Get block height
     size_t chain_block_num = 0;
     size_t info_buf_size = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
-        + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
-        + HASH_LENGTH * 2;
+                         + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
+                         + HASH_LENGTH * 2;
     char *block_info_buf = (char *)enc_malloc(info_buf_size);
     memset(block_info_buf, 0, info_buf_size);
     ocall_chain_get_block_info(&crust_status, block_info_buf, info_buf_size);
-    if (CRUST_SUCCESS != crust_status)
+    if (CRUST_SUCCESS == crust_status)
     {
         json::JSON binfo_json = json::JSON::Load(std::string(block_info_buf));
         chain_block_num = binfo_json[CHAIN_BLOCK_NUMBER].ToInt();
+    }
+    else
+    {
+        log_warn("Cannot get block information for sealed file.\n");
     }
     free(block_info_buf);
     json::JSON file_entry_json;

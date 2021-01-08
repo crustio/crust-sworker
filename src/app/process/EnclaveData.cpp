@@ -320,11 +320,16 @@ std::string EnclaveData::gen_workload()
     {
         return "Get workload failed!";
     }
-    wl_json["srd"]["disk_reserved"] = get_reserved_space();
-    size_t tmp_size = 0;
-    json::JSON disk_json = get_increase_srd_info(tmp_size);
-    wl_json["srd"]["disk_available_for_srd"] = disk_json["available"].ToInt();
-    wl_json["srd"]["disk_volume"] = disk_json["total"].ToInt();
+    json::JSON disk_json = get_increase_srd_info();
+    std::string srd_info;
+    srd_info.append("{\n")
+            .append("\"" WL_SRD_ASSIGNED "\" : ").append(std::to_string(wl_json["srd"][WL_SRD_ASSIGNED].ToInt())).append(",\n")
+            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json["srd"][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
+            .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
+            .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE].ToInt())).append(",\n")
+            .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_json[WL_DISK_VOLUME].ToInt())).append("\n")
+            .append("}");
+    wl_json["srd"] = srd_info;
     // Get file info
     json::JSON file_info = wl_json["files"];
     json::JSON n_file_info;
@@ -347,6 +352,7 @@ std::string EnclaveData::gen_workload()
     replace(wl_str, "\"{", "{");
     replace(wl_str, ": \" ", ":  ");
     replace(wl_str, "}\"", "}");
+    replace(wl_str, "\\n", "\n");
     remove_char(wl_str, '\\');
     return wl_str;
 }

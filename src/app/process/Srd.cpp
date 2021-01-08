@@ -14,8 +14,9 @@ extern sgx_enclave_id_t global_eid;
  * @param true_srd_capacity -> True assigned size
  * @return: A path to assigned size map
  */
-json::JSON get_increase_srd_info(size_t &true_srd_capacity)
+json::JSON get_increase_srd_info()
 {
+    size_t true_srd_capacity = 0;
     // Get multi-disk info
     Config *p_config = Config::get_instance();
     json::JSON disk_info_json;
@@ -24,23 +25,24 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     if (create_directory(p_config->srd_path))
     {
         // Calculate free disk
-        disk_info_json["available"] = get_avail_space_under_dir_g(p_config->srd_path);
-        disk_info_json["total"] = get_total_space_under_dir_g(p_config->srd_path);
-        if (disk_info_json["available"].ToInt() <= srd_reserved_space)
+        disk_info_json[WL_DISK_AVAILABLE] = get_avail_space_under_dir_g(p_config->srd_path);
+        disk_info_json[WL_DISK_VOLUME] = get_total_space_under_dir_g(p_config->srd_path);
+        if (disk_info_json[WL_DISK_AVAILABLE].ToInt() <= srd_reserved_space)
         {
-            disk_info_json["available"] = 0;
+            disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = 0;
         }
         else
         {
-            disk_info_json["available"] = disk_info_json["available"].ToInt() - srd_reserved_space;
+            disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = disk_info_json[WL_DISK_AVAILABLE].ToInt() - srd_reserved_space;
         }
-        true_srd_capacity = std::min((size_t)disk_info_json["available"].ToInt(), true_srd_capacity);
-        disk_info_json["increased"] = true_srd_capacity;
+        true_srd_capacity = disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt();
     }
     else
     {
         true_srd_capacity = 0;
     }
+
+    disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = true_srd_capacity;
 
     return disk_info_json;
 }
@@ -55,8 +57,8 @@ void srd_change(long change)
 
     if (change > 0)
     {
-        size_t true_increase = change;
-        json::JSON disk_info_json = get_increase_srd_info(true_increase);
+        json::JSON disk_info_json = get_increase_srd_info();
+        size_t true_increase = std::min(disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(), change);
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
@@ -69,9 +71,9 @@ void srd_change(long change)
         }
         // Print disk info
         p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
-                disk_info_json["available"].ToInt(),
+                disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                 p_config->srd_path.c_str(),
-                disk_info_json["increased"].ToInt());
+                true_increase);
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
 

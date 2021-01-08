@@ -29,9 +29,6 @@
 #include "Srd.h"
 #include "EnclaveData.h"
 #include "Chain.h"
-#ifdef _CRUST_TEST_FLAG_
-#include "ApiHandlerTest.h"
-#endif
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -46,6 +43,11 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#ifdef _CRUST_TEST_FLAG_
+#include "ApiHandlerTest.h"
+extern size_t g_block_height;
+#endif
 
 #define WS_SEPARATOR "$crust_ws_separator$"
 
@@ -318,6 +320,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
+#ifndef _CRUST_TEST_FLAG_
             crust::BlockHeader block_header;
             if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
@@ -326,6 +329,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 p_log->err("%s\n", ret_info.c_str());
             }
             else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header.number)))
+#else
+            if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_SLOT+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))
+#endif
             {
                 ret_info = "Invoke SGX API failed!";
                 ret_code = 401;

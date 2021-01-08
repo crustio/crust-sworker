@@ -1,13 +1,5 @@
 #include "Process.h"
-#include "DataBase.h"
 #include "WebServer.h"
-#include "EntryNetwork.h"
-#include "Chain.h"
-
-#include <future>
-#include <chrono>
-
-#define RECEIVE_PID_RETRY 30
 
 bool upgrade_try_start();
 bool upgrade_try_restore();
@@ -453,7 +445,7 @@ int process_run()
     crust_status_t crust_status = CRUST_SUCCESS;
     int return_status = 1;
     int check_interval = 15;
-    int upgrade_timeout = 5 * REPORT_BLOCK_HEIGHT_BASE * BLOCK_INTERVAL;
+    int upgrade_timeout = 5 * REPORT_SLOT * BLOCK_INTERVAL;
     int upgrade_tryout = upgrade_timeout / check_interval;
     int entry_tryout = 3;
     size_t srd_task = 0;
@@ -495,7 +487,6 @@ int process_run()
             return_status = -1;
             goto cleanup;
         }
-        db = crust::DataBase::get_instance();
 
 entry_network_flag:
         // Init enclave
@@ -572,6 +563,7 @@ entry_network_flag:
             p_log->info("Restore enclave data successfully, sworker is running now.\n");
         }
     }
+    db = crust::DataBase::get_instance();
 
     // Get srd remaining task
     if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))

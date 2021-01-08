@@ -43,8 +43,8 @@ void work_report_loop(void)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
-    size_t offline_base_height = REPORT_BLOCK_HEIGHT_BASE;
-    size_t target_block_height = REPORT_BLOCK_HEIGHT_BASE;
+    size_t offline_base_height = REPORT_SLOT;
+    size_t target_block_height = REPORT_SLOT;
     size_t wr_wait_time = BLOCK_INTERVAL / 2;
     int stop_timeout = 10 * BLOCK_INTERVAL;
     int stop_tryout = stop_timeout / wr_wait_time;
@@ -64,7 +64,7 @@ void work_report_loop(void)
         }
         else
         {
-            target_block_height = (block_header.number / REPORT_BLOCK_HEIGHT_BASE + 1) * REPORT_BLOCK_HEIGHT_BASE;
+            target_block_height = (block_header.number / REPORT_SLOT + 1) * REPORT_SLOT;
             p_log->info("Set target block height %d\n", target_block_height);
         }
     }
@@ -106,7 +106,7 @@ void work_report_loop(void)
                 goto loop;
             }
 
-            size_t cut_wait_time = (block_header.number - (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE) * BLOCK_INTERVAL;
+            size_t cut_wait_time = (block_header.number - (block_header.number / REPORT_SLOT) * REPORT_SLOT) * BLOCK_INTERVAL;
 
             size_t wait_time = get_random_wait_time(id_json["pub_key"].ToString());
             if (cut_wait_time >= wait_time)
@@ -120,7 +120,7 @@ void work_report_loop(void)
             wait_time = std::max(wait_time, (size_t)REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT);
 
             p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header.number + (wait_time / BLOCK_INTERVAL) + 1);
-            block_header.number = (block_header.number / REPORT_BLOCK_HEIGHT_BASE) * REPORT_BLOCK_HEIGHT_BASE;
+            block_header.number = (block_header.number / REPORT_SLOT) * REPORT_SLOT;
             
             // Wait
             if(wait_and_check_exit(wait_time))
@@ -136,13 +136,13 @@ void work_report_loop(void)
                 goto loop;
             }
 
-            target_block_height = block_header.number + REPORT_BLOCK_HEIGHT_BASE;
+            target_block_height = block_header.number + REPORT_SLOT;
         }
         else
         {
             block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
             block_header.number = offline_base_height;
-            offline_base_height += REPORT_BLOCK_HEIGHT_BASE;
+            offline_base_height += REPORT_SLOT;
 
             // Wait
             if(wait_and_check_exit(60))

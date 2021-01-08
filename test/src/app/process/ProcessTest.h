@@ -33,9 +33,10 @@
 #include "Log.h"
 #include "WorkReport.h"
 #include "Srd.h"
+#include "Process.h"
 
 typedef void (*task_func_t)(void);
 
-int process_run();
+int process_run_test();
 
 #endif /* !_CRUST_PROCESS_TEST_H_ */
