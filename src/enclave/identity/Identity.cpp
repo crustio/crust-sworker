@@ -1109,7 +1109,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         crust_status = CRUST_BLOCK_HEIGHT_EXPIRED;
         goto cleanup;
     }
-    if (block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL < REPORT_SLOT)
+    if (block_height - wl->get_report_height() < REPORT_SLOT)
     {
         crust_status = CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
         goto cleanup;

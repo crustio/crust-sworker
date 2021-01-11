@@ -57,7 +57,7 @@ public:
     void reduce_restart_flag();
     bool get_restart_flag();
     void handle_report_result();
-    crust_status_t try_report_work(size_t block_height);
+    crust_status_t can_report_work(size_t block_height);
 
     // For upgrade
     void set_upgrade(sgx_ec256_public_t pub_key);

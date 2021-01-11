@@ -419,7 +419,7 @@ void Workload::handle_report_result()
  * @param block_height -> Block height
  * @return: Check status
  */
-crust_status_t Workload::try_report_work(size_t block_height)
+crust_status_t Workload::can_report_work(size_t block_height)
 {
     if (block_height == 0 || block_height - this->get_report_height() - WORKREPORT_REPORT_INTERVAL < REPORT_SLOT)
     {
