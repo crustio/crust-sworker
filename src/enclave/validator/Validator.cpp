@@ -391,7 +391,7 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
         if (p_unsealed_data == NULL)
         {
             crust_status = CRUST_MALLOC_FAILED;
-            goto cleanup;
+            break;
         }
         memset(p_unsealed_data, 0, unsealed_data_size);
         sgx_status_t sgx_status = sgx_unseal_data((sgx_sealed_data_t *)p_sealed_data, NULL, NULL,
@@ -399,13 +399,22 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
         if (SGX_SUCCESS != sgx_status)
         {
             crust_status = CRUST_UNEXPECTED_ERROR;
-            goto cleanup;
+            break;
         }
 
         // Choose to be checked file piece
-        std::vector<std::pair<int, int>> piece_pos_v;
+        uint32_t piece_num = 0;
+        memcpy(&piece_num, p_unsealed_data, sizeof(uint32_t));
+        if (piece_num == 0)
+        {
+            crust_status = CRUST_UNEXPECTED_ERROR;
+            break;
+        }
+        uint32_t rand_num = 0;
+        sgx_read_rand((uint8_t *)&rand_num, sizeof(uint32_t));
+        int chk_index = rand_num % piece_num;
         uint32_t chk_spos, chk_epos;
-        chk_spos = chk_epos = 0;
+        chk_spos = chk_epos = SEALED_BLOCK_TAG_SIZE;
         do
         {
             chk_spos = chk_epos;
@@ -413,16 +422,10 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
             memcpy(&chk_epos, p_unsealed_data + chk_spos, SEALED_BLOCK_TAG_SIZE);
             chk_spos += SEALED_BLOCK_TAG_SIZE;
             chk_epos += chk_spos;
-            piece_pos_v.push_back(std::make_pair(chk_spos, chk_epos));
-        } while (chk_epos < unsealed_data_size);
-        uint32_t rand_num = 0;
-        sgx_read_rand((uint8_t *)&rand_num, sizeof(uint32_t));
-        int chk_index = rand_num % piece_pos_v.size();
+        } while (chk_epos < unsealed_data_size && --chk_index >= 0);
 
         // ----- Do check ----- //
         // Get cid from unsealed data piece
-        chk_spos = piece_pos_v[chk_index].first;
-        chk_epos = piece_pos_v[chk_index].second;
         size_t real_piece_size = chk_epos - chk_spos;
         uint8_t *p_real_piece_data = p_unsealed_data + chk_spos;
         sgx_sha256_hash_t piece_hash;
@@ -435,17 +438,16 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
         sgx_sha256_msg(p_got_piece_data, got_piece_size, &got_piece_hash);
         if (CRUST_SUCCESS != crust_status)
         {
-            goto cleanup;
+            break;
         }
         // Compare data piece
         if (memcmp(p_real_piece_data, p_got_piece_data, real_piece_size) != 0)
         {
             crust_status = CRUST_UNEXPECTED_ERROR;
-            goto cleanup;
+            break;
         }
     } while (0);
 
-cleanup:
     if (p_unsealed_data != NULL)
     {
         free(p_unsealed_data);

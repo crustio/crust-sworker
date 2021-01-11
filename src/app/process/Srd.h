@@ -33,7 +33,7 @@ extern "C"
 #endif
 
 json::JSON get_increase_srd_info();
-void srd_change(long change);
+crust_status_t srd_change(long change);
 void srd_check_reserved(void);
 void set_reserved_space(size_t reserved);
 size_t get_reserved_space();

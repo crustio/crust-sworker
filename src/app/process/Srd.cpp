@@ -50,10 +50,12 @@ json::JSON get_increase_srd_info()
 /**
  * @description: Change SRD space
  * @param change -> SRD space number
+ * @return: Srd change result
  */
-void srd_change(long change)
+crust_status_t srd_change(long change)
 {
     Config *p_config = Config::get_instance();
+    crust_status_t crust_status = CRUST_SUCCESS;
 
     if (change > 0)
     {
@@ -63,11 +65,12 @@ void srd_change(long change)
         if (change > (long)true_increase)
         {
             p_log->warn("No enough space for %ldG srd, can only do %ldG srd.\n", change, true_increase);
+            crust_status = CRUST_SRD_NUMBER_EXCEED;
         }
         if (true_increase == 0)
         {
             //p_log->warn("No available space for srd!\n");
-            return;
+            return CRUST_SRD_NUMBER_EXCEED;
         }
         // Print disk info
         p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
@@ -88,9 +91,9 @@ void srd_change(long change)
                 if (SGX_SUCCESS != Ecall_srd_increase(eid))
                 {
                     // If failed, add current task to next turn
-                    crust_status_t crust_status = CRUST_SUCCESS;
+                    crust_status_t ret = CRUST_SUCCESS;
                     long real_change = 0;
-                    Ecall_change_srd_task(global_eid, &crust_status, 1, &real_change);
+                    Ecall_change_srd_task(global_eid, &ret, 1, &real_change);
                     return SGX_ERROR_UNEXPECTED;
                 }
                 return SGX_SUCCESS;
@@ -130,6 +133,8 @@ void srd_change(long change)
         Ecall_srd_decrease(global_eid, &true_decrease, (size_t)-change);
         p_log->info("Decrease %luG srd successfully.\n", true_decrease);
     }
+
+    return crust_status;
 }
 
 /**
