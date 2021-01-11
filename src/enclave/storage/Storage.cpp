@@ -70,15 +70,19 @@ crust_status_t storage_seal_file(const char *cid)
     // Get block height
     size_t chain_block_num = 0;
     size_t info_buf_size = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
-        + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
-        + HASH_LENGTH * 2;
+                         + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
+                         + HASH_LENGTH * 2;
     char *block_info_buf = (char *)enc_malloc(info_buf_size);
     memset(block_info_buf, 0, info_buf_size);
     ocall_chain_get_block_info(&crust_status, block_info_buf, info_buf_size);
-    if (CRUST_SUCCESS != crust_status)
+    if (CRUST_SUCCESS == crust_status)
     {
         json::JSON binfo_json = json::JSON::Load(std::string(block_info_buf));
         chain_block_num = binfo_json[CHAIN_BLOCK_NUMBER].ToInt();
+    }
+    else
+    {
+        log_warn("Cannot get block information for sealed file.\n");
     }
     free(block_info_buf);
     json::JSON file_entry_json;
@@ -178,7 +182,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
         tree[MT_CID] = std::string(cid);
         is_first = true;
         sealed_buffer_offset = (size_t *)enc_malloc(sizeof(size_t));
-        *sealed_buffer_offset = 0;
+        *sealed_buffer_offset = SEALED_BLOCK_TAG_SIZE;
         sealed_buffer = (uint8_t *)enc_malloc(FILE_CAL_BUFFER_SIZE);
         if (sealed_buffer == NULL)
         {
@@ -248,17 +252,24 @@ crust_status_t _storage_seal_file(const char *root_cid,
         sub_tree[MT_DATA_HASH] = hexstring_safe(reinterpret_cast<uint8_t *>(&sealed_hash), HASH_LENGTH);
         tree[MT_LINKS].append(sub_tree);
         sealed_size += sealed_data_size;
-        origin_size += *sealed_buffer_offset;
         block_num++;
-        *sealed_buffer_offset = 0;
+        *sealed_buffer_offset = SEALED_BLOCK_TAG_SIZE;
     }
 
-    // Copy data to caculate buffer
+    // ----- Copy data to caculate buffer ----- //
+    // Increase piece number
+    uint32_t total_piece_num = 0;
+    memcpy(&total_piece_num, sealed_buffer, sizeof(uint32_t));
+    total_piece_num++;
+    memcpy(sealed_buffer, &total_piece_num, sizeof(uint32_t));
+    // Block data position range
     uint32_t block_size_u32 = block_size;
     memcpy(sealed_buffer + *sealed_buffer_offset, &block_size_u32, SEALED_BLOCK_TAG_SIZE);
     *sealed_buffer_offset += SEALED_BLOCK_TAG_SIZE;
+    // Copy block data
     memcpy(sealed_buffer + *sealed_buffer_offset, p_block_data, block_size);
     *sealed_buffer_offset += block_size;
+    origin_size += block_size;
 
     // Deal with children
     std::vector<uint8_t *> children_hashs;
@@ -296,7 +307,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
         // Deal with left data
         do
         {
-            if (*sealed_buffer_offset <= 0 || CRUST_SUCCESS != crust_status)
+            if (*sealed_buffer_offset <= SEALED_BLOCK_TAG_SIZE || CRUST_SUCCESS != crust_status)
             {
                 break;
             }
@@ -323,7 +334,6 @@ crust_status_t _storage_seal_file(const char *root_cid,
             sub_tree[MT_DATA_HASH] = hexstring_safe(reinterpret_cast<uint8_t *>(&sealed_hash), HASH_LENGTH);
             tree[MT_LINKS].append(sub_tree);
             sealed_size += sealed_data_size;
-            origin_size += *sealed_buffer_offset;
             block_num++;
         } while (0);
 

@@ -276,7 +276,7 @@ crust_status_t ecall_enable_upgrade(size_t block_height)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
-    if (CRUST_SUCCESS == (crust_status = wl->try_report_work(block_height)))
+    if (CRUST_SUCCESS == (crust_status = wl->can_report_work(block_height)))
     {
         wl->set_upgrade_status(ENC_UPGRADE_STATUS_PROCESS);
     }

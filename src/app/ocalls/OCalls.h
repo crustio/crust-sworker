@@ -50,7 +50,7 @@ extern "C"
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
 
     // For srd
-    void ocall_srd_change(long change);
+    crust_status_t ocall_srd_change(long change);
 
     // For enclave data to app
     void ocall_store_enclave_id_info(const char *info);

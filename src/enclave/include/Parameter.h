@@ -36,7 +36,6 @@
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 200000
 #define FILE_CAL_BUFFER_SIZE 8388608
-#define FILE_PIECE_SIZE 262144 /* 256*1024 */
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
@@ -53,7 +52,6 @@
 #define MT_DATA_HASH "d_hash"
 #define MT_LINKS "links"
 #define MT_LINKS_NUM "l_num"
-#define MT_SEPARATER "$&SP&$"
 
 // For IAS report
 #define IAS_CERT "ias_cert"
@@ -77,15 +75,15 @@
 #define WORKREPORT_SIG "sig"
 #define WORKREPORT_FILE_LIMIT 1000
 #define WORKREPORT_REPORT_INTERVAL 10
-#define ERA_LENGTH 300
-#define BLOCK_TIME_BASE 6
+#define REPORT_SLOT 300
+#define BLOCK_INTERVAL 6
 
 // For workload
 #define WL_SRD "srd"
-#define WL_SRD_ASSIGNED "assigned"
+#define WL_SRD_ASSIGNED "srd_complete"
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
-#define WL_SRD_REMAINING_TASK "remaining_task"
+#define WL_SRD_REMAINING_TASK "srd_remaining_task"
 #define WL_FILES "files"
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
@@ -108,6 +106,7 @@
 // For ocalls
 #define PERSIST_SUM "persist_sum"
 #define PERSIST_SIZE "persist_size"
+#define OCALL_STORE_THRESHOLD 4194304 /* 4*1024*1024 */
 
 // Basic parameters
 #define HASH_LENGTH 32

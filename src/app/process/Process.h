@@ -12,6 +12,8 @@
 #include <mutex>
 #include <map>
 #include <fstream>
+#include <future>
+#include <chrono>
 
 #include <sgx_key_exchange.h>
 #include <sgx_report.h>
@@ -33,6 +35,9 @@
 #include "Log.h"
 #include "WorkReport.h"
 #include "Srd.h"
+#include "DataBase.h"
+#include "EntryNetwork.h"
+#include "Chain.h"
 
 typedef void (*task_func_t)(void);
 

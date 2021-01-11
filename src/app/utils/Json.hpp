@@ -47,6 +47,47 @@ void str_replace(std::string &data, std::string org_str, std::string det_str)
         epos = spos;
     }
 }
+string json_escape_pad(const string &str, string pad)
+{
+    string output;
+    for (unsigned i = 0; i < str.length(); ++i)
+        switch (str[i])
+        {
+        case '\"':
+            output += "\\\"";
+            break;
+        case '\\':
+            output += "\\\\";
+            break;
+        case '\b':
+            output += "\\b";
+            break;
+        case '\f':
+            output += "\\f";
+            break;
+        case '\n':
+            if (pad.size() > 2 && i + 1 < str.length() && str[i+1] == '}')
+            {
+                output += "\\n" + pad.substr(2, pad.length());
+            }
+            else
+            {
+                output += "\\n" + pad;
+            }
+            break;
+        case '\r':
+            output += "\\r";
+            break;
+        case '\t':
+            output += "\\t";
+            break;
+        default:
+            output += str[i];
+            break;
+        }
+    str_replace(output, JSON_NL, "\n        ");
+    return std::move(output);
+}
 string json_escape(const string &str)
 {
     string output;
@@ -478,7 +519,7 @@ public:
             return s;
         }
         case Class::String:
-            return "\"" + json_escape(*Internal.String) + "\"";
+            return "\"" + json_escape_pad(*Internal.String, pad) + "\"";
         case Class::Floating:
             return std::to_string(Internal.Float);
         case Class::Integral:

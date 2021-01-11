@@ -14,8 +14,9 @@ extern sgx_enclave_id_t global_eid;
  * @param true_srd_capacity -> True assigned size
  * @return: A path to assigned size map
  */
-json::JSON get_increase_srd_info(size_t &true_srd_capacity)
+json::JSON get_increase_srd_info()
 {
+    size_t true_srd_capacity = 0;
     // Get multi-disk info
     Config *p_config = Config::get_instance();
     json::JSON disk_info_json;
@@ -24,23 +25,24 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
     if (create_directory(p_config->srd_path))
     {
         // Calculate free disk
-        disk_info_json["available"] = get_avail_space_under_dir_g(p_config->srd_path);
-        disk_info_json["total"] = get_total_space_under_dir_g(p_config->srd_path);
-        if (disk_info_json["available"].ToInt() <= srd_reserved_space)
+        disk_info_json[WL_DISK_AVAILABLE] = get_avail_space_under_dir_g(p_config->srd_path);
+        disk_info_json[WL_DISK_VOLUME] = get_total_space_under_dir_g(p_config->srd_path);
+        if (disk_info_json[WL_DISK_AVAILABLE].ToInt() <= srd_reserved_space)
         {
-            disk_info_json["available"] = 0;
+            disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = 0;
         }
         else
         {
-            disk_info_json["available"] = disk_info_json["available"].ToInt() - srd_reserved_space;
+            disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = disk_info_json[WL_DISK_AVAILABLE].ToInt() - srd_reserved_space;
         }
-        true_srd_capacity = std::min((size_t)disk_info_json["available"].ToInt(), true_srd_capacity);
-        disk_info_json["increased"] = true_srd_capacity;
+        true_srd_capacity = disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt();
     }
     else
     {
         true_srd_capacity = 0;
     }
+
+    disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = true_srd_capacity;
 
     return disk_info_json;
 }
@@ -48,30 +50,33 @@ json::JSON get_increase_srd_info(size_t &true_srd_capacity)
 /**
  * @description: Change SRD space
  * @param change -> SRD space number
+ * @return: Srd change result
  */
-void srd_change(long change)
+crust_status_t srd_change(long change)
 {
     Config *p_config = Config::get_instance();
+    crust_status_t crust_status = CRUST_SUCCESS;
 
     if (change > 0)
     {
-        size_t true_increase = change;
-        json::JSON disk_info_json = get_increase_srd_info(true_increase);
+        json::JSON disk_info_json = get_increase_srd_info();
+        size_t true_increase = std::min(disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(), change);
         // Add left change to next srd, if have
         if (change > (long)true_increase)
         {
             p_log->warn("No enough space for %ldG srd, can only do %ldG srd.\n", change, true_increase);
+            crust_status = CRUST_SRD_NUMBER_EXCEED;
         }
         if (true_increase == 0)
         {
             //p_log->warn("No available space for srd!\n");
-            return;
+            return CRUST_SRD_NUMBER_EXCEED;
         }
         // Print disk info
         p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
-                disk_info_json["available"].ToInt(),
+                disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                 p_config->srd_path.c_str(),
-                disk_info_json["increased"].ToInt());
+                true_increase);
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
 
@@ -86,9 +91,9 @@ void srd_change(long change)
                 if (SGX_SUCCESS != Ecall_srd_increase(eid))
                 {
                     // If failed, add current task to next turn
-                    crust_status_t crust_status = CRUST_SUCCESS;
+                    crust_status_t ret = CRUST_SUCCESS;
                     long real_change = 0;
-                    Ecall_change_srd_task(global_eid, &crust_status, 1, &real_change);
+                    Ecall_change_srd_task(global_eid, &ret, 1, &real_change);
                     return SGX_ERROR_UNEXPECTED;
                 }
                 return SGX_SUCCESS;
@@ -128,6 +133,8 @@ void srd_change(long change)
         Ecall_srd_decrease(global_eid, &true_decrease, (size_t)-change);
         p_log->info("Decrease %luG srd successfully.\n", true_decrease);
     }
+
+    return crust_status;
 }
 
 /**

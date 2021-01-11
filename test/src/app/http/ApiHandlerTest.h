@@ -83,7 +83,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
-            if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_BLOCK_HEIGHT_BASE+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))
+            if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_SLOT+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))
             {
                 ret_info = "Invoke SGX API failed!";
                 ret_code = 401;
@@ -147,10 +147,10 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
                 memcpy(hash_u + i * sizeof(tmp_int), &tmp_int, sizeof(tmp_int));
             }
             std::string block_hash = hexstring_safe(hash_u, 32);
-            g_block_height += ERA_LENGTH;
+            g_block_height += REPORT_SLOT;
             free(hash_u);
             if (SGX_SUCCESS != Ecall_gen_and_upload_work_report_test(global_eid, &crust_status,
-                    block_hash.c_str(), g_block_height + REPORT_BLOCK_HEIGHT_BASE))
+                    block_hash.c_str(), g_block_height + REPORT_SLOT))
             {
                 res_json[HTTP_STATUS_CODE] = 400;
                 ret_info = "Get signed work report failed!";

@@ -45,15 +45,15 @@ crust_status_t id_gen_upgrade_data_test(size_t block_height)
         crust_status = CRUST_UNEXPECTED_ERROR;
         goto cleanup;
     }
-    if (block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL < ERA_LENGTH)
+    if (block_height - wl->get_report_height() - WORKREPORT_REPORT_INTERVAL < REPORT_SLOT)
     {
         crust_status = CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
         goto cleanup;
     }
     report_height = wl->get_report_height();
-    while (block_height - report_height > ERA_LENGTH)
+    while (block_height - report_height > REPORT_SLOT)
     {
-        report_height += ERA_LENGTH;
+        report_height += REPORT_SLOT;
     }
     report_hash = (char *)enc_malloc(HASH_LENGTH * 2);
     if (report_hash == NULL)
@@ -72,8 +72,8 @@ crust_status_t id_gen_upgrade_data_test(size_t block_height)
     // Send work report
     // Wait a random time:[10, 50] block time
     sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
-    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_TIME_BASE;
-    log_info("Upgrade: Will generate and send work reort after %ld blocks...\n", random_time / BLOCK_TIME_BASE);
+    random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_INTERVAL;
+    log_info("Upgrade: Will generate and send work reort after %ld blocks...\n", random_time / BLOCK_INTERVAL);
     if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report_test(report_hash, report_height, random_time, false, false)))
     {
         log_err("Fatal error! Send work report failed! Error code:%lx\n", crust_status);

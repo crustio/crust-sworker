@@ -152,9 +152,9 @@ crust_status_t ocall_entry_network()
  * @description: Do srd in this function
  * @param change -> The change number will be committed this turn
  */
-void ocall_srd_change(long change)
+crust_status_t ocall_srd_change(long change)
 {
-    srd_change(change);
+    return srd_change(change);
 }
 
 /**
