@@ -6,6 +6,8 @@
 crust::Log *p_log = crust::Log::get_instance();
 
 size_t g_srd_reserved_space = DEFAULT_SRD_RESERVED;
+size_t g_running_srd_task = 0;
+std::mutex g_running_srd_task_mutex;
 
 extern sgx_enclave_id_t global_eid;
 
@@ -72,6 +74,7 @@ crust_status_t srd_change(long change)
             //p_log->warn("No available space for srd!\n");
             return CRUST_SRD_NUMBER_EXCEED;
         }
+        set_running_srd_task(true_increase);
         // Print disk info
         p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
                 disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
@@ -88,15 +91,17 @@ crust_status_t srd_change(long change)
         {
             sgx_enclave_id_t eid = global_eid;
             tasks_v.push_back(std::make_shared<std::future<sgx_status_t>>(pool.push([eid](int /*id*/){
+                sgx_status_t sgx_status = SGX_SUCCESS;
                 if (SGX_SUCCESS != Ecall_srd_increase(eid))
                 {
                     // If failed, add current task to next turn
                     crust_status_t ret = CRUST_SUCCESS;
                     long real_change = 0;
                     Ecall_change_srd_task(global_eid, &ret, 1, &real_change);
-                    return SGX_ERROR_UNEXPECTED;
+                    sgx_status = SGX_ERROR_UNEXPECTED;
                 }
-                return SGX_SUCCESS;
+                decrease_running_srd_task();
+                return sgx_status;
             })));
         }
         // Wait for srd task
@@ -116,6 +121,7 @@ crust_status_t srd_change(long change)
                 std::cout << e.what() << std::endl;
             }
         }
+        set_running_srd_task(0);
 
         if (srd_success_num < true_increase)
         {
@@ -130,7 +136,9 @@ crust_status_t srd_change(long change)
     else if (change < 0)
     {
         size_t true_decrease = 0;
+        set_running_srd_task(change);
         Ecall_srd_decrease(global_eid, &true_decrease, (size_t)-change);
+        set_running_srd_task(0);
         p_log->info("Decrease %luG srd successfully.\n", true_decrease);
     }
 
@@ -212,4 +220,42 @@ size_t get_reserved_space()
 void set_reserved_space(size_t reserved)
 {
     g_srd_reserved_space = reserved;
+}
+
+/**
+ * @description: Set running srd task number
+ * @param srd_task -> Srd task number
+ */
+void set_running_srd_task(long srd_task)
+{
+    g_running_srd_task_mutex.lock();
+    g_running_srd_task = srd_task;
+    g_running_srd_task_mutex.unlock();
+}
+
+/**
+ * @description: Get running srd task number
+ * @return: Running task number
+ */
+long get_running_srd_task()
+{
+    long srd_task = 0;
+    g_running_srd_task_mutex.lock();
+    srd_task = g_running_srd_task;
+    g_running_srd_task_mutex.unlock();
+
+    return srd_task;
+}
+
+/**
+ * @description: Decrease one running srd task
+ */
+void decrease_running_srd_task()
+{
+    g_running_srd_task_mutex.lock();
+    if (g_running_srd_task > 0)
+    {
+        g_running_srd_task--;
+    }
+    g_running_srd_task_mutex.unlock();
 }

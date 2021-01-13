@@ -323,13 +323,13 @@ std::string EnclaveData::gen_workload()
     json::JSON disk_json = get_increase_srd_info();
     std::string srd_info;
     srd_info.append("{\n")
-            .append("\"" WL_SRD_ASSIGNED "\" : ").append(std::to_string(wl_json["srd"][WL_SRD_ASSIGNED].ToInt())).append(",\n")
-            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json["srd"][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
+            .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
+            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
             .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
             .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE].ToInt())).append(",\n")
             .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_json[WL_DISK_VOLUME].ToInt())).append("\n")
             .append("}");
-    wl_json["srd"] = srd_info;
+    wl_json[WL_SRD] = srd_info;
     // Get file info
     json::JSON file_info = wl_json["files"];
     json::JSON n_file_info;

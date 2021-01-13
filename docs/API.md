@@ -1,46 +1,69 @@
 # APIs
 When you start crust-sworker successfully, you can use following commands to request some information:
 
-Use 'api/v0/workload' to get workload information
--------------------------------------------------
+Use '/api/v0/workload' to get workload
+--------------------------------------
 ```
-curl http://<url:port>/api/v0/workload
+curl -XGET http://<url:port>/api/v0/workload
 ```
 
 Output:
-```json
+```
 {
   "files" : {
-    "lost" : { "num" : 0, "size" : 0 },
-    "unconfirmed" : { "num" : 0, "size" : 0 },
-    "valid" : { "num" : 1, "size" : 90000 }
+    "valid" : {  "num" : 1     , "size" : 16781194  }
   },
   "srd" : {
-    "detail" : {
-      "/opt/crust/data/sworker/srd1" : { "assigned" : 10, "available" : 794,  "total" : 937 }
-    },
-    "disk_reserved" : 50,
-    "remaining_task" : 0,
-    "space" : 10
+    "srd_complete" : 10,
+    "srd_remaining_task" : 2,
+    "disk_available_for_srd" : 228,
+    "disk_available" : 278,
+    "disk_volume" : 456
   }
 }
 ```
 Description:
-1. files: Give meaningful files' hash, size and status
-1. srd: Give srd information
-1. srd_path_x: Indicates your srd path.
-1. assigned: Indicates how many space has been used for srd in the path.
-1. available: Indicates how many space could be used for srd in the path.
-1. total: Indicates total disk volume.
-1. disk_reserved: Indicates disk reserved space, default value is 50 which means sWorker will remain 50GB space for your stuff and the other will be used for srd.
-1. remaining_task: Indicates remaining srd task.
-1. root_hash: Indicates all srd hash
-1. space: Space has been taken by srd
+1. files: give meaningful file information
+    1. valid: valid file information, includes 'num' and 'size'
+1. srd: give srd information
+    1. srd_complete: srded space volume
+    1. srd_remaining_task: remaining srd task
+    1. disk_available_for_srd: available volume for srd in current disk
+    1. disk_available: free space in current disk
+    1. disk_volume: current disk total volume
 
-Use 'api/v0/enclave/id_info' to get enclave mrenclave and pub_key
----------------------------------------------------------------------
+Use '/api/v0/stop' to stop sworker
+----------------------------------
 ```
-curl http://<url:port>/api/v0/enclave/id_info
+curl -XGET http://<url:port>/api/v0/stop
+```
+
+Output (200, success):
+```
+{
+  "message" : "Stop sworker successfully.",  
+  "status_code" : 200
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Stop enclave failed! Invoke SGX API failed!",  
+  "status_code" : 500
+}
+```
+
+Use '/api/v0/enclave/thread_info' to get enclave thread information
+-------------------------------------------------------------------
+```
+curl -XGET http://<url:port>/api/v0/enclave/thread_info
+```
+
+Use '/api/v0/enclave/id_info' to get enclave id information
+-----------------------------------------------------------
+```
+curl -XGET http://<url:port>/api/v0/enclave/id_info
 ```
 
 Output:
@@ -54,228 +77,360 @@ Output:
 }
 ```
 
-Use 'api/v0/debug' to set debug flag
-------------------------------------
+Use '/api/v0/file/info_all' to get all sealed file information
+--------------------------------------------------------------
 ```
-curl http://<url:port>/api/v0/debug --data-raw '{"debug" : true}'
+curl -XGET http://<url:port>/api/v0/file/info_all
+```
+
+Output:
+```
+{
+  "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen" : { "size" : 16781194 , "s_size" : 16783146 , "c_block_num" : 0 }
+}
+```
+Description:
+1. size: file real size
+1. s_size: sealed file size
+1. c_block_num: chain block number when sealing the file
+
+Use '/api/v0/debug' to set debug flag
+-------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/debug
+--data-raw '{"debug": xxx}'
 ```
 
 Parameter:
-1. debug: true or false, indicates open or close DEBUG mode.
+1. debug: only true or false can be accepted
 
 Output (200, success):
 ```
-Set debug flag successfully
+{
+  "message" : "Set debug flag successfully!",  
+  "status_code" : 200
+}
 ```
 
 Output (400, failed):
 ```
-Set debug flag failed
-```
-
-Use 'api/v0/srd/change' to change SRD capacity 
-----------------------------------------------
-Parameter 'change' in body represents the amount you want to change, the unit is GB, can be positive or negative.
-```
-curl --location --request POST 'http://<url:port>/api/v0/srd/change' \
---header 'Content-Type: application/json' \
---data-raw '{
-	"change": 2
-}'
-```
-
-Output (200, success):
-```
-Change srd file success, the srd workload will change in next validation loop
-```
-
-Output (402, invalid change):
-```
-invalid change
-```
-
-Output (500, service busy, this API does not support concurrency):
-```
-Change SRD service busy
-```
-
-Output (500, sWorker has not been fully launched , this API does not support concurrency):
-```
-'sWorker has not been fully launched' or 'Get validation status failed'
-```
-
-Use 'storage/seal' to start storage related work 
-------------------------------------------------
-```
-curl --location --request POST 'http://<url:port>/api/v0/storage/seal' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "body" : {
-        "hash":"0d22d8bbeaca1abebeec956e7e79a5f81c4b30c40a6034b190ff406c68c94c17",
-        "links_num":2,
-        "size": 4,
-        "links":
-        [
-          {
-            "hash":"ca8fcf43b852d7d73801c1c13f38e3d8f80e6c53d4556aa4e18aaa6632c0914b",
-            "links_num":2,
-            "size": 2,
-            "links":
-            [
-              {
-                "hash":"df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
-                "links_num":0,
-                "size": 1,
-                "links":[]
-              },
-              {
-                "hash":"82ef6f9e48bcbdf232db1d5c5c6e8f390156f5305b35d4b32f75fc92c8126a32",
-                "links_num":0,
-                "size": 1,
-                "links":[]
-              }
-            ]
-          },
-          {
-            "hash":"e2f3daf19abfb40766b4c507a9b191fe274f343dfff18287c8e1d8552b8aac77",
-            "links_num":2,
-            "size": 2,
-            "links":
-            [
-              {
-                "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
-                "links_num":0,
-                "size": 1,
-                "links":[]
-              },
-              {
-                "hash":"4eaa79a233e1a350bb8d1eba62966f0cf78fe5ae91744420f366d4f19ae268b7",
-                "links_num":0,
-                "size": 1,
-                "links":[]
-              }
-            ]
-          }
-        ]
-    },
-    "path" : "/home/xxxx/xxxx/xxxxx"
-}'
-```
-
-Parameter:
-1. body: Valid merkletree json structure
-1. path: Path to the to be sealed file data
-
-Output (200, success)
-```
-validate successfully, return sealed merkletree json structure:
 {
-    "body" : <sealed_merkletree_json>,
-    "path" : <path_to_sealed_dir>,
-    "status" : 200
+  "message" : "Wrong request body!",  
+  "status_code" : 400
 }
 ```
 
-Output (400, Invalid request json)
+Use '/api/v0/file/info' to get sealed file information by cid
+-------------------------------------------------------------
 ```
-Invalid request json 
-```
-
-Output (402, Empty body)
-```
-Empty body
-```
-
-Output (403, Seal failed)
-```
-Seal failed! Invoke ECALL failed
-```
-
-Use 'storage/unseal' to unseal file block
------------------------------------------
-```
-curl --location --request POST 'http://<url:port>/api/v0/storage/unseal' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "path" : "/home/xxxx/xxxx/xxxxx"
-}'
+curl -XPOST http://<url:port>/api/v0/file/info
+--data-raw '{"cid": "xxx"}'
 ```
 
 Parameter:
-1. path: Path to the to be unsealed file data
+1. cid: file content id
 
-Output (200, success)
+Output:
 ```
-unseal data successfully!
 {
-    "body" : <path_to_new_dir>,
-    "status" : 200
+  "c_block_num" : 0,
+  "s_size" : 16783146,
+  "size" : 16781194,
+  "smerkletree" : {
+    "cid" : "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen",
+    "hash" : "55c54c3ce9b68fb2be3ee0c6ae2594d44b798c22eaaa1b12b4da11668861d0ac",
+    "links" : [
+      {
+        "d_hash" : "28cb72d7a0a77857b7308b7f7a7e666ac113e4fd756a6905f5fa663fa6008618"
+      },
+      {
+        "d_hash" : "449d84a283f669309be9b8def4fbc5d36deb44ebdb43d830b6b362b67b704d00"
+      },
+      {
+        "d_hash" : "8d9d6a648e33bf26bf05ca9ff13a0c7aac61d2b9d48f0ffeed23faee4b3a1e78"
+      }
+    ]
+  }
 }
 ```
+Description:
+1. c_block_num: chain block number when sealing the file
+1. s_size: sealed file size
+1. size: file real size
+1. smerkletree: sealed file merkle tree structure
 
-Output (400, unseal failed)
-```
-Unseal file failed!Error invalid request json!
-```
-
-Output (402, unseal failed)
-```
-Unseal file failed!Error empty file directory
-```
-
-Output (403, unseal failed)
-```
-Unseal file failed!Error Invoke ECALL failed
-```
-
-Use 'api/v0/storage/confirm' to confirm new file
-------------------------------------------------
-Parameter 'hash' in body represents the new file hash you want to confirm.
-```
-curl --location --request POST 'http://<url:port>/api/v0/storage/confirm' \
---header 'Content-Type: application/json' \
---data-raw '{
-	"hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-}'
-```
-
-Output (200, success):
-```
-Confirming new file task has beening added
-```
-
-Output (402, invalid hash):
-```
-Confirm new file failed!Invalid hash!
-```
-
-Output (403, invoke SGX API failed):
-```
-Confirm new file failed!Invoke SGX API failed!
-```
-
-Use 'api/v0/storage/delete' to delete file 
+Use '/api/v0/srd/change' to srd change api
 ------------------------------------------
-Parameter 'hash' in body represents the file hash you want to delete.
 ```
-curl --location --request POST 'http://<url:port>/api/v0/storage/delete' \
---header 'Content-Type: application/json' \
---data-raw '{
-	"hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-}'
+curl -XPOST http://<url:port>/api/v0/srd/change
+--data-raw '{"change": xxx}'
+```
+
+Parameter:
+1. change: srd task number
+
+Output (200, success):
+```
+{
+  "message" : "Change task:xxxG has been added, will be executed later.",  
+  "status_code" : 200
+}
+```
+
+Output (201, failed):
+```
+{
+  "message" : "No enouth space for xxxG, only xxx G can be added.",  
+  "status_code" : 201
+}
+```
+
+Output (202, failed):
+```
+{
+  "message" : "Cannot delete xxxG, only xxxG can be deleted.",  
+  "status_code" : 202
+}
+```
+
+Output (400, failed):
+```
+{
+  "message" : "Invalid change",  
+  "status_code" : 400
+}
+```
+
+Output (401, failed):
+```
+{
+  "message" : "No more srd can be added due to no disk space or having remaining task.",  
+  "status_code" : 401
+}
+```
+
+Output (402, failed):
+```
+{
+  "message" : "No srd space to be deleted.",  
+  "status_code" : 402
+}
+```
+
+Output (403, failed):
+```
+{
+  "message" : "Only xxxG srd will be added. Rest srd task exceeds upper limit.",  
+  "status_code" : 403
+}
+```
+
+Output (404, failed):
+```
+{
+  "message" : "Unexpected error has occurred!",  
+  "status_code" : 404
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Change srd failed! Invoke SGX api failed!",  
+  "status_code" : 500
+}
+```
+
+Output (501, failed):
+```
+{
+  "message" : "Only xxxG srd will be added. Rest srd task exceeds upper limit.",  
+  "status_code" : 501
+}
+```
+
+Use '/api/v0/storage/delete' to delete meaningful file
+------------------------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/storage/delete
+--data-raw '{"cid": "xxx"}'
+```
+
+Parameter:
+1. cid: file content id
+
+Output (200, success):
+```
+{
+  "message" : "Deleting file 'xxx' successfully",  
+  "status_code" : 200
+}
+```
+
+Output (400, failed):
+```
+{
+  "message" : "Delete file failed! Invalid cid!",  
+  "status_code" : 400
+}
+```
+
+Output (401, failed):
+```
+{
+  "message" : "File 'xxx' doesn't in sworker",  
+  "status_code" : 401
+}
+```
+
+Output (402, failed):
+```
+{
+  "message" : "Deleting file 'xxx' stoped due to upgrading or exiting",  
+  "status_code" : 402
+}
+```
+
+Output (403, failed):
+```
+{
+  "message" : "Unexpected error: xxx",  
+  "status_code" : 403
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Delete file 'xxx' failed! Invoke SGX API failed! Error code:xxx",  
+  "status_code" : 500
+}
+```
+
+Use '/api/v0/storage/seal' to seal file
+-----------------------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/storage/seal
+--data-raw '{"cid": "xxx"}'
+```
+
+Parameter:
+1. cid: file content id
+
+Output (200, success):
+```
+{
+  "message" : "Seal file 'xxx' successfully",  
+  "status_code" : 200
+}
+```
+
+Output (201, failed):
+```
+{
+  "message" : "This file 'xxx' has been sealed",  
+  "status_code" : 201
+}
+```
+
+Output (400, failed):
+```
+{
+  "message" : "Invalid cid!",  
+  "status_code" : 400
+}
+```
+
+Output (401, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
+  "status_code" : 401
+}
+```
+
+Output (402, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
+  "status_code" : 402
+}
+```
+
+Output (403, failed):
+```
+{
+  "message" : "Seal file 'xxx' stoped due to upgrading or exiting",  
+  "status_code" : 403
+}
+```
+
+Output (404, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Can't get block from ipfs",  
+  "status_code" : 404
+}
+```
+
+Output (405, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
+  "status_code" : 405
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
+  "status_code" : 500
+}
+```
+
+Use '/api/v0/storage/unseal' to unseal data
+---------------------------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/storage/unseal
 ```
 
 Output (200, success):
 ```
-Deleting file task has beening added
+{
+  "message" : "Unseal data successfully!",  
+  "status_code" : 200
+}
 ```
 
-Output (402, invalid hash):
+Output (400, failed):
 ```
-Delete file failed!Invalid hash!
+{
+  "message" : "Unseal data failed",  
+  "status_code" : 400
+}
 ```
 
-Output (403, invoke SGX API failed):
+Output (401, failed):
 ```
-Delete file failed!Invoke SGX API failed!
+{
+  "message" : "Unseal file stoped due to upgrading or exiting",  
+  "status_code" : 401
+}
+```
+
+Output (402, failed):
+```
+{
+  "message" : "Unexpected error",  
+  "status_code" : 402
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Unseal failed! Invoke SGX API failed! Error code:xxx",  
+  "status_code" : 500
+}
 ```

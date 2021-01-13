@@ -37,6 +37,9 @@ crust_status_t srd_change(long change);
 void srd_check_reserved(void);
 void set_reserved_space(size_t reserved);
 size_t get_reserved_space();
+void set_running_srd_task(long srd_task);
+long get_running_srd_task();
+void decrease_running_srd_task();
 
 #if defined(__cplusplus)
 }
