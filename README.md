@@ -54,10 +54,10 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 ```
 {
     "base_path" : "/opt/crust/crust-sworker/0.7.0/sworker_base_path",    # sWorker key information location, must be absolute path
-    "base_url": "http://127.0.0.1:12222/api/v0",                         # your sWorker node api address
+    "base_url" : "http://127.0.0.1:12222/api/v0",                        # your sWorker node api address
     "data_path" : "/data1",                                              # If this item is not set, base_path will be used
     
-    "karst_url": "ws://0.0.0.0:17000/api/v0/node/data",                  # the kasrt node url
+    "ipfs_url" : "http://0.0.0.0:5001/api/v0",                           # the IPFS node url
 
     "chain" : {
         "base_url" : "http://127.0.0.1:56666/api/v1",
