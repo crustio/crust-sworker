@@ -390,12 +390,7 @@ curl -XPOST http://<url:port>/api/v0/storage/unseal
 ```
 
 Output (200, success):
-```
-{
-  "message" : "Unseal data successfully!",  
-  "status_code" : 200
-}
-```
+Output unsealed data in response body
 
 Output (400, failed):
 ```
