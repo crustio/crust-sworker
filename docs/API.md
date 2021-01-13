@@ -124,7 +124,7 @@ curl -XPOST http://<url:port>/api/v0/file/info
 Parameter:
 1. cid: file content id
 
-Output:
+Output (200, success):
 ```
 {
   "c_block_num" : 0,
@@ -153,8 +153,24 @@ Description:
 1. size: file real size
 1. smerkletree: sealed file merkle tree structure
 
-Use '/api/v0/srd/change' to srd change api
-------------------------------------------
+Output (400, failed):
+```
+{
+  "message" : "Invalid cid",  
+  "status_code" : 400
+}
+```
+
+Output (404, failed):
+```
+{
+  "message" : "File not found.",  
+  "status_code" : 404
+}
+```
+
+Use '/api/v0/srd/change' to change srd
+--------------------------------------
 ```
 curl -XPOST http://<url:port>/api/v0/srd/change
 --data-raw '{"change": xxx}'
@@ -171,19 +187,11 @@ Output (200, success):
 }
 ```
 
-Output (201, success):
+Output (200, success):
 ```
 {
-  "message" : "No enouth space for xxxG, only xxx G can be added.",  
-  "status_code" : 201
-}
-```
-
-Output (202, success):
-```
-{
-  "message" : "Cannot delete xxxG, only xxxG can be deleted.",  
-  "status_code" : 202
+  "message" : "Only xxxG srd will be added. Rest srd task exceeds upper limit.",  
+  "status_code" : 200
 }
 ```
 
@@ -195,35 +203,19 @@ Output (400, failed):
 }
 ```
 
-Output (401, failed):
+Output (400, failed):
 ```
 {
-  "message" : "No more srd can be added due to no disk space or having remaining task.",  
-  "status_code" : 401
+  "message" : "No more srd can be added.",  
+  "status_code" : 400
 }
 ```
 
-Output (402, failed):
+Output (400, failed):
 ```
 {
   "message" : "No srd space to be deleted.",  
-  "status_code" : 402
-}
-```
-
-Output (403, failed):
-```
-{
-  "message" : "Only xxxG srd will be added. Rest srd task exceeds upper limit.",  
-  "status_code" : 403
-}
-```
-
-Output (404, failed):
-```
-{
-  "message" : "Unexpected error has occurred!",  
-  "status_code" : 404
+  "status_code" : 400
 }
 ```
 
@@ -235,11 +227,19 @@ Output (500, failed):
 }
 ```
 
-Output (501, failed):
+Output (500, failed):
+```
+{
+  "message" : "Unexpected error has occurred!",  
+  "status_code" : 500
+}
+```
+
+Output (503, failed):
 ```
 {
   "message" : "Only xxxG srd will be added. Rest srd task exceeds upper limit.",  
-  "status_code" : 501
+  "status_code" : 503
 }
 ```
 
@@ -269,27 +269,11 @@ Output (400, failed):
 }
 ```
 
-Output (401, failed):
+Output (404, failed):
 ```
 {
-  "message" : "File 'xxx' doesn't in sworker",  
-  "status_code" : 401
-}
-```
-
-Output (402, failed):
-```
-{
-  "message" : "Deleting file 'xxx' stoped due to upgrading or exiting",  
-  "status_code" : 402
-}
-```
-
-Output (403, failed):
-```
-{
-  "message" : "Unexpected error: xxx",  
-  "status_code" : 403
+  "message" : "File 'xxx' is not existed in sworker",  
+  "status_code" : 404
 }
 ```
 
@@ -301,11 +285,27 @@ Output (500, failed):
 }
 ```
 
+Output (500, failed):
+```
+{
+  "message" : "Unexpected error: xxx",  
+  "status_code" : 500
+}
+```
+
+Output (503, failed):
+```
+{
+  "message" : "Deleting file 'xxx' stoped due to upgrading or exiting",  
+  "status_code" : 503
+}
+```
+
 Use '/api/v0/storage/seal' to seal file
------------------------------------------------------
+---------------------------------------
 ```
 curl -XPOST http://<url:port>/api/v0/storage/seal
---data-raw '{"cid": "xxx"}'
+--data-raw '{"cid": xxx}'
 ```
 
 Parameter:
@@ -319,11 +319,11 @@ Output (200, success):
 }
 ```
 
-Output (201, success):
+Output (200, success):
 ```
 {
   "message" : "This file 'xxx' has been sealed",  
-  "status_code" : 201
+  "status_code" : 200
 }
 ```
 
@@ -335,43 +335,35 @@ Output (400, failed):
 }
 ```
 
-Output (401, failed):
-```
-{
-  "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
-  "status_code" : 401
-}
-```
-
-Output (402, failed):
-```
-{
-  "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
-  "status_code" : 402
-}
-```
-
-Output (403, failed):
-```
-{
-  "message" : "Seal file 'xxx' stoped due to upgrading or exiting",  
-  "status_code" : 403
-}
-```
-
-Output (404, failed):
+Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Can't get block from ipfs",  
-  "status_code" : 404
+  "status_code" : 500
 }
 ```
 
-Output (405, failed):
+Output (500, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
+  "status_code" : 500
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
+  "status_code" : 500
+}
+```
+
+Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
-  "status_code" : 405
+  "status_code" : 500
 }
 ```
 
@@ -383,14 +375,27 @@ Output (500, failed):
 }
 ```
 
+Output (503, failed):
+```
+{
+  "message" : "Seal file 'xxx' stoped due to upgrading or exiting",  
+  "status_code" : 503
+}
+```
+
 Use '/api/v0/storage/unseal' to unseal data
----------------------------------------------------------
+-------------------------------------------
 ```
 curl -XPOST http://<url:port>/api/v0/storage/unseal
 ```
 
 Output (200, success):
-Output unsealed data in response body
+```
+{
+  "message" : "Unseal data successfully!",  
+  "status_code" : 200
+}
+```
 
 Output (400, failed):
 ```
@@ -400,19 +405,11 @@ Output (400, failed):
 }
 ```
 
-Output (401, failed):
-```
-{
-  "message" : "Unseal file stoped due to upgrading or exiting",  
-  "status_code" : 401
-}
-```
-
-Output (402, failed):
+Output (500, failed):
 ```
 {
   "message" : "Unexpected error",  
-  "status_code" : 402
+  "status_code" : 500
 }
 ```
 
@@ -421,5 +418,13 @@ Output (500, failed):
 {
   "message" : "Unseal failed! Invoke SGX API failed! Error code:xxx",  
   "status_code" : 500
+}
+```
+
+Output (503, failed):
+```
+{
+  "message" : "Unseal file stoped due to upgrading or exiting",  
+  "status_code" : 503
 }
 ```

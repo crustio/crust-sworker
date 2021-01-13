@@ -500,20 +500,33 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/file/info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
+            int ret_code = 400;
+            std::string ret_info;
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
             if (cid.size() != CID_LENGTH)
             {
                 json::JSON ret_body;
-                ret_body[HTTP_STATUS_CODE] = 400;
-                ret_body[HTTP_MESSAGE] = "Invalid cid";
+                ret_info = "Invalid cid";
+                ret_code = 400;
+                ret_body[HTTP_STATUS_CODE] = ret_code;
+                ret_body[HTTP_MESSAGE] = ret_info;
                 res.result(ret_body[HTTP_STATUS_CODE].ToInt());
                 res.body() = ret_body.dump();
             }
             else
             {
-                res.result(200);
-                res.body() = EnclaveData::get_instance()->get_sealed_file_info(cid);
+                std::string file_info = EnclaveData::get_instance()->get_sealed_file_info(cid);
+                if (file_info.compare("") == 0)
+                {
+                    ret_info = "File not found.";
+                    ret_code = 404;
+                }
+                else
+                {
+                    res.result(200);
+                    res.body() = file_info;
+                }
             }
             goto postcleanup;
         }
@@ -549,17 +562,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     long true_increase = std::min(change_srd_num, avail_space);
                     if (true_increase <= 0)
                     {
-                        ret_info = "No more srd can be added due to no disk space or having remaining task.";
-                        ret_code = 401;
+                        ret_info = "No more srd can be added.";
+                        ret_code = 400;
                         goto change_end;
                     }
-
-                    if (change_srd_num > true_increase)
-                    {
-                        ret_info = "No enouth space for " + std::to_string(change_srd_num) + "G srd, noly " + std::to_string(true_increase) + "G can be added.";
-                        ret_code = 201;
-                        change_srd_num = true_increase;
-                    }
+                    change_srd_num = true_increase;
                 }
                 else
                 {
@@ -569,16 +576,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     if (true_decrease <= 0)
                     {
                         ret_info = "No srd space to be deleted.";
-                        ret_code = 402;
+                        ret_code = 400;
                         goto change_end;
                     }
-
-                    if (abs_change_srd_num > true_decrease)
-                    {
-                        ret_info = "Cannot delete " + std::to_string(change_srd_num) + "G srd space, only " + std::to_string(true_decrease) + "G can be deleted.";
-                        ret_code = 202;
-                        change_srd_num = -true_decrease;
-                    }
+                    change_srd_num = -true_decrease;
                 }
 
                 // Start changing srd
@@ -593,23 +594,20 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     switch (crust_status)
                     {
                     case CRUST_SUCCESS:
-                        if (ret_info.compare("") == 0)
-                        {
-                            ret_info = "Change task:" + std::to_string(real_change) + "G has been added, will be executed later.";
-                            ret_code = 200;
-                        }
+                        ret_info = "Change task:" + std::to_string(real_change) + "G has been added, will be executed later.";
+                        ret_code = 200;
                         break;
                     case CRUST_SRD_NUMBER_EXCEED:
                         ret_info = "Only " + std::to_string(real_change) + "G srd will be added. Rest srd task exceeds upper limit.";
-                        ret_code = 403;
+                        ret_code = 200;
                         break;
                     case CRUST_UPGRADE_IS_UPGRADING:
                         ret_info = "Change srd interface is stopped due to upgrading or exiting";
-                        ret_code = 501;
+                        ret_code = 503;
                         break;
                     default:
                         ret_info = "Unexpected error has occurred!";
-                        ret_code = 404;
+                        ret_code = 500;
                     }
                 }
                 p_log->info("%s\n", ret_info.c_str());
@@ -658,18 +656,18 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 else if (CRUST_STORAGE_NEW_FILE_NOTFOUND == crust_status)
                 {
-                    ret_info = "File '" + cid + "' doesn't in sworker";
-                    ret_code = 401;
+                    ret_info = "File '" + cid + "' is not existed in sworker";
+                    ret_code = 404;
                 }
                 else if (CRUST_UPGRADE_IS_UPGRADING == crust_status)
                 {
                     ret_info = "Deleting file '" + cid + "' stoped due to upgrading or exiting";
-                    ret_code = 402;
+                    ret_code = 503;
                 }
                 else
                 {
                     ret_info = "Unexpected error: " + num_to_hexstring(crust_status);
-                    ret_code = 403;
+                    ret_code = 500;
                 }  
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;
@@ -717,32 +715,32 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     case CRUST_SEAL_DATA_FAILED:
                         ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
                         p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 401;
+                        ret_code = 500;
                         break;
                     case CRUST_FILE_NUMBER_EXCEED:
                         ret_info = "Seal file '" + cid + "' failed! No more file can be sealed! File number reachs the upper limit";
                         p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 402;
+                        ret_code = 500;
                         break;
                     case CRUST_UPGRADE_IS_UPGRADING:
                         ret_info = "Seal file '" + cid + "' stoped due to upgrading or exiting";
                         p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 403;
+                        ret_code = 503;
                         break;
                     case CRUST_STORAGE_FILE_DUP:
                         ret_info = "This file '" + cid + "' has been sealed";
                         p_log->info("%s\n", ret_info.c_str());
-                        ret_code = 201;
+                        ret_code = 200;
                         break;
                     case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
                         ret_info = "Seal file '" + cid + "' failed! Can't get block from ipfs";
                         p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 404;
+                        ret_code = 500;
                         break;
                     default:
                         ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
                         p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 405;
+                        ret_code = 500;
                     }
                 }
                 else
@@ -804,11 +802,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         break;
                     case CRUST_UPGRADE_IS_UPGRADING:
                         ret_info = "Unseal file stoped due to upgrading or exiting";
-                        ret_code = 401;
+                        ret_code = 503;
                         break;
                     default:
                         ret_info = "Unexpected error";
-                        ret_code = 402;
+                        ret_code = 500;
                     }
                     p_log->err("%s. Error code:%lx\n", ret_info.c_str(), crust_status);
                     json::JSON ret_body;
