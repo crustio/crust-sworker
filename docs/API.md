@@ -54,12 +54,6 @@ Output (500, failed):
 }
 ```
 
-Use '/api/v0/enclave/thread_info' to get enclave thread information
--------------------------------------------------------------------
-```
-curl -XGET http://<url:port>/api/v0/enclave/thread_info
-```
-
 Use '/api/v0/enclave/id_info' to get enclave id information
 -----------------------------------------------------------
 ```
@@ -177,7 +171,7 @@ Output (200, success):
 }
 ```
 
-Output (201, failed):
+Output (201, success):
 ```
 {
   "message" : "No enouth space for xxxG, only xxx G can be added.",  
@@ -185,7 +179,7 @@ Output (201, failed):
 }
 ```
 
-Output (202, failed):
+Output (202, success):
 ```
 {
   "message" : "Cannot delete xxxG, only xxxG can be deleted.",  
@@ -325,7 +319,7 @@ Output (200, success):
 }
 ```
 
-Output (201, failed):
+Output (201, success):
 ```
 {
   "message" : "This file 'xxx' has been sealed",  
