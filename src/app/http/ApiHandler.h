@@ -268,7 +268,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/enclave/id_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
+            std::string id_info_str = ed->get_enclave_id_info();
+            if (id_info_str.compare("") == 0)
             {
                 json::JSON ret_body;
                 ret_body[HTTP_STATUS_CODE] = 400;
@@ -278,7 +279,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
+                json::JSON id_json = json::JSON::Load(id_info_str);
                 id_json["account"] = p_config->chain_address;
                 id_json["version"] = VERSION;
                 id_json["sworker_version"] = SWORKER_VERSION;

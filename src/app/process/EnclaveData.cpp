@@ -26,6 +26,7 @@ EnclaveData *EnclaveData::get_instance()
  */
 std::string EnclaveData::get_enclave_id_info()
 {
+    Ecall_id_get_info(global_eid);
     return enclave_id_info;
 }
 

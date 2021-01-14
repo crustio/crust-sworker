@@ -176,16 +176,34 @@ crust_status_t ocall_upload_identity(const char *id)
         return CRUST_UNEXPECTED_ERROR;
     }
 
-    // Get all id information
-    json::JSON id_info = json::JSON::Load(EnclaveData::get_instance()->get_enclave_id_info());
+    // ----- Compare mrenclave ----- //
+    // Get local mrenclave
+    json::JSON id_info;
+    for (int i = 0; i < 20; i++)
+    {
+        std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
+        if (id_info_str.compare("") != 0)
+        {
+            id_info = json::JSON::Load(id_info_str);
+            break;
+        }
+        sleep(3);
+        printf("Get id info failed!info:%s\n", id_info_str.c_str());
+    }
+    if (!id_info.hasKey("mrenclave"))
+    {
+        p_log->err("Get sWorker identity information failed!\n");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    // Get mrenclave on chain
     std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
     if (code_on_chain == "")
     {
         p_log->err("Get sworker code from chain failed! Please check the running status of the chain.");
         return CRUST_UNEXPECTED_ERROR;
     }
-
-    if (id_info["mrenclave"].ToString() != code_on_chain)
+    // Compare these two mrenclave
+    if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
     {
         print_attention();
         std::string cmd1(HRED "sudo crust tools upgrade-reload sworker" NC);

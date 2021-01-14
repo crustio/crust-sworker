@@ -51,7 +51,6 @@ void work_report_loop(void)
     EnclaveData *ed = EnclaveData::get_instance();
 
     // Set srand
-    Ecall_id_get_info(global_eid);
     json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
 
     // Generate target block height
