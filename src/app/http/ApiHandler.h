@@ -504,9 +504,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string ret_info;
             json::JSON req_json = json::JSON::Load(req.body());
             std::string cid = req_json["cid"].ToString();
+            json::JSON ret_body;
             if (cid.size() != CID_LENGTH)
             {
-                json::JSON ret_body;
                 ret_info = "Invalid cid";
                 ret_code = 400;
                 ret_body[HTTP_STATUS_CODE] = ret_code;
