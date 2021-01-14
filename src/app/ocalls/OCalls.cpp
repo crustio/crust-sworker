@@ -188,7 +188,7 @@ crust_status_t ocall_upload_identity(const char *id)
             break;
         }
         sleep(3);
-        printf("Get id info failed!info:%s\n", id_info_str.c_str());
+        p_log->info("Cannot get id info, try again(%d)...\n", i+1);
     }
     if (!id_info.hasKey("mrenclave"))
     {
