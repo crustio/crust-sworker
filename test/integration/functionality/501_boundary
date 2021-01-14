@@ -72,8 +72,18 @@ fi
 
 ### Srd upper limit
 add_srd "$srd_limit"
+cur_srd_num=$(get_workload | jq '.srd|.srd_complete')
+if ! [[ $cur_srd_num =~ ^[0-9]+$ ]]; then
+    verbose ERROR "Get current srd number failed!"
+    exit 1
+fi
 srd_real_async 32
-if [ $? -eq 0 ]; then
+new_srd_num=$(get_workload | jq '.srd|.srd_complete')
+if ! [[ $new_srd_num =~ ^[0-9]+$ ]]; then
+    verbose ERROR "Get new srd number failed!"
+    exit 1
+fi
+if [ $new_srd_num -gt $cur_srd_num ]; then
     verbose ERROR "test srd upper limit failed!"
     exit 1
 fi

@@ -521,6 +521,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     ret_info = "File not found.";
                     ret_code = 404;
+                    ret_body[HTTP_STATUS_CODE] = ret_code;
+                    ret_body[HTTP_MESSAGE] = ret_info;
+                    res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                    res.body() = ret_body.dump();
                 }
                 else
                 {
@@ -562,7 +566,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     long true_increase = std::min(change_srd_num, avail_space);
                     if (true_increase <= 0)
                     {
-                        ret_info = "No more srd can be added.";
+                        ret_info = "No more srd can be added. Use 'sudo crust tools workload' to check.";
                         ret_code = 400;
                         goto change_end;
                     }
@@ -575,7 +579,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     long true_decrease = std::min(abs_change_srd_num, avail_space);
                     if (true_decrease <= 0)
                     {
-                        ret_info = "No srd space to be deleted.";
+                        ret_info = "No srd space to be deleted. Use 'sudo crust tools workload' to check.";
                         ret_code = 400;
                         goto change_end;
                     }
