@@ -199,7 +199,7 @@ crust_status_t ocall_upload_identity(const char *id)
     std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
     if (code_on_chain == "")
     {
-        p_log->err("Get sworker code from chain failed! Please check the running status of the chain.");
+        p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
         return CRUST_UNEXPECTED_ERROR;
     }
     // Compare these two mrenclave

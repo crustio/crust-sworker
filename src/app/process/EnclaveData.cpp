@@ -27,7 +27,13 @@ EnclaveData *EnclaveData::get_instance()
  */
 std::string EnclaveData::get_enclave_id_info()
 {
-    Ecall_id_get_info(global_eid);
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    if (SGX_SUCCESS != (sgx_status = Ecall_id_get_info(global_eid)))
+    {
+        p_log->err("Get id info failed! Error code:%lx\n", sgx_status);
+        return "";
+    }
+
     SafeLock sl(enclave_id_info_mutex);
     sl.lock();
     return enclave_id_info;
