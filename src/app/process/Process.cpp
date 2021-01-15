@@ -652,12 +652,15 @@ entry_network_flag:
                 p_log->err("Upgrade timeout!Current version will restore work!\n");
                 ed->set_upgrade_status(UPGRADE_STATUS_NONE);
                 upgrade_tryout = upgrade_timeout / check_interval;
-                // Restore related work
-                if (!restore_tasks())
-                {
-                    p_log->err("Restore tasks failed! Will exist...\n");
-                    goto cleanup;
-                }
+            }
+        }
+        else
+        {
+            // Restore related work
+            if (!restore_tasks())
+            {
+                p_log->err("Restore tasks failed! Will exist...\n");
+                goto cleanup;
             }
         }
 

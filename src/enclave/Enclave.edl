@@ -74,7 +74,8 @@ enclave {
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_change_srd_task);
 
         crust_status_t ocall_upload_workreport([in, string] const char *data);
-        crust_status_t ocall_upload_identity([in, string] const char *id);
+        crust_status_t ocall_upload_identity([in, string] const char *id)
+            allow(ecall_id_get_info);
         crust_status_t ocall_entry_network()
             allow(ecall_get_quote_report, ecall_verify_and_upload_identity);
 

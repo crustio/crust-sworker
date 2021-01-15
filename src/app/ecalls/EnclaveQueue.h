@@ -89,12 +89,6 @@ private:
                 "Ecall_unseal_file", 
             }
         },
-        {
-            "Ecall_delete_file",
-            {
-                "Ecall_gen_and_upload_work_report",
-            }
-        },
     };
     // Upgrade blocks task set1
     std::unordered_set<std::string> upgrade_blocked_task_us = {

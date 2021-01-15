@@ -25,20 +25,30 @@ void validate_srd()
     srd_validate_num = std::min(srd_validate_num, wl->srd_hashs.size());
     
     // Randomly choose validate srd files
-    std::set<std::pair<int, uint8_t *>> validate_srd_idx_s;
-    for (size_t i = 0; i < srd_validate_num; i++)
+    std::map<int, uint8_t *> validate_srd_m;
+    uint32_t rand_val;
+    uint32_t rand_idx = 0;
+    if (srd_validate_num >= wl->srd_hashs.size())
     {
-        uint32_t rand_val;
-        uint32_t rand_idx = 0;
-        sgx_read_rand((uint8_t *)&rand_val, 4);
-        rand_idx = rand_val % wl->srd_hashs.size();
-        validate_srd_idx_s.insert(std::make_pair(rand_idx, wl->srd_hashs[rand_idx]));
+        for (size_t i = 0; i < wl->srd_hashs.size(); i++)
+        {
+            validate_srd_m[i] = wl->srd_hashs[i];
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < srd_validate_num; i++)
+        {
+            sgx_read_rand((uint8_t *)&rand_val, 4);
+            rand_idx = rand_val % wl->srd_hashs.size();
+            validate_srd_m[rand_idx] = wl->srd_hashs[rand_idx];
+        }
     }
     sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Validate SRD ----- //
     std::vector<uint8_t *> del_hashs;
-    for (auto idx_hash_item : validate_srd_idx_s)
+    for (auto idx2srd : validate_srd_m)
     {
         uint8_t *m_hashs_org = NULL;
         uint8_t *m_hashs = NULL;
@@ -51,8 +61,8 @@ void validate_srd()
         sgx_sha256_hash_t leaf_hash;
         std::string g_hash;
 
-        uint32_t g_hash_index = idx_hash_item.first;
-        uint8_t *p_g_hash = idx_hash_item.second;
+        uint32_t g_hash_index = idx2srd.first;
+        uint8_t *p_g_hash = idx2srd.second;
 
         // Get g_hash corresponding path
         g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
@@ -90,7 +100,6 @@ void validate_srd()
         }
 
         // Get leaf data
-        uint32_t rand_val;
         sgx_read_rand((uint8_t*)&rand_val, 4);
         srd_block_index = rand_val % SRD_RAND_DATA_NUM;
         leaf_path = get_leaf_path(g_hash.c_str(), srd_block_index, m_hashs + srd_block_index * HASH_LENGTH);
@@ -166,11 +175,21 @@ void validate_meaningful_file()
     std::map<uint32_t, json::JSON> validate_sealed_files_m;
     uint32_t rand_val;
     size_t rand_index = 0;
-    for (size_t i = 0; i < check_file_num; i++)
+    if (check_file_num >= wl->sealed_files.size())
     {
-        sgx_read_rand((uint8_t *)&rand_val, 4);
-        rand_index = rand_val % wl->sealed_files.size();
-        validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
+        for (size_t i = 0; i < wl->sealed_files.size(); i++)
+        {
+            validate_sealed_files_m[i] = wl->sealed_files[i];
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < check_file_num; i++)
+        {
+            sgx_read_rand((uint8_t *)&rand_val, 4);
+            rand_index = rand_val % wl->sealed_files.size();
+            validate_sealed_files_m[rand_index] = wl->sealed_files[rand_index];
+        }
     }
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
@@ -242,9 +261,9 @@ void validate_meaningful_file()
         // ----- Validate MerkleTree ----- //
         // Get to be checked block index
         std::set<size_t> block_idx_s;
+        size_t tmp_idx = 0;
         for (size_t i = 0; i < MEANINGFUL_VALIDATE_MIN_BLOCK_NUM && i < file_block_num; i++)
         {
-            size_t tmp_idx = 0;
             sgx_read_rand((uint8_t *)&rand_val, 4);
             tmp_idx = rand_val % file_block_num;
             if (block_idx_s.find(tmp_idx) == block_idx_s.end())

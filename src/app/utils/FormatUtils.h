@@ -20,6 +20,7 @@ extern "C"
     void print_hexstring(const void *vsrc, size_t len);
     char *hexstring(const void *src, size_t len);
     std::string hexstring_safe(const void *vsrc, size_t len);
+    std::string num_to_hexstring(size_t num);
 
     char *base64_encode(const char *msg, size_t sz);
     char *base64_decode(const char *msg, size_t *sz);

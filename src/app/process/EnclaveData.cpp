@@ -3,6 +3,7 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 EnclaveData *EnclaveData::enclavedata = NULL;
+std::mutex enclave_id_info_mutex;
 
 extern sgx_enclave_id_t global_eid;
 
@@ -26,6 +27,15 @@ EnclaveData *EnclaveData::get_instance()
  */
 std::string EnclaveData::get_enclave_id_info()
 {
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    if (SGX_SUCCESS != (sgx_status = Ecall_id_get_info(global_eid)))
+    {
+        p_log->err("Get id info failed! Error code:%lx\n", sgx_status);
+        return "";
+    }
+
+    SafeLock sl(enclave_id_info_mutex);
+    sl.lock();
     return enclave_id_info;
 }
 
@@ -35,6 +45,8 @@ std::string EnclaveData::get_enclave_id_info()
  */
 void EnclaveData::set_enclave_id_info(std::string id_info)
 {
+    SafeLock sl(enclave_id_info_mutex);
+    sl.lock();
     enclave_id_info = id_info;
 }
 
@@ -323,13 +335,13 @@ std::string EnclaveData::gen_workload()
     json::JSON disk_json = get_increase_srd_info();
     std::string srd_info;
     srd_info.append("{\n")
-            .append("\"" WL_SRD_ASSIGNED "\" : ").append(std::to_string(wl_json["srd"][WL_SRD_ASSIGNED].ToInt())).append(",\n")
-            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json["srd"][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
+            .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
+            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
             .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
             .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE].ToInt())).append(",\n")
             .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_json[WL_DISK_VOLUME].ToInt())).append("\n")
             .append("}");
-    wl_json["srd"] = srd_info;
+    wl_json[WL_SRD] = srd_info;
     // Get file info
     json::JSON file_info = wl_json["files"];
     json::JSON n_file_info;

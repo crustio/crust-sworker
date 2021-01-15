@@ -1,8 +1,7 @@
 .PHONY: build install functionality_test benchmark_test clean
 
 build:
-	@rmdir --ignore-fail-on-non-empty build &>/dev/null
-	@mkdir -p build && cp -r src/* build && cp -rn ../src/* build
+	@[ -e build ] && rm -rf build; mkdir -p build && cp -r src/* build && cp -rn ../src/* build
 	@cd build && rm app/App.* && make clean && make -j8
 
 install:

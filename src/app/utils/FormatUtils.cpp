@@ -229,3 +229,20 @@ char *base64_decode(const char *msg, size_t *sz)
 
 	return buf;
 }
+
+/**
+ * @description: Numeral to hexstring
+ * @param num -> Numeral
+ * @return: Hex string
+ */
+std::string num_to_hexstring(size_t num)
+{
+    std::string ans;
+    char buf[32];
+    memset(buf, 0, 32);
+    sprintf(buf, "%lx", num);
+
+    ans.append(buf);
+
+    return ans;
+}

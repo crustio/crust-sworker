@@ -61,7 +61,7 @@ std::string Workload::get_workload(void)
     wl_json[WL_FILES] = this->wl_spec_info;
     sgx_thread_mutex_unlock(&wl_spec_info_mutex);
     // Srd info
-    wl_json[WL_SRD][WL_SRD_ASSIGNED] = this->get_srd_info()[WL_SRD_ASSIGNED].ToInt();
+    wl_json[WL_SRD][WL_SRD_COMPLETE] = this->get_srd_info()[WL_SRD_COMPLETE].ToInt();
     wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_task();
 
     std::string wl_str = wl_json.dump();
@@ -254,7 +254,7 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
     }
 
     // Restore srd info
-    this->srd_info_json[WL_SRD_ASSIGNED] = this->srd_hashs.size();
+    this->srd_info_json[WL_SRD_COMPLETE] = this->srd_hashs.size();
 
     return crust_status;
 }
@@ -305,10 +305,10 @@ bool Workload::get_report_file_flag()
 void Workload::set_srd_info(long change)
 {
     sgx_thread_mutex_lock(&this->srd_info_mutex);
-    this->srd_info_json[WL_SRD_ASSIGNED] = this->srd_info_json[WL_SRD_ASSIGNED].ToInt() + change;
-    if (this->srd_info_json[WL_SRD_ASSIGNED].ToInt() <= 0)
+    this->srd_info_json[WL_SRD_COMPLETE] = this->srd_info_json[WL_SRD_COMPLETE].ToInt() + change;
+    if (this->srd_info_json[WL_SRD_COMPLETE].ToInt() <= 0)
     {
-        this->srd_info_json[WL_SRD_ASSIGNED] = 0;
+        this->srd_info_json[WL_SRD_COMPLETE] = 0;
     }
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 }
