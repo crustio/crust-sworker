@@ -102,16 +102,17 @@ json::JSON Workload::gen_workload_info()
     }
     else
     {
-        uint8_t *g_hashs = (uint8_t *)enc_malloc(this->srd_hashs.size() * HASH_LENGTH);
+        size_t g_hashs_len = this->srd_hashs.size() * HASH_LENGTH;
+        uint8_t *g_hashs = (uint8_t *)enc_malloc(g_hashs_len);
         if (g_hashs == NULL)
         {
+            log_err("Generate srd info failed due to malloc failed!\n");
             return ans;
         }
-        memset(g_hashs, 0, this->srd_hashs.size() * HASH_LENGTH);
-        size_t g_hashs_len = this->srd_hashs.size() * HASH_LENGTH;
-        for (auto g_hash : this->srd_hashs)
+        memset(g_hashs, 0, g_hashs_len);
+        for (size_t i = 0; i < this->srd_hashs.size(); i++)
         {
-            memcpy(g_hashs + g_hashs_len, g_hash, HASH_LENGTH);
+            memcpy(g_hashs + i * HASH_LENGTH, this->srd_hashs[i], HASH_LENGTH);
         }
         ans[WL_SRD_SPACE] = this->srd_hashs.size() * 1024 * 1024 * 1024;
         sgx_sha256_msg(g_hashs, (uint32_t)g_hashs_len, &srd_root);
@@ -128,13 +129,17 @@ json::JSON Workload::gen_workload_info()
     }
     else
     {
-        uint8_t *f_hashs = (uint8_t *)enc_malloc(this->sealed_files.size() * HASH_LENGTH);
-        memset(f_hashs, 0, this->sealed_files.size() * HASH_LENGTH);
-        size_t f_hashs_len = 0;
+        size_t f_hashs_len = this->sealed_files.size() * HASH_LENGTH;
+        uint8_t *f_hashs = (uint8_t *)enc_malloc(f_hashs_len);
+        if (f_hashs == NULL)
+        {
+            log_err("Generate sealed files info failed due to malloc failed!\n");
+            return ans;
+        }
+        memset(f_hashs, 0, f_hashs_len);
         for (size_t i = 0; i < this->sealed_files.size(); i++)
         {
-            memcpy(f_hashs + f_hashs_len, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
-            f_hashs_len += HASH_LENGTH;
+            memcpy(f_hashs + i * HASH_LENGTH, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
         }
         sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
         free(f_hashs);

@@ -169,61 +169,65 @@ crust_status_t ocall_upload_identity(const char *id)
     std::string sworker_identity = entrance_info.dump();
     p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());
 
-#ifndef _CRUST_TEST_FLAG_
-    // Send identity to crust chain
-    if (!crust::Chain::get_instance()->wait_for_running())
+    if (!offline_chain_mode)
     {
-        return CRUST_UNEXPECTED_ERROR;
-    }
-
-    // ----- Compare mrenclave ----- //
-    // Get local mrenclave
-    json::JSON id_info;
-    for (int i = 0; i < 20; i++)
-    {
-        std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
-        if (id_info_str.compare("") != 0)
+        // Send identity to crust chain
+        if (!crust::Chain::get_instance()->wait_for_running())
         {
-            id_info = json::JSON::Load(id_info_str);
-            break;
+            return CRUST_UNEXPECTED_ERROR;
         }
-        sleep(3);
-        p_log->info("Cannot get id info, try again(%d)...\n", i+1);
-    }
-    if (!id_info.hasKey("mrenclave"))
-    {
-        p_log->err("Get sWorker identity information failed!\n");
-        return CRUST_UNEXPECTED_ERROR;
-    }
-    // Get mrenclave on chain
-    std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
-    if (code_on_chain == "")
-    {
-        p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
-        return CRUST_UNEXPECTED_ERROR;
-    }
-    // Compare these two mrenclave
-    if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
-    {
-        print_attention();
-        std::string cmd1(HRED "sudo crust tools upgrade-reload sworker" NC);
-        p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
-                "please get the latest sworker by running '%s'\n",
-                id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());
-        return CRUST_SWORKER_UPGRADE_NEEDED;
+
+        // ----- Compare mrenclave ----- //
+        // Get local mrenclave
+        json::JSON id_info;
+        for (int i = 0; i < 20; i++)
+        {
+            std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
+            if (id_info_str.compare("") != 0)
+            {
+                id_info = json::JSON::Load(id_info_str);
+                break;
+            }
+            sleep(3);
+            p_log->info("Cannot get id info, try again(%d)...\n", i+1);
+        }
+        if (!id_info.hasKey("mrenclave"))
+        {
+            p_log->err("Get sWorker identity information failed!\n");
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        // Get mrenclave on chain
+        std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
+        if (code_on_chain == "")
+        {
+            p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        // Compare these two mrenclave
+        if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
+        {
+            print_attention();
+            std::string cmd1(HRED "sudo crust tools upgrade-reload sworker" NC);
+            p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
+                    "please get the latest sworker by running '%s'\n",
+                    id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());
+            return CRUST_SWORKER_UPGRADE_NEEDED;
+        }
+        else
+        {
+            p_log->info("Mrenclave is '%s'\n", entrance_info["mrenclave"].ToString().c_str());
+        }
+
+        if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
+        {
+            p_log->err("Send identity to crust chain failed!\n");
+            return CRUST_UNEXPECTED_ERROR;
+        }
     }
     else
     {
-        p_log->info("Mrenclave is '%s'\n", entrance_info["mrenclave"].ToString().c_str());
+        p_log->info("Send identity to crust chain successfully!\n");
     }
-
-    if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
-    {
-        p_log->err("Send identity to crust chain failed!\n");
-        return CRUST_UNEXPECTED_ERROR;
-    }
-#endif
-    p_log->info("Send identity to crust chain successfully!\n");
 
     return CRUST_SUCCESS;
 }
