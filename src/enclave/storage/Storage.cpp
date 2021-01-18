@@ -68,7 +68,7 @@ crust_status_t storage_seal_file(const char *cid)
         return CRUST_UNEXPECTED_ERROR;
     }
     // Get block height
-    size_t chain_block_num = 0;
+    size_t chain_block_num = INT_MAX;
     size_t info_buf_size = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
                          + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
                          + HASH_LENGTH * 2;
