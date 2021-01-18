@@ -445,7 +445,7 @@ int process_run()
     crust_status_t crust_status = CRUST_SUCCESS;
     int return_status = 1;
     int check_interval = 15;
-    int upgrade_timeout = 5 * REPORT_SLOT * BLOCK_INTERVAL;
+    int upgrade_timeout = 2 * REPORT_SLOT * BLOCK_INTERVAL;
     int upgrade_tryout = upgrade_timeout / check_interval;
     int entry_tryout = 3;
     size_t srd_task = 0;
