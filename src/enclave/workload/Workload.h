@@ -28,7 +28,7 @@ class Workload
 public:
     std::vector<uint8_t*> srd_hashs; // used to store all G srd file collection' hashs
     std::vector<json::JSON> sealed_files; // Files have been added into checked queue
-    std::set<size_t> reported_files_idx; // File indexes reported this turn of workreport
+    std::set<std::string> reported_files_idx; // File indexes reported this turn of workreport
     sgx_ec256_public_t pre_pub_key; // Old version's public key
     
     // Basic
@@ -123,14 +123,16 @@ public:
     bool is_srd_in_deleted_buffer(uint32_t index);
     void deal_deleted_srd(bool locked = true);
     // File related
-    bool add_to_deleted_file_buffer(uint32_t index);
-    bool is_in_deleted_file_buffer(uint32_t index);
-    void recover_from_deleted_file_buffer(uint32_t index);
+    bool add_to_deleted_file_buffer(std::string cid);
+    bool is_in_deleted_file_buffer(std::string cid);
+    void recover_from_deleted_file_buffer(std::string cid);
     void deal_deleted_file();
     bool is_file_dup(std::string cid);
     bool is_file_dup(std::string cid, size_t &pos);
     void add_sealed_file(json::JSON file);
     void add_sealed_file(json::JSON file, size_t pos);
+    void del_sealed_file(std::string cid);
+    void del_sealed_file(size_t pos);
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_spec_info()
@@ -173,7 +175,8 @@ private:
     // this srd metadata has been deleted by other thread
     std::set<uint32_t> srd_del_idx_s;
     sgx_thread_mutex_t srd_del_idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
-    std::set<uint32_t> file_del_idx_s;
+    // file_del_cid_s stores deleted file cid, if this file has been validated to lost, ignore this message
+    std::set<std::string> file_del_cid_s;
     sgx_thread_mutex_t file_del_idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
 };
 

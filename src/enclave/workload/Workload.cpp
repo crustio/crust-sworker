@@ -400,11 +400,12 @@ void Workload::handle_report_result()
     bool handled = false;
     // Set file status by report result
     sgx_thread_mutex_lock(&this->file_mutex);
-    for (auto i : this->reported_files_idx)
+    for (auto cid : this->reported_files_idx)
     {
-        if (i < this->sealed_files.size())
+        size_t pos = 0;
+        if (this->is_file_dup(cid, pos))
         {
-            auto status = &this->sealed_files[i][FILE_STATUS];
+            auto status = &this->sealed_files[pos][FILE_STATUS];
             status->set_char(ORIGIN_STATUS, status->get_char(WAITING_STATUS));
             handled = true;
         }
@@ -590,7 +591,7 @@ size_t Workload::get_report_height()
  */
 void Workload::set_restart_flag()
 {
-    this->restart_flag = 4;
+    this->restart_flag = 1;
 }
 
 /**
@@ -722,13 +723,13 @@ void Workload::deal_deleted_srd(bool locked)
 
 /**
  * @description: Add file to deleted buffer
- * @param index -> File index
+ * @param cid -> File content id
  * @return: Added result
  */
-bool Workload::add_to_deleted_file_buffer(uint32_t index)
+bool Workload::add_to_deleted_file_buffer(std::string cid)
 {
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
-    auto ret = this->file_del_idx_s.insert(index);
+    auto ret = this->file_del_cid_s.insert(cid);
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     return ret.second;
@@ -736,13 +737,13 @@ bool Workload::add_to_deleted_file_buffer(uint32_t index)
 
 /**
  * @description: Is deleted file in buffer
- * @param index -> File index
+ * @param cid -> File content id
  * @return: Check result
  */
-bool Workload::is_in_deleted_file_buffer(uint32_t index)
+bool Workload::is_in_deleted_file_buffer(std::string cid)
 {
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
-    bool ret = (this->file_del_idx_s.find(index) != this->file_del_idx_s.end());
+    bool ret = (this->file_del_cid_s.find(cid) != this->file_del_cid_s.end());
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     return ret;
@@ -750,12 +751,12 @@ bool Workload::is_in_deleted_file_buffer(uint32_t index)
 
 /**
  * @description: Recover file from deleted buffer
- * @param index -> File index
+ * @param cid -> File content id
  */
-void Workload::recover_from_deleted_file_buffer(uint32_t index)
+void Workload::recover_from_deleted_file_buffer(std::string cid)
 {
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
-    this->file_del_idx_s.erase(index);
+    this->file_del_cid_s.erase(cid);
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 }
 
@@ -766,7 +767,7 @@ void Workload::deal_deleted_file()
 {
     // Clear file deleted buffer
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
-    this->file_del_idx_s.clear();
+    this->file_del_cid_s.clear();
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     // Deleted invalid file item
@@ -863,4 +864,29 @@ void Workload::add_sealed_file(json::JSON file)
     }
 
     this->sealed_files.insert(this->sealed_files.begin() + pos, file);
+}
+
+/**
+ * @description: Delete sealed file
+ * @param cid -> File content id
+ */
+void Workload::del_sealed_file(std::string cid)
+{
+    size_t pos = 0;
+    if (this->is_file_dup(cid, pos))
+    {
+        this->sealed_files.erase(this->sealed_files.begin() + pos);
+    }
+}
+
+/**
+ * @description: Delete sealed file
+ * @param pos -> Deleted file position
+ */
+void Workload::del_sealed_file(size_t pos)
+{
+    if (pos < this->sealed_files.size())
+    {
+        this->sealed_files.erase(this->sealed_files.begin() + pos);
+    }
 }

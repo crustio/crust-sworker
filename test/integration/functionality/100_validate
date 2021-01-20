@@ -44,6 +44,7 @@ scriptdir=$instdir/scripts
 datadir=$instdir/data
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
+TMPFILE2=$tmpdir/TMPFILE2.$(date +%N)${RANDOM}
 LOCKFILE=$tmpdir/LOCKFILE
 syncfile=$tmpdir/syncfile
 
@@ -80,12 +81,15 @@ while [ $((i++)) -lt $file_num ]; do
     cid_arry[$((cid_idx++))]=$(cat $TMPFILE)
 done
 # Delete some file
+deleted_cid_arry=()
 i=0
 for cid in ${cid_arry[@]}; do
-    if [ $((i++)) -ge $deleted_file ]; then
+    if [ $i -ge $deleted_file ]; then
         break
     fi
     rm -r $testfiledir/$cid
+    deleted_cid_arry[$i]=$cid
+    ((i++))
 done
 
 ### Validate
@@ -101,16 +105,27 @@ if [ $punish_srd -ne $((deleted_srd)) ]; then
     ret=1
 fi
 # Check file
-get_workload &>$TMPFILE
+get_file_info_all &>$TMPFILE
 if [ $? -ne 0 ]; then
     verbose ERROR "get workload failed!" n
     ret=1
 fi
-real_vfile=$(cat $TMPFILE | jq '.files|.valid|.num')
+get_workload &>$TMPFILE2
+if [ $? -ne 0 ]; then
+    verbose ERROR "get workload failed!" n
+    ret=1
+fi
+real_vfile=$(cat $TMPFILE2 | jq '.files|.valid|.num')
 expected_vfile=$((file_num-deleted_file))
 if [ $real_vfile -ne $expected_vfile ]; then
     verbose ERROR "expected valid file num:$expected_vfile, real:$real_vfile" n
     ret=1
 fi
+for cid in ${deleted_cid_arry[@]}; do
+    if grep $cid $TMPFILE &>/dev/null; then
+        verbose ERROR "delete file($cid) failed!" n
+        ret=1
+    fi
+done
 
 exit $ret

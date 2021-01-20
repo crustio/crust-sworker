@@ -37,7 +37,7 @@ void WorkloadTest::test_add_file(long file_num)
         file_entry_json[FILE_STATUS] = "100";
         free(p_cid_buffer);
         free(n_u);
-        wl->sealed_files.push_back(file_entry_json);
+        wl->add_sealed_file(file_entry_json);
         wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
         acc++;
     }

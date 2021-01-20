@@ -54,11 +54,7 @@ int process_run_test()
     if (g_upgrade_flag)
     {
         // Check and do upgrade
-        if (!do_upgrade())
-        {
-            return_status = -1;
-            goto cleanup;
-        }
+        do_upgrade();
         p_log->info("Upgrade from old version successfully!\n");
     }
     else

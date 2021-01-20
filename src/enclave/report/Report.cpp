@@ -203,7 +203,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
                         // Update new files size
                         files_size += wl->sealed_files[i][FILE_SIZE].ToInt();
                     }
-                    wl->reported_files_idx.insert(i);
+                    wl->reported_files_idx.insert(wl->sealed_files[i][FILE_CID].ToString());
                     reported_files_acc++;
                 }
             }

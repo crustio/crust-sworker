@@ -443,7 +443,7 @@ public:
 
         // Apply a reasonable limit to the allowed size
         // of the body in bytes to prevent abuse.
-        parser_->body_limit(SEAL_BLOCK_MAX_SIZE);
+        parser_->body_limit(HTTP_BODY_LIMIT);
 
         // Set the timeout.
         beast::get_lowest_layer(
