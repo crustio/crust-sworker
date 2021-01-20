@@ -195,10 +195,11 @@ void validate_meaningful_file()
 
     // ----- Validate file ----- //
     // Used to indicate which meaningful file status has been changed
-    std::unordered_set<std::string> deleted_cid_us;
+    std::unordered_set<uint32_t> deleted_idx_us;
     for (auto idx2file : validate_sealed_files_m)
     {
         // If new file hasn't been verified, skip this validation
+        uint32_t file_idx = idx2file.first;
         json::JSON file = idx2file.second;
         auto status = file[FILE_STATUS];
         if (status.get_char(CURRENT_STATUS) == FILE_STATUS_PENDING
@@ -221,7 +222,7 @@ void validate_meaningful_file()
             log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
             if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                deleted_cid_us.insert(root_cid);
+                deleted_idx_us.insert(file_idx);
             }
             if (p_data != NULL)
             {
@@ -253,7 +254,7 @@ void validate_meaningful_file()
         {
             if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                deleted_cid_us.insert(root_cid);
+                deleted_idx_us.insert(file_idx);
             }
             continue;
         }
@@ -294,7 +295,7 @@ void validate_meaningful_file()
                 log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
                 if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    deleted_cid_us.insert(root_cid);
+                    deleted_idx_us.insert(file_idx);
                 }
                 break;
             }
@@ -317,7 +318,7 @@ void validate_meaningful_file()
                 }
                 if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                 {
-                    deleted_cid_us.insert(root_cid);
+                    deleted_idx_us.insert(file_idx);
                 }
                 log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
                 break;
@@ -341,7 +342,7 @@ void validate_meaningful_file()
                     log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                     log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                     log_err("Org hash : %s\n", leaf_hash.c_str());
-                    deleted_cid_us.insert(root_cid);
+                    deleted_idx_us.insert(file_idx);
                 }
                 free(p_sealed_data);
                 break;
@@ -358,7 +359,7 @@ void validate_meaningful_file()
                 }
                 else
                 {
-                    deleted_cid_us.insert(root_cid);
+                    deleted_idx_us.insert(file_idx);
                 }
                 break;
             }
@@ -367,21 +368,29 @@ void validate_meaningful_file()
 
 cleanup:
     // Change file status
-    if (deleted_cid_us.size() > 0)
+    if (deleted_idx_us.size() > 0)
     {
         sgx_thread_mutex_lock(&wl->file_mutex);
-        for (auto cid : deleted_cid_us)
+        for (auto del_index : deleted_idx_us)
         {
-            log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n", cid.c_str());
             size_t index = 0;
+            std::string cid = validate_sealed_files_m[del_index][FILE_CID].ToString();
             if(wl->is_file_dup(cid, index))
             {
-                // Change file status
-                wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                // Delete real file
-                ocall_ipfs_del_all(&crust_status, cid.c_str());
-                // Reduce valid file
-                wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
+                long cur_block_num = wl->sealed_files[index][CHAIN_BLOCK_NUMBER].ToInt();
+                long val_block_num = validate_sealed_files_m[del_index][CHAIN_BLOCK_NUMBER].ToInt();
+                // We can get original file and new sealed file(this situation maybe exist)
+                // If these two files are not the same one, cannot delete the file
+                if (cur_block_num == val_block_num)
+                {
+                    log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n", cid.c_str());
+                    // Change file status
+                    wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
+                    // Delete real file
+                    ocall_ipfs_del_all(&crust_status, cid.c_str());
+                    // Reduce valid file
+                    wl->set_wl_spec(FILE_STATUS_VALID, -validate_sealed_files_m[index][FILE_SIZE].ToInt());
+                }
             }
             else
             {

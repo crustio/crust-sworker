@@ -317,7 +317,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
                 block_num, sealed_buffer, sealed_buffer_offset, tree);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Seal sub data failed!Error code:%lx\n", crust_status);
+            log_err("Seal sub data failed! Error code:%lx\n", crust_status);
             for (size_t j = i; j < children_hashs.size(); j++)
             {
                 free(children_hashs[j]);
@@ -404,8 +404,9 @@ crust_status_t _storage_seal_file(const char *root_cid,
         // If seal failed, delete sealed file block
         if (CRUST_SUCCESS != crust_status)
         {
-            ocall_ipfs_del(&crust_status, root_cid);
-            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE);
+            crust_status_t del_ret = CRUST_SUCCESS;
+            ocall_ipfs_del(&del_ret, root_cid);
+            ocall_delete_folder_or_file(&del_ret, root_cid, STORE_TYPE_FILE);
         }
 
         free(sealed_buffer);
@@ -561,6 +562,8 @@ crust_status_t check_seal_file_dup(std::string cid)
             }
             else
             {
+                // If the original status is valid, we cannot seal the same new file.
+                // If do that, increasement report may be crashed due to unknown work report result
                 crust_status = CRUST_STORAGE_FILE_DELETING;
                 log_info("File(%s) is being deleted, please wait.\n", cid.c_str());
             }
