@@ -28,6 +28,7 @@
 #define FILE_STATUS_UNVERIFIED '0'
 #define FILE_STATUS_VALID '1'
 #define FILE_STATUS_DELETED '2'
+#define FILE_STATUS_PENDING '3'
 // Current status
 #define CURRENT_STATUS 0
 // Wait to sync status

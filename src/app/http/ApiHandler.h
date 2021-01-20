@@ -71,6 +71,19 @@ private:
     std::vector<uint8_t> root_hash_v;
     bool unseal_check_backup = false;
     MerkleTree *tree_root = NULL;
+
+    // Upgrade block service set
+    std::set<std::string> upgrade_block_s = {
+        "/workload",
+        "/srd/change",
+        "/storage/delete",
+        "/storage/seal",
+        "/storage/unseal",
+    };
+    std::set<std::string> http_mute_req_s = {
+        "/workload",
+        "/enclave/id_info",
+    };
 };
 
 std::string path_cat(beast::string_view base, beast::string_view path);
@@ -94,14 +107,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     EnclaveData *ed = EnclaveData::get_instance();
     EnclaveQueue *eq = EnclaveQueue::get_instance();
     std::string cur_path;
-    // Upgrade block service set
-    std::set<std::string> upgrade_block_s = {
-        "/workload",
-        "/srd/change",
-        "/storage/delete",
-        "/storage/seal",
-        "/storage/unseal",
-    };
 
     // Returns a bad request response
     auto const bad_request =
@@ -130,7 +135,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     // Build the path to the requested file
     std::string req_route = std::string(req.target().data(), req.target().size());
-    if (req_route.find("/enclave/id_info") == std::string::npos)
+    std::string route = req_route.substr(urlendpoint.base.size(), req_route.size());
+    if (http_mute_req_s.find(route) == http_mute_req_s.end())
     {
         p_log->debug("Http request:%s\n", req_route.c_str());
     }
@@ -355,23 +361,23 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     {
                         case CRUST_UPGRADE_BLOCK_EXPIRE:
                             ret_info = "Block expired!Wait for next era.";
-                            ret_code = 401;
+                            ret_code = 400;
                             break;
                         case CRUST_UPGRADE_NO_VALIDATE:
                             ret_info = "Necessary validation not completed!";
-                            ret_code = 402;
+                            ret_code = 400;
                             break;
                         case CRUST_UPGRADE_RESTART:
                             ret_info = "Cannot report due to restart!Wait for next era.";
-                            ret_code = 403;
+                            ret_code = 400;
                             break;
                         case CRUST_UPGRADE_NO_FILE:
                             ret_info = "Cannot get files for check!Please check ipfs!";
-                            ret_code = 404;
+                            ret_code = 400;
                             break;
                         default:
                             ret_info = "Unknown error.";
-                            ret_code = 405;
+                            ret_code = 400;
                     }
                 }
             }
@@ -736,6 +742,16 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_info = "This file '" + cid + "' has been sealed";
                         p_log->info("%s\n", ret_info.c_str());
                         ret_code = 200;
+                        break;
+                    case CRUST_STORAGE_FILE_SEALING:
+                        ret_info = "Same file '" + cid + "' is being sealed.";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 200;
+                        break;
+                    case CRUST_STORAGE_FILE_DELETING:
+                        ret_info = "Same file '" + cid + "' is being deleted.";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 400;
                         break;
                     case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
                         ret_info = "Seal file '" + cid + "' failed! Can't get block from ipfs";

@@ -14,7 +14,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
                                   size_t *sealed_buffer_offset, 
                                   json::JSON &tree);
 
-int check_file_dup(std::string cid);
+crust_status_t check_seal_file_dup(std::string cid);
 
 /**
  * @description: Seal file according to given path and return new MerkleTree
@@ -38,11 +38,22 @@ crust_status_t storage_seal_file(const char *cid)
     }
 
     // Check if file is duplicated
-    int check_file_res = check_file_dup(cid);
-    if (0 == check_file_res)
+    if (CRUST_SUCCESS != (crust_status = check_seal_file_dup(cid)))
     {
-        return CRUST_STORAGE_FILE_DUP;
+        return crust_status;
     }
+    Defer defer_del_failed([&cid, &wl](void) {
+        SafeLock sl(wl->file_mutex);
+        sl.lock();
+        size_t pos = 0;
+        if (wl->is_file_dup(cid))
+        {
+            if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
+            {
+                wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+            }
+        }
+    });
 
     // Do seal file
     size_t sealed_size = 0;
@@ -68,7 +79,7 @@ crust_status_t storage_seal_file(const char *cid)
         return CRUST_UNEXPECTED_ERROR;
     }
     // Get block height
-    size_t chain_block_num = 0;
+    size_t chain_block_num = INT_MAX;
     size_t info_buf_size = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
                          + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
                          + HASH_LENGTH * 2;
@@ -113,17 +124,11 @@ crust_status_t storage_seal_file(const char *cid)
     size_t pos = 0;
     if (wl->is_file_dup(cid, pos))
     {
-        char cur_status = wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS);
-        char org_status = wl->sealed_files[pos][FILE_STATUS].get_char(ORIGIN_STATUS);
-        if (cur_status == FILE_STATUS_DELETED)
+        if (FILE_STATUS_DELETED == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
         {
-            if (org_status == FILE_STATUS_VALID)
-            {
-                file_entry_json[FILE_STATUS] = "111";
-            }
-            wl->sealed_files[pos] = file_entry_json;
-            wl->recover_from_deleted_file_buffer(pos);
+            wl->recover_from_deleted_file_buffer(cid);
         }
+        wl->sealed_files[pos] = file_entry_json;
     }
     else
     {
@@ -166,6 +171,27 @@ crust_status_t _storage_seal_file(const char *root_cid,
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     bool is_first = false;
+
+    // If upgrade is comming, stop sealing
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        if (CRUST_SUCCESS != crust_status)
+        {
+            ocall_ipfs_del(&crust_status, root_cid);
+            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE);
+        }
+
+        if (sealed_buffer != NULL)
+        {
+            free(sealed_buffer);
+        }
+        if (sealed_buffer_offset != NULL)
+        {
+            free(sealed_buffer_offset);
+        }
+
+        return CRUST_UPGRADE_IS_UPGRADING;
+    }
 
     // Frist loop
     if (sealed_buffer == NULL)
@@ -291,7 +317,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
                 block_num, sealed_buffer, sealed_buffer_offset, tree);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Seal sub data failed!Error code:%lx\n", crust_status);
+            log_err("Seal sub data failed! Error code:%lx\n", crust_status);
             for (size_t j = i; j < children_hashs.size(); j++)
             {
                 free(children_hashs[j]);
@@ -378,8 +404,9 @@ crust_status_t _storage_seal_file(const char *root_cid,
         // If seal failed, delete sealed file block
         if (CRUST_SUCCESS != crust_status)
         {
-            ocall_ipfs_del(&crust_status, root_cid);
-            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE);
+            crust_status_t del_ret = CRUST_SUCCESS;
+            ocall_ipfs_del(&del_ret, root_cid);
+            ocall_delete_folder_or_file(&del_ret, root_cid, STORE_TYPE_FILE);
         }
 
         free(sealed_buffer);
@@ -406,15 +433,30 @@ crust_status_t storage_unseal_file(const char *data, size_t data_size)
 
     // Allocate buffer for decrypted data
     sgx_sealed_data_t *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(data_size);
+    if (p_sealed_data == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    Defer defer_sealed_data([p_sealed_data](void) {
+        if (p_sealed_data != NULL)
+        {
+            free(p_sealed_data);
+        }
+    });
     memset(p_sealed_data, 0, data_size);
     memcpy(p_sealed_data, data, data_size);
     decrypted_data_len = sgx_get_encrypt_txt_len(p_sealed_data);
     p_decrypted_data = (uint8_t *)enc_malloc(decrypted_data_len);
     if (p_decrypted_data == NULL)
     {
-        crust_status = CRUST_MALLOC_FAILED;
-        goto cleanup;
+        return CRUST_MALLOC_FAILED;
     }
+    Defer defer_decrypted_data([p_decrypted_data](void) {
+        if (p_decrypted_data != NULL)
+        {
+            free(p_decrypted_data);
+        }
+    });
     memset(p_decrypted_data, 0, decrypted_data_len);
 
     // Do unseal
@@ -423,26 +465,19 @@ crust_status_t storage_unseal_file(const char *data, size_t data_size)
     if (SGX_SUCCESS != sgx_status)
     {
         log_err("SGX unseal failed! Internal error:%lx\n", sgx_status);
-        crust_status = CRUST_UNSEAL_DATA_FAILED;
-        goto cleanup;
+        return CRUST_UNSEAL_DATA_FAILED;
     }
 
     // Check if data is private data
     if (memcmp(p_decrypted_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)
     {
-        crust_status = CRUST_MALWARE_DATA_BLOCK;
-        goto cleanup;
+        return CRUST_MALWARE_DATA_BLOCK;
     }
 
     // Store unsealed data
     sgx_sha256_msg(reinterpret_cast<const uint8_t *>(data), data_size, &sealed_root);
     sealed_root_str = hexstring_safe(reinterpret_cast<const uint8_t *>(&sealed_root), HASH_LENGTH);
     ocall_store_unsealed_data(sealed_root_str.c_str(), p_decrypted_data, decrypted_data_len);
-
-
-cleanup:
-    if (p_decrypted_data != NULL)
-        free(p_decrypted_data);
 
     return crust_status;
 }
@@ -471,7 +506,7 @@ crust_status_t storage_delete_file(const char *cid)
             return CRUST_SUCCESS;
         }
         deleted_file = wl->sealed_files[pos];
-        wl->add_to_deleted_file_buffer(pos);
+        wl->add_to_deleted_file_buffer(cid);
         wl->sealed_files[pos][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
     }
     sf_lock.unlock();
@@ -501,37 +536,50 @@ crust_status_t storage_delete_file(const char *cid)
 /**
  * @description: Check if to be sealed file is duplicated
  * @param cid -> IPFS content id
- * @return: 0 -> duplicated
- *          1 -> not duplicated
- *          2 -> Will be replaced by new file, but not report
- *          3 -> Will be deleted, new file will be added
+ * @return: Can seal file or not
  */
-int check_file_dup(std::string cid)
+crust_status_t check_seal_file_dup(std::string cid)
 {
     Workload *wl = Workload::get_instance();
+    crust_status_t crust_status = CRUST_SUCCESS;
     SafeLock cf_lock(wl->file_mutex);
     cf_lock.lock();
     size_t pos = 0;
     if (wl->is_file_dup(cid, pos))
     {
+        crust_status = CRUST_STORAGE_FILE_DUP;
         char cur_s = wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS);
         char org_s = wl->sealed_files[pos][FILE_STATUS].get_char(ORIGIN_STATUS);
-        if (cur_s == FILE_STATUS_DELETED)
+        if (FILE_STATUS_PENDING == cur_s)
         {
-            if (org_s == FILE_STATUS_VALID)
+            crust_status = CRUST_STORAGE_FILE_SEALING;
+        }
+        else if (FILE_STATUS_DELETED == cur_s)
+        {
+            if (FILE_STATUS_DELETED == org_s || FILE_STATUS_UNVERIFIED == org_s)
             {
-                return 2;
+                crust_status = CRUST_SUCCESS;
             }
-            if (org_s == FILE_STATUS_DELETED)
+            else
             {
-                return 3;
+                // If the original status is valid, we cannot seal the same new file.
+                // If do that, increasement report may be crashed due to unknown work report result
+                crust_status = CRUST_STORAGE_FILE_DELETING;
+                log_info("File(%s) is being deleted, please wait.\n", cid.c_str());
             }
         }
-        return 0;
     }
-    cf_lock.unlock();
 
-    return 1;
+    if (CRUST_SUCCESS == crust_status)
+    {
+        json::JSON file_entry_json;
+        file_entry_json[FILE_CID] = cid;
+        // Set file status to 'FILE_STATUS_PENDING,FILE_STATUS_UNVERIFIED,FILE_STATUS_UNVERIFIED'
+        file_entry_json[FILE_STATUS] = "300";
+        wl->add_sealed_file(file_entry_json, pos);
+    }
+
+    return crust_status;
 }
 
 /**

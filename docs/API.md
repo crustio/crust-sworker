@@ -314,6 +314,14 @@ Parameter:
 Output (200, success):
 ```
 {
+  "message" : "Same file 'xxx' is being sealed.",  
+  "status_code" : 200
+}
+```
+
+Output (200, success):
+```
+{
   "message" : "Seal file 'xxx' successfully",  
   "status_code" : 200
 }
@@ -331,6 +339,14 @@ Output (400, failed):
 ```
 {
   "message" : "Invalid cid!",  
+  "status_code" : 400
+}
+```
+
+Output (400, failed):
+```
+{
+  "message" : "Same file 'xxx' is being deleted.",  
   "status_code" : 400
 }
 ```

@@ -3,7 +3,7 @@
 
 bool upgrade_try_start();
 bool upgrade_try_restore();
-bool upgrade_try_complete(bool restore_res);
+void upgrade_try_complete();
 
 bool start_task(task_func_t func);
 bool restore_tasks();
@@ -155,8 +155,7 @@ bool upgrade_try_start()
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
     p_log->info("Informing old version to get ready for upgrade...\n");
     int start_wait_time = 16;
-    int tryout = UPGRADE_START_TRYOUT / start_wait_time;
-    int tryout_idx = 0;
+    long tryout_idx = 0;
     std::string err_msg;
     while (true)
     {
@@ -172,11 +171,6 @@ bool upgrade_try_start()
             {
                 p_log->info("Old version not ready for upgrade!Message:%s, status:%d, try again...\n", res_inform.body().c_str(), res_inform.result());
                 err_msg = res_inform.body();
-            }
-            if (++tryout_idx > tryout)
-            {
-                p_log->warn("Upgrade tryout!Message:%s\n", res_inform.body().c_str());
-                return false;
             }
             sleep(start_wait_time);
             continue;
@@ -200,7 +194,6 @@ bool upgrade_try_restore()
     p_log->info("Waiting for upgrade data...\n");
     int restore_tryout = 3;
     int meta_wait_time = 3;
-    int tryout = UPGRADE_META_TRYOUT / meta_wait_time;
     int tryout_idx = 0;
     http::response<http::string_body> res_meta;
     sgx_status_t sgx_status = SGX_SUCCESS;
@@ -221,18 +214,12 @@ bool upgrade_try_restore()
                 p_log->info("Old version Message:%s\n", res_meta.body().c_str());
                 err_msg = res_meta.body();
             }
-            if (++tryout_idx > tryout)
-            {
-                p_log->err("Upgrade: restore tryout!\n");
-                return false;
-            }
             sleep(meta_wait_time);
             continue;
         }
         p_log->info("Get upgrade data successfully!Data size:%ld.\n", res_meta.body().size());
         break;
     }
-
 
 restore_try_again:
     // Init enclave
@@ -300,23 +287,21 @@ restore_try_again:
 
 /**
  * @description: Inform old version upgrade result
- * @param restore_res -> Upgrade try restore result
  * @return: Inform result
  */
-bool upgrade_try_complete(bool restore_res)
+void upgrade_try_complete()
 {
     std::shared_ptr<HttpClient> client(new HttpClient());
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
-    p_log->info("Informing old version upgrade result...\n");
+    p_log->info("Informing old version upgrade is successful...\n");
     json::JSON upgrade_ret;
-    upgrade_ret["success"] = restore_res;
+    upgrade_ret["success"] = true;
     int complete_wait_time = 1;
-    int tryout = UPGRADE_COMPLETE_TRYOUT / complete_wait_time;
     while (true)
     {
         // Inform old version to close
         http::response<http::string_body> res_complete = client->Get(p_config->base_url + "/upgrade/complete", upgrade_ret.dump(), headers);
-        if ((int)res_complete.result() != 200 && (int)res_complete.result() != 404 && --tryout > 0)
+        if ((int)res_complete.result() != 200 && (int)res_complete.result() != 404)
         {
             p_log->warn("Inform old version failed!Message:%s, try again...\n", res_complete.body().c_str());
             sleep(complete_wait_time);
@@ -324,62 +309,59 @@ bool upgrade_try_complete(bool restore_res)
         }
         break;
     }
-    p_log->info("Inform old version that upgrade result: %s!\n", upgrade_ret["success"].ToBool() ? "successfully" : "failed");
-    bool res = upgrade_ret["success"].ToBool();
+    p_log->info("Inform old version upgrade successfully!\n");
 
     // Init related components
-    if (res)
+    p_log->info("Waiting for old version's webservice stop...\n");
+    // Waiting old version stop
+    long check_old_api_tryout = 0;
+    while (true)
     {
-        p_log->info("Waiting for old version's webservice stop...\n");
-        // Waiting old version stop
-        int check_old_api_tryout = 200;
-        while (true)
+        // Inform old version to close
+        http::response<http::string_body> res_test = client->Get(p_config->base_url + "/enclave/thread_info", "", headers);
+        if ((int)res_test.result() == 404)
         {
-            // Inform old version to close
-            http::response<http::string_body> res_test = client->Get(p_config->base_url + "/enclave/thread_info", "", headers);
-            if ((int)res_test.result() == 404)
-            {
-                break;
-            }
-            if (check_old_api_tryout % 10 == 0)
-            {
-                p_log->info("Old version webservice is still working, please wait...\n");
-            }
-            if (--check_old_api_tryout < 0)
-            {
-                p_log->err("Wait old version stop failed!\n");
-                break;
-            }
-            sleep(3);
+            break;
         }
-        sleep(10);
-        if (!initialize_components())
+        if (check_old_api_tryout % 10 == 0)
         {
-            p_log->err("Init component failed!\n");
-            res = false;
+            p_log->info("Old version webservice is still working, please wait...\n");
         }
+        check_old_api_tryout++;
+        sleep(3);
     }
-
-    return res;
+    sleep(10);
+    UrlEndPoint urlendpoint = get_url_end_point(p_config->base_url);
+    while (!initialize_components())
+    {
+        p_log->err("Please check if port:%d has been used. If it is being used, stop related process!\n", urlendpoint.port);
+        sleep(10);
+    }
 }
 
 /**
- * @description: Check if upgrade
- * @return: Check status
+ * @description: Check if upgrade, this function executes until upgrade successfully
+ * @return: Upgrade result
  */
-bool do_upgrade()
+void do_upgrade()
 {
-    bool res = true;
-    if (!upgrade_try_start())
+    while (true)
     {
-        return false;
+        if (!upgrade_try_start())
+        {
+            sleep(30);
+            continue;
+        }
+
+        if (!upgrade_try_restore())
+        {
+            sleep(30);
+            continue;
+        }
+
+        upgrade_try_complete();
+        break;
     }
-
-    res = upgrade_try_restore();
-
-    res = upgrade_try_complete(res);
-
-    return res;
 }
 
 /**
@@ -445,7 +427,7 @@ int process_run()
     crust_status_t crust_status = CRUST_SUCCESS;
     int return_status = 1;
     int check_interval = 15;
-    int upgrade_timeout = 5 * REPORT_SLOT * BLOCK_INTERVAL;
+    int upgrade_timeout = 3 * REPORT_SLOT * BLOCK_INTERVAL;
     int upgrade_tryout = upgrade_timeout / check_interval;
     int entry_tryout = 3;
     size_t srd_task = 0;
@@ -471,11 +453,7 @@ int process_run()
     if (g_upgrade_flag)
     {
         // Check and do upgrade
-        if (!do_upgrade())
-        {
-            return_status = -1;
-            goto cleanup;
-        }
+        do_upgrade();
         p_log->info("Upgrade from old version successfully!\n");
     }
     else

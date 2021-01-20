@@ -8,6 +8,7 @@
 #include "EJson.h"
 #include "Persistence.h"
 #include "Parameter.h"
+#include "Defer.h"
 #include "sgx_thread.h"
 #include <sgx_report.h>
 #include <string>
