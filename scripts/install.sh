@@ -45,9 +45,12 @@ function installAPP()
     res=0
     cd $instdir
     make clean &>/dev/null
-    setTimeWait "$(verbose INFO "Building and installing sworker application..." h)" $SYNCFILE &
+    if [ x"$prod" != x"" ]; then
+        proddesc="in prod mode"
+    fi
+    setTimeWait "$(verbose INFO "Building and installing sworker application($proddesc)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make -j$((coreNum*2)) &>$ERRFILE
+    make $prod -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     cd - &>/dev/null
 
@@ -170,6 +173,12 @@ enclaveso="enclave.signed.so"
 configfile="Config.json"
 # Crust related
 crust_env_file=$realsworkerdir/etc/environment
+prod=$1
+if [ x"$prod" = x"prod" ]; then
+    prod="SGX_DEBUG=0"
+else
+    prod=""
+fi
 
 #trap "success_exit" INT
 trap "success_exit" EXIT

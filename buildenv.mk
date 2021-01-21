@@ -165,6 +165,10 @@ Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 Enclave_Name := enclave.so
 Signed_Enclave_Name := enclave.signed.so
 Enclave_Config_File := enclave/Enclave.config.xml
+Enclave_Sig := enclave/Enclave.sig
+Signature_Dat := enclave/signature.dat
+Enclave_Prod_Pri_Key := enclave/EnclavePrivate.pem.prod
+Enclave_Prod_Pub_Key := enclave/EnclavePublic.pem.prod
 
 ifeq ($(SGX_MODE), HW)
 ifeq ($(SGX_DEBUG), 1)
