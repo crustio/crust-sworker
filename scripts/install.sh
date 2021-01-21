@@ -47,6 +47,8 @@ function installAPP()
     make clean &>/dev/null
     if [ x"$prod" != x"" ]; then
         proddesc="in prod mode"
+    else
+        proddesc="in dev mode"
     fi
     setTimeWait "$(verbose INFO "Building and installing sworker application($proddesc)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
