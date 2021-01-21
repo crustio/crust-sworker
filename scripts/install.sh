@@ -45,15 +45,18 @@ function installAPP()
     res=0
     cd $instdir
     make clean &>/dev/null
-    if [ x"$prod" != x"" ]; then
+    if [ x"$build_mode" != x"" ]; then
         proddesc="in prod mode"
     else
         proddesc="in dev mode"
     fi
     setTimeWait "$(verbose INFO "Building and installing sworker application($proddesc)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make $prod -j$((coreNum*2)) &>$ERRFILE
+    make $build_mode -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
+    if [ x"$DOCKERMODLE" = x"1" ]; then
+        rm src/enclave/EnclavePrivate.pem.prod
+    fi
     cd - &>/dev/null
 
     # Copy related files to install directory
@@ -139,6 +142,7 @@ function usage()
 		echo "    $0 [options]"
     echo "Options:"
     echo "     -d for docker"
+    echo "     -m build mode(dev or prod)"
 
 	exit 1;
 }
@@ -175,12 +179,6 @@ enclaveso="enclave.signed.so"
 configfile="Config.json"
 # Crust related
 crust_env_file=$realsworkerdir/etc/environment
-prod=$1
-if [ x"$prod" = x"prod" ]; then
-    prod="SGX_DEBUG=0"
-else
-    prod=""
-fi
 
 #trap "success_exit" INT
 trap "success_exit" EXIT
@@ -193,7 +191,7 @@ fi
 
 # Cmds
 DOCKERMODLE=0
-while getopts ":hd" opt; do
+while getopts ":hdm:" opt; do
   case ${opt} in
     h )
 		usage
@@ -201,12 +199,21 @@ while getopts ":hd" opt; do
     d )
        DOCKERMODLE=1
       ;;
+    m )
+       build_mode=$OPTARG
+      ;;
     \? )
       echo "Invalid Option: -$OPTARG" 1>&2
       exit 1
       ;;
   esac
 done
+
+if [ x"$build_mode" = x"prod" ]; then
+    build_mode="SGX_DEBUG=0"
+else
+    build_mode=""
+fi
 
 if ps -ef | grep -v grep | grep $PPID | grep $selfName &>/dev/null; then
     selfPID=$PPID
