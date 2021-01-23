@@ -20,15 +20,7 @@ all: .config_$(Build_Mode)_$(SGX_ARCH)
 	@$(MAKE) target
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target:  $(App_Name) $(Enclave_Name) $(Test_Target)
-	@echo "The project has been built in release hardware mode."
-	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the $(App_Name) to launch and access the enclave."
-	@echo "To sign the enclave use the command:"
-	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Enclave_Name) -out <$(Signed_Enclave_Name)> -config $(Enclave_Config_File)"
-	@echo "You can also sign the enclave using an external signing tool."
-	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
-
-
+target:  $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(Test_Target)
 else
 target: $(App_Name) $(Signed_Enclave_Name) $(Test_Target)
 ifeq ($(Build_Mode), HW_DEBUG)
@@ -101,8 +93,13 @@ $(Enclave_Name): enclave/Enclave_t.o $(Enclave_Cpp_Objects)
 	@echo "LINK =>  $@"
 
 $(Signed_Enclave_Name): $(Enclave_Name)
+ifneq ($(Build_Mode), HW_RELEASE)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/EnclavePrivate.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
+else
+	@. ../scripts/prod_sign.sh
+	@echo "PROD SIGN =>  $@"
+endif
 
 
 ######## Test Objects ########

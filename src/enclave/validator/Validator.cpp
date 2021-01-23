@@ -359,6 +359,7 @@ void validate_meaningful_file()
                 }
                 else
                 {
+                    log_err("Get file(%s) block failed! Error code:%lx\n", root_cid.c_str(), crust_status);
                     deleted_idx_us.insert(file_idx);
                 }
                 break;
@@ -468,12 +469,12 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
         // Get related IPFS file data piece
         size_t got_piece_size = 0;
         crust_status = storage_ipfs_get_block(piece_cid.c_str(), &p_got_piece_data, &got_piece_size);
-        sgx_sha256_hash_t got_piece_hash;
-        sgx_sha256_msg(p_got_piece_data, got_piece_size, &got_piece_hash);
         if (CRUST_SUCCESS != crust_status)
         {
             break;
         }
+        sgx_sha256_hash_t got_piece_hash;
+        sgx_sha256_msg(p_got_piece_data, got_piece_size, &got_piece_hash);
         // Compare data piece
         if (memcmp(p_real_piece_data, p_got_piece_data, real_piece_size) != 0)
         {

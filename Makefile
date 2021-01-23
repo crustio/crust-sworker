@@ -3,6 +3,9 @@
 build:
 	@$(MAKE) -C src all -j8 --no-print-directory
 
+build_prod:
+	@$(MAKE) -C src all SGX_DEBUG=0 -j8 --no-print-directory
+
 build_test:
 	@$(MAKE) -C test build --no-print-directory
 	@$(MAKE) -C test install --no-print-directory

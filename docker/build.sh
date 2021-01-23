@@ -7,19 +7,23 @@ usage() {
 		echo "    $0 [options]"
     echo "Options:"
     echo "     -p publish image"
+    echo "     -m build mode(dev or prod)"
 
 	  exit 1;
 }
 
 PUBLISH=0
 
-while getopts ":hp" opt; do
+while getopts ":hpm:" opt; do
     case ${opt} in
         h )
 			      usage
             ;;
         p )
             PUBLISH=1
+            ;;
+        m )
+            SWORKER_MODE=$OPTARG
             ;;
         \? )
             echo "Invalid Option: -$OPTARG" 1>&2
@@ -37,7 +41,10 @@ if [ "$PUBLISH" -eq "1" ]; then
 fi
 
 make clean
-docker build -f docker/runner/Dockerfile -t $IMAGEID .
+if [ x"$SWORKER_MODE" != x"prod" ]; then
+    SWORKER_MODE="dev"
+fi
+docker build -f docker/runner/Dockerfile -t $IMAGEID --build-arg BUILD_MODE=$SWORKER_MODE .
 
 if [ "$?" -ne "0" ]; then
     echo "crust-sworker build failed!"

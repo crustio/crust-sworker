@@ -9,7 +9,8 @@ inteldir=/opt/intel
 echo "Starting curst sworker $version"
 source $crust_env_file
 
-echo "Wait 5 seconds for aesm service fully start"
+wait_time=10
+echo "Wait $wait_time seconds for aesm service fully start"
 /opt/intel/sgx-aesm-service/aesm/linksgx.sh
 /bin/mkdir -p /var/run/aesmd/
 /bin/chown -R aesmd:aesmd /var/run/aesmd/
@@ -17,7 +18,7 @@ echo "Wait 5 seconds for aesm service fully start"
 /bin/chown -R aesmd:aesmd /var/opt/aesmd/
 /bin/chmod 0750 /var/opt/aesmd/
 NAME=aesm_service AESM_PATH=/opt/intel/sgx-aesm-service/aesm LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm /opt/intel/sgx-aesm-service/aesm/aesm_service
-sleep 5
+sleep $wait_time
 
 ps -ef | grep aesm
 

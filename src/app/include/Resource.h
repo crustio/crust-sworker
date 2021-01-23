@@ -8,6 +8,7 @@
 
 #define CRUST_INST_DIR      "/opt/crust/crust-sworker/" VERSION
 #define ENCLAVE_FILE_PATH   CRUST_INST_DIR "/etc/enclave.signed.so"
+#define SGX_WL_FILE_PATH    CRUST_INST_DIR "/etc/sgx_white_list_cert.bin"
 
 // For work report
 // REPORT_INTERVAL_BLCOK_NUMBER_UPPER_LIMIT < REPORT_SLOT

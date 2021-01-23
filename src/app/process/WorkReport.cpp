@@ -164,7 +164,7 @@ void work_report_loop(void)
                 p_log->warn("Block height expired.\n");
                 break;
             case CRUST_FIRST_WORK_REPORT_AFTER_REPORT:
-                p_log->warn("Can't generate work report for the first four times after restart\n");
+                p_log->warn("Can't generate work report for the first time after restart\n");
                 break;
             case CRUST_SERVICE_UNAVAILABLE:
                 p_log->warn("Can't generate work report. You have meaningful files, please start ipfs or use delete interface to remove those files\n");
