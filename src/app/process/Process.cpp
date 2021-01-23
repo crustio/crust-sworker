@@ -75,6 +75,17 @@ bool initialize_enclave()
     }
 
     // ----- Launch the enclave ----- //
+    uint8_t *p_wl_data = NULL;
+    size_t wl_data_size = 0;
+    if (CRUST_SUCCESS == get_file(SGX_WL_FILE_PATH, &p_wl_data, &wl_data_size))
+    {
+        sgx_status_t reg_ret = sgx_register_wl_cert_chain(p_wl_data, wl_data_size);
+        if (SGX_SUCCESS != reg_ret)
+        {
+            p_log->debug("Encounter problem when registering local white list cert.\n");
+        }
+        free(p_wl_data);
+    }
     ret = sgx_create_enclave(ENCLAVE_FILE_PATH, SGX_DEBUG_FLAG, NULL, NULL, &global_eid, NULL);
     if (ret != SGX_SUCCESS)
     {
