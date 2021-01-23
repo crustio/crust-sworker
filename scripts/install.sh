@@ -67,7 +67,7 @@ function installAPP()
         cp $instdir/etc/$enclaveso $realsworkerdir/etc
     fi
     cp $srcdir/$configfile $realsworkerdir/etc
-    cp $instdir/sgx_white_list_cert.bin $realsworkerdir/etc
+    cp $srcdir/sgx_white_list_cert.bin $realsworkerdir/etc
     cp -r $instdir/scripts/uninstall.sh $realsworkerdir/scripts
     cp -r $instdir/scripts/utils.sh $realsworkerdir/scripts
     cp -r $instdir/VERSION $realsworkerdir
