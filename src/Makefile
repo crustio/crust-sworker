@@ -97,7 +97,7 @@ ifneq ($(Build_Mode), HW_RELEASE)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/EnclavePrivate.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 else
-	@. $(SIGN_CMD)
+	@. ../scripts/prod_sign.sh
 	@echo "PROD SIGN =>  $@"
 endif
 
