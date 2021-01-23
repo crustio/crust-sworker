@@ -11,10 +11,6 @@ define setMaxThreadNum
 	echo "SWORKER=$$sworker_version" >> ../VERSION
 endef
 
-define setEnclaveConfigDebug
-	sed -i "/<DisableDebug>/ c \  <DisableDebug>$(1)</DisableDebug>" enclave/Enclave.config.xml
-endef
-
 ifneq ($(TFLAG), 1)
 	Test_Target := 
 endif
@@ -98,16 +94,10 @@ $(Enclave_Name): enclave/Enclave_t.o $(Enclave_Cpp_Objects)
 
 $(Signed_Enclave_Name): $(Enclave_Name)
 ifneq ($(Build_Mode), HW_RELEASE)
-	@$(call setEnclaveConfigDebug,0)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/EnclavePrivate.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 else
-	@$(call setEnclaveConfigDebug,1)
-	@openssl rsa -in $(Enclave_Prod_Pri_Key) -outform PEM -pubout -out $(Enclave_Prod_Pub_Key)
-	@$(SGX_ENCLAVE_SIGNER) gendata -enclave $(Enclave_Name) -config $(Enclave_Config_File) -out $(Enclave_Sig)
-	@openssl dgst -sha256 -out $(Signature_Dat) -sign $(Enclave_Prod_Pri_Key) $(Enclave_Sig)
-	@$(SGX_ENCLAVE_SIGNER) catsig -enclave $(Enclave_Name) -config $(Enclave_Config_File) -out $(Signed_Enclave_Name) -key $(Enclave_Prod_Pub_Key) -sig $(Signature_Dat) -unsigned $(Enclave_Sig)
-	@$(call setEnclaveConfigDebug,0)
+	@. $(SIGN_CMD)
 	@echo "PROD SIGN =>  $@"
 endif
 
@@ -125,5 +115,4 @@ $(Test_Target): app/Enclave_u.o $(Test_Objects) $(App_Cpp_Objects) $(App_C_Objec
 .PHONY: clean
 
 clean:
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) $(App_C_Objects) app/Enclave_u.* $(Enclave_Cpp_Objects) enclave/Enclave_t.* \
-		$(Enclave_Sig) $(Signature_Dat) $(Enclave_Prod_Pub_Key)
+	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) $(App_C_Objects) app/Enclave_u.* $(Enclave_Cpp_Objects) enclave/Enclave_t.*

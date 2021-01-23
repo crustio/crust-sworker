@@ -52,10 +52,10 @@ function installAPP()
     fi
     setTimeWait "$(verbose INFO "Building and installing sworker application($proddesc)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make $build_mode -j$((coreNum*2)) &>$ERRFILE
+    make $build_mode SIGN_CMD=$SIGN_CMD_FILE -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     if [ x"$DOCKERMODLE" = x"1" ]; then
-        rm src/enclave/EnclavePrivate.pem.prod
+        rm $SIGN_CMD_FILE
     fi
     cd - &>/dev/null
 
@@ -179,6 +179,7 @@ enclaveso="enclave.signed.so"
 configfile="Config.json"
 # Crust related
 crust_env_file=$realsworkerdir/etc/environment
+SIGN_CMD_FILE=$instdir/scripts/prod_sign.sh
 
 #trap "success_exit" INT
 trap "success_exit" EXIT
