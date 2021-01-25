@@ -231,7 +231,10 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
         beast::flat_buffer buffer;
 
         // Receive the HTTP response
-        http::read(stream, buffer, res);
+        http::response_parser<http::string_body> parser;
+        parser.body_limit(HTTP_RECV_BODY_LIMIT);
+        http::read(stream, buffer, parser);
+        res = parser.get();
 
         // Gracefully close the stream
         beast::error_code ec;
@@ -317,7 +320,10 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
         beast::flat_buffer buffer;
 
         // Receive the HTTP response
-        http::read(stream, buffer, res);
+        http::response_parser<http::string_body> parser;
+        parser.body_limit(HTTP_RECV_BODY_LIMIT);
+        http::read(stream, buffer, parser);
+        res = parser.get();
 
         // Gracefully close the socket
         beast::error_code ec;
