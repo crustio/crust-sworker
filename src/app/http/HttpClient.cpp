@@ -231,7 +231,7 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
         beast::flat_buffer buffer;
 
         // Receive the HTTP response
-		http::response_parser<http::string_body> parser;
+        http::response_parser<http::string_body> parser;
         parser.body_limit(HTTP_RECV_BODY_LIMIT);
         http::read(stream, buffer, parser);
         res = parser.get();
@@ -320,7 +320,7 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
         beast::flat_buffer buffer;
 
         // Receive the HTTP response
-		http::response_parser<http::string_body> parser;
+        http::response_parser<http::string_body> parser;
         parser.body_limit(HTTP_RECV_BODY_LIMIT);
         http::read(stream, buffer, parser);
         res = parser.get();
