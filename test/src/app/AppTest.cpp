@@ -11,8 +11,6 @@ crust::Log *p_log = crust::Log::get_instance();
  * @param argv[] -> parameter array
  * @return: exit flag
  */
-//extern "C"
-//int SGX_CDECL MainTest(int argc, char *argv[])
 int SGX_CDECL main(int argc, char *argv[])
 {
     // Get configure file path if exists
