@@ -47,7 +47,7 @@ crust_status_t entry_network()
         }
     }
 
-    if (IAS_LINKABLE)
+    if (OPT_ISSET(flags, OPT_LINK))
     {
         linkable = SGX_LINKABLE_SIGNATURE;
     }
