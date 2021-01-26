@@ -1,5 +1,67 @@
 #include "SrdTest.h"
 
+extern long g_srd_task;
+extern sgx_thread_mutex_t g_srd_task_mutex;
+
+void srd_change_test(long change, bool real)
+{
+    // Set srd change number
+    long real_change = 0;
+    change_srd_task(change, &real_change);
+
+    // ----- Do srd change ----- //
+    Workload *wl = Workload::get_instance();
+    if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+    {
+        return;
+    }
+    sgx_thread_mutex_lock(&g_srd_task_mutex);
+    long tmp_g_srd_task = g_srd_task;
+    g_srd_task = 0;
+    sgx_thread_mutex_unlock(&g_srd_task_mutex);
+    // Srd loop
+    while (tmp_g_srd_task != 0)
+    {
+        // Get real srd space
+        long srd_change_num = 0;
+        if (tmp_g_srd_task > SRD_MAX_PER_TURN)
+        {
+            srd_change_num = SRD_MAX_PER_TURN;
+            tmp_g_srd_task -= SRD_MAX_PER_TURN;
+        }
+        else
+        {
+            srd_change_num = tmp_g_srd_task;
+            tmp_g_srd_task = 0;
+        }
+        // Do srd
+        crust_status_t crust_status = CRUST_SUCCESS;
+        if (srd_change_num != 0)
+        {
+            if (real)
+            {
+                ocall_srd_change(&crust_status, srd_change_num);
+            }
+            else
+            {
+                ocall_srd_change_test(&crust_status, srd_change_num);
+            }
+            if (CRUST_SRD_NUMBER_EXCEED == crust_status)
+            {
+                sgx_thread_mutex_lock(&g_srd_task_mutex);
+                g_srd_task = 0;
+                sgx_thread_mutex_unlock(&g_srd_task_mutex);
+            }
+        }
+        // Update srd info
+        std::string srd_info_str = wl->get_srd_info().dump();
+        if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
+        {
+            log_warn("Set srd info failed! Error code:%lx\n", crust_status);
+        }
+    }
+}
+
 void srd_increase_test()
 {
     Workload *wl = Workload::get_instance();

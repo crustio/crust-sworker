@@ -30,7 +30,7 @@ mkdir -p $tmpdir
 ### Add limit srd and file
 srd_limit=$(get_config '.functionality|.srd_limit')
 file_limit=$(get_config '.functionality|.file_limit')
-add_srd $srd_limit &>/dev/null
+srd $srd_limit &>/dev/null
 if [ $? -ne 0 ]; then
     verbose ERROR "add srd failed."
     exit 1

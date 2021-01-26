@@ -3,29 +3,29 @@
 
 usage() {
     echo "Usage:"
-		echo "    $0 -h                      Display this help message."
-		echo "    $0 [options]"
+        echo "    $0 -h                      Display this help message."
+        echo "    $0 [options]"
     echo "Options:"
     echo "     -p publish image"
     echo "     -m build mode(dev or prod)"
 
-	  exit 1;
+      exit 1;
 }
 
 PUBLISH=0
 
 while getopts ":hpm:" opt; do
     case ${opt} in
-        h )
-			      usage
+        h)
+            usage
             ;;
-        p )
+        p)
             PUBLISH=1
             ;;
-        m )
+        m)
             SWORKER_MODE=$OPTARG
             ;;
-        \? )
+        ?)
             echo "Invalid Option: -$OPTARG" 1>&2
             exit 1
             ;;

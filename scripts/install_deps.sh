@@ -260,12 +260,12 @@ function success_exit()
 
 usage() {
     echo "Usage:"
-		echo "    $0 -h                      Display this help message."
-		echo "    $0 [options]"
+        echo "    $0 -h                      Display this help message."
+        echo "    $0 [options]"
     echo "Options:"
     echo "     -u no test"
 
-	exit 1;
+    exit 1;
 }
 
 ############## MAIN BODY ###############
@@ -337,18 +337,18 @@ fi
 UNTEST=0
 
 while getopts ":hu" opt; do
-  case ${opt} in
-    h )
-			usage
-      ;;
-     u )
-       UNTEST=1
-      ;;
-    \? )
-      echo "Invalid Option: -$OPTARG" 1>&2
-      exit 1
-      ;;
-  esac
+    case ${opt} in 
+        h)
+            usage
+            ;;
+        u)
+            UNTEST=1
+            ;;
+        ?)
+            echo "Invalid Option: -$OPTARG" 1>&2
+            exit 1
+            ;;
+    esac
 done
 
 # Installing Prerequisites

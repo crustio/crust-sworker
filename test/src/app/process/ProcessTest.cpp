@@ -121,9 +121,6 @@ entry_network_flag:
                     return_status = -1;
                 }
             }
-
-            // Set init srd capacity
-            srd_task = 1;
         }
         else
         {

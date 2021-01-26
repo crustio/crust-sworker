@@ -139,13 +139,13 @@ function success_exit()
 function usage()
 {
     echo "Usage:"
-		echo "    $0 -h                      Display this help message."
-		echo "    $0 [options]"
+        echo "    $0 -h                      Display this help message."
+        echo "    $0 [options]"
     echo "Options:"
     echo "     -d for docker"
     echo "     -m build mode(dev or prod)"
 
-	exit 1;
+    exit 1;
 }
 
 ############## MAIN BODY ###############
@@ -194,21 +194,21 @@ fi
 # Cmds
 DOCKERMODLE=0
 while getopts ":hdm:" opt; do
-  case ${opt} in
-    h )
-		usage
-      ;;
-    d )
-       DOCKERMODLE=1
-      ;;
-    m )
-       build_mode=$OPTARG
-      ;;
-    \? )
-      echo "Invalid Option: -$OPTARG" 1>&2
-      exit 1
-      ;;
-  esac
+    case ${opt} in
+        h)
+            usage
+            ;;
+        d)
+            DOCKERMODLE=1
+            ;;
+        m)
+            build_mode=$OPTARG
+            ;;
+        ?)
+            echo "Invalid Option: -$OPTARG" 1>&2
+            exit 1
+            ;;
+    esac
 done
 
 if [ x"$build_mode" = x"prod" ]; then

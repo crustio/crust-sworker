@@ -2,16 +2,16 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
-/**	
- * @description: Test if there is usable IPFS	
- * @return: Test result	
+/**
+ * @description: Test if there is usable IPFS
+ * @return: Test result
  */
 bool ocall_ipfs_online()
 {
     return Ipfs::get_instance()->online();
 }
 
-/**	
+/**
  * @description: Get block from ipfs
  * @param cid -> Ipfs content id
  * @param p_data -> Pointer to pointer to ipfs data
@@ -32,7 +32,7 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
     return CRUST_SUCCESS;
 }
 
-/**	
+/**
  * @description: Cat file
  * @param cid -> Ipfs content id
  * @param p_data -> Pointer to pointer to ipfs data
@@ -54,7 +54,7 @@ crust_status_t ocall_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_si
     return CRUST_SUCCESS;
 }
 
-/**	
+/**
  * @description: Add file to ipfs
  * @param p_data -> Pointer to be added data
  * @param len -> Added data length
@@ -74,7 +74,7 @@ crust_status_t ocall_ipfs_add(uint8_t *p_data, size_t len, char *cid, size_t /*c
     return CRUST_SUCCESS;
 }
 
-/**	
+/**
  * @description: Delete file
  * @param cid -> To be deleted file cid
  * @return: Status
@@ -90,7 +90,7 @@ crust_status_t ocall_ipfs_del(const char *cid)
     return CRUST_SUCCESS;
 }
 
-/**	
+/**
  * @description: Delete file's all related data
  * @param cid -> To be deleted file cid
  * @return: Status

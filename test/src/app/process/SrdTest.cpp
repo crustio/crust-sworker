@@ -15,30 +15,19 @@ bool srd_change_test(long change)
     if (change > 0)
     {
         json::JSON disk_info_json = get_increase_srd_info();
-        size_t true_increase = std::min(disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(), change);
-        // Add left change to next srd, if have
-        if (change > (long)true_increase)
-        {
-            p_log->warn("No enough space for %ldG srd, can only do %ldG srd.\n", change, true_increase);
-        }
-        if (true_increase == 0)
-        {
-            //p_log->warn("No available space for srd!\n");
-            return false;
-        }
         // Print disk info
         p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
                 disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                 p_config->srd_path.c_str(),
-                true_increase);
+                change);
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
-                true_increase, p_config->srd_thread_num);
+                change, p_config->srd_thread_num);
 
         // ----- Do srd ----- //
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
         ctpl::thread_pool pool(p_config->srd_thread_num);
         std::vector<std::shared_ptr<std::future<sgx_status_t>>> tasks_v;
-        for (size_t i = 0; i < true_increase; i++)
+        for (long i = 0; i < change; i++)
         {
             sgx_enclave_id_t eid = global_eid;
             tasks_v.push_back(std::make_shared<std::future<sgx_status_t>>(pool.push([eid](int /*id*/){
@@ -54,7 +43,7 @@ bool srd_change_test(long change)
             })));
         }
         // Wait for srd task
-        size_t srd_success_num = 0;
+        long srd_success_num = 0;
         for (auto it : tasks_v)
         {
             try 
@@ -76,21 +65,28 @@ bool srd_change_test(long change)
             return false;
         }
 
-        if (srd_success_num < true_increase)
+        if (srd_success_num < change)
         {
             p_log->info("Srd task: %dG, success: %dG, failed: %dG due to timeout or no more disk space.\n", 
-                    true_increase, srd_success_num, true_increase - srd_success_num);
+                    change, srd_success_num, change - srd_success_num);
         }
         else
         {
-            p_log->info("Increase %dG srd files success.\n", true_increase);
+            p_log->info("Increase %dG srd files success.\n", change);
         }
     }
     else if (change < 0)
     {
         size_t true_decrease = 0;
-        Ecall_srd_decrease_test(global_eid, &true_decrease, (size_t)-change);
-        p_log->info("Decrease %luG srd successfully.\n", true_decrease);
+        sgx_status_t sgx_status = SGX_SUCCESS;
+        if (SGX_SUCCESS != (sgx_status = Ecall_srd_decrease_test(global_eid, &true_decrease, (size_t)-change)))
+        {
+            p_log->err("Decrease %ldG srd failed! Error code:%lx\n", change, sgx_status);
+        }
+        else
+        {
+            p_log->info("Decrease %luG srd successfully.\n", true_decrease);
+        }
     }
 
     return true;

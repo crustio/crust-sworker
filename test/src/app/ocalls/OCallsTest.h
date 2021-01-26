@@ -23,6 +23,7 @@
 #include "EnclaveData.h"
 #include "WebsocketClient.h"
 #include "Srd.h"
+#include "SrdTest.h"
 #include "DataBase.h"
 #include "Chain.h"
 #include "EntryNetwork.h"
@@ -38,6 +39,7 @@ void ocall_store_file_info_test(const char *info);
 crust_status_t ocall_get_file_bench(const char *file_path, unsigned char **p_file, size_t *len);
 crust_status_t ocall_get_file_block(const char *file_path, unsigned char **p_file, size_t *len);
 crust_status_t ocall_upload_workreport_test(const char *work_report);
+crust_status_t ocall_srd_change_test(long change);
 
 #if defined(__cplusplus)
 }

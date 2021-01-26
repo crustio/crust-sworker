@@ -104,38 +104,6 @@ function get_file_info_all()
     curl -s -XGET $baseurl/file/info_all
 }
 
-function add_srd()
-{
-    # Get current available max per turn
-    local srd_num=$1
-    local paths=($(get_config ".srd_path"))
-    local tmp=""
-    local srd_max_per_turn=0
-    local srd_paths_test=($paths)
-    for path in ${srd_paths_test[@]}; do
-        tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
-        tmp=${tmp%[a-zA-Z]*}
-        ((srd_max_per_turn+=tmp-55))
-    done
-
-    # Srd task
-    local tmp_num=0
-    local cur_turn=0
-    while [ $tmp_num -lt $srd_num ]; do
-        if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
-            cur_turn=$srd_max_per_turn
-        else
-            cur_turn=$((srd_num - tmp_num))
-        fi
-        srd $cur_turn &>/dev/null
-        if [ $? -ne 0 ]; then
-            verbose ERROR "srd failed!" n
-            exit 1
-        fi
-        ((tmp_num+=cur_turn))
-    done
-}
-
 function srd_real_async()
 {
     local change=$1
@@ -268,6 +236,14 @@ function test_delete_file_unsafe()
 function clean_file()
 {
     curl -s -XGET $baseurl/clean_file &>/dev/null
+}
+
+function is_number()
+{
+    local num=$1
+    if ! [[ $num =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
 }
 
 function kill_descendent()

@@ -2,6 +2,11 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
+crust_status_t ocall_srd_change_test(long change)
+{
+    return srd_change_test(change) ? CRUST_SUCCESS : CRUST_UNEXPECTED_ERROR;
+}
+
 crust_status_t ocall_get_file_bench(const char * /*file_path*/, unsigned char **p_file, size_t *len)
 {
     crust_status_t crust_status = CRUST_SUCCESS;

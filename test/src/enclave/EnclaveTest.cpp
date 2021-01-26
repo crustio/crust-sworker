@@ -9,7 +9,7 @@
 
 void ecall_handle_report_result()
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
@@ -68,7 +68,7 @@ void ecall_test_delete_file_unsafe(uint32_t file_num)
 
 void ecall_srd_increase_test()
 {
-    if (ENC_UPGRADE_STATUS_PROCESS == Workload::get_instance()->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
@@ -129,4 +129,14 @@ crust_status_t ecall_gen_and_upload_work_report_test(const char *block_hash, siz
     crust_status_t ret = gen_and_upload_work_report_test(block_hash, block_height, 0, false);
 
     return ret;
+}
+
+void ecall_srd_change_test(long change, bool real)
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return;
+    }
+
+    srd_change_test(change, real);
 }
