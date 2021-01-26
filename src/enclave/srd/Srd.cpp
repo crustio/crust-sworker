@@ -335,6 +335,7 @@ crust_status_t change_srd_task(long change, long *real_change)
         {
             log_warn("To be added srd number:%ldG(srd upper limit:%ldG)\n", change, SRD_NUMBER_UPPER_LIMIT);
             change = SRD_NUMBER_UPPER_LIMIT - srd_num;
+            crust_status = CRUST_SRD_NUMBER_EXCEED;
         }
     }
 
