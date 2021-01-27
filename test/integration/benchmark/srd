@@ -5,7 +5,7 @@ function get_exec_time()
     local start_time=$(date +%s%N)
     eval $cmd &>/dev/null
     local end_time=$(date +%s%N)
-    srd_real -${srd_size} &>/dev/null
+    $cmd -${srd_size} &>/dev/null
     sleep 15
     echo $((end_time - start_time))
 }
@@ -62,9 +62,6 @@ if ! check_path; then
     exit 1
 fi
 
-### Delete disk
-srd_disk_change "$(cat $testconfigfile | jq '.srd_paths')" delete &>/dev/null
-
 ### Add disk
 srd_size=$(get_config ".benchmark|.srd_bench_num")
 if ! [[ $srd_size =~ ^[1-9][0-9]*$ ]]; then
@@ -74,16 +71,12 @@ fi
 i=1
 path_json="["
 for path in ${srd_paths[@]}; do
-    srd_disk_change "[\"$path\"]" "add" &>/dev/null
-    ans["$i"]=$(get_exec_time "srd_real $srd_size")
+    ans["$i"]=$(get_exec_time "srd_real_sync $srd_size")
     path_json="$path_json\"$path\","
     ((i++))
 done
 path_json=${path_json:0:${#path_json}-1}
 path_json="${path_json}]"
-
-### Restore environment
-srd_disk_change "$path_json" "delete" &>/dev/null
 
 ### Print srd information
 benchmark_output "srd size:${srd_size}G benchmark result:\n\n(DISK_NUM TIME)\n" \

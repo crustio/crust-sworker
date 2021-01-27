@@ -14,6 +14,7 @@
         }
     },
     "benchmark" : {
+        "cid1g" : "Qmb529vcV8PzhnSigcfGEXd22fyJZMKBKiP1owzNpDtD9H",
         "srd_max_per_turn": 800,
         "srd_bench_num" : 10,
         "srd_num" : 204800,

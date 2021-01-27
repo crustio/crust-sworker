@@ -8,22 +8,6 @@ function get_exec_time()
     echo $((end_time - start_time))
 }
 
-function _seal()
-{
-    local datapath_l=$1
-    local storepath_l=$2
-    local curtmp=$TMPFILE.$(date +%N)${RANDOM}
-    seal_file $datapath_l $storepath_l &>$curtmp
-    if [ $? -ne 0 ]; then
-        verbose ERROR "Seal file failed!" n
-        rm $curtmp
-        exit 1
-    fi
-    local sealed_hash=$(cat -v $curtmp | jq '.path' | sed 's/"//g' | xargs -I {} basename {} 2>/dev/null)
-    echo ${sealed_hash:0:64}
-    rm $curtmp
-}
-
 function validate_exit()
 {
     rm -rf $tmpdir
@@ -52,29 +36,19 @@ i=0
 
 file_num=$(get_config ".benchmark|.file_num")
 srd_num=$(get_config ".benchmark|.srd_num")
-srd_paths=$(get_config ".benchmark|.srd_paths")
-srd_max_per_turn=$(get_config ".benchmark|.srd_max_per_turn")
+cid=$(get_config ".benchmark|.cid1g")
 
 ### Seal file and validate
-hash=$(_seal $datadir/1024m $testfiledir)
-confirm $hash &>/dev/null
-validate_file_real &>/dev/null
-test_add_file $file_num &>/dev/null
-validate_file &>/dev/null
-ans["file($file_num)"]=$(get_exec_time "validate_file_bench &>/dev/null")
-
-# Get current available max per turn
-tmp_num=0
-real_max_per_turn=0
-srd_paths_test=($(echo $srd_paths | sed -e 's/,/ /g' -e 's/\[\|\]//g' -e 's/\"//g'))
-for path in ${srd_paths_test[@]}; do
-    tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
-    tmp=${tmp%[a-zA-Z]*}
-    ((real_max_per_turn += tmp))
+hash=$(seal_by_cid $cid)
+step_num=1000
+cur_num=1000
+phase_file_num=20000
+while [ $cur_num -le $phase_file_num ]; do
+    test_add_file $step_num &>/dev/null
+    ans["file:$cur_num"]=$(get_exec_time "validate_file_bench &>/dev/null")
+    ((cur_num += step_num))
 done
-if [ $srd_max_per_turn -gt $real_max_per_turn ]; then
-    srd_max_per_turn=$real_max_per_turn
-fi
+test_add_file $((file_num - phase_file_num)) &>/dev/null
 
 # Remove previous srd
 get_workload &>$TMPFILE
@@ -82,39 +56,20 @@ if [ $? -ne 0 ]; then
     verbose ERROR "get workload failed!" n
     exit 1
 fi
-tmp_num=0
-p_srd_num=$(cat $TMPFILE | jq '.srd|.space')
-while [ $tmp_num -lt $p_srd_num ]; do
-    if [ $((p_srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
-        cur_turn=$srd_max_per_turn
-    else
-        cur_turn=$((p_srd_num - tmp_num))
-    fi
-    srd "-$cur_turn" &>/dev/null
-    if [ $? -ne 0 ]; then
-        verbose ERROR "remove srd failed!" n
-        exit 1
-    fi
-    ((tmp_num+=cur_turn))
-done
+p_srd_num=$(cat $TMPFILE | jq '.srd|.srd_complete')
+srd "-$p_srd_num" &>/dev/null
 
 # Srd task
-tmp_num=0
-srd_disk_change "$srd_paths" "add" &>/dev/null
-while [ $tmp_num -lt $srd_num ]; do
-    if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
-        cur_turn=$srd_max_per_turn
-    else
-        cur_turn=$((srd_num - tmp_num))
-    fi
-    srd $cur_turn &>/dev/null
-    if [ $? -ne 0 ]; then
-        verbose ERROR "srd failed!" n
-        exit 1
-    fi
-    ((tmp_num+=cur_turn))
+srd_real_sync 1
+step_num=1000
+cur_num=1000
+phase_srd_num=20000
+while [ $cur_num -le $phase_srd_num ]; do
+    srd $step_num &>/dev/null
+    ans["srd:${cur_num}G"]=$(get_exec_time "validate_srd_bench &>/dev/null")
+    ((cur_num += step_num))
 done
-ans["srd(${srd_num}G)"]=$(get_exec_time "validate_srd_bench &>/dev/null")
+srd $srd_num
 
 
 ### Print srd information

@@ -223,6 +223,15 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             goto getcleanup;
         }
 
+        cur_path = urlendpoint.base + "/validate/srd_bench";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            Ecall_validate_srd_bench(global_eid);
+            res_json[HTTP_STATUS_CODE] = 200;
+            res_json[HTTP_MESSAGE] = "validate srd.";
+            goto getcleanup;
+        }
+
         cur_path = urlendpoint.base + "/validate/srd_test";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {

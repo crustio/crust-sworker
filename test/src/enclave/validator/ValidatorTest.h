@@ -18,5 +18,6 @@
 
 void validate_meaningful_file_bench();
 void validate_srd_test();
+void validate_srd_bench();
 
 #endif /* !_CRUST_VALIDATOR_TEST_H_ */
