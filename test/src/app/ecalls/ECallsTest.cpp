@@ -241,3 +241,18 @@ sgx_status_t Ecall_gen_and_upload_work_report_test(sgx_enclave_id_t eid, crust_s
 
     return ret;
 }
+
+sgx_status_t Ecall_srd_change_test(sgx_enclave_id_t eid, long change, bool real)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_srd_change_test(eid, change, real);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}

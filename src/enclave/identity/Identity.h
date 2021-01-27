@@ -25,7 +25,7 @@
 #include <sgx_ecp_types.h>
 #include "sgx_spinlock.h"
 
-#define PSE_RETRIES	    5	/* Arbitrary. Not too long, not too short. */
+#define PSE_RETRIES    5    /* Arbitrary. Not too long, not too short. */
 
 enum metadata_op_e
 {

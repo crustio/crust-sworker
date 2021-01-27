@@ -1,8 +1,8 @@
 #ifndef _CRUST_IASREPORTE_H_
 #define _CRUST_IASREPORTE_H_
 
-#define ENCLAVE_PUB_KEY_SIZE	    64
-#define ACCOUNT_SIZE	        48
+#define ENCLAVE_PUB_KEY_SIZE    64
+#define ACCOUNT_SIZE            48
 #define SIGNER_ID_SIZE          (SGX_ECP256_KEY_SIZE*2)
 
 #define IAS_TRYOUT              6

@@ -14,6 +14,7 @@
 #include "SafeLock.h"
 #include "Parameter.h"
 
+void srd_change_test(long change, bool real);
 size_t srd_decrease_test(size_t change);
 void srd_increase_test();
 

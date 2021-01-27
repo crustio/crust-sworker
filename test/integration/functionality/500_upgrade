@@ -5,41 +5,6 @@ function kill_current()
     wait $newsworkerpid &>/dev/null
 }
 
-function srd_backend()
-{
-    # Get current available max per turn
-    local srd_paths=$(get_config ".srd_path")
-    local srd_max_per_turn=$(get_config ".functionality|.srd_max_per_turn")
-    local real_max_per_turn=0
-    local srd_paths_test=($srd_paths)
-    local tmp=""
-    for path in ${srd_paths_test[@]}; do
-        if [ ! -d $path ]; then
-            mkdir -p $path
-        fi
-        tmp=$(df -h $path | tail -n 1 | awk '{print $4}')
-        tmp=${tmp%[a-zA-Z]*}
-        ((real_max_per_turn += tmp))
-    done
-    if [ $srd_max_per_turn -gt $real_max_per_turn ]; then
-        srd_max_per_turn=$real_max_per_turn
-    fi
-
-    # Srd task
-    local srd_num=200000
-    local tmp_num=0
-    local cur_turn=0
-    while [ $tmp_num -lt $srd_num ]; do
-        if [ $((srd_num - tmp_num)) -gt $srd_max_per_turn ]; then
-            cur_turn=$srd_max_per_turn
-        else
-            cur_turn=$((srd_num - tmp_num))
-        fi
-        srd $cur_turn &>/dev/null
-        ((tmp_num+=cur_turn))
-    done
-}
-
 function success_exit()
 {
     ### Delete srd
@@ -60,7 +25,7 @@ trap 'success_exit' EXIT
 
 
 cd $testdir
-srd_backend &
+srd 200000 &
 validate_add_proof &>/dev/null
 sleep 10
 ./bin/crust-sworker -c etc/Config.json --offline --debug --upgrade &>${sworkerlog}2 &

@@ -207,7 +207,7 @@ crust_status_t ocall_upload_identity(const char *id)
         if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
         {
             print_attention();
-            std::string cmd1(HRED "sudo crust tools upgrade-reload sworker" NC);
+            std::string cmd1(HRED "sudo crust tools upgrade-image sworker && sudo crust reload sworker" NC);
             p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
                     "please get the latest sworker by running '%s'\n",
                     id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());

@@ -64,7 +64,7 @@ workload=$(cat $TMPFILE)
 srd -$(echo $workload | jq '.srd|.srd_complete' | sed 's/"//g' 2>/dev/null) &>/dev/null
 
 # Make srd volunm
-add_srd $srd_num
+srd $srd_num
 
 # Delete previous file
 clean_file

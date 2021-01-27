@@ -23,9 +23,9 @@ Ipfs *Ipfs::get_instance()
     return Ipfs::ipfs;
 }
 
-/**	
- * @description: constructor	
- * @param url -> API base url 	
+/**
+ * @description: constructor
+ * @param url -> API base url 
  */
 Ipfs::Ipfs(std::string url)
 {
@@ -46,9 +46,9 @@ Ipfs::~Ipfs()
     }
 }
 
-/**	
- * @description: Test if there is usable IPFS	
- * @return: Test result	
+/**
+ * @description: Test if there is usable IPFS
+ * @return: Test result
  * */
 bool Ipfs::online()
 {
@@ -62,9 +62,9 @@ bool Ipfs::online()
     return false;
 }
 
-/**	
- * @description: Get block from ipfs	
- * @return: size of block, 0 for error	
+/**
+ * @description: Get block from ipfs
+ * @return: size of block, 0 for error
  * */
 size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 {
@@ -95,9 +95,9 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
     return res_data.size();
 }
 
-/**	
- * @description: Cat file	
- * @return: size of file, 0 for error	
+/**
+ * @description: Cat file
+ * @return: size of file, 0 for error
  * */
 size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
 {
@@ -117,9 +117,9 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
     return res_data.size();
 }
 
-/**	
- * @description: Add file to ipfs	
- * @return: Hash of the file	
+/**
+ * @description: Add file to ipfs
+ * @return: Hash of the file
  * */
 std::string Ipfs::add(unsigned char *p_data_in, size_t size)
 {
@@ -140,8 +140,8 @@ std::string Ipfs::add(unsigned char *p_data_in, size_t size)
     return obj["Hash"].ToString();
 }
 
-/**	
- * @description: Delete file	
+/**
+ * @description: Delete file
  * @return: Delete result
  * */
 bool Ipfs::del(std::string cid)

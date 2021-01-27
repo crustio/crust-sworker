@@ -659,7 +659,7 @@ entry_network_flag:
             {
                 // Wait tasks end
                 bool has_task_running = false;
-                for (auto task : g_tasks_m)	
+                for (auto task : g_tasks_m)
                 {
                     if(task.first == start_webservice)
                     {

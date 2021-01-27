@@ -3,29 +3,29 @@
 
 usage() {
     echo "Usage:"
-		echo "    $0 -h                      Display this help message."
-		echo "    $0 [options]"
+        echo "    $0 -h                      Display this help message."
+        echo "    $0 [options]"
     echo "Options:"
     echo "     -p publish image"
 
-	exit 1;
+    exit 1;
 }
 
 PUBLISH=0
 
 while getopts ":hp" opt; do
-  case ${opt} in
-    h )
-			usage
-      ;;
-    p )
-       PUBLISH=1
-      ;;
-    \? )
-      echo "Invalid Option: -$OPTARG" 1>&2
-      exit 1
-      ;;
-  esac
+    case ${opt} in
+        h)
+            usage
+            ;;
+        p)
+            PUBLISH=1
+            ;;
+        ?)
+            echo "Invalid Option: -$OPTARG" 1>&2
+            exit 1
+            ;;
+    esac
 done
 
 VER=$(cat VERSION | head -n 1)

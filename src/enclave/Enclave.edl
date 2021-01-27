@@ -25,8 +25,8 @@ enclave {
         
         public void ecall_stop_all();
         public crust_status_t ecall_restore_metadata();
-		public sgx_status_t ecall_get_quote_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
-		public sgx_status_t ecall_gen_sgx_measurement();
+        public sgx_status_t ecall_get_quote_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
+        public sgx_status_t ecall_gen_sgx_measurement();
         public sgx_status_t ecall_gen_key_pair([in, size=len] const char *account_id, size_t len);
         public crust_status_t ecall_verify_and_upload_identity([in, count=len] char ** IASReport, size_t len);
 

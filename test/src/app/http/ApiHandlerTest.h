@@ -458,7 +458,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             else
             {
                 // Start changing srd
-				if (!srd_change_test(change_srd_num))
+                if (SGX_SUCCESS != Ecall_srd_change_test(global_eid, change_srd_num, false))
                 {
                     ret_info = "Change srd failed!";
                     ret_code = 401;
@@ -483,6 +483,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             // Check input parameters
             json::JSON req_json = json::JSON::Load(req_body);
             long change_srd_num = req_json["change"].ToInt();
+            crust_status_t crust_status = CRUST_SUCCESS;
 
             if (change_srd_num == 0)
             {
@@ -493,9 +494,17 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             else
             {
                 // Start changing srd
-				srd_change(change_srd_num);
-                ret_info = "Change srd successfully!";
-                ret_code = 200;
+                if (SGX_SUCCESS == Ecall_srd_change_test(global_eid, change_srd_num, true)
+                        && CRUST_SUCCESS == crust_status)
+                {
+                    ret_info = "Change srd successfully!";
+                    ret_code = 200;
+                }
+                else
+                {
+                    ret_info = "Set srd change failed!";
+                    ret_code = 400;
+                }
             }
             res_json[HTTP_STATUS_CODE] = ret_code;
             res_json[HTTP_MESSAGE] = ret_info;
