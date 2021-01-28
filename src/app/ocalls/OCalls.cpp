@@ -215,7 +215,7 @@ crust_status_t ocall_upload_identity(const char *id)
         }
         else
         {
-            p_log->info("Mrenclave is '%s'\n", entrance_info["mrenclave"].ToString().c_str());
+            p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
         }
 
         if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
