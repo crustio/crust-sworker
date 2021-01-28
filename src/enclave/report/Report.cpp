@@ -100,7 +100,6 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
 
     ecc_key_pair id_key_pair = wl->get_key_pair();
     sgx_status_t sgx_status;
-    // Lock variable
 
     // ----- Get srd info ----- //
     SafeLock srd_sl(wl->srd_mutex);

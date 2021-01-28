@@ -27,6 +27,11 @@ void ecall_validate_srd()
     validate_srd();
 }
 
+void ecall_validate_srd_bench()
+{
+    validate_srd_bench();
+}
+
 void ecall_validate_srd_test()
 {
     validate_srd_test();

@@ -10,6 +10,7 @@ extern "C"
 
 sgx_status_t Ecall_add_validate_proof(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid);
+sgx_status_t Ecall_validate_srd_bench(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_srd_test(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_file_bench(sgx_enclave_id_t eid);

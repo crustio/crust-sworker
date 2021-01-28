@@ -42,6 +42,17 @@ function seal()
     fi
 }
 
+function seal_by_cid()
+{
+    local cid=$1
+    local ret_code=$(curl -s -XPOST $baseurl/storage/seal --data-raw "{\"cid\":\"$cid\"}" -o /dev/null -w "%{http_code}")
+    if [ ${ret_code} -eq 200 ]; then
+        echo $cid
+    else
+        echo ""
+    fi
+}
+
 function add_file()
 {
     local data_path="$1"
@@ -150,6 +161,11 @@ function validate_srd()
     curl -s $baseurl/validate/srd
 }
 
+function validate_srd()
+{
+    curl -s $baseurl/validate/srd
+}
+
 function validate_srd_test()
 {
     curl -s $baseurl/validate/srd_test
@@ -157,7 +173,7 @@ function validate_srd_test()
 
 function validate_srd_bench()
 {
-    curl -s $baseurl/validate/srd
+    curl -s $baseurl/validate/srd_bench
 }
 
 function validate_file()
@@ -306,8 +322,8 @@ function benchmark_output()
     local sa=(8 12)
     info=$(echo "$info" | sed "s@(.*)@$(print_space ${sa[0]})${ta[0]}$(print_space ${sa[1]})${ta[1]}@g")
     sa[1]=$((${sa[1]}+${#ta[0]}))
+    verbose INFO "$info" n > $benchmarkfile
     {
-        verbose INFO "$info" n
         if [ ${#key_arry[@]} -gt 0 ]; then
             for key in "${key_arry[@]}"; do
                 ans=$((${ans_m["$key"]} / $run_num))
@@ -324,7 +340,7 @@ function benchmark_output()
             done
         fi
         echo -e "\n"
-    } >> $benchmarkfile
+    } | grep -v "^$" | sort -t : -k 1n -k 2h >> $benchmarkfile
 }
 
 function get_config()

@@ -47,6 +47,21 @@ sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid)
     return ret;
 }
 
+sgx_status_t Ecall_validate_srd_bench(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_validate_srd_bench(eid);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
 sgx_status_t Ecall_validate_srd_test(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;

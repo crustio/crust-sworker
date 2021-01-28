@@ -46,7 +46,7 @@ crust_status_t storage_seal_file(const char *cid)
         SafeLock sl(wl->file_mutex);
         sl.lock();
         size_t pos = 0;
-        if (wl->is_file_dup(cid))
+        if (wl->is_file_dup(cid, pos))
         {
             if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
             {
