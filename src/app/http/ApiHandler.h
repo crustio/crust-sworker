@@ -141,14 +141,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     }
 
     // Get request real route
-    std::string route = req_route.substr(urlendpoint.base.size(), req_route.size());
-    if (http_mute_req_s.find(route) == http_mute_req_s.end())
+    std::string route_tag = req_route.substr(req_route.find(urlendpoint.base) + urlendpoint.base.size(), req_route.size());
+    if (http_mute_req_s.find(route_tag) == http_mute_req_s.end())
     {
         p_log->debug("Http request:%s\n", req_route.c_str());
     }
 
     // Choose service according to upgrade status
-    std::string route_tag = req_route.substr(req_route.find(urlendpoint.base) + urlendpoint.base.size(), req_route.size());
     if (UPGRADE_STATUS_EXIT == ed->get_upgrade_status())
     {
         p_log->warn("This process will exit!\n");
