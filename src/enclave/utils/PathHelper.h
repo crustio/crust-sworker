@@ -2,6 +2,7 @@
 #define _CRUST_PATH_HELPER_H_
 
 #include <string>
+
 #include "EUtils.h"
 
 std::string get_g_path(const char *dir_path, const size_t now_index);

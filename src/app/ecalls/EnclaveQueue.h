@@ -9,15 +9,16 @@
 #include <unordered_set>
 #include <mutex>
 #include <thread>
+
 #include <sgx_error.h>
 #include <sgx_eid.h>
+
 #include "Resource.h"
 #include "Enclave_u.h"
 #include "Log.h"
 #include "EnclaveData.h"
 #include "CrustStatus.h"
 #include "SafeLock.h"
-#include "Json.hpp"
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile

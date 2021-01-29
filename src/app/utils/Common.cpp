@@ -1,6 +1,4 @@
 #include "Common.h"
-#include "Resource.h"
-#include "FormatUtils.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 

@@ -6,8 +6,8 @@
 #include <time.h>
 
 #include <sgx_eid.h>
-#include "ECalls.h"
 
+#include "ECalls.h"
 #include "Config.h"
 #include "Log.h"
 #include "Chain.h"

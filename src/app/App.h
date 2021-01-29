@@ -1,13 +1,6 @@
 #ifndef _CRUST_APP_H_
 #define _CRUST_APP_H_
 
-#include <sgx_key_exchange.h>
-#include <sgx_report.h>
-#include <sgx_uae_launch.h>
-#include <sgx_uae_epid.h>
-#include <sgx_uae_quote_ex.h>
-#include <sgx_urts.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
@@ -15,6 +8,14 @@
 #include <sys/wait.h>
 #include <string>
 #include <unistd.h>
+
+#include <sgx_key_exchange.h>
+#include <sgx_report.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
+#include <sgx_urts.h>
+
 #include "Config.h"
 #include "Process.h"
 #include "Log.h"

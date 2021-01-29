@@ -22,7 +22,6 @@
 #include "HttpClient.h"
 #include "FileUtils.h"
 #include "Log.h"
-#include "Json.hpp"
 #include "sgx_tseal.h"
 #include "Config.h"
 #include "Common.h"

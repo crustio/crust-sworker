@@ -1,6 +1,10 @@
 #ifndef _WEBSOCKET_CLIENT_H_
 #define _WEBSOCKET_CLIENT_H_
 
+#include <cstdlib>
+#include <iostream>
+#include <string>
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
@@ -11,9 +15,8 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
-#include <cstdlib>
-#include <iostream>
-#include <string>
+
+#include "Log.h"
 
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace http = beast::http;   // from <boost/beast/http.hpp>

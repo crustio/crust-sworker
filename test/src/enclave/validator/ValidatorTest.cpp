@@ -1,7 +1,6 @@
 #include "ValidatorTest.h"
 #include "Identity.h"
 #include "Srd.h"
-#include "EJson.h"
 #include <algorithm>
 
 extern crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size);
@@ -273,10 +272,11 @@ void validate_meaningful_file_bench()
     }
     if (oneg_cid.compare("") == 0)
     {
-        long target_size = 1073997281;
+        long target_size_min = 1024 * 1024 * 1024;
+        long target_size_max = (100 + 1024) * 1024 * 1024;
         for (auto el : wl->sealed_files)
         {
-            if (el[FILE_SIZE].ToInt() == target_size)
+            if (el[FILE_SIZE].ToInt() >= target_size_min && el[FILE_SIZE].ToInt() <= target_size_max)
             {
                 oneg_cid = el[FILE_CID].ToString();
                 break;

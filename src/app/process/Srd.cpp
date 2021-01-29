@@ -1,7 +1,5 @@
 #include "Srd.h"
 #include "ECalls.h"
-#include "Ctpl.h"
-#include "HttpClient.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 

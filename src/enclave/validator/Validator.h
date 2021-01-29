@@ -5,8 +5,13 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <set>
+#include <algorithm>
+
 #include "sgx_thread.h"
 #include "sgx_trts.h"
+
+#include "Identity.h"
+#include "Srd.h"
 #include "MerkleTree.h"
 #include "Workload.h"
 #include "PathHelper.h"
