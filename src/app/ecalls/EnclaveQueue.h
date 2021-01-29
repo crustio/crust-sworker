@@ -22,7 +22,7 @@
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
-#define ENC_MAX_THREAD_NUM  15
+#define ENC_MAX_THREAD_NUM  30
 // Reserved enclave resource for highest priority task
 #define ENC_RESERVED_THREAD_NUM  1
 // Threshold to trigger timeout mechanism

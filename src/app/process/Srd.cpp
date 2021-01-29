@@ -3,7 +3,6 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
-size_t g_srd_reserved_space = DEFAULT_SRD_RESERVED;
 size_t g_running_srd_task = 0;
 std::mutex g_running_srd_task_mutex;
 
@@ -20,11 +19,12 @@ json::JSON get_increase_srd_info()
     // Get multi-disk info
     Config *p_config = Config::get_instance();
     json::JSON disk_info_json;
-    long srd_reserved_space = get_reserved_space();
+
     // Create path
     if (create_directory(p_config->srd_path))
     {
         // Calculate free disk
+        long srd_reserved_space = get_reserved_space();
         disk_info_json[WL_DISK_AVAILABLE] = get_avail_space_under_dir_g(p_config->srd_path);
         disk_info_json[WL_DISK_VOLUME] = get_total_space_under_dir_g(p_config->srd_path);
         if (disk_info_json[WL_DISK_AVAILABLE].ToInt() <= srd_reserved_space)
@@ -208,16 +208,7 @@ void srd_check_reserved(void)
  */
 size_t get_reserved_space()
 {
-    return g_srd_reserved_space;
-}
-
-/**
- * @description: Set reserved space
- * @param reserved -> Reserved space
- */
-void set_reserved_space(size_t reserved)
-{
-    g_srd_reserved_space = reserved;
+    return std::max((size_t)DEFAULT_SRD_RESERVED, (size_t)((double)get_total_space_under_dir_g(Config::get_instance()->srd_path) * SRD_RESERVED_RATE));
 }
 
 /**
