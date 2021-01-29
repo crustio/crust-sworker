@@ -15,6 +15,7 @@
 #include <ostream>
 #include <iostream>
 #include <string.h>
+#include "Log.h"
 #include "FormatUtils.h"
 #else
 #include "EUtils.h"
@@ -38,6 +39,9 @@ const uint32_t _hash_length = 32;
 
 namespace
 {
+#ifdef _CRUST_RESOURCE_H_
+    crust::Log *p_log = crust::Log::get_instance();
+#endif
 string json_escape_pad(const string &str, string pad)
 {
     string output;
@@ -749,7 +753,7 @@ JSON parse_object(const string &str, size_t &offset)
         if (str[offset] != ':')
         {
 #ifdef _CRUST_RESOURCE_H_
-            std::cerr << "Error: Object: Expected colon, found '" << str[offset] << "'\n";
+            p_log->err("Error: Object: Expected colon, found %c\n", str[offset]);
 #else
             log_err("Error: Object: Expected colon, found %c\n", str[offset]);
 #endif
@@ -773,7 +777,7 @@ JSON parse_object(const string &str, size_t &offset)
         else
         {
 #ifdef _CRUST_RESOURCE_H_
-            std::cerr << "ERROR: Object: Expected comma, found '" << str[offset] << "'\n";
+            p_log->err("Error: Object: Expected comma, found %c\n", str[offset]);
 #else
             log_err("Error: Object: Expected comma, found %c\n", str[offset]);
 #endif
@@ -803,7 +807,7 @@ JSON parse_object(const uint8_t *p_data, size_t &offset)
         if (p_data[offset] != ':')
         {
 #ifdef _CRUST_RESOURCE_H_
-            std::cerr << "Error: Object: Expected colon, found '" << p_data[offset] << "'\n";
+            p_log->err("Error: Object: Expected colon, found %c\n", p_data[offset]);
 #else
             log_err("Error: Object: Expected colon, found %c\n", p_data[offset]);
 #endif
@@ -827,7 +831,7 @@ JSON parse_object(const uint8_t *p_data, size_t &offset)
         else
         {
 #ifdef _CRUST_RESOURCE_H_
-            std::cerr << "ERROR: Object: Expected comma, found '" << p_data[offset] << "'\n";
+            p_log->err("Error: Object: Expected comma, found %c\n", p_data[offset]);
 #else
             log_err("Error: Object: Expected comma, found %c\n", p_data[offset]);
 #endif
@@ -869,7 +873,7 @@ JSON parse_array(const string &str, size_t &offset)
         else
         {
 #ifdef _CRUST_RESOURCE_H_
-            std::cerr << "ERROR: Array: Expected ',' or ']', found '" << str[offset] << "'\n";
+            p_log->err("Error: Array: Expected  ',' or ']', found %c\n", str[offset]);
 #else
             log_err("Error: Array: Expected  ',' or ']', found %c\n", str[offset]);
 #endif
@@ -911,7 +915,7 @@ JSON parse_array(const uint8_t *p_data, size_t &offset)
         else
         {
 #ifdef _CRUST_RESOURCE_H_
-            std::cerr << "ERROR: Array: Expected ',' or ']', found '" << p_data[offset] << "'\n";
+            p_log->err("Error: Array: Expected  ',' or ']', found %c\n", p_data[offset]);
 #else
             log_err("Error: Array: Expected  ',' or ']', found %c\n", p_data[offset]);
 #endif
@@ -967,7 +971,7 @@ JSON parse_string(const string &str, size_t &offset)
                     else
                     {
 #ifdef _CRUST_RESOURCE_H_
-                        std::cerr << "ERROR: String: Expected hex character in unicode escape, found '" << c << "'\n";
+                        p_log->err("Error: String: Expected hex character in unicode escape, found %c\n", c);
 #else
                         log_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
 #endif
@@ -1046,7 +1050,7 @@ JSON parse_string(const uint8_t *p_data, size_t &offset)
                     else
                     {
 #ifdef _CRUST_RESOURCE_H_
-                        std::cerr << "ERROR: String: Expected hex character in unicode escape, found '" << c << "'\n";
+                        p_log->err("Error: String: Expected hex character in unicode escape, found %c\n", c);
 #else
                         log_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
 #endif
@@ -1116,7 +1120,7 @@ JSON parse_number(const string &str, size_t &offset)
             else if (!isspace(c) && c != ',' && c != ']' && c != '}')
             {
 #ifdef _CRUST_RESOURCE_H_
-                std::cerr << "ERROR: Number: Expected a number for exponent, found '" << c << "'\n";
+                p_log->err("Error: Number: Expected a number for exponent, found %c\n", c);
 #else
                 log_err("Error: Number: Expected a number for exponent, found %c\n", c);
 #endif
@@ -1130,7 +1134,7 @@ JSON parse_number(const string &str, size_t &offset)
     else if (!isspace(c) && c != ',' && c != ']' && c != '}')
     {
 #ifdef _CRUST_RESOURCE_H_
-        std::cerr << "ERROR: Number: unexpected character '" << c << "'\n";
+        p_log->err("Error: Number: unexpected character %c\n", c);
 #else
         log_err("Error: Number: unexpected character %c\n", c);
 #endif
@@ -1186,7 +1190,7 @@ JSON parse_number(const uint8_t *p_data, size_t &offset)
             else if (!isspace(c) && c != ',' && c != ']' && c != '}')
             {
 #ifdef _CRUST_RESOURCE_H_
-                std::cerr << "ERROR: Number: Expected a number for exponent, found '" << c << "'\n";
+                p_log->err("Error: Number: Expected a number for exponent, found %c\n", c);
 #else
                 log_err("Error: Number: Expected a number for exponent, found %c\n", c);
 #endif
@@ -1200,7 +1204,7 @@ JSON parse_number(const uint8_t *p_data, size_t &offset)
     else if (!isspace(c) && c != ',' && c != ']' && c != '}')
     {
 #ifdef _CRUST_RESOURCE_H_
-        std::cerr << "ERROR: Number: unexpected character '" << c << "'\n";
+        p_log->err("Error: Number: unexpected character %c\n", c);
 #else
         log_err("Error: Number: unexpected character %c\n", c);
 #endif
@@ -1230,7 +1234,7 @@ JSON parse_bool(const string &str, size_t &offset)
     else
     {
 #ifdef _CRUST_RESOURCE_H_
-        std::cerr << "ERROR: Bool: Expected 'true' or 'false', found '" << str.substr(offset, 5) << "'\n";
+        p_log->err("Error: Bool: Expected 'true' or 'false', found %s\n", str.substr(offset, 5));
 #else
         log_err("Error: Bool: Expected 'true' or 'false', found %s\n", str.substr(offset, 5));
 #endif
@@ -1250,7 +1254,7 @@ JSON parse_bool(const uint8_t *p_data, size_t &offset)
     else
     {
 #ifdef _CRUST_RESOURCE_H_
-        std::cerr << "ERROR: Bool: Expected 'true' or 'false', found '" << hexstring_safe(p_data + offset, 5) << "'\n";
+        p_log->err("Error: Bool: Expected 'true' or 'false', found error\n");
 #else
         log_err("Error: Bool: Expected 'true' or 'false', found error\n");
 #endif
@@ -1266,7 +1270,7 @@ JSON parse_null(const string &str, size_t &offset)
     if (str.substr(offset, 4) != "null")
     {
 #ifdef _CRUST_RESOURCE_H_
-        std::cerr << "ERROR: Null: Expected 'null', found '" << str.substr(offset, 4) << "'\n";
+        p_log->err("Error: Null: Expected 'null', found %s\n", str.substr(offset, 4));
 #else
         log_err("Error: Null: Expected 'null', found %s\n", str.substr(offset, 4));
 #endif
@@ -1282,7 +1286,7 @@ JSON parse_null(const uint8_t *p_data, size_t &offset)
     if (memcmp(p_data + offset, "null", 4) == 0)
     {
 #ifdef _CRUST_RESOURCE_H_
-        std::cerr << "ERROR: Null: Expected 'null', found '" << hexstring_safe(p_data + offset, 4) << "'\n";
+        p_log->err("Error: Null: Expected 'null', found error\n");
 #else
         log_err("Error: Null: Expected 'null', found error\n");
 #endif
@@ -1315,7 +1319,7 @@ JSON parse_next(const string &str, size_t &offset)
             return std::move(parse_number(str, offset));
     }
 #ifdef _CRUST_RESOURCE_H_
-    std::cerr << "ERROR: Parse: Unknown starting character '" << value << "'\n";
+    p_log->err("Error: Parse: Unknown starting character %c\n", value);
 #else
     log_err("Error: Parse: Unknown starting character %c\n", value);
 #endif
@@ -1345,7 +1349,7 @@ JSON parse_next(const uint8_t *p_data, size_t &offset)
             return std::move(parse_number(p_data, offset));
     }
 #ifdef _CRUST_RESOURCE_H_
-    std::cerr << "ERROR: Parse: Unknown starting character '" << value << "'\n";
+    p_log->err("Error: Parse: Unknown starting character %c\n", value);
 #else
     log_err("Error: Parse: Unknown starting character %c\n", value);
 #endif
