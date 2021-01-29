@@ -21,11 +21,12 @@ json::JSON get_increase_srd_info()
     // Get multi-disk info
     Config *p_config = Config::get_instance();
     json::JSON disk_info_json;
-    long srd_reserved_space = get_reserved_space();
+
     // Create path
     if (create_directory(p_config->srd_path))
     {
         // Calculate free disk
+        long srd_reserved_space = get_reserved_space();
         disk_info_json[WL_DISK_AVAILABLE] = get_avail_space_under_dir_g(p_config->srd_path);
         disk_info_json[WL_DISK_VOLUME] = get_total_space_under_dir_g(p_config->srd_path);
         if (disk_info_json[WL_DISK_AVAILABLE].ToInt() <= srd_reserved_space)
