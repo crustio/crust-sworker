@@ -18,7 +18,7 @@
         "srd_max_per_turn": 800,
         "srd_bench_num" : 10,
         "srd_num" : 204800,
-        "file_num" : 200000
+        "file_num" : 20000
     },
     "performance" : {
         "srd_num" : 204800,

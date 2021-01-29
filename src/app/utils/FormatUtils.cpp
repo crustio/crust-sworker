@@ -1,6 +1,4 @@
 #include "FormatUtils.h"
-#include <algorithm>
-#include <string.h>
 
 static char *_hex_buffer = NULL;
 static size_t _hex_buffer_size = 0;

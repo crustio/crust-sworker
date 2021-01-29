@@ -7,9 +7,6 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-#include "sgx_thread.h"
-#include "Enclave_t.h"
-#include "Parameter.h"
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -20,6 +17,11 @@
 #include <openssl/ecdsa.h>
 #include <openssl/bn.h>
 #include <openssl/x509v3.h>
+
+#include "sgx_thread.h"
+
+#include "Parameter.h"
+#include "Enclave_t.h"
 
 namespace json
 {

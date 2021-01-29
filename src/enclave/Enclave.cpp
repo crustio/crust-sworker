@@ -1,8 +1,4 @@
 #include "Enclave.h"
-#include "Storage.h"
-#include "Persistence.h"
-#include "Identity.h"
-#include "Workload.h"
 
 using namespace std;
 

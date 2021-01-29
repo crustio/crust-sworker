@@ -8,12 +8,14 @@
 #include <map>
 #include <unordered_map>
 #include <set>
+
 #include "sgx_trts.h"
+#include "sgx_thread.h"
+
 #include "EUtils.h"
 #include "Enclave_t.h"
-#include "sgx_thread.h"
 #include "Persistence.h"
-#include "EJson.h"
+#include "Json.h"
 #include "Identity.h"
 #include "Srd.h"
 #include "Parameter.h"

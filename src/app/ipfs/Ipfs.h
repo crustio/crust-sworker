@@ -2,10 +2,11 @@
 #define _CRUST_IPFS_H_
 
 #include <time.h>
+
 #include "Config.h"
 #include "Log.h"
 #include "FormatUtils.h"
-#include "Json.hpp"
+#include "HttpClient.h"
 
 class Ipfs
 {

@@ -4,11 +4,15 @@
 #include <vector>
 #include <set>
 #include <tuple>
+
 #include "sgx_trts.h"
+
 #include "MerkleTree.h"
 #include "Workload.h"
 #include "Parameter.h"
 #include "EUtils.h"
+#include "Persistence.h"
+#include "Identity.h"
 
 using namespace std;
 
