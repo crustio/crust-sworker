@@ -5,7 +5,6 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
-size_t g_srd_reserved_space = DEFAULT_SRD_RESERVED;
 size_t g_running_srd_task = 0;
 std::mutex g_running_srd_task_mutex;
 
@@ -210,16 +209,7 @@ void srd_check_reserved(void)
  */
 size_t get_reserved_space()
 {
-    return g_srd_reserved_space;
-}
-
-/**
- * @description: Set reserved space
- * @param reserved -> Reserved space
- */
-void set_reserved_space(size_t reserved)
-{
-    g_srd_reserved_space = reserved;
+    return std:max(DEFAULT_SRD_RESERVED, (size_t)((double)get_total_space_under_dir_g(Config::get_instance()->srd_path) * SRD_RESERVED_RATE));
 }
 
 /**
