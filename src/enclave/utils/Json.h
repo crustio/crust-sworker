@@ -20,7 +20,6 @@
 #include "EUtils.h"
 #endif
 #define HASH_TAG "$&JT&$"
-#define JSON_NL "%$&nl&$%"
 
 namespace json
 {
@@ -39,22 +38,6 @@ const uint32_t _hash_length = 32;
 
 namespace
 {
-void str_replace(std::string &data, std::string org_str, std::string det_str)
-{
-    size_t spos, epos;
-    spos = epos = 0;
-
-    while (true)
-    {
-        spos = data.find(org_str, epos);
-        if (spos == data.npos)
-        {
-            break;
-        }
-        data.replace(spos, org_str.size(), det_str);
-        epos = spos;
-    }
-}
 string json_escape_pad(const string &str, string pad)
 {
     string output;
@@ -93,7 +76,6 @@ string json_escape_pad(const string &str, string pad)
             output += str[i];
             break;
         }
-    str_replace(output, JSON_NL, "\n        ");
     return std::move(output);
 }
 string json_escape(const string &str)
@@ -127,7 +109,6 @@ string json_escape(const string &str)
             output += str[i];
             break;
         }
-    str_replace(output, JSON_NL, "\n        ");
     return std::move(output);
 }
 std::string _hexstring(const void *vsrc, size_t len)
