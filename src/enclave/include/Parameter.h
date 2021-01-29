@@ -112,7 +112,7 @@
 // Basic parameters
 #define HASH_LENGTH 32
 #define CID_LENGTH 46
-#define ENC_MAX_THREAD_NUM  15
+#define ENC_MAX_THREAD_NUM  30
 #define ENCLAVE_MALLOC_TRYOUT 3
 
 // For upgrade

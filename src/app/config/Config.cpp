@@ -39,7 +39,7 @@ Config::Config(std::string path)
     this->db_path = this->base_path + "/db";
     this->base_url = config_value["base_url"].ToString();
   
-    this->srd_thread_num = std::min(omp_get_num_procs() * 2, 8);
+    this->srd_thread_num = std::min(omp_get_num_procs() * 2, SRD_THREAD_MAX_NUM);
 
     // storage configurations
     this->ipfs_url = config_value["ipfs_url"].ToString();

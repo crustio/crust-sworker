@@ -4,7 +4,7 @@ define setMaxThreadNum
 	enclave_para="enclave/include/Parameter.h"; \
 	app_para="app/include/Resource.h"; \
 	max_thread_num=$$(cat enclave/Enclave.config.xml | grep -Po "(?<=<TCSNum>).*(?=</TCSNum>)"); \
-	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" app/ecalls/ECalls.h; \
+	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" app/ecalls/EnclaveQueue.h; \
 	sed -i "/^#define ENC_MAX_THREAD_NUM/c #define ENC_MAX_THREAD_NUM  $$max_thread_num" $$enclave_para; \
 	cat $$app_para | grep "#define VERSION" | awk '{print $$3}' | sed 's/"//g' > ../VERSION; \
 	sworker_version=$$(cat $$enclave_para | grep "#define SWORKER_VERSION" | awk '{print $$3}' | sed 's/"//g'); \
