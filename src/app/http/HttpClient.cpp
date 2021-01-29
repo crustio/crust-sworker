@@ -1,7 +1,4 @@
 #include "HttpClient.h"
-#include "Common.h"
-#include "Config.h"
-#include "Log.h"
 
 
 namespace beast = boost::beast; // from <boost/beast.hpp>

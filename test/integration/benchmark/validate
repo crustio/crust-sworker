@@ -49,6 +49,7 @@ while [ $cur_num -le $phase_file_num ]; do
     ((cur_num += step_num))
 done
 test_add_file $((file_num - phase_file_num)) &>/dev/null
+ans["file:$((file_num - phase_file_num))"]=$(get_exec_time "validate_file_bench &>/dev/null")
 
 # Remove previous srd
 get_workload &>$TMPFILE
@@ -70,6 +71,7 @@ while [ $cur_num -le $phase_srd_num ]; do
     ((cur_num += step_num))
 done
 srd $srd_num
+ans["srd:${srd_num}G"]=$(get_exec_time "validate_srd_bench &>/dev/null")
 
 
 ### Print srd information

@@ -1,23 +1,4 @@
-#include "Resource.h"
 #include "SgxSupport.h"
-#include <sgx_urts.h>
-#include <sgx_capable.h>
-#include <limits.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sgx_edger8r.h>
-#include <sgx_uae_launch.h>
-#include <sgx_uae_epid.h>
-#include <sgx_uae_quote_ex.h>
-
-#ifdef _WIN32
-#include <Windows.h>
-#else
-#include <dlfcn.h>
-#endif
 
 #ifdef _WIN32
 static HINSTANCE h_service = NULL;

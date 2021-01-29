@@ -2,39 +2,10 @@
 #define _CRUST_API_HANDLER_H_
 
 #include <stdio.h>
-#include <algorithm>
 #include <mutex>
 #include <set>
+#include <vector>
 #include <exception>
-#include <sgx_report.h>
-#include <sgx_key_exchange.h>
-#include <sgx_error.h>
-#include "ECalls.h"
-#include "sgx_eid.h"
-#include "sgx_tcrypto.h"
-#include "Common.h"
-#include "Config.h"
-#include "FormatUtils.h"
-#include "IASReport.h"
-#include "SgxSupport.h"
-#include "Resource.h"
-#include "HttpClient.h"
-#include "FileUtils.h"
-#include "Log.h"
-#include "Json.hpp"
-#include "sgx_tseal.h"
-#include "Config.h"
-#include "Common.h"
-#include "DataBase.h"
-#include "Srd.h"
-#include "EnclaveData.h"
-#include "Chain.h"
-
-#include <boost/beast/core.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/websocket.hpp>
-#include <boost/beast/websocket/ssl.hpp>
-#include <boost/asio/strand.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <functional>
@@ -42,7 +13,34 @@
 #include <memory>
 #include <string>
 #include <thread>
-#include <vector>
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/beast/websocket/ssl.hpp>
+#include <boost/asio/strand.hpp>
+
+#include <sgx_report.h>
+#include <sgx_key_exchange.h>
+#include <sgx_error.h>
+#include "sgx_eid.h"
+#include "sgx_tcrypto.h"
+#include "sgx_tseal.h"
+
+#include "ECalls.h"
+#include "FormatUtils.h"
+#include "IASReport.h"
+#include "SgxSupport.h"
+#include "Resource.h"
+#include "HttpClient.h"
+#include "FileUtils.h"
+#include "Log.h"
+#include "Config.h"
+#include "Common.h"
+#include "DataBase.h"
+#include "Srd.h"
+#include "EnclaveData.h"
+#include "Chain.h"
 
 #ifdef _CRUST_TEST_FLAG_
 #include "ApiHandlerTest.h"
@@ -204,7 +202,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     json::JSON req_json;
     req_json["target"] = req_route;
     req_json["method"] = req.method() == http::verb::get ? "GET" : "POST";
-    req_json["body"] = req.body();
+    req_json["body"] = std::string(reinterpret_cast<const char *>(req.body().data()), req.body().size());
     json::JSON test_res = http_handler_test(urlendpoint, req_json);
     if (test_res.size() > 0)
     {
@@ -417,7 +415,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             bool upgrade_ret = req_json["success"].ToBool();
             if (!upgrade_ret)
             {
@@ -481,7 +479,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string ret_info;
             int ret_code = 400;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             if (!req_json.hasKey("debug") || req_json["debug"].JSONType() != json::JSON::Class::Boolean)
             {
                 ret_info = "Wrong request body!";
@@ -509,7 +507,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             int ret_code = 400;
             std::string ret_info;
-            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             std::string cid = req_json["cid"].ToString();
             json::JSON ret_body;
             if (cid.size() != CID_LENGTH)
@@ -550,7 +548,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             // Check input parameters
-            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             change_srd_num = req_json["change"].ToInt();
 
             if (change_srd_num == 0)
@@ -640,7 +638,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             // Delete file
-            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             std::string cid = req_json["cid"].ToString();
             // Check cid
             if (cid.size() != CID_LENGTH)
@@ -698,7 +696,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string ret_info;
 
             // Parse paramters
-            json::JSON req_json = json::JSON::Load(req.body());
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             std::string cid = req_json["cid"].ToString();
             p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
 
@@ -788,13 +786,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             p_log->info("Dealing with unseal request...\n");
             // Parse parameters
             json::JSON req_json;
-            std::string sealed_data = req.body();
+            std::vector<uint8_t> body_vec = req.body();
+            const uint8_t *sealed_data = (const uint8_t *)body_vec.data();
 
             // ----- Unseal file ----- //
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
 
-            if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, sealed_data.c_str(), sealed_data.size())))
+            if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, reinterpret_cast<const char *>(sealed_data), body_vec.size())))
             {
                 ret_info = "Unseal failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                 p_log->err("%s\n", ret_info.c_str());
@@ -808,7 +807,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     ret_code = 200;
                     p_log->info("%s\n", ret_info.c_str());
                     sgx_sha256_hash_t data_hash;
-                    sgx_sha256_msg(reinterpret_cast<const uint8_t *>(sealed_data.c_str()), sealed_data.size(), &data_hash);
+                    sgx_sha256_msg(sealed_data, body_vec.size(), &data_hash);
                     std::string data_hash_str = hexstring_safe(reinterpret_cast<uint8_t *>(&data_hash), HASH_LENGTH);
                     res.body() = ed->get_unsealed_data(data_hash_str);
                     res.result(ret_code);

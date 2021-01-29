@@ -1,6 +1,10 @@
 #ifndef _CRUST_APICLIENT_H_
 #define _CRUST_APICLIENT_H_
 
+#include <cstdlib>
+#include <iostream>
+#include <string>
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
@@ -9,9 +13,10 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
-#include <cstdlib>
-#include <iostream>
-#include <string>
+
+#include "Common.h"
+#include "Config.h"
+#include "Log.h"
 
 #define HTTP_RECV_BODY_LIMIT 104857600
 

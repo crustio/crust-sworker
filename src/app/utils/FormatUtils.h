@@ -5,9 +5,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <string.h>
+#include <string>
+
 #include <openssl/bio.h>
 #include <openssl/evp.h>
-#include <string>
 
 #ifdef __cplusplus
 extern "C"

@@ -1,27 +1,5 @@
 #include "WebServer.h"
 
-#include <stdio.h>
-#include <iostream>
-#include <algorithm>
-#include <mutex>
-#include <exception>
-#include <sgx_report.h>
-#include <sgx_key_exchange.h>
-#include <sgx_error.h>
-#include "ECalls.h"
-#include "sgx_eid.h"
-#include "Common.h"
-#include "Config.h"
-#include "FormatUtils.h"
-#include "SgxSupport.h"
-#include "Resource.h"
-#include "FileUtils.h"
-#include "Log.h"
-#include "Json.hpp"
-#include "sgx_tseal.h"
-#include "Json.hpp"
-
-
 namespace beast = boost::beast;                 // from <boost/beast.hpp>
 namespace http = beast::http;                   // from <boost/beast/http.hpp>
 namespace websocket = beast::websocket;         // from <boost/beast/websocket.hpp>
@@ -414,7 +392,7 @@ class http_session
 
     // The parser is stored in an optional container so we can
     // construct it from scratch it at the beginning of each new message.
-    boost::optional<http::request_parser<http::string_body>> parser_;
+    boost::optional<http::request_parser<http::vector_body<uint8_t>>> parser_;
 
 protected:
     beast::flat_buffer buffer_;

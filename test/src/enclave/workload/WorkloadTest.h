@@ -13,7 +13,6 @@
 #include "Enclave_t.h"
 #include "sgx_thread.h"
 #include "Persistence.h"
-#include "EJson.h"
 #include "Identity.h"
 #include "Srd.h"
 #include "Parameter.h"

@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+
+#include "sgx_tseal.h"
+
+#include "EUtils.h"
 #include "CrustStatus.h"
 
 #if defined(__cplusplus)

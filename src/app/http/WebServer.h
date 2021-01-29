@@ -1,6 +1,18 @@
 #ifndef _CRUST_WEBSERVER_H_
 #define _CRUST_WEBSERVER_H_
 
+#include <stdio.h>
+#include <mutex>
+#include <exception>
+#include <algorithm>
+#include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <thread>
+#include <vector>
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
@@ -18,15 +30,21 @@
 #include <boost/optional.hpp>
 #include <boost/function.hpp>
 #include <boost/make_shared.hpp>
-#include <algorithm>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <thread>
-#include <vector>
 
+#include <sgx_report.h>
+#include <sgx_key_exchange.h>
+#include <sgx_error.h>
+#include "sgx_eid.h"
+#include "sgx_tseal.h"
+
+#include "ECalls.h"
+#include "Common.h"
+#include "Config.h"
+#include "FormatUtils.h"
+#include "SgxSupport.h"
+#include "Resource.h"
+#include "FileUtils.h"
+#include "Log.h"
 #include "ApiHandler.h"
 
 #define WEBSOCKET_THREAD_NUM 3
