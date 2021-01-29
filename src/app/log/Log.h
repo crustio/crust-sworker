@@ -3,12 +3,13 @@
 
 #include <stdio.h>
 #include <sys/time.h>
-
 #include <stdlib.h>
 #include <time.h>
 #include <stdarg.h>
 #include <string>
 #include <mutex>
+
+#include "Resource.h"
 
 #define CRUST_LOG_BUF_SIZE  33554432 /* 32*1024*1024 */
 #define CRUST_LOG_INFO_TAG "INFO"

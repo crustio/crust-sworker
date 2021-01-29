@@ -24,7 +24,6 @@
 #include "WebsocketClient.h"
 #include "Srd.h"
 #include "DataBase.h"
-#include "Chain.h"
 #include "EntryNetwork.h"
 #include "Chain.h"
 

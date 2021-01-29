@@ -1,16 +1,6 @@
 #ifndef _CRUST_IDENTITY_H_
 #define _CRUST_IDENTITY_H_
 
-#include "Enclave_t.h"
-#include "IASReport.h"
-#include "tSgxSSL_api.h"
-#include "EUtils.h"
-#include "EJson.h"
-#include "Persistence.h"
-#include "Parameter.h"
-#include "Defer.h"
-#include "sgx_thread.h"
-#include <sgx_report.h>
 #include <string>
 #include <map>
 #include <set>
@@ -23,7 +13,19 @@
 #include <sgx_uae_epid.h>
 #include <sgx_uae_quote_ex.h>
 #include <sgx_ecp_types.h>
+#include <sgx_report.h>
+#include "sgx_thread.h"
 #include "sgx_spinlock.h"
+#include "tSgxSSL_api.h"
+
+#include "Workload.h"
+#include "Report.h"
+#include "Enclave_t.h"
+#include "IASReport.h"
+#include "EUtils.h"
+#include "Persistence.h"
+#include "Parameter.h"
+#include "Defer.h"
 
 #define PSE_RETRIES    5    /* Arbitrary. Not too long, not too short. */
 

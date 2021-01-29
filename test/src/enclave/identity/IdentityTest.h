@@ -5,7 +5,6 @@
 #include "IASReport.h"
 #include "tSgxSSL_api.h"
 #include "EUtils.h"
-#include "EJson.h"
 #include "Persistence.h"
 #include "ReportTest.h"
 #include "Parameter.h"

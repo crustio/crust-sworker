@@ -3,9 +3,9 @@
 
 #include <string>
 #include "Common.h"
-#include "Json.hpp"
 #include "Log.h"
 #include "Config.h"
+#include "HttpClient.h"
 
 namespace crust
 {

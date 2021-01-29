@@ -1,5 +1,4 @@
 #include "Ipfs.h"
-#include "HttpClient.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 HttpClient *ipfs_client = NULL;

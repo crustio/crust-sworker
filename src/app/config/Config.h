@@ -5,9 +5,11 @@
 #include <string>
 #include <fstream>
 #include <omp.h>
+
 #include <sgx_urts.h>
+
 #include "Resource.h"
-#include "Json.hpp"
+#include "../enclave/utils/Json.h"
 #include "Common.h"
 
 // ----- IAS CONFIG ----- //

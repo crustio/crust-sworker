@@ -1,5 +1,4 @@
 #include "FileUtils.h"
-#include <dirent.h>
 
 /**
  * @description: Get all files' name in directory

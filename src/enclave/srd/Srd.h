@@ -6,8 +6,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
+
 #include "sgx_trts.h"
 #include "sgx_thread.h"
+
 #include "Workload.h"
 #include "EUtils.h"
 #include "PathHelper.h"

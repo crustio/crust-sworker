@@ -1,8 +1,4 @@
 #include "Identity.h"
-#include "Workload.h"
-#include "Persistence.h"
-#include "EJson.h"
-#include "Report.h"
 
 using namespace std;
 

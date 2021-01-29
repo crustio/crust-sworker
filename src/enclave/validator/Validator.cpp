@@ -1,8 +1,4 @@
 #include "Validator.h"
-#include "Identity.h"
-#include "Srd.h"
-#include "EJson.h"
-#include <algorithm>
 
 crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size);
 
@@ -473,8 +469,6 @@ crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_siz
         {
             break;
         }
-        sgx_sha256_hash_t got_piece_hash;
-        sgx_sha256_msg(p_got_piece_data, got_piece_size, &got_piece_hash);
         // Compare data piece
         if (memcmp(p_real_piece_data, p_got_piece_data, real_piece_size) != 0)
         {

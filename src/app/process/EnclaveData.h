@@ -12,7 +12,6 @@
 #include "Common.h"
 #include "DataBase.h"
 #include "Srd.h"
-#include "Json.hpp"
 
 class EnclaveData
 {

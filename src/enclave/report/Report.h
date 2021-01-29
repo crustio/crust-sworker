@@ -2,6 +2,7 @@
 #define _CRUST_REPORT_H_
 
 #include <string>
+
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>

@@ -12,10 +12,14 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+
 #include <boost/algorithm/string.hpp>
+
+#include "Resource.h"
+#include "FormatUtils.h"
 #include "MerkleTree.h"
-#include "Json.hpp"
 #include "Log.h"
+#include "../enclave/utils/Json.h"
 
 #if defined(__cplusplus)
 extern "C"

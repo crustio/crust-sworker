@@ -1,5 +1,4 @@
 #include "Report.h"
-#include "EJson.h"
 
 
 std::string g_work_report;

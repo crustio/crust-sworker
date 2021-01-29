@@ -1,7 +1,4 @@
 #include "Storage.h"
-#include "Persistence.h"
-#include "Identity.h"
-#include "EJson.h"
 
 using namespace std;
 

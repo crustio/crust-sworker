@@ -7,13 +7,15 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
-#include "Json.hpp"
+
 #include "Config.h"
 #include "FileUtils.h"
 #include "FormatUtils.h"
 #include "DataBase.h"
 #include "Log.h"
 #include "EnclaveData.h"
+#include "Ctpl.h"
+#include "HttpClient.h"
 
 // Indicates maximal srd reserved space
 #define DEFAULT_SRD_RESERVED 50

@@ -1,5 +1,4 @@
 #include "Chain.h"
-#include "HttpClient.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 HttpClient *pri_chain_client = NULL;
@@ -88,14 +87,18 @@ std::string Chain::get_block_hash(size_t block_number)
 {
     std::string url = this->url + "/block/hash?blockNumber=" + std::to_string(block_number);
     http::response<http::string_body> res = pri_chain_client->Get(url.c_str());
+    std::string res_body = res.body();
     if ((int)res.result() == 200)
     {
-        return res.body().substr(3, 64);
+        if (res_body.size() > 3)
+        {
+            return res_body.substr(3, 64);
+        }
     }
 
-    if (res.body().size() != 0)
+    if (res_body.size() != 0)
     {
-        p_log->debug("%s\n", res.body().c_str());
+        p_log->debug("%s\n", res_body.c_str());
     }
     else
     {
@@ -114,14 +117,18 @@ std::string Chain::get_swork_code()
 {
     std::string url = this->url + "/swork/code";
     http::response<http::string_body> res = pri_chain_client->Get(url.c_str());
+    std::string res_body = res.body();
     if ((int)res.result() == 200)
     {
-        return res.body().substr(3, 64);
+        if (res_body.size() > 3)
+        {
+            return res_body.substr(3, 64);
+        }
     }
 
-    if (res.body().size() != 0)
+    if (res_body.size() != 0)
     {
-        p_log->debug("%s\n", res.body().c_str());
+        p_log->debug("%s\n", res_body.c_str());
     }
     else
     {

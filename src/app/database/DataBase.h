@@ -2,7 +2,11 @@
 #define _CRUST_DATABASE_H_
 
 #include "leveldb/db.h"
+#include "leveldb/write_batch.h"
 #include "CrustStatus.h"
+#include "Config.h"
+#include "Log.h"
+#include "FileUtils.h"
 
 namespace crust
 {
