@@ -44,6 +44,7 @@ extern "C"
     void srand_string(std::string seed);
     void print_attention();
     bool sleep_interval(uint32_t time, std::function<bool()> func);
+    std::string float_to_string(double num);
 
 #if defined(__cplusplus)
 }

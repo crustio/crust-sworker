@@ -320,3 +320,20 @@ bool sleep_interval(uint32_t time, std::function<bool()> func)
 
     return true;
 }
+
+/**
+ * @description: Convert float to string and trim result
+ * @param num -> Converted double value
+ * @return: Converted result
+ */
+std::string float_to_string(double num)
+{
+    std::string ans = std::to_string(num);
+    size_t lpos = ans.find_last_not_of("0");
+    if (lpos != ans.npos)
+    {
+        ans = ans.substr(0, lpos + 1);
+    }
+
+    return ans;
+}

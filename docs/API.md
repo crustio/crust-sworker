@@ -169,6 +169,37 @@ Output (404, failed):
 }
 ```
 
+Use '/api/v0/srd/ratio' to change srd ratio
+-------------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/srd/ratio
+--data-raw '{"ratio": xxx}'
+```
+
+Output (200, success):
+```
+{
+  "message" : "Set srd ratio successfully!",  
+  "status_code" : 200
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Invalid srd ratio field!",  
+  "status_code" : 500
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Srd ratio range should be 0 ~ xxx",  
+  "status_code" : 500
+}
+```
+
 Use '/api/v0/srd/change' to change srd
 --------------------------------------
 ```

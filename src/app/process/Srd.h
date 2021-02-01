@@ -17,10 +17,10 @@
 #include "Ctpl.h"
 #include "HttpClient.h"
 
-// Indicates maximal srd reserved space
-#define DEFAULT_SRD_RESERVED 50
-// Indicates maximal srd reserved space
-#define SRD_RESERVED_RATE 0.05
+// Indicates default srd ratio
+#define SRD_RATIO_DEFAULT 0.7
+// Srd ratio upper limit
+#define SRD_RATIO_UPPER 0.95
 // Indicates srd upgrade timeout
 #define SRD_UPGRADE_TIMEOUT 20
 

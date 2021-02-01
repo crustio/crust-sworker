@@ -540,6 +540,53 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
+        // --- Change srd ratio --- //
+        cur_path = urlendpoint.base + "/srd/ratio";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            json::JSON ret_body;
+            int ret_code = 400;
+            std::string ret_info;
+            // Check input parameters
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            if (!req_json.hasKey("ratio") || req_json["ratio"].JSONType() != json::JSON::Class::Integral)
+            {
+                ret_info = "Invalid srd ratio field!";
+                ret_code = 500;
+            }
+            else
+            {
+                double srd_ratio = (double)req_json["ratio"].ToInt() / 100;
+                if (srd_ratio > SRD_RATIO_UPPER || srd_ratio < 0)
+                {
+                    std::string srd_ratio_upper = float_to_string(SRD_RATIO_UPPER);
+                    ret_info = "Srd ratio range should be 0 ~ " + srd_ratio_upper;
+                    ret_code = 500;
+                }
+                else
+                {
+                    p_config->set_srd_ratio(srd_ratio);
+                    crust::DataBase::get_instance()->set(WL_SRD_RATIO, std::to_string(srd_ratio));
+                    ret_info = "Set srd ratio successfully!";
+                    ret_code = 200;
+                }
+            }
+
+            if (ret_code != 200)
+            {
+                p_log->err("%s\n", ret_info.c_str());
+            }
+            else
+            {
+                p_log->info("%s\n", ret_info.c_str());
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_code);
+            res.body() = ret_body.dump();
+            goto postcleanup;
+        }
+
         // --- Change srd --- //
         cur_path = urlendpoint.base + "/srd/change";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)

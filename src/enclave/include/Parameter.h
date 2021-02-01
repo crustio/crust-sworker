@@ -85,6 +85,7 @@
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
 #define WL_SRD_REMAINING_TASK "srd_remaining_task"
+#define WL_SRD_RATIO "srd_ratio"
 #define WL_FILES "files"
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
