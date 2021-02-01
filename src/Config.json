@@ -1,9 +1,9 @@
 {
     "base_path" : "/opt/crust/crust-sworker/<VERSION>/sworker_base_path",
     "data_path" : "/opt/crust/crust-sworker/<VERSION>/sworker_base_path/data",
-    "base_url": "http://0.0.0.0:12222/api/v0",
+    "base_url" : "http://0.0.0.0:12222/api/v0",
     
-    "ipfs_url":  "http://0.0.0.0:5001/api/v0",
+    "ipfs_url" :  "http://0.0.0.0:5001/api/v0",
 
     "chain" : {
         "base_url" : "http://127.0.0.1:56666/api/v1",

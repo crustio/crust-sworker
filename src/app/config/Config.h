@@ -11,6 +11,7 @@
 #include "Resource.h"
 #include "../enclave/utils/Json.h"
 #include "Common.h"
+#include "Srd.h"
 
 // ----- IAS CONFIG ----- //
 #define IAS_LINKABLE false
@@ -60,10 +61,15 @@ public:
     static Config *get_instance();
     std::string get_config_path();
 
+    void set_srd_ratio(double ratio);
+    double get_srd_ratio();
+
 private:
     Config(std::string path);
     Config(const Config &);
     Config& operator = (const Config &);
+    double srd_ratio;
+    std::mutex srd_ratio_mutex;
 };
 
 #endif /* !_CRUST_CONFIG_H_ */

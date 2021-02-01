@@ -40,6 +40,7 @@ Config::Config(std::string path)
     this->base_url = config_value["base_url"].ToString();
   
     this->srd_thread_num = std::min(omp_get_num_procs() * 2, SRD_THREAD_MAX_NUM);
+    this->srd_ratio = SRD_RATIO_DEFAULT;
 
     // storage configurations
     this->ipfs_url = config_value["ipfs_url"].ToString();
@@ -99,4 +100,28 @@ void Config::show(void)
 std::string Config::get_config_path()
 {
     return config_file_path;
+}
+
+/**
+ * @description: Set srd space to disk space ratio
+ * @param ratio -> Srd space to disk total space ratio
+ */
+void Config::set_srd_ratio(double ratio)
+{
+    this->srd_ratio_mutex.lock();
+    this->srd_ratio = ratio;
+    this->srd_ratio_mutex.unlock();
+}
+
+/**
+ * @description: Get srd ratio
+ * @return: Srd ratio
+ */
+double Config::get_srd_ratio()
+{
+    this->srd_ratio_mutex.lock();
+    double ratio = this->srd_ratio;
+    this->srd_ratio_mutex.unlock();
+
+    return ratio;
 }

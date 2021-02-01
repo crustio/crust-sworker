@@ -444,6 +444,7 @@ int process_run()
     size_t srd_task = 0;
     long srd_real_change = 0;
     std::string srd_task_str;
+    std::string srd_ratio_str;
     EnclaveData *ed = EnclaveData::get_instance();
     crust::DataBase *db = NULL;
     p_log->info("WorkerPID = %d\n", worker_pid);
@@ -553,6 +554,16 @@ entry_network_flag:
         }
     }
     db = crust::DataBase::get_instance();
+
+    // Get srd ratio
+    if (CRUST_SUCCESS == db->get(WL_SRD_RATIO, srd_ratio_str))
+    {
+        std::stringstream sstream(srd_ratio_str);
+        double srd_ratio = 0.0;
+        sstream >> srd_ratio;
+        p_config->set_srd_ratio(srd_ratio);
+        p_log->info("Recover user defined srd ratio:%s successfully!\n", float_to_string(srd_ratio).c_str());
+    }
 
     // Get srd remaining task
     if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
