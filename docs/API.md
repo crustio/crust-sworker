@@ -184,19 +184,19 @@ Output (200, success):
 }
 ```
 
-Output (500, failed):
+Output (400, failed):
 ```
 {
   "message" : "Invalid srd ratio field!",  
-  "status_code" : 500
+  "status_code" : 400
 }
 ```
 
-Output (500, failed):
+Output (400, failed):
 ```
 {
   "message" : "Srd ratio range should be 0 ~ xxx",  
-  "status_code" : 500
+  "status_code" : 400
 }
 ```
 

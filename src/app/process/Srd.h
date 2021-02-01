@@ -17,6 +17,8 @@
 #include "Ctpl.h"
 #include "HttpClient.h"
 
+// Indicates maximal srd reserved space
+#define DEFAULT_SRD_RESERVED 50
 // Indicates default srd ratio
 #define SRD_RATIO_DEFAULT 0.7
 // Srd ratio upper limit

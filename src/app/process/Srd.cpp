@@ -209,7 +209,7 @@ void srd_check_reserved(void)
 size_t get_reserved_space()
 {
     Config *p_config = Config::get_instance();
-    return get_total_space_under_dir_g(p_config->srd_path) * (1 - p_config->get_srd_ratio());
+    return std::max((size_t)DEFAULT_SRD_RESERVED, (size_t)(get_total_space_under_dir_g(p_config->srd_path) * (1 - p_config->get_srd_ratio())));
 }
 
 /**

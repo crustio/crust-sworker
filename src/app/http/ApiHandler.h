@@ -552,7 +552,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             if (!req_json.hasKey("ratio") || req_json["ratio"].JSONType() != json::JSON::Class::Integral)
             {
                 ret_info = "Invalid srd ratio field!";
-                ret_code = 500;
+                ret_code = 400;
             }
             else
             {
@@ -560,7 +560,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 if (srd_ratio > SRD_RATIO_UPPER || srd_ratio < 0)
                 {
                     ret_info = "Srd ratio range should be 0 ~ " + float_to_string(SRD_RATIO_UPPER);
-                    ret_code = 500;
+                    ret_code = 400;
                 }
                 else
                 {
