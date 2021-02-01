@@ -559,7 +559,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 double srd_ratio = (double)req_json["ratio"].ToInt() / 100;
                 if (srd_ratio > SRD_RATIO_UPPER || srd_ratio < 0)
                 {
-                    ret_info = "Srd ratio range should be 0 ~ " + float_to_string(SRD_RATIO_UPPER);
+                    ret_info = "Srd ratio range should be 0 ~ " + std::to_string((int)(SRD_RATIO_UPPER * 100)) + " (%).";
                     ret_code = 400;
                 }
                 else
