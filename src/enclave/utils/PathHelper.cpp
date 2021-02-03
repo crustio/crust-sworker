@@ -27,7 +27,7 @@ std::string get_leaf_path(const char *g_path, const size_t now_index, const unsi
 
 /**
  * @description: get the G path by using hash
- * @param g_path -> the directory path
+ * @param dir_path -> the directory path
  * @param hash ->  the index of G folder
  * @return: the G path
  */
@@ -39,7 +39,7 @@ std::string get_g_path_with_hash(const char *dir_path, const unsigned char *hash
 
 /**
  * @description: get the G path
- * @param g_path -> the directory path
+ * @param dir_path -> the directory path
  * @param now_index -> the index of G folder
  * @return: the G path
  */

@@ -6,8 +6,9 @@ const char _hextable[] = "0123456789abcdef";
 
 /**
  * @description: Change char to int
+ * @param input -> Input char
  * @return: Corresponding int
- * */
+ */
 int char_to_int(char input)
 {
     if (input >= '0' && input <= '9')
@@ -24,7 +25,7 @@ int char_to_int(char input)
  * @param src -> Source char*
  * @param len -> Source char* length
  * @return: Bytes array
- * */
+ */
 uint8_t *hex_string_to_bytes(const char *src, size_t len)
 {
     if(len % 2 != 0)
@@ -47,7 +48,9 @@ uint8_t *hex_string_to_bytes(const char *src, size_t len)
 
 /**
  * @description: Print hexstring
- * */
+ * @param vsrc -> Pointer to source data
+ * @param len -> Source data length
+ */
 void print_hexstring(const void *vsrc, size_t len)
 {
     const unsigned char *sp = (const unsigned char *)vsrc;
@@ -60,8 +63,11 @@ void print_hexstring(const void *vsrc, size_t len)
 
 /**
  * @description: Dehexstring data
+ * @param dest -> Pointer to destination data
+ * @param vsrc -> Pointer to source data
+ * @param len -> Source data length
  * @return: status
- * */
+ */
 int from_hexstring(unsigned char *dest, const void *vsrc, size_t len)
 {
     size_t i;
@@ -85,8 +91,10 @@ int from_hexstring(unsigned char *dest, const void *vsrc, size_t len)
 
 /**
  * @description: Transform string to hexstring
+ * @param vsrc -> Pointer to original data buffer
+ * @param len -> Original data buffer length
  * @return: Hexstringed data
- * */
+ */
 char *hexstring(const void *vsrc, size_t len)
 {
     size_t i, bsz;
@@ -149,8 +157,10 @@ std::string hexstring_safe(const void *vsrc, size_t len)
 
 /**
  * @description: Base64 encode data
+ * @param msg -> Pointer to messgae data
+ * @param sz -> Message data size
  * @return: Base64 encoded data
- * */
+ */
 char *base64_encode(const char *msg, size_t sz)
 {
     BIO *b64, *bmem;
@@ -194,8 +204,10 @@ char *base64_encode(const char *msg, size_t sz)
 
 /**
  * @description: Base64 decode data
+ * @param msg -> Pointer to messgae data
+ * @param sz -> Message data size
  * @return: Decoded data
- * */
+ */
 char *base64_decode(const char *msg, size_t *sz)
 {
     BIO *b64, *bmem;

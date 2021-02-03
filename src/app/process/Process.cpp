@@ -298,7 +298,6 @@ restore_try_again:
 
 /**
  * @description: Inform old version upgrade result
- * @return: Inform result
  */
 void upgrade_try_complete()
 {
@@ -352,7 +351,6 @@ void upgrade_try_complete()
 
 /**
  * @description: Check if upgrade, this function executes until upgrade successfully
- * @return: Upgrade result
  */
 void do_upgrade()
 {

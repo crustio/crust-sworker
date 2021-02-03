@@ -151,6 +151,7 @@ crust_status_t ocall_entry_network()
 /**
  * @description: Do srd in this function
  * @param change -> The change number will be committed this turn
+ * @return: Srd change return status
  */
 crust_status_t ocall_srd_change(long change)
 {
@@ -245,6 +246,7 @@ void ocall_store_enclave_id_info(const char *info)
  * @description: Store enclave workload
  * @param data -> Workload information
  * @param data_size -> Workload size
+ * @param cover -> Cover old data or not
  */
 void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true*/)
 {
@@ -263,7 +265,9 @@ void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true
 /**
  * @description: Store upgrade data
  * @param data -> Upgrade data
- * */
+ * @param data_size -> Upgrade data size
+ * @param cover -> Cover old upgrade data or not
+ */
 void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
 {
     if (cover)
@@ -319,6 +323,7 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
 
 /**
  * @description: Store file information
+ * @param cid -> File content identity
  * @param data -> File information data
  */
 void ocall_store_file_info(const char* cid, const char *data)

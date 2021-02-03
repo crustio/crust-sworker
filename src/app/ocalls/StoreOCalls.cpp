@@ -29,6 +29,8 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
 /**
  * @description: ocall for creating directory
  * @param path -> the path of directory
+ * @param type -> Storage type
+ * @return: Creating status
  */
 crust_status_t ocall_create_dir(const char *path, store_type_t type)
 {
@@ -65,6 +67,8 @@ crust_status_t ocall_create_dir(const char *path, store_type_t type)
  * @description: ocall for renaming directory
  * @param old_path -> the old path of directory
  * @param new_path -> the new path of directory
+ * @param type -> Storage type
+ * @return: Renaming result status
  */
 crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t type)
 {
@@ -111,6 +115,8 @@ crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, stor
  * @param path -> file path for saving
  * @param data -> data for saving
  * @param len -> the length of data
+ * @param type -> Storage type
+ * @return: Saving result status
  */
 crust_status_t ocall_save_file(const char *path, const unsigned char *data, size_t len, store_type_t type)
 {
@@ -157,7 +163,9 @@ crust_status_t ocall_delete_folder_or_file(const char *path, store_type_t type)
 /**
  * @description: ocall for getting file (ps: can't used by multithreading)
  * @param path -> the path of file
+ * @param p_file -> Pointer to pointer file data
  * @param len -> the length of data
+ * @param type -> Storage type
  * @return file data
  */
 crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *len, store_type_t type)

@@ -127,7 +127,7 @@ std::string EnclaveQueue::get_running_ecalls_info()
 
 /**
  * @description: Get higher priority task number
- * @param cur_prio -> current priority
+ * @param priority -> current priority
  * @return: The higher task number
  */
 int EnclaveQueue::get_higher_prio_waiting_task_num(int priority)

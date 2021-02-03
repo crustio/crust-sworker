@@ -59,6 +59,7 @@ crust_status_t ocall_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_si
  * @param p_data -> Pointer to be added data
  * @param len -> Added data length
  * @param cid -> Pointer to returned ipfs content id
+ * @param cid_len -> File content id length
  * @return: Status
  */
 crust_status_t ocall_ipfs_add(uint8_t *p_data, size_t len, char *cid, size_t /*cid_len*/)

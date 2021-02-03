@@ -29,6 +29,9 @@ crust_status_t ocall_persist_del(const char *key)
  * @param key -> Pointer to key
  * @param value -> Pointer to value
  * @param value_len -> value length
+ * @param total_size -> Data from enclave total size
+ * @param total_buf -> Pointer to total buffer
+ * @param offset -> Data offset in total buffer
  * @return: Update status
  */
 crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t value_len, 
