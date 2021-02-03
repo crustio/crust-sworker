@@ -148,6 +148,7 @@ crust_status_t storage_seal_file(const char *cid)
 
 /**
  * @description: Do seal file
+ * @param root_cid -> Root file content id
  * @param cid -> Const pointer to ipfs content id
  * @param sealed_size -> Sealed file total size
  * @param origin_size -> Origin file total size

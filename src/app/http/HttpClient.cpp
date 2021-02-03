@@ -145,6 +145,7 @@ http::response<http::string_body> HttpClient::SSLPost(std::string url, std::stri
  * @param body -> Request body
  * @param content_type -> Indicates content type
  * @param headers -> Poniter to header
+ * @param type -> Request type
  * @return: Json result
  */
 http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method, std::string url, 

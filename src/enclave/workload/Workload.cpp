@@ -151,7 +151,8 @@ json::JSON Workload::gen_workload_info()
 
 /**
  * @description: Serialize workload for sealing
- * @param sered_srd -> Reference to serialized srd
+ * @param p_data -> Reference to serialized srd
+ * @param data_size -> Pointer to data size
  * @return: Serialized workload
  */
 crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
@@ -304,7 +305,6 @@ bool Workload::get_report_file_flag()
 
 /**
  * @description: Set srd info
- * @param path -> Changed path
  * @param change -> Change number
  */
 void Workload::set_srd_info(long change)
@@ -382,7 +382,7 @@ void Workload::set_upgrade_status(enc_upgrade_status_t status)
 /**
  * @description: Get is_upgrading flag
  * @return: Enclave upgrade status
- * */
+ */
 enc_upgrade_status_t Workload::get_upgrade_status()
 {
     enc_upgrade_status_t status = ENC_UPGRADE_STATUS_NONE;
@@ -664,7 +664,6 @@ bool Workload::report_has_validated_proof()
 
 /**
  * @description: Add deleted srd to buffer
- * @param path -> Srd deleted path
  * @param index -> Srd index in indicated path
  * @return: Add result
  */
@@ -679,7 +678,6 @@ bool Workload::add_srd_to_deleted_buffer(uint32_t index)
 
 /**
  * @description: Has given srd been added to buffer
- * @param path -> Srd deleted path
  * @param index -> Srd index in indicated path
  * @return: Added to deleted buffer or not
  */

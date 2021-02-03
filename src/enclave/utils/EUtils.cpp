@@ -563,11 +563,20 @@ void *enc_crealloc(void *p, size_t old_size, size_t new_size)
 
 /**
  * @description: A wrapper for sgx_seal_data
+ * @param additional_MACtext_length -> Additional data length
+ * @param p_additional_MACtext -> Pointer to additional data
+ * @param text2encrypt_length -> Text to be encrypted length
+ * @param p_text2encrypt -> Pointer to be encrypted data
+ * @param sealed_data_size -> Sealed data size
+ * @param p_sealed_data -> Pointer to sealed data
+ * @return: Seal result status
  */
 sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
-        const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
-        const uint8_t *p_text2encrypt, const uint32_t sealed_data_size,
-        sgx_sealed_data_t *p_sealed_data)
+                           const uint8_t *p_additional_MACtext,
+                           const uint32_t text2encrypt_length,
+                           const uint8_t *p_text2encrypt,
+                           const uint32_t sealed_data_size,
+                           sgx_sealed_data_t *p_sealed_data)
 {
     uint8_t *p_test = (uint8_t *)enc_malloc(sealed_data_size);
     if (p_test == NULL)
@@ -577,16 +586,36 @@ sgx_status_t Sgx_seal_data(const uint32_t additional_MACtext_length,
     }
     free(p_test);
 
-    return sgx_seal_data(additional_MACtext_length, p_additional_MACtext,
-            text2encrypt_length, p_text2encrypt, sealed_data_size, p_sealed_data);
+    return sgx_seal_data(additional_MACtext_length,
+                         p_additional_MACtext,
+                         text2encrypt_length,
+                         p_text2encrypt,
+                         sealed_data_size,
+                         p_sealed_data);
 }
 
 /**
  * @description: A wrapper function for sgx_seal_data_ex
+ * @param key_policy -> Key policy
+ * @param attribute_mask -> Attribute mask
+ * @param misc_mask -> Misc mask
+ * @param additional_MACtext_length -> Additional data length
+ * @param p_additional_MACtext -> Pointer to additional data
+ * @param text2encrypt_length -> Text to be encrypted length
+ * @param p_text2encrypt -> Pointer to be encrypted data
+ * @param sealed_data_size -> Sealed data size
+ * @param p_sealed_data -> Pointer to sealed data
+ * @return: Seal result status
  */
-sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy, const sgx_attributes_t attribute_mask, const sgx_misc_select_t misc_mask,
-        const uint32_t additional_MACtext_length, const uint8_t *p_additional_MACtext, const uint32_t text2encrypt_length,
-        const uint8_t *p_text2encrypt, const uint32_t sealed_data_size, sgx_sealed_data_t *p_sealed_data)
+sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
+                              const sgx_attributes_t attribute_mask,
+                              const sgx_misc_select_t misc_mask,
+                              const uint32_t additional_MACtext_length,
+                              const uint8_t *p_additional_MACtext,
+                              const uint32_t text2encrypt_length,
+                              const uint8_t *p_text2encrypt,
+                              const uint32_t sealed_data_size,
+                              sgx_sealed_data_t *p_sealed_data)
 {
     uint8_t *p_test = (uint8_t *)enc_malloc(sealed_data_size);
     if (p_test == NULL)
@@ -596,9 +625,15 @@ sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy, const sgx_attributes_t 
     }
     free(p_test);
 
-    return sgx_seal_data_ex(key_policy, attribute_mask, misc_mask,
-            additional_MACtext_length, p_additional_MACtext, text2encrypt_length,
-            p_text2encrypt, sealed_data_size, p_sealed_data);
+    return sgx_seal_data_ex(key_policy,
+                            attribute_mask,
+                            misc_mask,
+                            additional_MACtext_length,
+                            p_additional_MACtext,
+                            text2encrypt_length,
+                            p_text2encrypt,
+                            sealed_data_size,
+                            p_sealed_data);
 }
 
 /**

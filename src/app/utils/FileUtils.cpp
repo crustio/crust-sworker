@@ -156,6 +156,7 @@ int rm(std::string path)
 /**
  * @description: Get free space under directory
  * @param path -> the directory path
+ * @param unit -> Used to indicate KB, MB and GB
  * @return: Free space size (M)
  */
 size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
@@ -171,6 +172,7 @@ size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
 
 /**
  * @description: Get disk free space according to path
+ * @param path -> Checked path
  * @return: Free space calculated as KB
  */
 size_t get_total_space_under_dir_k(std::string path)
@@ -180,6 +182,7 @@ size_t get_total_space_under_dir_k(std::string path)
 
 /**
  * @description: Get disk free space according to path
+ * @param path -> Checked path
  * @return: Free space calculated as MB
  */
 size_t get_total_space_under_dir_m(std::string path)
@@ -189,6 +192,7 @@ size_t get_total_space_under_dir_m(std::string path)
 
 /**
  * @description: Get disk free space according to path
+ * @param path -> Checked path
  * @return: Free space calculated as GB
  */
 size_t get_total_space_under_dir_g(std::string path)
@@ -199,6 +203,7 @@ size_t get_total_space_under_dir_g(std::string path)
 /**
  * @description: Get free space under directory
  * @param path -> the directory path
+ * @param unit -> Used to indicate KB, MB and GB
  * @return: Free space size (M)
  */
 size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
@@ -214,6 +219,7 @@ size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
 
 /**
  * @description: Get disk free space according to path
+ * @param path -> Checked path
  * @return: Free space calculated as KB
  */
 size_t get_avail_space_under_dir_k(std::string path)
@@ -223,6 +229,7 @@ size_t get_avail_space_under_dir_k(std::string path)
 
 /**
  * @description: Get disk free space according to path
+ * @param path -> Checked path
  * @return: Free space calculated as MB
  */
 size_t get_avail_space_under_dir_m(std::string path)
@@ -232,6 +239,7 @@ size_t get_avail_space_under_dir_m(std::string path)
 
 /**
  * @description: Get disk free space according to path
+ * @param path -> Checked path
  * @return: Free space calculated as GB
  */
 size_t get_avail_space_under_dir_g(std::string path)
@@ -259,6 +267,7 @@ size_t get_free_space_under_directory(std::string path)
 /**
  * @description: Create directory
  * @param path -> the directory path
+ * @return: Create status
  */
 bool create_directory(std::string path)
 {
@@ -303,6 +312,7 @@ std::vector<std::string> get_sub_folders_and_files(const char *path)
  * @param path -> Pointer to file path
  * @param p_data -> Pointer to pointer to file data
  * @param data_size -> Pointer to file data size
+ * @return: Getting result status
  */
 crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
 {

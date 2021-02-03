@@ -7,6 +7,7 @@ crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: used to generate random waiting time to ensure that the reporting workload is not concentrated
+ * @param seed -> Random seed
  * @return: wait time
  */
 size_t get_random_wait_time(std::string seed)
@@ -18,6 +19,7 @@ size_t get_random_wait_time(std::string seed)
 
 /**
  * @description: Judge whether need to exit while waiting
+ * @param t -> Wait time
  * @return true for exiting
  */
 bool wait_and_check_exit(size_t t)

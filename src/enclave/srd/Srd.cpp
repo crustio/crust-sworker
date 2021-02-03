@@ -207,7 +207,6 @@ void srd_increase()
 /**
  * @description: Decrease srd files under directory
  * @param change -> Total to be deleted space volumn
- * @param clear_metadata -> Clear metadata
  * @return: Decreased size
  */
 size_t srd_decrease(size_t change)
@@ -312,6 +311,8 @@ long get_srd_task()
 /**
  * @description: Set srd change
  * @param change -> Srd change
+ * @param real_change -> Pointer to real changed srd number
+ * @return: Changing return status
  */
 crust_status_t change_srd_task(long change, long *real_change)
 {

@@ -57,7 +57,6 @@ void ecall_main_loop()
 
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
- * @param path (in) -> the directory path
  */
 void ecall_srd_increase()
 {
@@ -89,6 +88,8 @@ size_t ecall_srd_decrease(size_t change)
 /**
  * @description: Change srd number
  * @param change -> Will be changed srd number
+ * @param real_change (out) -> Pointer to real changed srd task number
+ * @return: Changing result status
  */
 crust_status_t ecall_change_srd_task(long change, long *real_change)
 {
@@ -102,8 +103,7 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 
 /**
  * @description: Update srd_metadata
- * @param hashs (in) -> Pointer to the address of to be deleted hashs array
- * @param hashs_len -> Hashs array length
+ * @param change -> To be removed srd space
  */
 void ecall_srd_remove_space(size_t change)
 {
@@ -119,7 +119,6 @@ void ecall_srd_remove_space(size_t change)
 
 /**
  * @description: Stop enclave
- * @return: Status
  */
 void ecall_stop_all()
 {
@@ -150,7 +149,7 @@ crust_status_t ecall_cmp_chain_account_id(const char *account_id, size_t len)
 /**
  * @description: Get signed work report
  * @param block_hash (in) -> block hash
- * @param block_height (in) -> block height
+ * @param block_height -> block height
  * @return: Sign status
  */
 crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t block_height)
@@ -230,6 +229,7 @@ crust_status_t ecall_seal_file(const char *cid)
 /**
  * @description: Unseal file according to given path
  * @param data (in) -> Pointer to sealed data
+ * @param data_size -> Unsealed data size
  * @return: Unseal status
  */
 crust_status_t ecall_unseal_file(const char *data, size_t data_size)
@@ -246,7 +246,7 @@ crust_status_t ecall_unseal_file(const char *data, size_t data_size)
 
 /**
  * @description: Add to be deleted file hash to buffer
- * @param hash (in) -> File root hash
+ * @param cid (in) -> File content id
  * @return: Delete status
  */
 crust_status_t ecall_delete_file(const char *cid)

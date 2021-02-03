@@ -267,7 +267,7 @@ void replace(std::string &data, std::string org_str, std::string det_str)
  * @description: Remove indicated character from string
  * @param data -> Reference to string
  * @param c -> Character to be removed
- * */
+ */
 void remove_char(std::string &data, char c)
 {
     data.erase(std::remove(data.begin(), data.end(), c), data.end());
@@ -332,7 +332,11 @@ std::string float_to_string(double num)
     size_t lpos = ans.find_last_not_of("0");
     if (lpos != ans.npos)
     {
-        ans = ans.substr(0, lpos + 1);
+        if (ans[lpos] != '.')
+        {
+            lpos++;
+        }
+        ans = ans.substr(0, lpos);
     }
 
     return ans;

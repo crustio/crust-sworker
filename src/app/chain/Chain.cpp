@@ -51,6 +51,7 @@ Chain::~Chain()
 
 /**
  * @description: get laster block header from chain
+ * @param block_header -> Reference to block_header
  * @return: the point of block header
  */
 bool Chain::get_block_header(BlockHeader &block_header)

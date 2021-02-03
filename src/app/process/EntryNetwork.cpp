@@ -254,10 +254,8 @@ crust_status_t entry_network()
     p_log->debug("epidPseudonym     = %s\n\n",
                 std::string(ias_res["epidPseudonym"]).c_str());
 
-    // Verify IAS report in enclave
+    // Verify and upload IAS report
     crust_status_t crust_status;
-    // Ecall_verify_iasreport will store sworker identity to g_sworker_identity by ocall
-    // You can get this identity by accessing g_sworker_identity
     sgx_status_t status_ret = Ecall_verify_and_upload_identity(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
     if (SGX_SUCCESS == status_ret)
     {

@@ -4,9 +4,9 @@ crust::Log *p_log = crust::Log::get_instance();
 HttpClient *ipfs_client = NULL;
 Ipfs *Ipfs::ipfs = NULL;
 
-std::string block_get_timeout = "1s";
-std::string cat_timeout = "6s";
-std::string add_timeout = "600s";
+const std::string block_get_timeout = "1s";
+const std::string cat_timeout = "6s";
+const std::string add_timeout = "600s";
 
 /**
  * @desination: single instance class function to get instance
@@ -16,7 +16,7 @@ Ipfs *Ipfs::get_instance()
 {
     if (Ipfs::ipfs == NULL)
     {
-        Ipfs::ipfs = new Ipfs("http://127.0.0.1:5001/api/v0");
+        Ipfs::ipfs = new Ipfs(Config::get_instance()->ipfs_url);
     }
 
     return Ipfs::ipfs;
@@ -48,7 +48,7 @@ Ipfs::~Ipfs()
 /**
  * @description: Test if there is usable IPFS
  * @return: Test result
- * */
+ */
 bool Ipfs::online()
 {
     std::string path = this->url + "/version";
@@ -63,8 +63,10 @@ bool Ipfs::online()
 
 /**
  * @description: Get block from ipfs
+ * @param cid -> File content id
+ * @param p_data_out -> Pointer to pointer to data output
  * @return: size of block, 0 for error
- * */
+ */
 size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 {
     std::string path = this->url + "/block/get?arg=" + cid + "&timeout=" + block_get_timeout;
@@ -96,8 +98,10 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
 
 /**
  * @description: Cat file
+ * @param cid -> File content id
+ * @param p_data_out -> Pointer to pointer to data output
  * @return: size of file, 0 for error
- * */
+ */
 size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
 {
     std::string path = this->url + "/cat?arg=" + cid + "&timeout=" + cat_timeout;
@@ -118,8 +122,10 @@ size_t Ipfs::cat(const char *cid, unsigned char **p_data_out)
 
 /**
  * @description: Add file to ipfs
+ * @param p_data_in -> Pointer to data to be added
+ * @param size -> Size of added data
  * @return: Hash of the file
- * */
+ */
 std::string Ipfs::add(unsigned char *p_data_in, size_t size)
 {
     std::string path = this->url + "/add" + "?timeout=" + add_timeout;
@@ -141,8 +147,9 @@ std::string Ipfs::add(unsigned char *p_data_in, size_t size)
 
 /**
  * @description: Delete file
+ * @param cid -> File content id
  * @return: Delete result
- * */
+ */
 bool Ipfs::del(std::string cid)
 {
     std::string path = this->url + "/pin/rm?arg=" + cid;

@@ -268,6 +268,7 @@ std::string EnclaveData::get_sealed_file_info_all()
 /**
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
+ * @param locked -> Lock sealed_file or not
  * @return: Duplicated or not
  */
 bool EnclaveData::is_sealed_file_dup(std::string cid, bool locked)

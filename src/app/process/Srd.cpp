@@ -10,7 +10,6 @@ extern sgx_enclave_id_t global_eid;
 
 /**
  * @description: Get srd disks info according to configure
- * @param true_srd_capacity -> True assigned size
  * @return: A path to assigned size map
  */
 json::JSON get_increase_srd_info()
