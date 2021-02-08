@@ -25,7 +25,7 @@ function checkOldCrustSworker()
 function installAPP()
 {
     # Create sworker directory
-    verbose INFO "Creating sworker diretory related..." h
+    verbose INFO "Creating sworker directory related..." h
     local res=0
     mkdir -p $crustdir
     res=$(($?|$res))
@@ -242,7 +242,7 @@ checkOldCrustSworker
 # Install Dependencies
 if [ "$DOCKERMODLE" == "0" ]; then
     # Create denpendencies directory
-    verbose INFO "Creating dependencies diretory related..." h
+    verbose INFO "Creating dependencies directory related..." h
     res=0
     mkdir -p $crusttooldir
     res=$(($?|$res))
@@ -261,7 +261,7 @@ fi
 installAPP
 
 if [ "$DOCKERMODLE" == "0" ]; then
-    verbose INFO "Changing diretory owner..." h
+    verbose INFO "Changing directory owner..." h
     res=0
     chown -R $uid:$uid $crustsworkerdir
     res=$(($?|$res))

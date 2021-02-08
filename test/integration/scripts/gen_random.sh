@@ -33,7 +33,7 @@ tag=${volunm##*[0-9]}
 val=${volunm%[a-zA-Z]*}
 filepath=$2
 if [ ! -d "$(dirname $filepath)" ]; then
-    echo "File path($filepath) diretory not exist!"
+    echo "File path($filepath) directory not exist!"
     exit 1
 fi
 str=""
