@@ -552,7 +552,7 @@ entry_network_flag:
             if (!offline_chain_mode)
             {
                 // Wait chain
-                crust::Chain::get_instance()->wait_for_running());
+                crust::Chain::get_instance()->wait_for_running();
 
                 // Get local mrenclave
                 json::JSON id_info;
