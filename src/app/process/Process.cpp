@@ -548,6 +548,53 @@ entry_network_flag:
             }
 
             p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
+
+            if (!offline_chain_mode)
+            {
+                // Wait chain
+                crust::Chain::get_instance()->wait_for_running());
+
+                // Get local mrenclave
+                json::JSON id_info;
+                std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
+                if (id_info_str == "")
+                {
+                    p_log->err("Cannot get id info");
+                    return_status = -1;
+                    goto cleanup;
+                }
+                id_info = json::JSON::Load(id_info_str);
+                if (!id_info.hasKey("mrenclave"))
+                {
+                    p_log->err("Get sWorker identity information failed!\n");
+                    return_status = -1;
+                    goto cleanup;
+                }
+                
+                // Get mrenclave on chain
+                std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
+                if (code_on_chain == "")
+                {
+                    p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
+                    return_status = -1;
+                    goto cleanup;
+                }
+
+                // Compare these two mrenclave
+                if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
+                {
+                    std::string cmd1(HRED "sudo crust tools upgrade-image sworker && sudo crust reload sworker" NC);
+                    p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
+                    "please remove all old sworker data and get the latest sworker by running '%s'\n",
+                    id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());
+                    return_status = -1;
+                    goto cleanup;
+                }
+                else
+                {
+                    p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
+                }
+            }
             p_log->info("Restore enclave data successfully, sworker is running now.\n");
         }
     }
