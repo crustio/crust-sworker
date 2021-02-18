@@ -81,14 +81,14 @@ void Config::show(void)
     printf("    },\n");
 
     printf("    'IAS parameters' : {\n");
-    printf("        'spid' : '%s',\n", IAS_SPID);
-    printf("        'linkable' : '%s',\n", IAS_LINKABLE ? "true" : "false");
-    printf("        'random nonce' : '%s',\n", IAS_RANDOM_NONCE ? "true" : "false");
-    printf("        'primary subscription key' : '%s',\n", IAS_PRIMARY_SUBSCRIPTION_KEY);
-    printf("        'secondary subscription key' : '%s',\n", IAS_SECONDARY_SUBSCRIPTION_KEY);
+    //printf("        'spid' : '%s',\n", IAS_SPID);
+    //printf("        'linkable' : '%s',\n", IAS_LINKABLE ? "true" : "false");
+    //printf("        'random nonce' : '%s',\n", IAS_RANDOM_NONCE ? "true" : "false");
+    //printf("        'primary subscription key' : '%s',\n", IAS_PRIMARY_SUBSCRIPTION_KEY);
+    //printf("        'secondary subscription key' : '%s',\n", IAS_SECONDARY_SUBSCRIPTION_KEY);
     printf("        'base url' : '%s',\n", IAS_BASE_URL);
-    printf("        'report path' : '%s',\n", IAS_REPORT_PATH);
-    printf("        'flags' : '%d'\n", IAS_FLAGS);
+    printf("        'report path' : '%s'\n", IAS_REPORT_PATH);
+    //printf("        'flags' : '%d'\n", IAS_FLAGS);
     printf("    }\n");
     printf("}\n");
 }

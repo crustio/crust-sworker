@@ -35,7 +35,7 @@
 #define WAITING_STATUS 1
 // Old status
 #define ORIGIN_STATUS 2
-#define FILE_NUMBER_UPPER_LIMIT 200000
+#define FILE_NUMBER_UPPER_LIMIT 400000
 #define FILE_CAL_BUFFER_SIZE 8388608
 
 // For DB data
@@ -93,7 +93,7 @@
 
 // For srd
 #define SRD_MAX_PER_TURN 64
-#define SRD_NUMBER_UPPER_LIMIT 204800 /* 200x1024G */
+#define SRD_NUMBER_UPPER_LIMIT 512000 /* 500x1024G */
 
 // For validator
 #define SRD_VALIDATE_RATE 0.02

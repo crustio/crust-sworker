@@ -4,8 +4,8 @@ crust::Log *p_log = crust::Log::get_instance();
 
 /**
  * @description: Add record to DB
- * @param key -> Pointer to key
- * @param value -> Pointer to value
+ * @param key (in) -> Pointer to key
+ * @param value (in) -> Pointer to value
  * @param value_len -> value length
  * @return: Add status
  */
@@ -16,7 +16,7 @@ crust_status_t ocall_persist_add(const char *key, const uint8_t *value, size_t v
 
 /**
  * @description: Delete record from DB
- * @param key -> Pointer to key
+ * @param key (in) -> Pointer to key
  * @return: Delete status
  */
 crust_status_t ocall_persist_del(const char *key)
@@ -26,11 +26,11 @@ crust_status_t ocall_persist_del(const char *key)
 
 /**
  * @description: Update record in DB
- * @param key -> Pointer to key
- * @param value -> Pointer to value
+ * @param key (in) -> Pointer to key
+ * @param value (in) -> Pointer to value
  * @param value_len -> value length
  * @param total_size -> Data from enclave total size
- * @param total_buf -> Pointer to total buffer
+ * @param total_buf (in) -> Pointer to total buffer
  * @param offset -> Data offset in total buffer
  * @return: Update status
  */
@@ -62,9 +62,9 @@ crust_status_t ocall_persist_set(const char *key, const uint8_t *value, size_t v
 
 /**
  * @description: Get record from DB
- * @param key -> Pointer to key
- * @param value -> Pointer points to pointer to value
- * @param value_len -> value length
+ * @param key (in) -> Pointer to key
+ * @param value (out) -> Pointer points to pointer to value
+ * @param value_len (out) -> value length
  * @return: Get status
  */
 crust_status_t ocall_persist_get(const char *key, uint8_t **value, size_t *value_len)

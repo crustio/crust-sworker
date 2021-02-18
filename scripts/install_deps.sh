@@ -58,7 +58,9 @@ function installSGXPSW()
 
     # Install SGX PSW
     local res=0
-    verbose INFO "Installing SGX PSW..." h
+    > $SYNCFILE
+    setTimeWait "$(verbose INFO "Installing SGX PSW..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
     echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list &>$ERRFILE
     res=$(($?|$res))
     wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - &>>$ERRFILE
@@ -71,7 +73,7 @@ function installSGXPSW()
     res=$(($?|$res))
     /opt/intel/sgx-aesm-service/startup.sh &>>$ERRFILE
     res=$(($?|$res))
-    checkRes $res "quit" "success"
+    checkRes $res "quit" "success" "$SYNCFILE"
 }
 
 function installSGXDRIVER()
