@@ -12,7 +12,7 @@ extern bool offline_chain_mode;
 
 /**
  * @description: ocall for printing string
- * @param str -> string for printing
+ * @param str (in) -> string for printing
  */
 void ocall_print_info(const char *str)
 {
@@ -21,7 +21,7 @@ void ocall_print_info(const char *str)
 
 /**
  * @description: ocall for printing string
- * @param str -> string for printing
+ * @param str (in) -> string for printing
  */
 void ocall_print_debug(const char *str)
 {
@@ -33,7 +33,7 @@ void ocall_print_debug(const char *str)
 
 /**
  * @description: ocall for log information
- * @param str -> string for printing
+ * @param str (in) -> string for printing
  */
 void ocall_log_info(const char *str)
 {
@@ -42,7 +42,7 @@ void ocall_log_info(const char *str)
 
 /**
  * @description: ocall for log warnings
- * @param str -> string for printing
+ * @param str (in) -> string for printing
  */
 void ocall_log_warn(const char *str)
 {
@@ -51,7 +51,7 @@ void ocall_log_warn(const char *str)
 
 /**
  * @description: ocall for log errors
- * @param str -> string for printing
+ * @param str (in) -> string for printing
  */
 void ocall_log_err(const char *str)
 {
@@ -60,7 +60,7 @@ void ocall_log_err(const char *str)
 
 /**
  * @description: ocall for log debugs
- * @param str -> string for printing
+ * @param str (in) -> string for printing
  */
 void ocall_log_debug(const char *str)
 {
@@ -69,7 +69,7 @@ void ocall_log_debug(const char *str)
 
 /**
  * @description: ocall for wait
- * @param u microsecond
+ * @param u -> microsecond
  */
 void ocall_usleep(int u)
 {
@@ -78,7 +78,7 @@ void ocall_usleep(int u)
 
 /**
  * @description: Free app buffer
- * @param value -> Pointer points to pointer to value
+ * @param value (in) -> Pointer points to pointer to value
  * @return: Get status
  */
 crust_status_t ocall_free_outer_buffer(uint8_t **value)
@@ -95,7 +95,7 @@ crust_status_t ocall_free_outer_buffer(uint8_t **value)
 /**
  * @description: Get block hash by height
  * @param block_height -> Block height from enclave
- * @param block_hash -> Pointer to got block hash
+ * @param block_hash (in) -> Pointer to got block hash
  * @param hash_size -> Block hash size
  * @return: Get result
  */
@@ -115,7 +115,7 @@ crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_
 
 /**
  * @description: For upgrade, send work report
- * @param work_report -> Work report
+ * @param work_report (in) -> Work report
  * @return: Send result
  */
 crust_status_t ocall_upload_workreport(const char *work_report)
@@ -160,7 +160,7 @@ crust_status_t ocall_srd_change(long change)
 
 /**
  * @description: Store sworker identity
- * @param id -> Pointer to identity
+ * @param id (in) -> Pointer to identity
  * @return: Upload result
  */
 crust_status_t ocall_upload_identity(const char *id)
@@ -235,7 +235,7 @@ crust_status_t ocall_upload_identity(const char *id)
 
 /**
  * @description: Store enclave id information
- * @param info -> Pointer to enclave id information
+ * @param info (in) -> Pointer to enclave id information
  */
 void ocall_store_enclave_id_info(const char *info)
 {
@@ -244,7 +244,7 @@ void ocall_store_enclave_id_info(const char *info)
 
 /**
  * @description: Store enclave workload
- * @param data -> Workload information
+ * @param data (in) -> Workload information
  * @param data_size -> Workload size
  * @param cover -> Cover old data or not
  */
@@ -264,7 +264,7 @@ void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true
 
 /**
  * @description: Store upgrade data
- * @param data -> Upgrade data
+ * @param data (in) -> Upgrade data
  * @param data_size -> Upgrade data size
  * @param cover -> Cover old upgrade data or not
  */
@@ -284,8 +284,8 @@ void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
 
 /**
  * @description: Store unsealed data
- * @param unsealed_root -> Unsealed data root
- * @param p_unsealed_data -> Unsealed data
+ * @param unsealed_root (in) -> Unsealed data root
+ * @param p_unsealed_data (in) -> Unsealed data
  * @param unsealed_data_len -> Unsealed data size
  */
 void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_data, size_t unsealed_data_len)
@@ -295,7 +295,7 @@ void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_da
 
 /**
  * @description: Get chain block information
- * @param data -> Pointer to file block information
+ * @param data (in, out) -> Pointer to file block information
  * @param data_size -> Pointer to file block data size
  * @return: Get result
  */
@@ -323,8 +323,8 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
 
 /**
  * @description: Store file information
- * @param cid -> File content identity
- * @param data -> File information data
+ * @param cid (in) -> File content identity
+ * @param data (in) -> File information data
  */
 void ocall_store_file_info(const char* cid, const char *data)
 {
