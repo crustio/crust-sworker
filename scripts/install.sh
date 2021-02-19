@@ -139,8 +139,8 @@ function success_exit()
 function usage()
 {
     echo "Usage:"
-        echo "    $0 -h                      Display this help message."
-        echo "    $0 [options]"
+    echo "     $0 -h Display this help message."
+    echo "     $0 [options]"
     echo "Options:"
     echo "     -d for docker"
     echo "     -m build mode(dev or prod)"

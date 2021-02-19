@@ -13,9 +13,9 @@ bool ocall_ipfs_online()
 
 /**
  * @description: Get block from ipfs
- * @param cid -> Ipfs content id
- * @param p_data -> Pointer to pointer to ipfs data
- * @param data_size -> Pointer to ipfs data size
+ * @param cid (in) -> Ipfs content id
+ * @param p_data (out) -> Pointer to pointer to ipfs data
+ * @param data_size (out) -> Pointer to ipfs data size
  * @return: Status
  */
 crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *data_size)
@@ -34,9 +34,9 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
 
 /**
  * @description: Cat file
- * @param cid -> Ipfs content id
- * @param p_data -> Pointer to pointer to ipfs data
- * @param data_size -> Pointer to ipfs data size
+ * @param cid (in) -> Ipfs content id
+ * @param p_data (out) -> Pointer to pointer to ipfs data
+ * @param data_size (out) -> Pointer to ipfs data size
  * @return: Status
  */
 crust_status_t ocall_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_size)
@@ -56,9 +56,9 @@ crust_status_t ocall_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_si
 
 /**
  * @description: Add file to ipfs
- * @param p_data -> Pointer to be added data
+ * @param p_data (in) -> Pointer to be added data
  * @param len -> Added data length
- * @param cid -> Pointer to returned ipfs content id
+ * @param cid (in) -> Pointer to returned ipfs content id
  * @param cid_len -> File content id length
  * @return: Status
  */
@@ -77,7 +77,7 @@ crust_status_t ocall_ipfs_add(uint8_t *p_data, size_t len, char *cid, size_t /*c
 
 /**
  * @description: Delete file
- * @param cid -> To be deleted file cid
+ * @param cid (in) -> To be deleted file cid
  * @return: Status
  */
 crust_status_t ocall_ipfs_del(const char *cid)
@@ -93,7 +93,7 @@ crust_status_t ocall_ipfs_del(const char *cid)
 
 /**
  * @description: Delete file's all related data
- * @param cid -> To be deleted file cid
+ * @param cid (in) -> To be deleted file cid
  * @return: Status
  */
 crust_status_t ocall_ipfs_del_all(const char *cid)
