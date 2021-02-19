@@ -326,6 +326,7 @@ bool Chain::post_sworker_work_report(std::string work_report)
             else if (msg == "swork.IllegalWorkReportSig" || msg == "swork.IllegalFilesTransition" || msg == "swork.ABUpgradeFailed")
             {
                 p_log->err("Chain result: %s\n", res.body().c_str());
+                return false;
             }
             else
             {
