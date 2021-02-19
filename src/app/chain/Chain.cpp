@@ -307,23 +307,28 @@ bool Chain::post_sworker_work_report(std::string work_report)
         if (res.body().size() != 0)
         {
             json::JSON res_json = json::JSON::Load(res.body());
-            switch (res_json["message"].ToString())
+            std::string msg = res_json["message"].ToString();
+            if (msg == "swork.InvalidReportTime")
             {
-            case "swork.InvalidReportTime":
                 p_log->err("Chain result: %s. Please check the synchronization of the chain!\n", res.body().c_str());
                 return false;
-            case "swork.IllegalReporter":
+            } 
+            else if (msg == "swork.IllegalReporter")
+            {
                 p_log->err("Chain result: %s. The current account does not match the original account, please stop sworker and reconfigure!\n", res.body().c_str());
                 return false;
-            case "swork.OutdatedReporter":
+            }
+            else if (msg == "swork.OutdatedReporter")
+            {
                 p_log->err("Chain result: %s. The current sworker has expired, please shovel the data and run a new sworker!\n", res.body().c_str());
                 return false;
-            case "swork.IllegalWorkReportSig":
-            case "swork.IllegalFilesTransition":
-            case "swork.ABUpgradeFailed":
+            }
+            else if (msg == "swork.IllegalWorkReportSig" || msg == "swork.IllegalFilesTransition" || msg == "swork.ABUpgradeFailed")
+            {
                 p_log->err("Chain result: %s\n", res.body().c_str());
-                return false;
-            default:
+            }
+            else
+            {
                 p_log->err("Chain result: %s, wait 10s and try again\n", res.body().c_str());
             }
         }
