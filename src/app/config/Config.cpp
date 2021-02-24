@@ -36,6 +36,7 @@ Config::Config(std::string path)
     this->base_path = config_value["base_path"].ToString();
     this->srd_path = config_value["data_path"].ToString() + "/srd";
     this->file_path = config_value["data_path"].ToString() + "/file";
+    this->temp_path = config_value["data_path"].ToString() + "/../sworker_temp";
     this->db_path = this->base_path + "/db";
     this->base_url = config_value["base_url"].ToString();
   

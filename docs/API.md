@@ -346,7 +346,7 @@ Output (200, success):
 ```
 {
   "message" : "Same file 'xxx' is being sealed.",  
-  "status_code" : 200
+  "status_code" : 8013
 }
 ```
 
@@ -354,7 +354,7 @@ Output (200, success):
 ```
 {
   "message" : "Seal file 'xxx' successfully",  
-  "status_code" : 200
+  "status_code" : 0
 }
 ```
 
@@ -362,7 +362,7 @@ Output (200, success):
 ```
 {
   "message" : "This file 'xxx' has been sealed",  
-  "status_code" : 200
+  "status_code" : 8012
 }
 ```
 
@@ -370,7 +370,7 @@ Output (400, failed):
 ```
 {
   "message" : "Invalid cid!",  
-  "status_code" : 400
+  "status_code" : 11001
 }
 ```
 
@@ -378,7 +378,7 @@ Output (400, failed):
 ```
 {
   "message" : "Same file 'xxx' is being deleted.",  
-  "status_code" : 400
+  "status_code" : 8014
 }
 ```
 
@@ -386,7 +386,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Can't get block from ipfs",  
-  "status_code" : 500
+  "status_code" : 8008
 }
 ```
 
@@ -394,7 +394,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
-  "status_code" : 500
+  "status_code" : 4001
 }
 ```
 
@@ -402,7 +402,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
-  "status_code" : 500
+  "status_code" : 4038
 }
 ```
 
@@ -410,7 +410,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
-  "status_code" : 500
+  "status_code" : xxx
 }
 ```
 
@@ -418,7 +418,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
-  "status_code" : 500
+  "status_code" : 0
 }
 ```
 
@@ -426,7 +426,7 @@ Output (503, failed):
 ```
 {
   "message" : "Seal file 'xxx' stoped due to upgrading or exiting",  
-  "status_code" : 503
+  "status_code" : 10010
 }
 ```
 

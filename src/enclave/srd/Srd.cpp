@@ -19,7 +19,7 @@ crust_status_t save_file(const char *g_path, size_t index, sgx_sha256_hash_t has
 {
     std::string file_path = get_leaf_path(g_path, index, hash);
     crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD);
+    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_TEMP);
     return crust_status;
 }
 
@@ -34,7 +34,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
 {
     std::string file_path = get_m_hashs_file_path(g_path);
     crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD);
+    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_TEMP);
     return crust_status;
 }
 
@@ -130,7 +130,7 @@ void srd_increase()
 
     // ----- Generate srd file ----- //
     // Create directory
-    ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD);
+    ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
     if (CRUST_SUCCESS != crust_status)
     {
         return;
@@ -174,7 +174,7 @@ void srd_increase()
 
     // Change G path name
     std::string new_g_path = hexstring_safe(&g_out_hash256, HASH_LENGTH);
-    ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_SRD);
+    ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_TEMP, STORE_TYPE_SRD);
 
     // Get g hash
     uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);
@@ -283,7 +283,6 @@ void srd_remove_space(size_t change)
     // Delete srd files
     if (srd_del_hashs.size() > 0)
     {
-        log_info("Will delete %ldG srd space for user data. This is normal.\n", srd_del_hashs.size());
         for (auto hash : srd_del_hashs)
         {
             ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);

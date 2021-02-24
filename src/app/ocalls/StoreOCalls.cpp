@@ -19,6 +19,9 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
         case STORE_TYPE_FILE:
             r_path = Config::get_instance()->file_path + "/" + path;
             break;
+        case STORE_TYPE_TEMP:
+            r_path = Config::get_instance()->temp_path + "/" + path;
+            break;
         default:
             r_path = std::string(path);
     }
@@ -36,27 +39,12 @@ crust_status_t ocall_create_dir(const char *path, store_type_t type)
 {
     std::string r_path = get_real_path_by_type(path, type);
 
-    std::vector<std::string> entries;
-    boost::split(entries, r_path, boost::is_any_of("/"));
-    std::string cur_path = "";
-    if (r_path[0] == '/')
+    if (access(r_path.c_str(), 0) == -1)
     {
-        cur_path = "/";
-    }
-
-    for (auto entry : entries)
-    {
-        if (entry.compare("") == 0)
-            continue;
-
-        cur_path.append(entry).append("/");
-        if (access(cur_path.c_str(), 0) == -1)
+        if (system((std::string("mkdir -p ") + r_path).c_str()) == -1)
         {
-            if (mkdir(cur_path.c_str(), S_IRWXU) == -1)
-            {
-                p_log->err("Create directory:%s failed!No space or no privilege.\n", cur_path.c_str());
-                return CRUST_MKDIR_FAILED;
-            }
+            p_log->err("Create directory:%s failed! No space or no privilege.\n", r_path.c_str());
+            return CRUST_MKDIR_FAILED;
         }
     }
 
@@ -67,45 +55,26 @@ crust_status_t ocall_create_dir(const char *path, store_type_t type)
  * @description: ocall for renaming directory
  * @param old_path (in) -> the old path of directory
  * @param new_path (in) -> the new path of directory
- * @param type -> Storage type
+ * @param old_type -> Old path storage type
+ * @param new_type -> New path storage type
  * @return: Renaming result status
  */
-crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t type)
+crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t old_type, store_type_t new_type)
 {
-    std::string r_old_path = get_real_path_by_type(old_path, type);
-    std::string r_new_path = get_real_path_by_type(new_path, type);
+    std::string r_old_path = get_real_path_by_type(old_path, old_type);
+    std::string r_new_path = get_real_path_by_type(new_path, new_type);
 
     if (access(r_old_path.c_str(), 0) == -1)
-        return CRUST_RENAME_FILE_FAILED;
-
-    std::vector<std::string> old_path_entry;
-    std::vector<std::string> new_path_entry;
-    boost::split(old_path_entry, r_old_path, boost::is_any_of("/"));
-    boost::split(new_path_entry, r_new_path, boost::is_any_of("/"));
-
-    if (old_path_entry.size() != new_path_entry.size())
     {
-        p_log->err("entry size no equal!\n");
         return CRUST_RENAME_FILE_FAILED;
     }
 
-    size_t entry_size = old_path_entry.size();
-    for (size_t i = 0; i < entry_size; i++)
+    if (rename(r_old_path.c_str(), r_new_path.c_str()) == -1)
     {
-        if (i == entry_size - 1)
-        {
-            if (rename(r_old_path.c_str(), r_new_path.c_str()) == -1)
-            {
-                p_log->err("Rename file:%s to file:%s failed!\n", r_old_path.c_str(), r_new_path.c_str());
-                return CRUST_RENAME_FILE_FAILED;
-            }
-        }
-        else if (old_path_entry[i].compare(new_path_entry[i]) != 0)
-        {
-            p_log->err("entry not equal!\n");
-            return CRUST_RENAME_FILE_FAILED;
-        }
+        p_log->err("Rename file:%s to file:%s failed!\n", r_old_path.c_str(), r_new_path.c_str());
+        return CRUST_RENAME_FILE_FAILED;
     }
+        
 
     return CRUST_SUCCESS;
 }
@@ -145,7 +114,6 @@ crust_status_t ocall_save_file(const char *path, const unsigned char *data, size
 
     return crust_status;
 }
-
 
 /**
  * @description: Delete folder or file
