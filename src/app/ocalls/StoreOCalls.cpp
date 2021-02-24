@@ -16,8 +16,8 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
         case STORE_TYPE_SRD:
             r_path = Config::get_instance()->srd_path + "/" + path;
             break;
-        case STORE_TYPE_SRD:
-            r_path = Config::get_instance()->srd_path + "/" + path;
+        case STORE_TYPE_FILE:
+            r_path = Config::get_instance()->file_path + "/" + path;
             break;
         case STORE_TYPE_TEMP:
             r_path = Config::get_instance()->temp_path + "/" + path;
@@ -43,7 +43,7 @@ crust_status_t ocall_create_dir(const char *path, store_type_t type)
     {
         if (system((std::string("mkdir -p ") + r_path).c_str()) == -1)
         {
-            p_log->err("Create directory:%s failed! No space or no privilege.\n", cur_path.c_str());
+            p_log->err("Create directory:%s failed! No space or no privilege.\n", r_path.c_str());
             return CRUST_MKDIR_FAILED;
         }
     }
