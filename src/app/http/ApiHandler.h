@@ -825,7 +825,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     }
                 }
             }
-            ret_body[HTTP_STATUS_CODE] = stio(num_to_hexstring(crust_status), NULL, 16);
+            ret_body[HTTP_STATUS_CODE] = stoi(num_to_hexstring(crust_status), NULL, 10);
             ret_body[HTTP_MESSAGE] = ret_info;
             res.result(ret_code);
             res.body() = ret_body.dump();
