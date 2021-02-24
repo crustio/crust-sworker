@@ -283,7 +283,6 @@ void srd_remove_space(size_t change)
     // Delete srd files
     if (srd_del_hashs.size() > 0)
     {
-        log_info("Will delete %ldG srd space for user data. This is normal.\n", srd_del_hashs.size());
         for (auto hash : srd_del_hashs)
         {
             ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);

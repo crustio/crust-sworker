@@ -756,63 +756,71 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 sgx_status_t sgx_status = SGX_SUCCESS;
                 crust_status_t crust_status = CRUST_SUCCESS;
-                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str())))
+                if(!create_directory(p_config->file_path))
                 {
-                    ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                    ret_info = "Create file directory failed! No space or no privilege";
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 500;
-                
-                }
-                else if (CRUST_SUCCESS != crust_status)
-                {
-                    switch (crust_status)
-                    {
-                    case CRUST_SEAL_DATA_FAILED:
-                        ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 500;
-                        break;
-                    case CRUST_FILE_NUMBER_EXCEED:
-                        ret_info = "Seal file '" + cid + "' failed! No more file can be sealed! File number reachs the upper limit";
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 500;
-                        break;
-                    case CRUST_UPGRADE_IS_UPGRADING:
-                        ret_info = "Seal file '" + cid + "' stoped due to upgrading or exiting";
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 503;
-                        break;
-                    case CRUST_STORAGE_FILE_DUP:
-                        ret_info = "This file '" + cid + "' has been sealed";
-                        p_log->info("%s\n", ret_info.c_str());
-                        ret_code = 200;
-                        break;
-                    case CRUST_STORAGE_FILE_SEALING:
-                        ret_info = "Same file '" + cid + "' is being sealed.";
-                        p_log->info("%s\n", ret_info.c_str());
-                        ret_code = 200;
-                        break;
-                    case CRUST_STORAGE_FILE_DELETING:
-                        ret_info = "Same file '" + cid + "' is being deleted.";
-                        p_log->info("%s\n", ret_info.c_str());
-                        ret_code = 400;
-                        break;
-                    case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
-                        ret_info = "Seal file '" + cid + "' failed! Can't get block from ipfs";
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 500;
-                        break;
-                    default:
-                        ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 500;
-                    }
                 }
                 else
                 {
-                    ret_info = "Seal file '" + cid + "' successfully";
-                    p_log->info("%s\n", ret_info.c_str());
-                    ret_code = 200;
+                    if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str())))
+                    {
+                        ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                    }
+                    else if (CRUST_SUCCESS != crust_status)
+                    {
+                        switch (crust_status)
+                        {
+                        case CRUST_SEAL_DATA_FAILED:
+                            ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 500;
+                            break;
+                        case CRUST_FILE_NUMBER_EXCEED:
+                            ret_info = "Seal file '" + cid + "' failed! No more file can be sealed! File number reachs the upper limit";
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 500;
+                            break;
+                        case CRUST_UPGRADE_IS_UPGRADING:
+                            ret_info = "Seal file '" + cid + "' stoped due to upgrading or exiting";
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 503;
+                            break;
+                        case CRUST_STORAGE_FILE_DUP:
+                            ret_info = "This file '" + cid + "' has been sealed";
+                            p_log->info("%s\n", ret_info.c_str());
+                            ret_code = 200;
+                            break;
+                        case CRUST_STORAGE_FILE_SEALING:
+                            ret_info = "Same file '" + cid + "' is being sealed.";
+                            p_log->info("%s\n", ret_info.c_str());
+                            ret_code = 200;
+                            break;
+                        case CRUST_STORAGE_FILE_DELETING:
+                            ret_info = "Same file '" + cid + "' is being deleted.";
+                            p_log->info("%s\n", ret_info.c_str());
+                            ret_code = 400;
+                            break;
+                        case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
+                            ret_info = "Seal file '" + cid + "' failed! Can't get block from ipfs";
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 500;
+                            break;
+                        default:
+                            ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 500;
+                        }
+                    }
+                    else
+                    {
+                        ret_info = "Seal file '" + cid + "' successfully";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 200;
+                    }
                 }
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;
