@@ -740,6 +740,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             json::JSON ret_body;
             int ret_code = 400;
             std::string ret_info;
+            crust_status_t crust_status = CRUST_SUCCESS;
 
             // Parse paramters
             json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
@@ -750,17 +751,18 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 ret_info = "Invalid cid!";
                 p_log->err("%s\n", ret_info.c_str());
+                crust_status = CRUST_INVALID_HTTP_INPUT;
                 ret_code = 400;
             }
             else
             {
                 sgx_status_t sgx_status = SGX_SUCCESS;
-                crust_status_t crust_status = CRUST_SUCCESS;
                 if(!create_directory(p_config->file_path))
                 {
                     ret_info = "Create file directory failed! No space or no privilege";
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 500;
+                    crust_status = CRUST_MKDIR_FAILED;
                 }
                 else
                 {
@@ -823,7 +825,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     }
                 }
             }
-            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_STATUS_CODE] = stio(num_to_hexstring(crust_status), NULL, 16);
             ret_body[HTTP_MESSAGE] = ret_info;
             res.result(ret_code);
             res.body() = ret_body.dump();

@@ -20,9 +20,9 @@
 // Indicates maximal srd reserved space
 #define DEFAULT_SRD_RESERVED 50
 // Indicates default srd ratio
-#define SRD_RATIO_DEFAULT 0.7
+#define SRD_RATIO_DEFAULT 0.99
 // Srd ratio upper limit
-#define SRD_RATIO_UPPER 0.95
+#define SRD_RATIO_UPPER 0.99
 // Indicates srd upgrade timeout
 #define SRD_UPGRADE_TIMEOUT 20
 
