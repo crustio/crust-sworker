@@ -1,8 +1,8 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
+// For all
 #define SWORKER_VERSION "0.8.0"
-
 #define LEAF_SEPARATOR  "+leaf+"
 
 // For persistence
@@ -139,6 +139,7 @@ typedef enum _store_type_t {
     STORE_TYPE_REGULAR,
     STORE_TYPE_SRD,
     STORE_TYPE_FILE,
+    STORE_TYPE_TEMP,
 } store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */
