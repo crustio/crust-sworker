@@ -29,6 +29,7 @@
 #include "EntryNetwork.h"
 #include "Chain.h"
 #include "EnclaveDataTest.h"
+#include "ValidateTest.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -40,6 +41,8 @@ crust_status_t ocall_get_file_bench(const char *file_path, unsigned char **p_fil
 crust_status_t ocall_get_file_block(const char *file_path, unsigned char **p_file, size_t *len);
 crust_status_t ocall_upload_workreport_test(const char *work_report);
 crust_status_t ocall_srd_change_test(long change);
+void ocall_recall_validate_file_bench();
+void ocall_recall_validate_srd_bench();
 
 #if defined(__cplusplus)
 }

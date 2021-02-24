@@ -4,8 +4,8 @@
         "srd_size": 6,
         "srd_max_per_turn": 800,
         "file_arry": "1m 2m 4m 8m",
-        "srd_limit": 204800,
-        "file_limit": 200000,
+        "srd_limit": 512000,
+        "file_limit": 400000,
         "validate": {
             "srd_num": 20,
             "deleted_srd": 5,

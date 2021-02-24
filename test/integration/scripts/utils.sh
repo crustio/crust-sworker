@@ -161,16 +161,6 @@ function validate_srd()
     curl -s $baseurl/validate/srd
 }
 
-function validate_srd()
-{
-    curl -s $baseurl/validate/srd
-}
-
-function validate_srd_test()
-{
-    curl -s $baseurl/validate/srd_test
-}
-
 function validate_srd_bench()
 {
     curl -s $baseurl/validate/srd_bench
@@ -179,11 +169,6 @@ function validate_srd_bench()
 function validate_file()
 {
     curl -s $baseurl/validate/file
-}
-
-function validate_file_test()
-{
-    curl -s $baseurl/validate/file_real
 }
 
 function validate_file_bench()

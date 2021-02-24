@@ -19,10 +19,11 @@ void ecall_handle_report_result()
 
 void ecall_add_validate_proof()
 {
-    Workload::get_instance()->report_add_validated_proof();
+    Workload::get_instance()->report_add_validated_srd_proof();
+    Workload::get_instance()->report_add_validated_file_proof();
 }
 
-void ecall_validate_srd()
+void ecall_validate_srd_test()
 {
     validate_srd();
 }
@@ -32,12 +33,7 @@ void ecall_validate_srd_bench()
     validate_srd_bench();
 }
 
-void ecall_validate_srd_test()
-{
-    validate_srd_test();
-}
-
-void ecall_validate_file()
+void ecall_validate_file_test()
 {
     validate_meaningful_file();
 }
@@ -144,4 +140,14 @@ void ecall_srd_change_test(long change, bool real)
     }
 
     srd_change_test(change, real);
+}
+
+void ecall_validate_file_bench_real()
+{
+    validate_meaningful_file_bench_real();
+}
+
+void ecall_validate_srd_bench_real()
+{
+    validate_srd_bench_real();
 }

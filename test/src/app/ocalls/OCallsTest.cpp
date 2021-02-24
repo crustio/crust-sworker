@@ -104,3 +104,13 @@ crust_status_t ocall_upload_workreport_test(const char *work_report)
 
     return CRUST_SUCCESS;
 }
+
+void ocall_recall_validate_file_bench()
+{
+    validate_file_test();
+}
+
+void ocall_recall_validate_srd_bench()
+{
+    validate_srd_test();
+}

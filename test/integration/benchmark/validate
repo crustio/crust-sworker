@@ -40,7 +40,7 @@ cid=$(get_config ".benchmark|.cid1g")
 
 ### Seal file and validate
 hash=$(seal_by_cid $cid)
-step_num=1000
+step_num=5000
 cur_num=1000
 phase_file_num=20000
 while [ $cur_num -le $phase_file_num ]; do

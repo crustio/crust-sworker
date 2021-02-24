@@ -20,6 +20,8 @@
 #include "Srd.h"
 #include "Parameter.h"
 
+#define VALIDATE_PROOF_MAX_NUM 2
+
 // Show information
 std::map<char, std::string> g_file_status = {
     {FILE_STATUS_VALID, "valid"},
@@ -50,8 +52,9 @@ public:
     void restore_file(json::JSON file_json);
 
     // For report
-    void report_add_validated_proof();
-    void report_reduce_validated_proof();
+    void report_add_validated_srd_proof();
+    void report_add_validated_file_proof();
+    void report_reset_validated_proof();
     bool report_has_validated_proof();
     void set_report_file_flag(bool flag);
     bool get_report_file_flag();
@@ -161,8 +164,10 @@ private:
     size_t report_height = 0; // Identity report height, Used to check current block head out-of-date
     int restart_flag = 0;// Used to indicate whether it is the first report after restart
 
-    int validated_proof = 0; // Generating workreport will decrease this value, while validating will increase it
-    sgx_thread_mutex_t validated_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    int validated_srd_proof = 0; // Generating workreport will decrease this value, while validating will increase it
+    sgx_thread_mutex_t validated_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    int validated_file_proof = 0; // Generating workreport will decrease this value, while validating will increase it
+    sgx_thread_mutex_t validated_file_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
     bool is_upgrading = false; // Indicate if upgrade is doing
 

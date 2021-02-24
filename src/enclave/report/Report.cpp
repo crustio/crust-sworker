@@ -78,7 +78,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         wl->set_report_height(block_height);
         wl->reduce_restart_flag();
         wl->set_report_file_flag(true);
-        wl->report_reduce_validated_proof();
+        wl->report_reset_validated_proof();
     });
 
     if (wl->get_restart_flag())

@@ -72,6 +72,8 @@ private:
         {"Ecall_restore_from_upgrade", 0},
         {"Ecall_enable_upgrade", 0},
         {"Ecall_disable_upgrade", 0},
+        {"Ecall_validate_file", 0},
+        {"Ecall_validate_srd", 0},
         {"Ecall_seal_file", 1},
         {"Ecall_unseal_file", 1},
         {"Ecall_srd_decrease", 1},
