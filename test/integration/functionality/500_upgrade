@@ -25,7 +25,8 @@ trap 'success_exit' EXIT
 
 
 cd $testdir
-srd 200000 &
+srd 51200 &
+test_add_file 40000 &
 validate_add_proof &>/dev/null
 sleep 10
 ./bin/crust-sworker -c etc/Config.json --offline --debug --upgrade &>${sworkerlog}2 &

@@ -192,7 +192,7 @@ void validate_srd_real()
         {
             return;
         }
-        log_err("Get m hashs file(%s) failed.\n", g_hash.c_str());
+        log_err("Get srd(%s) metadata failed, please check your disk.\n", g_hash.c_str());
         deleted = true;
         return;
     }
@@ -217,7 +217,7 @@ void validate_srd_real()
     sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
     if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
     {
-        log_err("Wrong m hashs file(%s).\n", g_hash.c_str());
+        log_err("Wrong srd(%s) metadata.\n", g_hash.c_str());
         deleted = true;
         return;
     }
@@ -236,7 +236,7 @@ void validate_srd_real()
         {
             return;
         }
-        log_err("Get leaf file(%s) failed.\n", g_hash.c_str());
+        log_err("Get srd(%s) block failed.\n", g_hash.c_str());
         deleted = true;
         return;
     }
@@ -249,7 +249,7 @@ void validate_srd_real()
     sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
     if (memcmp(m_hashs + srd_block_index * HASH_LENGTH, leaf_hash, HASH_LENGTH) != 0)
     {
-        log_err("Wrong leaf data hash '%s'(file path:%s).\n", g_hash.c_str(), g_hash.c_str());
+        log_err("Wrong srd block data hash '%s'(file path:%s).\n", g_hash.c_str(), g_hash.c_str());
         deleted = true;
     }
 }
