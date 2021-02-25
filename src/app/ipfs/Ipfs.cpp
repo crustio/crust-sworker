@@ -77,7 +77,7 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
         switch (res_code)
         {
             case 404:
-                p_log->err("IPFS is offline! Please start it.\n");
+                //p_log->err("IPFS is offline! Please start it.\n");
                 break;
             case 500:
                 p_log->err("Get IPFS file block failed!\n");
@@ -160,7 +160,7 @@ bool Ipfs::del(std::string cid)
         switch (res_code)
         {
             case 404:
-                p_log->err("IPFS is offline! Please start it.\n");
+                //p_log->err("IPFS is offline! Please start it.\n");
                 break;
             case 500:
                 p_log->err("Cannot find IPFS file block!\n");

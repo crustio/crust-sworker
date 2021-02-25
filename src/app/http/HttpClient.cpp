@@ -337,7 +337,7 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
     }
     catch(std::exception const& e)
     {
-        p_log->debug("Http request error: %s\n", e.what());
+        res.body() = std::string("Http request error: ") + e.what();
         res.result(404);
         return res;
     }
