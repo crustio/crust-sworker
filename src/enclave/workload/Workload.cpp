@@ -616,37 +616,51 @@ bool Workload::get_restart_flag()
 }
 
 /**
- * @description: add validated proof
+ * @description: add validated srd proof
  */
-void Workload::report_add_validated_proof()
+void Workload::report_add_validated_srd_proof()
 {
-    sgx_thread_mutex_lock(&this->validated_mutex);
-    if (this->validated_proof >= 2)
+    sgx_thread_mutex_lock(&this->validated_srd_mutex);
+    if (this->validated_srd_proof >= VALIDATE_PROOF_MAX_NUM)
     {
-        this->validated_proof = 2;
+        this->validated_srd_proof = VALIDATE_PROOF_MAX_NUM;
     }
     else
     {
-        this->validated_proof++;
+        this->validated_srd_proof++;
     }
-    sgx_thread_mutex_unlock(&this->validated_mutex);
+    sgx_thread_mutex_unlock(&this->validated_srd_mutex);
 }
 
 /**
- * @description: reduce validated proof
+ * @description: add validated file proof
  */
-void Workload::report_reduce_validated_proof()
+void Workload::report_add_validated_file_proof()
 {
-    sgx_thread_mutex_lock(&this->validated_mutex);
-    if (this->validated_proof <= 0)
+    sgx_thread_mutex_lock(&this->validated_file_mutex);
+    if (this->validated_file_proof >= VALIDATE_PROOF_MAX_NUM)
     {
-        this->validated_proof = 0;
+        this->validated_file_proof = VALIDATE_PROOF_MAX_NUM;
     }
     else
     {
-        this->validated_proof--;
+        this->validated_file_proof++;
     }
-    sgx_thread_mutex_unlock(&this->validated_mutex);
+    sgx_thread_mutex_unlock(&this->validated_file_mutex);
+}
+
+/**
+ * @description: Reset validated proof
+ */
+void Workload::report_reset_validated_proof()
+{
+    sgx_thread_mutex_lock(&this->validated_srd_mutex);
+    this->validated_srd_proof = 0;
+    sgx_thread_mutex_unlock(&this->validated_srd_mutex);
+
+    sgx_thread_mutex_lock(&this->validated_file_mutex);
+    this->validated_file_proof = 0;
+    sgx_thread_mutex_unlock(&this->validated_file_mutex);
 }
 
 /**
@@ -655,9 +669,13 @@ void Workload::report_reduce_validated_proof()
  */
 bool Workload::report_has_validated_proof()
 {
-    sgx_thread_mutex_lock(&this->validated_mutex);
-    bool res = (this->validated_proof > 0);
-    sgx_thread_mutex_unlock(&this->validated_mutex);
+    sgx_thread_mutex_lock(&this->validated_srd_mutex);
+    bool res = (this->validated_srd_proof > 0);
+    sgx_thread_mutex_unlock(&this->validated_srd_mutex);
+
+    sgx_thread_mutex_lock(&this->validated_file_mutex);
+    res = (res && this->validated_file_proof > 0);
+    sgx_thread_mutex_unlock(&this->validated_file_mutex);
 
     return res;
 }

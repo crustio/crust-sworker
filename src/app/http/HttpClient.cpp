@@ -230,7 +230,7 @@ http::response<http::string_body> HttpClient::request_sync_ssl(http::verb method
 
         // Receive the HTTP response
         http::response_parser<http::string_body> parser;
-        parser.body_limit(HTTP_RECV_BODY_LIMIT);
+        parser.body_limit(HTTP_BODY_LIMIT);
         http::read(stream, buffer, parser);
         res = parser.get();
 
@@ -319,7 +319,7 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
 
         // Receive the HTTP response
         http::response_parser<http::string_body> parser;
-        parser.body_limit(HTTP_RECV_BODY_LIMIT);
+        parser.body_limit(HTTP_BODY_LIMIT);
         http::read(stream, buffer, parser);
         res = parser.get();
 
@@ -337,7 +337,7 @@ http::response<http::string_body> HttpClient::request_sync(http::verb method, st
     }
     catch(std::exception const& e)
     {
-        p_log->debug("Http request error: %s\n", e.what());
+        res.body() = std::string("Http request error: ") + e.what();
         res.result(404);
         return res;
     }

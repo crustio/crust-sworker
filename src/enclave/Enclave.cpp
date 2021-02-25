@@ -37,9 +37,6 @@ void ecall_main_loop()
         // ----- SRD ----- //
         srd_change();
 
-        // Add validated proof
-        wl->report_add_validated_proof();
-
         // Wait
         for (size_t i = 0; i < MAIN_LOOP_WAIT_TIME; i++)
         {
@@ -259,6 +256,22 @@ crust_status_t ecall_delete_file(const char *cid)
     crust_status_t ret = storage_delete_file(cid);
 
     return ret;
+}
+
+/**
+ * @description: Validate meaningful files
+ */
+void ecall_validate_file()
+{
+    validate_meaningful_file_real();
+}
+
+/**
+ * @description: Validate srd
+ */
+void ecall_validate_srd()
+{
+    validate_srd_real();
 }
 
 /************************************Upgrade****************************************/

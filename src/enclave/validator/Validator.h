@@ -22,6 +22,8 @@
 #include "Storage.h"
 
 void validate_srd();
+void validate_srd_real();
 void validate_meaningful_file();
+void validate_meaningful_file_real();
 
 #endif /* !_CRUST_VALIDATOR_H_ */

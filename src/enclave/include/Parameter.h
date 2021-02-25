@@ -36,7 +36,7 @@
 // Old status
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 400000
-#define FILE_CAL_BUFFER_SIZE 8388608
+#define FILE_CAL_BUFFER_SIZE 7340032
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
@@ -96,7 +96,7 @@
 #define SRD_NUMBER_UPPER_LIMIT 512000 /* 500x1024G */
 
 // For validator
-#define SRD_VALIDATE_RATE 0.02
+#define SRD_VALIDATE_RATE 0.005
 #define SRD_VALIDATE_MIN_NUM 64
 /* Meaningful disk file verification ratio */
 #define MEANINGFUL_VALIDATE_RATE 0.02

@@ -32,7 +32,7 @@ sgx_status_t Ecall_add_validate_proof(sgx_enclave_id_t eid)
     return ret;
 }
 
-sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid)
+sgx_status_t Ecall_validate_srd_test(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -40,7 +40,7 @@ sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid)
         return ret;
     }
 
-    ret = ecall_validate_srd(eid);
+    ret = ecall_validate_srd_test(eid);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -62,7 +62,7 @@ sgx_status_t Ecall_validate_srd_bench(sgx_enclave_id_t eid)
     return ret;
 }
 
-sgx_status_t Ecall_validate_srd_test(sgx_enclave_id_t eid)
+sgx_status_t Ecall_validate_file_test(sgx_enclave_id_t eid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -70,22 +70,7 @@ sgx_status_t Ecall_validate_srd_test(sgx_enclave_id_t eid)
         return ret;
     }
 
-    ret = ecall_validate_srd_test(eid);
-
-    eq->free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_validate_file(eid);
+    ret = ecall_validate_file_test(eid);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -266,6 +251,36 @@ sgx_status_t Ecall_srd_change_test(sgx_enclave_id_t eid, long change, bool real)
     }
 
     ret = ecall_srd_change_test(eid, change, real);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+sgx_status_t Ecall_validate_file_bench_real(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_validate_file_bench_real(eid);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+sgx_status_t Ecall_validate_srd_bench_real(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_validate_srd_bench_real(eid);
 
     eq->free_enclave(__FUNCTION__);
 

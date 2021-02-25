@@ -26,6 +26,7 @@
 #include "DataBase.h"
 #include "EntryNetwork.h"
 #include "Chain.h"
+#include "Validator.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -61,6 +62,9 @@ extern "C"
     crust_status_t ocall_upload_workreport(const char *work_report);
     crust_status_t ocall_upload_identity(const char *id);
     crust_status_t ocall_entry_network();
+
+    void ocall_recall_validate_file();
+    void ocall_recall_validate_srd();
 
 #if defined(__cplusplus)
 }

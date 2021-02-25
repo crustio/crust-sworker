@@ -15,10 +15,9 @@ enclave {
         public void ecall_srd_increase_test();
         public size_t ecall_srd_decrease_test(size_t change);  
         public void ecall_add_validate_proof();
-		public void ecall_validate_srd();
-		public void ecall_validate_srd_bench();
 		public void ecall_validate_srd_test();
-		public void ecall_validate_file();
+		public void ecall_validate_srd_bench();
+		public void ecall_validate_file_test();
 		public void ecall_validate_file_bench();
 		public void ecall_store_metadata();
         public void ecall_handle_report_result();
@@ -33,6 +32,9 @@ enclave {
         public crust_status_t ecall_get_file_info([in, string] const char *data);
 
         public void ecall_srd_change_test(long change, bool real);
+
+        public void ecall_validate_file_bench_real();
+        public void ecall_validate_srd_bench_real();
     };
 
     untrusted {
@@ -42,5 +44,8 @@ enclave {
         crust_status_t ocall_upload_workreport_test([in, string] const char *work_report);
         crust_status_t ocall_srd_change_test(long change)
             allow(ecall_srd_increase_test, ecall_srd_decrease_test, ecall_change_srd_task);
+
+        void ocall_recall_validate_file_bench();
+        void ocall_recall_validate_srd_bench();
     };
 };

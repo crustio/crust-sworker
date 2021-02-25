@@ -25,6 +25,7 @@
 
 #include "SgxSupport.h"
 #include "ECalls.h"
+#include "ECallsTest.h"
 #include "Config.h"
 #include "FormatUtils.h"
 #include "Common.h"

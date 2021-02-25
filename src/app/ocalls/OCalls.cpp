@@ -330,3 +330,19 @@ void ocall_store_file_info(const char* cid, const char *data)
 {
     EnclaveData::get_instance()->add_sealed_file_info(cid, data);
 }
+
+/**
+ * @description: Recall validate meaningful files
+ */
+void ocall_recall_validate_file()
+{
+    Validator::get_instance()->validate_file();
+}
+
+/**
+ * @description: Recall validate srd
+ */
+void ocall_recall_validate_srd()
+{
+    Validator::get_instance()->validate_srd();
+}

@@ -423,6 +423,46 @@ sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, 
 }
 
 /**
+ * @description: Validate meaningful files
+ * @param eid -> Enclave id
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_validate_file(eid);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: Validate srd
+ * @param eid -> Enclave id
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_validate_srd(eid);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
  * @description: Disable upgrade
  * @param eid -> Enclave id
  * @return: Invoking ecall return status

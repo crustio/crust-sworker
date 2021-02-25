@@ -18,8 +18,6 @@
 #include "Config.h"
 #include "Log.h"
 
-#define HTTP_RECV_BODY_LIMIT 104857600
-
 typedef enum _request_type_t
 {
     HTTP_REQ_SECURE,
