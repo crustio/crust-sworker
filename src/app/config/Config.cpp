@@ -13,23 +13,22 @@ Config *Config::get_instance()
 {
     if (Config::config == NULL)
     {
-        Config::config = new Config(config_file_path);
-    }
-
-    if (Config::config->ipfs_url.compare("") == 0)
-    {
-        crust::Log::get_instance()->err("Please set ipfs url!\n");
-        Config::config = NULL;
+        Config::config = new Config();
+        if (!Config::config->init(config_file_path))
+        {
+            delete Config::config;
+            return NULL;
+        }
     }
 
     return Config::config;
 }
 
 /**
- * @description: constructor
+ * @description: Initialze config
  * @param path -> configurations file path 
  */
-Config::Config(std::string path)
+bool Config::init(std::string path)
 {
     /* Read user configurations from file */
     std::ifstream config_ifs(path);
@@ -51,6 +50,11 @@ Config::Config(std::string path)
 
     // storage configurations
     this->ipfs_url = config_value["ipfs_url"].ToString();
+    if (this->ipfs_url.compare("") == 0)
+    {
+        crust::Log::get_instance()->err("Please set ipfs url in configure file!\n");
+        return false;
+    }
 
     // crust chain configurations
     this->chain_api_base_url = config_value["chain"]["base_url"].ToString();
@@ -64,6 +68,8 @@ Config::Config(std::string path)
     std::string backup_temp = config_value["chain"]["backup"].ToString();
     remove_chars_from_string(backup_temp, "\\");
     this->chain_backup = backup_temp;
+
+    return true;
 }
 
 /**

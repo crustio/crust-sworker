@@ -178,7 +178,7 @@ void srd_increase()
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), new_g_path.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir, STORE_TYPE_TEMP);
+        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
         if (CRUST_SUCCESS != crust_status)
         {
             log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());

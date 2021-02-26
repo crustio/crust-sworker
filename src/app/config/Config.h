@@ -66,8 +66,9 @@ public:
     double get_srd_ratio();
 
 private:
-    Config(std::string path);
+    Config() {}
     Config(const Config &);
+    bool init(std::string path);
     Config& operator = (const Config &);
     double srd_ratio;
     std::mutex srd_ratio_mutex;
