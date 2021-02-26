@@ -7,6 +7,7 @@ Ipfs *Ipfs::ipfs = NULL;
 const std::string block_get_timeout = "1s";
 const std::string cat_timeout = "6s";
 const std::string add_timeout = "600s";
+const std::string ipfs_url_default = "http://0.0.0.0:5001/api/v0";
 
 /**
  * @desination: single instance class function to get instance
@@ -16,7 +17,13 @@ Ipfs *Ipfs::get_instance()
 {
     if (Ipfs::ipfs == NULL)
     {
-        Ipfs::ipfs = new Ipfs(Config::get_instance()->ipfs_url);
+        std::string ipfs_url = Config::get_instance()->ipfs_url;
+        if (ipfs_url.compare("") == 0)
+        {
+            ipfs_url = ipfs_url_default;
+            p_log->info("No ipfs url indicated, use default:%s\n", ipfs_url.c_str());
+        }
+        Ipfs::ipfs = new Ipfs(ipfs_url);
     }
 
     return Ipfs::ipfs;
