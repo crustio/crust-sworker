@@ -42,6 +42,7 @@ extern "C"
     void replace(std::string &data, std::string org_str, std::string det_str);
     void remove_char(std::string &data, char c);
     void srand_string(std::string seed);
+    void print_logo(const char *logo, const char *color);
     void print_attention();
     bool sleep_interval(uint32_t time, std::function<bool()> func);
     std::string float_to_string(double num);

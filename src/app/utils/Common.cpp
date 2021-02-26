@@ -289,6 +289,21 @@ void srand_string(std::string seed)
 }
 
 /**
+ * @description: Print logo
+ * @param logo -> Logo image
+ * @param color -> Logo color
+ */
+void print_logo(const char *logo, const char *color)
+{
+    std::string gap = std::string(PRINT_GAP, ' ');
+    std::string logo_str(logo);
+    replace(logo_str, "%", "\\");
+    replace(logo_str, "\n", "\n" + gap);
+    logo_str = color + gap + logo_str + NC;
+    printf("\n%s\n", logo_str.c_str());
+}
+
+/**
  * @description: Print attention logo
  */
 void print_attention()
