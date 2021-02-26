@@ -175,6 +175,16 @@ void srd_increase()
     // Change G path name
     std::string new_g_path = hexstring_safe(&g_out_hash256, HASH_LENGTH);
     ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_TEMP, STORE_TYPE_SRD);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), new_g_path.c_str());
+        ocall_delete_folder_or_file(&crust_status, tmp_dir, STORE_TYPE_TEMP);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+        }
+        return;
+    }
 
     // Get g hash
     uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);
