@@ -16,6 +16,12 @@ Config *Config::get_instance()
         Config::config = new Config(config_file_path);
     }
 
+    if (Config::config->ipfs_url.compare("") == 0)
+    {
+        crust::Log::get_instance()->err("Please set ipfs url!\n");
+        Config::config = NULL;
+    }
+
     return Config::config;
 }
 

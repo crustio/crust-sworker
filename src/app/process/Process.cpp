@@ -9,7 +9,7 @@ bool start_task(task_func_t func);
 bool restore_tasks();
 
 // Global EID shared by multiple threads
-sgx_enclave_id_t global_eid;
+sgx_enclave_id_t global_eid = 0;
 // Pointor to configure instance
 Config *p_config = NULL;
 // Map to record specific task
@@ -749,7 +749,10 @@ cleanup:
     // Destroy enclave
     // TODO: Fix me, why destory enclave leads to coredump
     p_log->info("Destroy enclave for exit...\n");
-    sgx_destroy_enclave(global_eid);
+    if (global_eid != 0)
+    {
+        sgx_destroy_enclave(global_eid);
+    }
 
     return return_status;
 }
