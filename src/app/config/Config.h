@@ -30,7 +30,7 @@
 #endif
 #define IAS_FLAGS 0
 #define IAS_API_DEF_VERSION 3
-#define SRD_THREAD_MAX_NUM 16
+#define SRD_THREAD_MAX_NUM 8
 
 class Config
 {

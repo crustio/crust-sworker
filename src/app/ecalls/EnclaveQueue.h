@@ -80,7 +80,7 @@ private:
         {"Ecall_srd_remove_space", 1},
         {"Ecall_change_srd_task", 1},
         {"Ecall_srd_increase", 2},
-        {"Ecall_id_get_info", 3},
+        {"Ecall_id_get_info", 2},
         {"Ecall_get_workload", 3},
     };
     // Mapping of Enclave task to its block tasks, current task cannot run when there exists its block task
