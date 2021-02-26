@@ -347,6 +347,8 @@ void upgrade_try_complete()
         p_log->err("Please check if port:%d has been used. If it is being used, stop related process!\n", urlendpoint.port);
         sleep(10);
     }
+
+    print_logo(UPGRADE_SUCCESS_LOGO, HGREEN);
 }
 
 /**
