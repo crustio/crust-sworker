@@ -26,7 +26,8 @@ Config *Config::get_instance()
 
 /**
  * @description: Initialze config
- * @param path -> configurations file path 
+ * @param path -> Configure file path 
+ * @return: Initialize result
  */
 bool Config::init(std::string path)
 {
@@ -34,40 +35,92 @@ bool Config::init(std::string path)
     std::ifstream config_ifs(path);
     std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
 
-    /* Fill configurations */
+    // Fill configurations
     json::JSON config_value = json::JSON::Load(config_str);
 
+    crust::Log *p_log = crust::Log::get_instance();
     // Base configurations
     this->base_path = config_value["base_path"].ToString();
-    this->srd_path = config_value["data_path"].ToString() + "/srd";
-    this->file_path = config_value["data_path"].ToString() + "/file";
-    this->temp_path = config_value["data_path"].ToString() + "/../sworker_temp";
+    if (this->base_path.compare("") == 0)
+    {
+        p_log->err("Please configure 'base_path'\n");
+        return false;
+    }
     this->db_path = this->base_path + "/db";
+
+    // Set data_path related
+    std::string data_path = config_value["data_path"].ToString();
+    if (data_path.compare("") == 0)
+    {
+        p_log->err("Please configure 'data_path'\n");
+        return false;
+    }
+    this->srd_path = data_path + "/srd";
+    this->file_path = data_path + "/file";
+    this->temp_path = data_path + "/../sworker_temp";
+
+    // Set base url
     this->base_url = config_value["base_url"].ToString();
+    if (this->base_url.compare("") == 0)
+    {
+        p_log->err("Please configure 'base_url'\n");
+        return false;
+    }
   
+    // Set srd related
     this->srd_thread_num = std::min(omp_get_num_procs() * 2, SRD_THREAD_MAX_NUM);
     this->srd_ratio = SRD_RATIO_DEFAULT;
 
-    // storage configurations
+    // Set storage configure related
     this->ipfs_url = config_value["ipfs_url"].ToString();
     if (this->ipfs_url.compare("") == 0)
     {
-        crust::Log::get_instance()->err("Please set ipfs url in configure file!\n");
+        p_log->err("Please configure 'ipfs_url'!\n");
         return false;
     }
 
-    // crust chain configurations
+    // ----- Crust chain configure ----- //
+    // Base url
     this->chain_api_base_url = config_value["chain"]["base_url"].ToString();
+    if (this->chain_api_base_url.compare("") == 0)
+    {
+        p_log->err("Please configure 'chain base_url'!\n");
+        return false;
+    }
+    // Address
     this->chain_address = config_value["chain"]["address"].ToString();
+    if (this->chain_address.compare("") == 0)
+    {
+        p_log->err("Please configure 'chain address'!\n");
+        return false;
+    }
+    // Account id
     this->chain_account_id = config_value["chain"]["account_id"].ToString();
+    if (this->chain_account_id.compare("") == 0)
+    {
+        p_log->err("Please configure 'chain account_id'!\n");
+        return false;
+    }
     if (this->chain_account_id.find("0x") != this->chain_account_id.npos)
     {
         this->chain_account_id.erase(0, 2);
     }
+    // Password
     this->chain_password = config_value["chain"]["password"].ToString();
+    if (this->chain_password.compare("") == 0)
+    {
+        p_log->err("Please configure 'chain password'!\n");
+        return false;
+    }
+    // Backup
     std::string backup_temp = config_value["chain"]["backup"].ToString();
     remove_chars_from_string(backup_temp, "\\");
     this->chain_backup = backup_temp;
+    if (this->chain_backup.compare("") == 0)
+    {
+        p_log->err("Please configure 'chain backup'!\n");
+        return false;
+    }
 
     return true;
 }
