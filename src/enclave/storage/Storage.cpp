@@ -52,6 +52,7 @@ crust_status_t storage_seal_file(const char *cid)
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
             }
         }
+        sl.unlock();
         wl->decrease_file_sealing_count();
     });
 
