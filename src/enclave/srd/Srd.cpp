@@ -162,12 +162,13 @@ void srd_increase()
         crust_status = save_file(tmp_dir.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Save srd file failed!\n");
+            log_err("Save srd file(%s) failed!\n", tmp_dir.c_str());
             ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
             if (CRUST_SUCCESS != crust_status)
             {
                 log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
             }
+            free(p_sealed_data);
             return;
         }
 
@@ -183,7 +184,7 @@ void srd_increase()
     free(hashs);
     if (CRUST_SUCCESS != crust_status)
     {
-        log_err("Save srd metadata failed!\n");
+        log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());
         ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
         if (CRUST_SUCCESS != crust_status)
         {
