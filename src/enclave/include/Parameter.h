@@ -139,7 +139,8 @@ typedef enum _store_type_t {
     STORE_TYPE_REGULAR,
     STORE_TYPE_SRD,
     STORE_TYPE_FILE,
-    STORE_TYPE_TEMP,
+    STORE_TYPE_SRD_TEMP,
+    STORE_TYPE_FILE_TEMP,
 } store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

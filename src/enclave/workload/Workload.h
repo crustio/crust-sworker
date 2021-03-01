@@ -138,6 +138,9 @@ public:
     void add_sealed_file(json::JSON file, size_t pos);
     void del_sealed_file(std::string cid);
     void del_sealed_file(size_t pos);
+    size_t get_file_sealing_count();
+    void increase_file_sealing_count();
+    void decrease_file_sealing_count();
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_spec_info()
@@ -185,6 +188,9 @@ private:
     // file_del_cid_s stores deleted file cid, if this file has been validated to lost, ignore this message
     std::set<std::string> file_del_cid_s;
     sgx_thread_mutex_t file_del_idx_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Deleted srd mutex
+    // File sealing count
+    size_t file_sealing_count;
+    sgx_thread_mutex_t file_sealing_count_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 };
 
 #endif /* !_CRUST_WORKLOAD_H_ */
