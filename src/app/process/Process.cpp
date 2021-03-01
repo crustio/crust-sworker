@@ -9,7 +9,7 @@ bool start_task(task_func_t func);
 bool restore_tasks();
 
 // Global EID shared by multiple threads
-sgx_enclave_id_t global_eid;
+sgx_enclave_id_t global_eid = 0;
 // Pointor to configure instance
 Config *p_config = NULL;
 // Map to record specific task
@@ -447,6 +447,10 @@ int process_run()
     std::string srd_ratio_str;
     EnclaveData *ed = EnclaveData::get_instance();
     crust::DataBase *db = NULL;
+    bool is_restart = false;
+    bool has_recover_option = false;
+    json::JSON wl_json;
+    std::string wl_str;
     p_log->info("WorkerPID = %d\n", worker_pid);
 
     // Init conifigure
@@ -549,7 +553,8 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
+            is_restart = true;
+            wl_str = ed->gen_workload();
 
             if (!offline_chain_mode)
             {
@@ -597,7 +602,6 @@ entry_network_flag:
                     p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
                 }
             }
-            p_log->info("Restore enclave data successfully, sworker is running now.\n");
         }
     }
     db = crust::DataBase::get_instance();
@@ -609,7 +613,15 @@ entry_network_flag:
         double srd_ratio = 0.0;
         sstream >> srd_ratio;
         p_config->set_srd_ratio(srd_ratio);
-        p_log->info("Recover user defined srd ratio:%s successfully!\n", float_to_string(srd_ratio).c_str());
+        if (is_restart)
+        {
+            if (wl_json.size() <= 0)
+            {
+                wl_json = json::JSON::Load(wl_str);
+            }
+            wl_json[WL_SRD][WL_SRD_RATIO] = srd_ratio;
+        }
+        has_recover_option = true;
     }
 
     // Get srd remaining task
@@ -619,6 +631,15 @@ entry_network_flag:
         size_t srd_task_remain = 0;
         sstream >> srd_task_remain;
         srd_task = std::max(srd_task, srd_task_remain);
+        if (is_restart)
+        {
+            if (wl_json.size() <= 0)
+            {
+                wl_json = json::JSON::Load(wl_str);
+            }
+            wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = srd_task;
+        }
+        has_recover_option = true;
     }
 
     // Restore or add srd task
@@ -643,6 +664,49 @@ entry_network_flag:
                 p_log->info("Unexpected error has occurred!\n");
             }
         }
+    }
+
+    // Print recovered workload
+    if (is_restart)
+    {
+        if (has_recover_option)
+        {
+            std::string srd_info;
+            srd_info.append("{\n")
+                    .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
+                    .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
+                    .append("\"" WL_SRD_RATIO "\" : ").append(float_to_string(wl_json[WL_SRD][WL_SRD_RATIO].ToFloat())).append(",\n")
+                    .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
+                    .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_AVAILABLE].ToInt())).append(",\n")
+                    .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_VOLUME].ToInt())).append("\n")
+                    .append("}");
+            // Get file info
+            json::JSON file_info = wl_json[WL_FILES];
+            json::JSON n_file_info;
+            char buf[128];
+            int space_num = 0;
+            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+            {
+                space_num = std::max(space_num, (int)it->first.size());
+            }
+            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+            {
+                memset(buf, 0, sizeof(buf));
+                sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
+                        std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
+                n_file_info[it->first] = std::string(buf);
+            }
+            wl_json[WL_SRD] = srd_info;
+            wl_json[WL_FILES] = n_file_info;
+            wl_str = wl_json.dump();
+            replace(wl_str, "\"{", "{");
+            replace(wl_str, ": \" ", ":  ");
+            replace(wl_str, "}\"", "}");
+            replace(wl_str, "\\n", "\n");
+            remove_char(wl_str, '\\');
+        }
+        p_log->info("Workload information:\n%s\n", wl_str.c_str());
+        p_log->info("Restore enclave data successfully, sworker is running now.\n");
     }
 
     // Restore sealed file information
@@ -749,7 +813,10 @@ cleanup:
     // Destroy enclave
     // TODO: Fix me, why destory enclave leads to coredump
     p_log->info("Destroy enclave for exit...\n");
-    sgx_destroy_enclave(global_eid);
+    if (global_eid != 0)
+    {
+        sgx_destroy_enclave(global_eid);
+    }
 
     return return_status;
 }

@@ -159,7 +159,18 @@ void srd_increase()
             hashs[i * HASH_LENGTH + j] = out_hash256[j];
         }
 
-        save_file(tmp_dir.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH);
+        crust_status = save_file(tmp_dir.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            log_err("Save srd file(%s) failed!\n", tmp_dir.c_str());
+            ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+            }
+            free(p_sealed_data);
+            return;
+        }
 
         free(p_sealed_data);
         p_sealed_data = NULL;
@@ -169,12 +180,32 @@ void srd_increase()
     sgx_sha256_hash_t g_out_hash256;
     sgx_sha256_msg(hashs, SRD_RAND_DATA_NUM * HASH_LENGTH, &g_out_hash256);
 
-    save_m_hashs_file(tmp_dir.c_str(), hashs, SRD_RAND_DATA_NUM * HASH_LENGTH);
+    crust_status = save_m_hashs_file(tmp_dir.c_str(), hashs, SRD_RAND_DATA_NUM * HASH_LENGTH);
     free(hashs);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());
+        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+        }
+        return;
+    }
 
     // Change G path name
     std::string new_g_path = hexstring_safe(&g_out_hash256, HASH_LENGTH);
     ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_TEMP, STORE_TYPE_SRD);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), new_g_path.c_str());
+        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+        }
+        return;
+    }
 
     // Get g hash
     uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);

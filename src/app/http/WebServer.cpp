@@ -814,7 +814,10 @@ void WebServer::set_api_handler(ApiHandler *api_handler)
 
 void stop_webservice(void)
 {
-    p_ioc->stop();
+    if (p_ioc != NULL)
+    {
+        p_ioc->stop();
+    }
 }
 
 void start_webservice(void)

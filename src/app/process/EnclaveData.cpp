@@ -324,7 +324,7 @@ std::string EnclaveData::gen_workload()
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     // Get srd info
-    if (SGX_SUCCESS != Ecall_get_workload(global_eid))
+    if (SGX_SUCCESS != (sgx_status = Ecall_get_workload(global_eid)))
     {
         p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
     }
@@ -345,7 +345,7 @@ std::string EnclaveData::gen_workload()
             .append("}");
     wl_json[WL_SRD] = srd_info;
     // Get file info
-    json::JSON file_info = wl_json["files"];
+    json::JSON file_info = wl_json[WL_FILES];
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
@@ -361,7 +361,7 @@ std::string EnclaveData::gen_workload()
         n_file_info[it->first] = std::string(buf);
     }
 
-    wl_json["files"] = n_file_info;
+    wl_json[WL_FILES] = n_file_info;
     std::string wl_str = wl_json.dump();
     replace(wl_str, "\"{", "{");
     replace(wl_str, ": \" ", ":  ");

@@ -435,15 +435,15 @@ void validate_meaningful_file_real()
         {
             // Get current validate files size
             sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
-            size_t tmp_validate_files_m = g_validate_files_m.size();
+            size_t tmp_validate_files_m_num = g_validate_files_m.size();
             sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
             // Increase validated files number
             sgx_thread_mutex_lock(&g_validated_files_num_mutex);
             if (service_unavailable)
             {
-                if (g_validated_files_num < tmp_validate_files_m)
+                if (g_validated_files_num < tmp_validate_files_m_num)
                 {
-                    g_validated_files_num = tmp_validate_files_m;
+                    g_validated_files_num = tmp_validate_files_m_num;
                     wl->set_report_file_flag(false);
                     log_err("IPFS is offline! Please start it.\n");
                 }
