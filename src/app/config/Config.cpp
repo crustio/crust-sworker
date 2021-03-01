@@ -43,7 +43,7 @@ bool Config::init(std::string path)
     this->base_path = config_value["base_path"].ToString();
     if (this->base_path.compare("") == 0)
     {
-        p_log->err("Please configure 'base_path'\n");
+        p_log->err("Please configure 'base_path'!\n");
         return false;
     }
     this->db_path = this->base_path + "/db";
@@ -52,7 +52,7 @@ bool Config::init(std::string path)
     std::string data_path = config_value["data_path"].ToString();
     if (data_path.compare("") == 0)
     {
-        p_log->err("Please configure 'data_path'\n");
+        p_log->err("Please configure 'data_path'!\n");
         return false;
     }
     this->srd_path = data_path + "/srd";
@@ -63,7 +63,7 @@ bool Config::init(std::string path)
     this->base_url = config_value["base_url"].ToString();
     if (this->base_url.compare("") == 0)
     {
-        p_log->err("Please configure 'base_url'\n");
+        p_log->err("Please configure 'base_url'!\n");
         return false;
     }
   
