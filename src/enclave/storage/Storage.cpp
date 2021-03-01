@@ -73,10 +73,13 @@ crust_status_t storage_seal_file(const char *cid)
         return crust_status;
     }
 
-    if (wl->get_file_sealing_count() == 1)
+    sgx_thread_mutex_lock(&wl->file_sealing_count_mutex);
+    if (wl->file_sealing_count == 1)
     {
         ocall_delete_folder_or_file(&crust_status, "", STORE_TYPE_FILE_TEMP);
     }
+    sgx_thread_mutex_unlock(&wl->file_sealing_count_mutex);
+    
 
     std::string cid_str = std::string(cid, CID_LENGTH);
     std::string tree_str = tree_json.dump();
