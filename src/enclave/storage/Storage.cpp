@@ -69,11 +69,11 @@ crust_status_t storage_seal_file(const char *cid)
     ocall_rename_dir(&crust_status, cid, cid, STORE_TYPE_FILE_TEMP, STORE_TYPE_FILE);
     if (CRUST_SUCCESS != crust_status)
     {
-        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE_TEMP)
+        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE_TEMP);
         return crust_status;
     }
 
-    if (wl->get_file_sealing_count() == 0)
+    if (wl->get_file_sealing_count() == 1)
     {
         ocall_delete_folder_or_file(&crust_status, "", STORE_TYPE_FILE_TEMP);
     }
