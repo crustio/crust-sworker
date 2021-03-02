@@ -19,7 +19,7 @@ crust_status_t save_file(const char *g_path, size_t index, sgx_sha256_hash_t has
 {
     std::string file_path = get_leaf_path(g_path, index, hash);
     crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_TEMP);
+    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD_TEMP);
     return crust_status;
 }
 
@@ -34,7 +34,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
 {
     std::string file_path = get_m_hashs_file_path(g_path);
     crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_TEMP);
+    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD_TEMP);
     return crust_status;
 }
 
@@ -81,6 +81,8 @@ void srd_change()
             g_srd_task = 0;
             sgx_thread_mutex_unlock(&g_srd_task_mutex);
         }
+
+        ocall_delete_folder_or_file(&crust_status, "", STORE_TYPE_SRD_TEMP);
     }
 
     // Update srd info
@@ -130,7 +132,7 @@ void srd_increase()
 
     // ----- Generate srd file ----- //
     // Create directory
-    ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+    ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
     if (CRUST_SUCCESS != crust_status)
     {
         return;
@@ -163,7 +165,7 @@ void srd_increase()
         if (CRUST_SUCCESS != crust_status)
         {
             log_err("Save srd file(%s) failed!\n", tmp_dir.c_str());
-            ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+            ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
             if (CRUST_SUCCESS != crust_status)
             {
                 log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
@@ -185,7 +187,7 @@ void srd_increase()
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
         if (CRUST_SUCCESS != crust_status)
         {
             log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
@@ -195,11 +197,11 @@ void srd_increase()
 
     // Change G path name
     std::string new_g_path = hexstring_safe(&g_out_hash256, HASH_LENGTH);
-    ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_TEMP, STORE_TYPE_SRD);
+    ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_SRD_TEMP, STORE_TYPE_SRD);
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), new_g_path.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_TEMP);
+        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
         if (CRUST_SUCCESS != crust_status)
         {
             log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());

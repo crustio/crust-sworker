@@ -19,8 +19,11 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
         case STORE_TYPE_FILE:
             r_path = Config::get_instance()->file_path + "/" + path;
             break;
-        case STORE_TYPE_TEMP:
-            r_path = Config::get_instance()->temp_path + "/" + path;
+        case STORE_TYPE_SRD_TEMP:
+            r_path = Config::get_instance()->temp_srd_path + "/" + path;
+            break;
+        case STORE_TYPE_FILE_TEMP:
+            r_path = Config::get_instance()->temp_file_path + "/" + path;
             break;
         default:
             r_path = std::string(path);

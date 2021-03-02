@@ -57,7 +57,8 @@ bool Config::init(std::string path)
     }
     this->srd_path = data_path + "/srd";
     this->file_path = data_path + "/file";
-    this->temp_path = data_path + "/../sworker_temp";
+    this->temp_srd_path = data_path + "/../sworker_srd_temp";
+    this->temp_file_path = data_path + "/../sworker_file_temp";
 
     // Set base url
     this->base_url = config_value["base_url"].ToString();

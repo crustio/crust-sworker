@@ -39,6 +39,8 @@ crust_status_t storage_seal_file(const char *cid)
     {
         return crust_status;
     }
+    
+    wl->increase_file_sealing_count();
     Defer defer_del_failed([&cid, &wl](void) {
         SafeLock sl(wl->file_mutex);
         sl.lock();
@@ -50,6 +52,8 @@ crust_status_t storage_seal_file(const char *cid)
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
             }
         }
+        sl.unlock();
+        wl->decrease_file_sealing_count();
     });
 
     // Do seal file
@@ -63,11 +67,20 @@ crust_status_t storage_seal_file(const char *cid)
         return crust_status;
     }
 
-    ocall_rename_dir(&crust_status, cid, cid, STORE_TYPE_TEMP, STORE_TYPE_FILE);
+    ocall_rename_dir(&crust_status, cid, cid, STORE_TYPE_FILE_TEMP, STORE_TYPE_FILE);
     if (CRUST_SUCCESS != crust_status)
     {
+        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE_TEMP);
         return crust_status;
     }
+
+    sgx_thread_mutex_lock(&wl->file_sealing_count_mutex);
+    if (wl->file_sealing_count == 1)
+    {
+        ocall_delete_folder_or_file(&crust_status, "", STORE_TYPE_FILE_TEMP);
+    }
+    sgx_thread_mutex_unlock(&wl->file_sealing_count_mutex);
+    
 
     std::string cid_str = std::string(cid, CID_LENGTH);
     std::string tree_str = tree_json.dump();
@@ -183,7 +196,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
         if (CRUST_SUCCESS != crust_status)
         {
             ocall_ipfs_del(&crust_status, root_cid);
-            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_TEMP);
+            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE_TEMP);
         }
 
         if (sealed_buffer != NULL)
@@ -202,9 +215,9 @@ crust_status_t _storage_seal_file(const char *root_cid,
     if (sealed_buffer == NULL)
     {
         // Delete previous directory
-        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_TEMP);
+        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE_TEMP);
         // Create directory for sealed file
-        ocall_create_dir(&crust_status, root_cid, STORE_TYPE_TEMP);
+        ocall_create_dir(&crust_status, root_cid, STORE_TYPE_FILE_TEMP);
         if (CRUST_SUCCESS != crust_status)
         {
             return CRUST_UNEXPECTED_ERROR;
@@ -271,7 +284,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
         sgx_sha256_msg(p_sealed_data, sealed_data_size, &sealed_hash);
         std::string sealed_path = std::string(root_cid) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
         // Save sealed data to local
-        ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_TEMP);
+        ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_FILE_TEMP);
         free(p_sealed_data);
         if (CRUST_SUCCESS != crust_status)
         {
@@ -355,7 +368,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
             sgx_sha256_msg(reinterpret_cast<const uint8_t *>(p_sealed_data), sealed_data_size, &sealed_hash);
             std::string sealed_path = std::string(root_cid) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
             // Add sealed data to ipfs and get related cid
-            ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_TEMP);
+            ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_size, STORE_TYPE_FILE_TEMP);
             free(p_sealed_data);
             if (CRUST_SUCCESS != crust_status)
             {
@@ -411,7 +424,7 @@ crust_status_t _storage_seal_file(const char *root_cid,
         {
             crust_status_t del_ret = CRUST_SUCCESS;
             ocall_ipfs_del(&del_ret, root_cid);
-            ocall_delete_folder_or_file(&del_ret, root_cid, STORE_TYPE_TEMP);
+            ocall_delete_folder_or_file(&del_ret, root_cid, STORE_TYPE_FILE_TEMP);
         }
 
         free(sealed_buffer);

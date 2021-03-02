@@ -138,6 +138,13 @@ public:
     void add_sealed_file(json::JSON file, size_t pos);
     void del_sealed_file(std::string cid);
     void del_sealed_file(size_t pos);
+    size_t get_file_sealing_count();
+    void increase_file_sealing_count();
+    void decrease_file_sealing_count();
+
+    // File sealing count
+    size_t file_sealing_count;
+    sgx_thread_mutex_t file_sealing_count_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_spec_info()

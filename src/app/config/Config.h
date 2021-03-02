@@ -39,7 +39,8 @@ public:
     std::string base_path;              /* sworker base path */
     std::string srd_path;               /* srd validation files base path */
     std::string file_path;              /* meaningful validation files base path */
-    std::string temp_path;              /* temp path for srd and meaningful files*/
+    std::string temp_srd_path;          /* temp path for srd */
+    std::string temp_file_path;         /* temp path for meaningful files */
     std::string db_path;                /* DB path */
     std::string base_url;               /* External API base url */
     

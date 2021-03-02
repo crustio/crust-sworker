@@ -33,6 +33,7 @@ Workload::Workload()
     this->report_files = true;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
+    this->file_sealing_count = 0;
 }
 
 /**
@@ -905,4 +906,39 @@ void Workload::del_sealed_file(size_t pos)
     {
         this->sealed_files.erase(this->sealed_files.begin() + pos);
     }
+}
+
+/**
+ * @description: Get file sealing count
+ * @return file sealing count
+ */
+size_t Workload::get_file_sealing_count()
+{
+    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
+    size_t res = this->file_sealing_count;
+    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
+    return res;
+}
+
+/**
+ * @description: Increase one file sealing count
+ */
+void Workload::increase_file_sealing_count()
+{
+    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
+    this->file_sealing_count++;
+    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
+}
+
+/**
+ * @description: Decrease one file sealing count
+ */
+void Workload::decrease_file_sealing_count()
+{
+    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
+    if (this->file_sealing_count != 0)
+    {
+        this->file_sealing_count--;
+    }
+    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
 }
