@@ -145,6 +145,9 @@ void srd_increase()
         log_err("Malloc memory failed!\n");
         return;
     }
+    Defer defer_hashs([&hashs](void) {
+        free(hashs);
+    });
     for (size_t i = 0; i < SRD_RAND_DATA_NUM; i++)
     {
         crust_status = seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
@@ -152,6 +155,10 @@ void srd_increase()
         {
             return;
         }
+        Defer defer_sealed_data([&p_sealed_data](void) {
+            free(p_sealed_data);
+            p_sealed_data = NULL;
+        });
 
         sgx_sha256_hash_t out_hash256;
         sgx_sha256_msg((uint8_t *)p_sealed_data, SRD_RAND_DATA_LENGTH, &out_hash256);
@@ -170,12 +177,8 @@ void srd_increase()
             {
                 log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
             }
-            free(p_sealed_data);
             return;
         }
-
-        free(p_sealed_data);
-        p_sealed_data = NULL;
     }
 
     // Generate G hashs
@@ -183,7 +186,6 @@ void srd_increase()
     sgx_sha256_msg(hashs, SRD_RAND_DATA_NUM * HASH_LENGTH, &g_out_hash256);
 
     crust_status = save_m_hashs_file(tmp_dir.c_str(), hashs, SRD_RAND_DATA_NUM * HASH_LENGTH);
-    free(hashs);
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());

@@ -3,7 +3,7 @@
 
 bool upgrade_try_start();
 bool upgrade_try_restore();
-void upgrade_try_complete();
+void upgrade_try_complete(bool success);
 
 bool start_task(task_func_t func);
 bool restore_tasks();
@@ -166,7 +166,6 @@ bool upgrade_try_start()
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
     p_log->info("Informing old version to get ready for upgrade...\n");
     int start_wait_time = 16;
-    long tryout_idx = 0;
     std::string err_msg;
     while (true)
     {
@@ -178,7 +177,7 @@ bool upgrade_try_start()
                 p_log->err("Please make sure old sWorker is running!Error code:%d\n", res_inform.result());
                 return false;
             }
-            if (res_inform.body().compare(err_msg) != 0 || tryout_idx % 15 == 0)
+            if (res_inform.body().compare(err_msg) != 0)
             {
                 p_log->info("Old version not ready for upgrade!Message:%s, status:%d, try again...\n", res_inform.body().c_str(), res_inform.result());
                 err_msg = res_inform.body();
@@ -205,7 +204,6 @@ bool upgrade_try_restore()
     p_log->info("Waiting for upgrade data...\n");
     int restore_tryout = 3;
     int meta_wait_time = 3;
-    int tryout_idx = 0;
     http::response<http::string_body> res_meta;
     sgx_status_t sgx_status = SGX_SUCCESS;
     std::string err_msg;
@@ -220,7 +218,7 @@ bool upgrade_try_restore()
                 p_log->err("Get upgrade data failed!Old sWorker is not running!\n");
                 return false;
             }
-            if (res_meta.body().compare(err_msg) != 0 || tryout_idx % 15 == 0)
+            if (res_meta.body().compare(err_msg) != 0)
             {
                 p_log->info("Old version Message:%s\n", res_meta.body().c_str());
                 err_msg = res_meta.body();
@@ -299,13 +297,13 @@ restore_try_again:
 /**
  * @description: Inform old version upgrade result
  */
-void upgrade_try_complete()
+void upgrade_try_complete(bool success)
 {
     std::shared_ptr<HttpClient> client(new HttpClient());
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
     p_log->info("Informing old version upgrade is successful...\n");
     json::JSON upgrade_ret;
-    upgrade_ret["success"] = true;
+    upgrade_ret["success"] = success;
     int complete_wait_time = 1;
     while (true)
     {
@@ -319,7 +317,12 @@ void upgrade_try_complete()
         }
         break;
     }
-    p_log->info("Inform old version upgrade successfully!\n");
+    p_log->info("Inform old version upgrade %s!\n", success ? "successfully" : "failed");
+    if (!success)
+    {
+        print_logo(UPGRADE_FAILED_LOGO, HRED);
+        return;
+    }
 
     // Init related components
     p_log->info("Waiting for old version's webservice stop...\n");
@@ -364,14 +367,16 @@ void do_upgrade()
             continue;
         }
 
-        if (!upgrade_try_restore())
+        bool res = upgrade_try_restore();
+
+        upgrade_try_complete(res);
+
+        if (res)
         {
-            sleep(30);
-            continue;
+            break;
         }
 
-        upgrade_try_complete();
-        break;
+        sleep(30);
     }
 }
 
