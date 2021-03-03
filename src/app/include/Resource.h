@@ -71,7 +71,6 @@ const char* UPGRADE_FAILED_LOGO =
 "/ /_/ / ____/ /_/ / _, _/ ___ |/ /_/ / /___   / __/ / ___ |_/ // /___/ /___/ /_/ /  /_/  /_/  /_/  \n"
 "%____/_/    %____/_/ |_/_/  |_/_____/_____/  /_/   /_/  |_/___/_____/_____/_____/  (_)  (_)  (_)   \n";
 
-
 // Webserver return format
 #define HTTP_STATUS_CODE "status_code"
 #define HTTP_MESSAGE "message"
