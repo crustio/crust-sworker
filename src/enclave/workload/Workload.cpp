@@ -942,3 +942,51 @@ void Workload::decrease_file_sealing_count()
     }
     sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
 }
+
+/**
+ * @description: Restore file informatione
+ */
+void Workload::restore_file_info()
+{
+    sgx_thread_mutex_lock(&this->file_mutex);
+    std::vector<json::JSON> tmp_sealed_files;
+    tmp_sealed_files.insert(tmp_sealed_files.end(), this->sealed_files.begin(), this->sealed_files.end());
+    sgx_thread_mutex_unlock(&this->file_mutex);
+
+    // Retore file info
+    size_t file_info_len = (CID_LENGTH + 8
+            + strlen(FILE_SIZE) + 12 + 9
+            + strlen(FILE_SEALED_SIZE) + 12 + 9
+            + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 9) * tmp_sealed_files.size() + 32;
+    uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
+    if (file_info_buf == NULL)
+    {
+        log_warn("Generate file information failed! No memory can be allocated!\n");
+        return;
+    }
+    Defer defer_file_info_buf([&file_info_buf](void) {
+        free(file_info_buf);
+    });
+    size_t file_info_offset = 0;
+    memset(file_info_buf, 0, file_info_len);
+    memcpy(file_info_buf, "{", 1);
+    file_info_offset += 1;
+    for (size_t i = 0; i < tmp_sealed_files.size(); i++)
+    {
+        json::JSON file = tmp_sealed_files[i];
+        std::string info;
+        info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
+            .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+            .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
+            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
+        if (i != tmp_sealed_files.size() - 1)
+        {
+            info.append(",");
+        }
+        memcpy(file_info_buf + file_info_offset, info.c_str(), info.size());
+        file_info_offset += info.size();
+    }
+    memcpy(file_info_buf + file_info_offset, "}", 1);
+    file_info_offset += 1;
+    ocall_store_file_info_all(file_info_buf, file_info_offset);
+}

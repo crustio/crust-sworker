@@ -37,6 +37,7 @@ public:
     void del_sealed_file_info(std::string cid);
     bool is_sealed_file_dup(std::string cid, bool locked = true);
     void restore_sealed_file_info();
+    void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     // Get workload
     std::string gen_workload();
 

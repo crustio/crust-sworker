@@ -89,6 +89,7 @@ enclave {
         void ocall_store_upgrade_data([in, size=data_size] const char *data, size_t data_size, bool cover);
         void ocall_store_unsealed_data([in, string] const char *unsealed_root, [in, size=unsealed_data_len] uint8_t *p_unsealed_data, size_t unsealed_data_len);
         void ocall_store_file_info([in, string] const char* cid, [in, string] const char *data);
+        void ocall_store_file_info_all([in, size=data_size] const uint8_t *data, size_t data_size);
 
         void ocall_recall_validate_file();
         void ocall_recall_validate_srd();

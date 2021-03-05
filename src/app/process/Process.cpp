@@ -712,10 +712,10 @@ entry_network_flag:
         }
         p_log->info("Workload information:\n%s\n", wl_str.c_str());
         p_log->info("Restore enclave data successfully, sworker is running now.\n");
-    }
 
-    // Restore sealed file information
-    ed->restore_sealed_file_info();
+        // Restore sealed file information
+        ed->restore_sealed_file_info();
+    }
 
     // Check block height and post report to chain
     start_task(work_report_loop);

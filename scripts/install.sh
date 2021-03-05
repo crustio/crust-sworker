@@ -45,17 +45,17 @@ function installAPP()
     res=0
     cd $instdir
     make clean &>/dev/null
-    if [ x"$build_mode" != x"" ]; then
+    if [ x"$build_mode" = x"prod" ]; then
         proddesc="in prod mode"
     else
         proddesc="in dev mode"
     fi
     setTimeWait "$(verbose INFO "Building and installing sworker application($proddesc)..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    make $build_mode SIGN_CMD=$SIGN_CMD_FILE -j$((coreNum*2)) &>$ERRFILE
+    make $sgx_build_mode SIGN_CMD=$SIGN_CMD_FILE -j$((coreNum*2)) &>$ERRFILE
     checkRes $? "quit" "success" "$SYNCFILE"
     if [ x"$DOCKERMODLE" = x"1" ]; then
-        rm $SIGN_CMD_FILE
+        rm $SIGN_CMD_FILE &>/dev/null
     fi
     cd - &>/dev/null
 
@@ -212,9 +212,9 @@ while getopts ":hdm:" opt; do
 done
 
 if [ x"$build_mode" = x"prod" ]; then
-    build_mode="SGX_DEBUG=0"
+    sgx_build_mode="SGX_DEBUG=0"
 else
-    build_mode=""
+    sgx_build_mode=""
 fi
 
 if ps -ef | grep -v grep | grep $PPID | grep $selfName &>/dev/null; then
