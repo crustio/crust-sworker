@@ -141,6 +141,7 @@ public:
     size_t get_file_sealing_count();
     void increase_file_sealing_count();
     void decrease_file_sealing_count();
+    void restore_file_info();
 
     // File sealing count
     size_t file_sealing_count;

@@ -1420,5 +1420,8 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
         return crust_status;
     }
 
+    // Restore file info
+    wl->restore_file_info();
+
     return crust_status;
 }

@@ -26,9 +26,12 @@ trap 'success_exit' EXIT
 
 cd $testdir
 srd 51200 &
-test_add_file 40000 &
+test_add_file 40000 &>/dev/null &
 validate_add_proof &>/dev/null
 sleep 10
+wl_info=$(get_workload)
+org_srd_complete=$(echo $wl_info | jq '.srd|.srd_complete')
+org_file_num=$(echo $wl_info | jq '.file|.valid')
 ./bin/crust-sworker -c etc/Config.json --offline --debug --upgrade &>${sworkerlog}2 &
 newsworkerpid=$!
 oldsworkerpid=$(cat $sworkerpidfile)
@@ -47,6 +50,20 @@ if [ $x1 -eq 1 ]; then
     [ x"$block_height" = x"" ] && { block_height=0; }
     ((block_height+=ERA_LENGTH))
     echo $block_height > $reportheightfile
+    # Compare workload information
+    res=0
+    wl_info=$(get_workload)
+    cur_srd_complete=$(echo $wl_info | jq '.srd|.srd_complete')
+    cur_file_num=$(echo $wl_info | jq '.file|.valid')
+    if [ $org_srd_complete -gt $cur_srd_complete ]; then
+        verbose ERROR "upgrade srd number, before:$org_srd_complete, after:$cur_srd_complete"
+        res=1
+    fi
+    if [ x"$org_file_num" != x"$cur_file_num" ]; then
+        verbose ERROR "upgrade file number, before:$org_file_num, after:$cur_file_num"
+        res=1
+    fi
+    exit $res
 else
     exit 1
 fi

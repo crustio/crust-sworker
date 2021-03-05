@@ -317,6 +317,18 @@ void EnclaveData::restore_sealed_file_info()
 }
 
 /**
+ * @description: Restore sealed file information
+ * @param data -> All file information data
+ * @param data_size -> All file information data size
+ */
+void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
+{
+    this->sealed_file_mutex.lock();
+    this->sealed_file = json::JSON::Load(data, data_size);
+    this->sealed_file_mutex.unlock();
+}
+
+/**
  * @description: Generate workload
  * @return: Workload
  */
