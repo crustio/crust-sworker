@@ -44,7 +44,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
 void srd_change()
 {
     Workload *wl = Workload::get_instance();
-    if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
+    if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
     {
         return;
     }
