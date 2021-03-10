@@ -53,7 +53,7 @@ Please refer to [Crust sWorker docker mode](docs/Docker.md)
 In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker application.
 ```
 {
-    "base_path" : "/opt/crust/crust-sworker/0.8.0/sworker_base_path",    # sWorker key information location, must be absolute path
+    "base_path" : "/opt/crust/crust-sworker/0.9.0/sworker_base_path",    # sWorker key information location, must be absolute path
     "base_url" : "http://127.0.0.1:12222/api/v0",                        # your sWorker node api address
     "data_path" : "/data1",                                              # If this item is not set, base_path will be used
     
@@ -71,7 +71,7 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 
 ### Run
 ```
-/opt/crust/crust-sworker/0.8.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.8.0/etc/Config.json
+/opt/crust/crust-sworker/0.9.0/bin/crust-sworker -c /opt/crust/crust-sworker/0.9.0/etc/Config.json
 ```
 
 ### Crust sWorker executable file
