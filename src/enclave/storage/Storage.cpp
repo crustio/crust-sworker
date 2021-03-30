@@ -193,11 +193,8 @@ crust_status_t _storage_seal_file(const char *root_cid,
     // If upgrade is comming, stop sealing
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        if (CRUST_SUCCESS != crust_status)
-        {
-            ocall_ipfs_del(&crust_status, root_cid);
-            ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE_TEMP);
-        }
+        ocall_ipfs_del(&crust_status, root_cid);
+        ocall_delete_folder_or_file(&crust_status, root_cid, STORE_TYPE_FILE_TEMP);
 
         if (sealed_buffer != NULL)
         {
