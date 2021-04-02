@@ -18,6 +18,8 @@
 #define ID_CHAIN_ACCOUNT_ID "chain_account_id"
 
 // For meaningful file
+// File meta info
+#define FILE_META "f_meta"
 #define FILE_CID "cid"
 #define FILE_HASH "hash"
 #define FILE_SIZE "size"
@@ -29,6 +31,10 @@
 #define FILE_STATUS_VALID '1'
 #define FILE_STATUS_DELETED '2'
 #define FILE_STATUS_PENDING '3'
+// File seal info
+#define FILE_SESSION_KEY "sk"
+#define FILE_BLOCKS "blocks"
+#define FILE_SEAL_STATUS "s_status"
 // Current status
 #define CURRENT_STATUS 0
 // Wait to sync status

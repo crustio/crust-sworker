@@ -830,3 +830,34 @@ std::string hash_to_cid(const uint8_t *hash)
 
     return res;
 }
+
+/**
+ * @description: Unseal decrypted data
+ * @param data -> Pointer to sealed data
+ * @param p_decrypted_data -> Pointer to pointer decrypted data
+ * @param decrypted_data_len -> Poniter to decrypted data length
+ * @return: Unseal result
+ */
+crust_status_t unseal_data_mrsigner(const sgx_sealed_data_t *data,
+                                    uint8_t **p_decrypted_data,
+                                    uint32_t *decrypted_data_len)
+{
+    *decrypted_data_len = sgx_get_encrypt_txt_len(data);
+    *p_decrypted_data = (uint8_t *)enc_malloc(*decrypted_data_len);
+    if (*p_decrypted_data == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    Defer defer_decrypted_data([&p_decrypted_data](void) { free(*p_decrypted_data); });
+    memset(*p_decrypted_data, 0, *decrypted_data_len);
+
+    // Do unseal
+    sgx_status_t sgx_status = sgx_unseal_data(data, NULL, NULL, *p_decrypted_data, decrypted_data_len);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        log_err("SGX unseal failed! Internal error:%lx\n", sgx_status);
+        return CRUST_UNSEAL_DATA_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}

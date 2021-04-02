@@ -53,8 +53,10 @@ std::map<std::string, std::string> get_params(std::string &url)
     size_t epos;
     if (spos == std::string::npos)
     {
+        ans["req_route"] = url;
         return ans;
     }
+    ans["req_route"] = url.substr(0, spos);
     spos++;
     while (spos < url.size())
     {

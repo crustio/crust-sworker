@@ -74,5 +74,6 @@ const char* UPGRADE_FAILED_LOGO =
 // Webserver return format
 #define HTTP_STATUS_CODE "status_code"
 #define HTTP_MESSAGE "message"
+#define HTTP_IPFS_INDEX_PATH "index_path"
 
 #endif /* !_CRUST_RESOURCE_H_ */

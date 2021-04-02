@@ -247,9 +247,21 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to seal result status
  * @param cid (in) -> Ipfs content id
+ * @param data (in) -> Pointer to raw data or link
+ * @param data_size -> Raw data size or link size
+ * @param sk -> Seal session key
+ * @param is_link -> Indicate data is raw data or a link
+ * @param path (in, out) -> Index path used to get file block
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,
+                             crust_status_t *status,
+                             const char *cid,
+                             const uint8_t *data,
+                             size_t data_size,
+                             uint32_t sk,
+                             bool is_link,
+                             char *path)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -257,7 +269,7 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
         return ret;
     }
 
-    ret = ecall_seal_file(eid, status, cid);
+    ret = ecall_seal_file(eid, status, cid, data, data_size, sk, is_link, path);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -268,11 +280,10 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
  * @description: A wrapper function, Unseal file according to given path
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to unseal result status
- * @param data (in) -> Pointer to sealed data
- * @param data_size -> Sealed data size
+ * @param path (in) -> Pointer to file block stored path
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *data, size_t data_size)
+sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -280,7 +291,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, con
         return ret;
     }
 
-    ret = ecall_unseal_file(eid, status, data, data_size);
+    ret = ecall_unseal_file(eid, status, path);
 
     eq->free_enclave(__FUNCTION__);
 

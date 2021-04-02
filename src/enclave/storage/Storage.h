@@ -14,6 +14,8 @@
 #include "Persistence.h"
 #include "Identity.h"
 
+#define FILE_DELETE_TIMEOUT 50
+
 using namespace std;
 
 
@@ -22,13 +24,13 @@ extern "C"
 {
 #endif
 
-crust_status_t storage_seal_file(const char *cid);
+crust_status_t storage_seal_file(const char *root, const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, char *path);
 
-crust_status_t storage_unseal_file(const char *data, size_t data_size);
+crust_status_t storage_unseal_file(const char *path);
 
 crust_status_t storage_delete_file(const char *hash);
 
-crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t*> &hashs);
+crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size, std::vector<uint8_t*> &hashs);
 
 crust_status_t storage_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *data_size);
 
@@ -37,6 +39,8 @@ crust_status_t storage_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_
 crust_status_t storage_ipfs_add(uint8_t *p_data, size_t data_size, char **cid);
 
 crust_status_t storage_get_file(const char *path, uint8_t **p_data, size_t *data_size);
+
+void del_failed_file_info();
 
 #if defined(__cplusplus)
 }

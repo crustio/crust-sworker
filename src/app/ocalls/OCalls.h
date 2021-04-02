@@ -42,7 +42,7 @@ extern "C"
     void ocall_log_debug(const char *str);
 
     // For file
-    void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_data, size_t unsealed_data_len);
+    void ocall_store_unsealed_data(const char *path, uint8_t *p_unsealed_data, size_t unsealed_data_len);
     crust_status_t ocall_chain_get_block_info(char *data, size_t data_size);
     void ocall_store_file_info(const char* cid, const char *data);
     void ocall_store_file_info_all(const uint8_t *data, size_t data_size);

@@ -22,6 +22,7 @@
 
 #include "Parameter.h"
 #include "Enclave_t.h"
+#include "Defer.h"
 
 namespace json
 {
@@ -87,6 +88,7 @@ sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
 
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
+crust_status_t unseal_data_mrsigner(const sgx_sealed_data_t *data, uint8_t **p_decrypted_data, uint32_t *decrypted_data_len);
 
 crust_status_t validate_merkletree_json(json::JSON tree);
 void *enc_malloc(size_t size);
