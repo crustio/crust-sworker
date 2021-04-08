@@ -33,7 +33,7 @@ crust_status_t storage_seal_file(const char *root,
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
     std::string rcid(root);
-    const uint8_t *p_plain_data = data;
+    uint8_t *p_plain_data = const_cast<uint8_t *>(data);
     size_t plain_data_sz = data_size;
 
     Defer defer([&crust_status, &wl, &rcid, &root, &sk](){
@@ -161,7 +161,7 @@ crust_status_t storage_seal_file(const char *root,
         // Unseal sealed data
         uint8_t *p_decrypted_data = NULL;
         uint32_t decrypted_data_sz = 0;
-        if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_sealed_data, &p_decrypted_data, &decrypted_data_sz)))
+        if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_sealed_data, sealed_data_sz, &p_decrypted_data, &decrypted_data_sz)))
         {
             return crust_status;
         }
@@ -170,6 +170,12 @@ crust_status_t storage_seal_file(const char *root,
 
         sl_files_info.lock();
     }
+    Defer def_plain_data([&p_plain_data, &is_link](void) {
+        if (is_link)
+        {
+            free(p_plain_data);
+        }
+    });
     sgx_sha256_hash_t cur_hash;
     sgx_sha256_msg(p_plain_data, plain_data_sz, &cur_hash);
     std::string cur_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&cur_hash));
@@ -194,7 +200,7 @@ crust_status_t storage_seal_file(const char *root,
     sgx_thread_mutex_unlock(&g_files_info_um_mutex);
 
     // ----- Seal data ----- //
-    uint8_t *p_sealed_data = NULL;
+    sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_sz = 0;
     crust_status = seal_data_mrsigner(p_plain_data, plain_data_sz, (sgx_sealed_data_t **)&p_sealed_data, &sealed_data_sz);
     if (CRUST_SUCCESS != crust_status)
@@ -203,11 +209,10 @@ crust_status_t storage_seal_file(const char *root,
     }
     Defer def_sealed_data([&p_sealed_data](void) { free(p_sealed_data); });
     sgx_sha256_hash_t sealed_hash;
-    sgx_sha256_msg(p_sealed_data, sealed_data_sz, &sealed_hash);
-    std::string child_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&cur_hash));
+    sgx_sha256_msg(reinterpret_cast<uint8_t *>(p_sealed_data), sealed_data_sz, &sealed_hash);
     std::string sealed_path = std::string(root) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
     // Save sealed block
-    ocall_save_file(&crust_status, sealed_path.c_str(), p_sealed_data, sealed_data_sz, STORE_TYPE_FILE_TEMP);
+    ocall_save_file(&crust_status, sealed_path.c_str(), reinterpret_cast<uint8_t *>(p_sealed_data), sealed_data_sz, STORE_TYPE_FILE_TEMP);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -393,7 +398,7 @@ crust_status_t storage_unseal_file(const char *path)
     Defer defer_data([&p_data](void) { free(p_data); });
     
     // Do unseal
-    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, &p_decrypted_data, &decrypted_data_sz)))
+    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, data_size, &p_decrypted_data, &decrypted_data_sz)))
     {
         return crust_status;
     }
