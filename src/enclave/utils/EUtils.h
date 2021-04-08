@@ -19,6 +19,7 @@
 #include <openssl/x509v3.h>
 
 #include "sgx_thread.h"
+#include "sgx_trts.h"
 
 #include "Parameter.h"
 #include "Enclave_t.h"

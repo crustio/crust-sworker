@@ -30,7 +30,7 @@ enclave {
         public sgx_status_t ecall_gen_key_pair([in, size=len] const char *account_id, size_t len);
         public crust_status_t ecall_verify_and_upload_identity([in, count=len] char ** IASReport, size_t len);
 
-        public crust_status_t ecall_seal_file([in, string] const char *cid, [in, size=data_size] const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, [in, out, string] char *path);
+        public crust_status_t ecall_seal_file([in, string] const char *cid, [in, size=data_size] const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, [in, out, size=path_size] char *path, size_t path_size);
         public crust_status_t ecall_unseal_file([in, string] const char *path);
         public crust_status_t ecall_delete_file([in, string] const char *hash);
 

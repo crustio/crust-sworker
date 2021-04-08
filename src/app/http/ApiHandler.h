@@ -752,7 +752,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::vector<uint8_t> body_vec = req.body();
             const uint8_t *sealed_data = (const uint8_t *)body_vec.data();
             size_t sealed_data_sz = body_vec.size();
-            p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
+            //p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
 
             if (cid.size() != CID_LENGTH)
             {
@@ -775,7 +775,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     char *index_path = (char *)malloc(IPFS_INDEX_LENGTH);
                     memset(index_path, 0, IPFS_INDEX_LENGTH);
-                    if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, sk, is_link, index_path)))
+                    if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, sk, is_link, index_path, IPFS_INDEX_LENGTH)))
                     {
                         ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                         p_log->err("%s\n", ret_info.c_str());

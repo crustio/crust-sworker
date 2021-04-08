@@ -261,7 +261,8 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,
                              size_t data_size,
                              uint32_t sk,
                              bool is_link,
-                             char *path)
+                             char *path,
+                             size_t path_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -269,7 +270,7 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,
         return ret;
     }
 
-    ret = ecall_seal_file(eid, status, cid, data, data_size, sk, is_link, path);
+    ret = ecall_seal_file(eid, status, cid, data, data_size, sk, is_link, path, path_size);
 
     eq->free_enclave(__FUNCTION__);
 

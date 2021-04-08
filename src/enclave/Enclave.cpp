@@ -216,14 +216,14 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
  * @param path (in, out) -> Index path used to get file block
  * @return: Seal status
  */
-crust_status_t ecall_seal_file(const char *cid, const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, char *path)
+crust_status_t ecall_seal_file(const char *cid, const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, char *path, size_t path_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_seal_file(cid, data, data_size, sk, is_link, path);
+    crust_status_t ret = storage_seal_file(cid, data, data_size, sk, is_link, path, path_size);
 
     return ret;
 }

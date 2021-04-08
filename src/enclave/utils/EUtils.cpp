@@ -374,6 +374,7 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
+    uint8_t *p_src_r = const_cast<uint8_t *>(p_src);
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
     *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(sealed_data_sz);
@@ -385,7 +386,24 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
 
     memset(*p_sealed_data, 0, sealed_data_sz);
 
-    sgx_status = Sgx_seal_data(0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
+    int ret = sgx_is_within_enclave(p_src, src_len);
+    if (ret == 0)
+    {
+        p_src_r = (uint8_t *)enc_malloc(src_len);
+        if (p_src_r == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(p_src_r, 0, src_len);
+        memcpy(p_src_r, p_src, src_len);
+    }
+    Defer def_src_r([&p_src_r, &ret](void) {
+        if (ret == 0)
+        {
+            free(p_src_r);
+        }
+    });
+    sgx_status = Sgx_seal_data(0, NULL, src_len, p_src_r, sealed_data_sz, *p_sealed_data);
     if (SGX_SUCCESS != sgx_status)
     {
         log_err("Seal data failed!Error code:%lx\n", sgx_status);

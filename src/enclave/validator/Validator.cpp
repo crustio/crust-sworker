@@ -531,11 +531,10 @@ void validate_meaningful_file_real()
         // Get current node hash
         uint8_t *p_leaf = p_tree + check_block_idx * HASH_LENGTH;
         std::string leaf_hash = hexstring_safe(p_leaf, HASH_LENGTH);
-        std::string leaf_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(p_leaf));
         // Compute current node hash by data
         uint8_t *p_sealed_data = NULL;
         size_t sealed_data_sz = 0;
-        std::string leaf_path = root_cid + "/" + leaf_cid + "_" + leaf_hash;
+        std::string leaf_path = root_cid + "/" + leaf_hash;
         crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_sz);
         if (CRUST_SUCCESS != crust_status)
         {
@@ -551,7 +550,7 @@ void validate_meaningful_file_real()
             {
                 deleted = true;
             }
-            log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
+            log_err("Get file(%s) block:%ld failed!\n", leaf_path.c_str(), check_block_idx);
             break;
         }
         // Validate sealed hash
