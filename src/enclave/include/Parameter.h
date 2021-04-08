@@ -35,6 +35,9 @@
 #define FILE_SESSION_KEY "sk"
 #define FILE_BLOCKS "blocks"
 #define FILE_SEAL_STATUS "s_status"
+// IPFS file
+#define IPFS_META "sbs"
+#define IPFS_META_PATH "path"
 // Current status
 #define CURRENT_STATUS 0
 // Wait to sync status

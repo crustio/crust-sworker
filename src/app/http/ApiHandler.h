@@ -824,7 +824,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     else
                     {
                         ret_info = "Seal file '" + cid + "' successfully";
-                        p_log->info("%s\n", ret_info.c_str());
+                        //p_log->info("%s\n", ret_info.c_str());
                         ret_code = 200;
                         ret_body[HTTP_IPFS_INDEX_PATH] = std::string(index_path);
                     }

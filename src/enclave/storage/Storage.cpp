@@ -2,6 +2,7 @@
 
 using namespace std;
 
+// TODO: clear the buffer when timeout
 std::unordered_map<std::string, json::JSON> g_files_info_um;
 std::unordered_map<std::string, uint32_t> g_files_failed_to_um;
 sgx_thread_mutex_t g_files_info_um_mutex = SGX_THREAD_MUTEX_INITIALIZER;
@@ -32,7 +33,7 @@ crust_status_t storage_seal_file(const char *root,
     Workload *wl = Workload::get_instance();
     std::string root_str(root);
     const uint8_t *p_plain_data = data;
-    size_t plain_data_size = data_size;
+    size_t plain_data_sz = data_size;
 
     Defer defer([&crust_status, &wl, &root_str, &root, &sk](){
         if (CRUST_SUCCESS != crust_status)
@@ -65,7 +66,7 @@ crust_status_t storage_seal_file(const char *root,
     });
 
     // If file transfer completed
-    if (p_plain_data == NULL || plain_data_size == 0)
+    if (p_plain_data == NULL || plain_data_sz == 0)
     {
         return _storage_seal_file_end(root);
     }
@@ -136,32 +137,47 @@ crust_status_t storage_seal_file(const char *root,
 
         // ----- Seal block for current file ----- //
         uint8_t *p_sealed_data = NULL;
-        size_t sealed_data_size = 0;
-        if (CRUST_SUCCESS != (crust_status = storage_get_file(reinterpret_cast<const char *>(p_plain_data), &p_sealed_data, &sealed_data_size)))
+        size_t sealed_data_sz = 0;
+        json::JSON links_json = json::JSON::Load(p_plain_data, plain_data_sz);
+        if (!(links_json.JSONType() == json::JSON::Class::Object 
+                && links_json.hasKey(IPFS_META)
+                && links_json[IPFS_META].JSONType() == json::JSON::Class::Array))
+        {
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        for (long i = 0; i < links_json.size(); i++)
+        {
+            std::string s_path = links_json[IPFS_META][i][IPFS_META_PATH].ToString();
+            if (CRUST_SUCCESS == (crust_status = storage_get_file(s_path.c_str(), &p_sealed_data, &sealed_data_sz)))
+            {
+                break;
+            }
+        }
+        if (CRUST_SUCCESS != crust_status)
         {
             return crust_status;
         }
         // Unseal sealed data
         uint8_t *p_decrypted_data = NULL;
-        uint32_t decrypted_data_len = 0;
-        if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_sealed_data, &p_decrypted_data, &decrypted_data_len)))
+        uint32_t decrypted_data_sz = 0;
+        if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_sealed_data, &p_decrypted_data, &decrypted_data_sz)))
         {
             return crust_status;
         }
         p_plain_data = p_decrypted_data;
-        plain_data_size = decrypted_data_len;
+        plain_data_sz = decrypted_data_sz;
 
         sl_files_info.lock();
     }
     sgx_sha256_hash_t cur_hash;
-    sgx_sha256_msg(p_plain_data, plain_data_size, &cur_hash);
+    sgx_sha256_msg(p_plain_data, plain_data_sz, &cur_hash);
     std::string hash_str = hexstring_safe(&cur_hash, HASH_LENGTH);
     g_files_info_um[root_str][FILE_BLOCKS][hash_str].AddNum(-1);
     sl_files_info.unlock();
 
     // Push children to map
     std::vector<uint8_t *> children_hashs;
-    crust_status = get_hashs_from_block(p_plain_data, plain_data_size, children_hashs);
+    crust_status = get_hashs_from_block(p_plain_data, plain_data_sz, children_hashs);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -178,7 +194,7 @@ crust_status_t storage_seal_file(const char *root,
     // ----- Seal data ----- //
     uint8_t *p_sealed_data = NULL;
     size_t sealed_data_sz = 0;
-    crust_status = seal_data_mrsigner(p_plain_data, plain_data_size, (sgx_sealed_data_t **)&p_sealed_data, &sealed_data_sz);
+    crust_status = seal_data_mrsigner(p_plain_data, plain_data_sz, (sgx_sealed_data_t **)&p_sealed_data, &sealed_data_sz);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -203,7 +219,7 @@ crust_status_t storage_seal_file(const char *root,
     // Record file info
     sgx_thread_mutex_lock(&g_files_info_um_mutex);
     g_files_info_um[root_str][FILE_META][FILE_HASH].AppendStr(reinterpret_cast<const char *>(&sealed_hash), HASH_LENGTH);
-    g_files_info_um[root_str][FILE_META][FILE_SIZE].AddNum(plain_data_size);
+    g_files_info_um[root_str][FILE_META][FILE_SIZE].AddNum(plain_data_sz);
     g_files_info_um[root_str][FILE_META][FILE_SEALED_SIZE].AddNum(sealed_data_sz);
     g_files_info_um[root_str][FILE_META][FILE_BLOCK_NUM].AddNum(1);
     sgx_thread_mutex_unlock(&g_files_info_um_mutex);
@@ -282,12 +298,12 @@ crust_status_t _storage_seal_file_end(const char *cid)
     // ----- Add corresponding metadata ----- //
     // Get block height
     size_t chain_block_num = INT_MAX;
-    size_t info_buf_size = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
+    size_t info_buf_sz = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
                          + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
                          + HASH_LENGTH * 2;
-    char *block_info_buf = (char *)enc_malloc(info_buf_size);
-    memset(block_info_buf, 0, info_buf_size);
-    ocall_chain_get_block_info(&crust_status, block_info_buf, info_buf_size);
+    char *block_info_buf = (char *)enc_malloc(info_buf_sz);
+    memset(block_info_buf, 0, info_buf_sz);
+    ocall_chain_get_block_info(&crust_status, block_info_buf, info_buf_sz);
     if (CRUST_SUCCESS == crust_status)
     {
         json::JSON binfo_json = json::JSON::Load(std::string(block_info_buf));
@@ -363,7 +379,7 @@ crust_status_t storage_unseal_file(const char *path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     uint8_t *p_decrypted_data = NULL;
-    uint32_t decrypted_data_len = 0;
+    uint32_t decrypted_data_sz = 0;
 
     // Get sealed file block data
     uint8_t *p_data = NULL;
@@ -375,7 +391,7 @@ crust_status_t storage_unseal_file(const char *path)
     Defer defer_data([&p_data](void) { free(p_data); });
     
     // Do unseal
-    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, &p_decrypted_data, &decrypted_data_len)))
+    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, &p_decrypted_data, &decrypted_data_sz)))
     {
         return crust_status;
     }
@@ -387,7 +403,7 @@ crust_status_t storage_unseal_file(const char *path)
     }
 
     // Store unsealed data
-    ocall_store_unsealed_data(path, p_decrypted_data, decrypted_data_len);
+    ocall_store_unsealed_data(path, p_decrypted_data, decrypted_data_sz);
 
     return crust_status;
 }
