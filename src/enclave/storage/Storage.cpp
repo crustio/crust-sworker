@@ -391,9 +391,9 @@ crust_status_t storage_unseal_file(const char *path)
     // Get sealed file block data
     uint8_t *p_data = NULL;
     size_t data_size = 0;
-    if (CRUST_SUCCESS != storage_get_file(path, &p_data, &data_size))
+    if (CRUST_SUCCESS != (crust_status = storage_get_file(path, &p_data, &data_size)))
     {
-        return CRUST_STORAGE_FILE_BLOCK_NOTFOUND;
+        return crust_status;
     }
     Defer defer_data([&p_data](void) { free(p_data); });
     
@@ -402,6 +402,7 @@ crust_status_t storage_unseal_file(const char *path)
     {
         return crust_status;
     }
+    Defer def_decrypted_data([&p_decrypted_data](void) { free(p_decrypted_data); });
 
     // Check if data is private data
     if (memcmp(p_decrypted_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)

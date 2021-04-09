@@ -6,6 +6,8 @@
 *.lo
 *.o
 *.obj
+*_u.*
+*_t.*
 
 # Precompiled Headers
 *.gch
@@ -36,4 +38,7 @@
 crust-sworker.tar
 crust-sworker/
 scripts/err.log
+scripts/prod_sign.sh
+src/.config_HW_RELEASE_x64
+src/crust-sworker
 err.log

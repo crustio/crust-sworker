@@ -884,8 +884,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_code = 503;
                         break;
                     default:
-                        ret_info = "Unexpected error";
-                        ret_code = 500;
+                        ret_info = "File not found";
+                        ret_code = 404;
                     }
                     p_log->err("%s. Error code:%lx\n", ret_info.c_str(), crust_status);
                     json::JSON ret_body;

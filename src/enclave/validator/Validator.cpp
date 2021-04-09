@@ -483,7 +483,7 @@ void validate_meaningful_file_real()
         {
             return;
         }
-        log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
+        log_err("Validate meaningful data failed! Get tree:%s failed! Error code:%lx\n", root_cid.c_str(), crust_status);
         if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
             deleted = true;
