@@ -114,7 +114,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::string_body> res{http::status::bad_request, req.version()};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "text/html");
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         res.body() = std::string(why);
         res.prepare_payload();
         return res;
@@ -190,7 +190,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::empty_body> res{http::status::ok, req.version()};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 
@@ -461,7 +461,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     getcleanup:
 
         res.content_length(res.body().size());
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 
@@ -902,7 +902,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     postcleanup:
         res.content_length(res.body().size());
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 }
