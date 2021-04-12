@@ -284,13 +284,16 @@ void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
 
 /**
  * @description: Store unsealed data
- * @param unsealed_root (in) -> Unsealed data root
+ * @param path (in) -> File block stored path as key
  * @param p_unsealed_data (in) -> Unsealed data
  * @param unsealed_data_len -> Unsealed data size
  */
-void ocall_store_unsealed_data(const char *unsealed_root, uint8_t *p_unsealed_data, size_t unsealed_data_len)
+void ocall_store_unsealed_data(const char *path, uint8_t *p_unsealed_data, size_t unsealed_data_len)
 {
-    EnclaveData::get_instance()->add_unsealed_data(unsealed_root, p_unsealed_data, unsealed_data_len);
+    uint8_t *p_unsealed_data_r = (uint8_t *)malloc(unsealed_data_len);
+    memset(p_unsealed_data_r, 0, unsealed_data_len);
+    memcpy(p_unsealed_data_r, p_unsealed_data, unsealed_data_len);
+    EnclaveData::get_instance()->add_unsealed_data(path, p_unsealed_data_r, unsealed_data_len);
 }
 
 /**

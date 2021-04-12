@@ -209,34 +209,38 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 /**
  * @description: Seal file according to given path and return new MerkleTree
  * @param cid (in) -> Pointer to ipfs content id
+ * @param data (in) -> Pointer to raw data or link
+ * @param data_size -> Raw data size or link size
+ * @param sk -> Seal session key
+ * @param is_link -> Indicate data is raw data or a link
+ * @param path (in, out) -> Index path used to get file block
  * @return: Seal status
  */
-crust_status_t ecall_seal_file(const char *cid)
+crust_status_t ecall_seal_file(const char *cid, const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, char *path, size_t path_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_seal_file(cid);
+    crust_status_t ret = storage_seal_file(cid, data, data_size, sk, is_link, path, path_size);
 
     return ret;
 }
 
 /**
  * @description: Unseal file according to given path
- * @param data (in) -> Pointer to sealed data
- * @param data_size -> Unsealed data size
+ * @param path (in) -> Pointer to file block stored path
  * @return: Unseal status
  */
-crust_status_t ecall_unseal_file(const char *data, size_t data_size)
+crust_status_t ecall_unseal_file(const char *path)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_unseal_file(data, data_size);
+    crust_status_t ret = storage_unseal_file(path);
 
     return ret;
 }

@@ -48,6 +48,7 @@ extern size_t g_block_height;
 #endif
 
 #define WS_SEPARATOR "$crust_ws_separator$"
+#define IPFS_INDEX_LENGTH 512
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
@@ -113,7 +114,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::string_body> res{http::status::bad_request, req.version()};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "text/html");
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         res.body() = std::string(why);
         res.prepare_payload();
         return res;
@@ -139,6 +140,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     }
 
     // Get request real route
+    std::map<std::string, std::string> params_m = get_params(req_route);
+    req_route = params_m["req_route"];
     std::string route_tag = req_route.substr(req_route.find(urlendpoint.base) + urlendpoint.base.size(), req_route.size());
     if (http_mute_req_s.find(route_tag) == http_mute_req_s.end())
     {
@@ -187,7 +190,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         http::response<http::empty_body> res{http::status::ok, req.version()};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "application/text");
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 
@@ -458,7 +461,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     getcleanup:
 
         res.content_length(res.body().size());
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 
@@ -743,9 +746,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust_status_t crust_status = CRUST_SUCCESS;
 
             // Parse paramters
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
-            std::string cid = req_json["cid"].ToString();
-            p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
+            std::string cid = params_m["cid"];
+            uint32_t sk = std::atoi(params_m["session_key"].c_str());
+            bool is_link = (params_m["is_link"] == "true");
+            std::vector<uint8_t> body_vec = req.body();
+            const uint8_t *sealed_data = (const uint8_t *)body_vec.data();
+            size_t sealed_data_sz = body_vec.size();
+            //p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
 
             if (cid.size() != CID_LENGTH)
             {
@@ -766,7 +773,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 else
                 {
-                    if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str())))
+                    char *index_path = (char *)malloc(IPFS_INDEX_LENGTH);
+                    memset(index_path, 0, IPFS_INDEX_LENGTH);
+                    if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, sk, is_link, index_path, IPFS_INDEX_LENGTH)))
                     {
                         ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                         p_log->err("%s\n", ret_info.c_str());
@@ -806,11 +815,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             p_log->info("%s\n", ret_info.c_str());
                             ret_code = 400;
                             break;
-                        case CRUST_STORAGE_IPFS_BLOCK_GET_ERROR:
-                            ret_info = "Seal file '" + cid + "' failed! Can't get block from ipfs";
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 500;
-                            break;
                         default:
                             ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
                             p_log->err("%s\n", ret_info.c_str());
@@ -820,9 +824,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     else
                     {
                         ret_info = "Seal file '" + cid + "' successfully";
-                        p_log->info("%s\n", ret_info.c_str());
+                        //p_log->info("%s\n", ret_info.c_str());
                         ret_code = 200;
+                        ret_body[HTTP_IPFS_INDEX_PATH] = std::string(index_path);
                     }
+                    free(index_path);
                 }
             }
             ret_body[HTTP_STATUS_CODE] = stoi(num_to_hexstring(crust_status), NULL, 10);
@@ -841,15 +847,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             p_log->info("Dealing with unseal request...\n");
             // Parse parameters
-            json::JSON req_json;
-            std::vector<uint8_t> body_vec = req.body();
-            const uint8_t *sealed_data = (const uint8_t *)body_vec.data();
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string index_path = req_json["path"].ToString();
 
             // ----- Unseal file ----- //
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
 
-            if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, reinterpret_cast<const char *>(sealed_data), body_vec.size())))
+            if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, index_path.c_str())))
             {
                 ret_info = "Unseal failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                 p_log->err("%s\n", ret_info.c_str());
@@ -862,10 +867,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     ret_info = "Unseal data successfully!";
                     ret_code = 200;
                     p_log->info("%s\n", ret_info.c_str());
-                    sgx_sha256_hash_t data_hash;
-                    sgx_sha256_msg(sealed_data, body_vec.size(), &data_hash);
-                    std::string data_hash_str = hexstring_safe(reinterpret_cast<uint8_t *>(&data_hash), HASH_LENGTH);
-                    res.body() = ed->get_unsealed_data(data_hash_str);
+                    res.body() = ed->get_unsealed_data(index_path);
+                    ed->del_unsealed_data(index_path);
                     res.result(ret_code);
                 }
                 else
@@ -881,8 +884,8 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_code = 503;
                         break;
                     default:
-                        ret_info = "Unexpected error";
-                        ret_code = 500;
+                        ret_info = "File not found";
+                        ret_code = 404;
                     }
                     p_log->err("%s. Error code:%lx\n", ret_info.c_str(), crust_status);
                     json::JSON ret_body;
@@ -899,7 +902,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
     postcleanup:
         res.content_length(res.body().size());
-        //res.keep_alive(req.keep_alive());
+        res.keep_alive(req.keep_alive());
         return send(std::move(res));
     }
 }

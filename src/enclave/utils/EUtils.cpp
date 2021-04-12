@@ -374,6 +374,7 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
+    uint8_t *p_src_r = const_cast<uint8_t *>(p_src);
 
     uint32_t sealed_data_sz = sgx_calc_sealed_data_size(0, src_len);
     *p_sealed_data = (sgx_sealed_data_t *)enc_malloc(sealed_data_sz);
@@ -385,7 +386,24 @@ crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len,
 
     memset(*p_sealed_data, 0, sealed_data_sz);
 
-    sgx_status = Sgx_seal_data(0, NULL, src_len, p_src, sealed_data_sz, *p_sealed_data);
+    int ret = sgx_is_within_enclave(p_src, src_len);
+    if (ret == 0)
+    {
+        p_src_r = (uint8_t *)enc_malloc(src_len);
+        if (p_src_r == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(p_src_r, 0, src_len);
+        memcpy(p_src_r, p_src, src_len);
+    }
+    Defer def_src_r([&p_src_r, &ret](void) {
+        if (ret == 0)
+        {
+            free(p_src_r);
+        }
+    });
+    sgx_status = Sgx_seal_data(0, NULL, src_len, p_src_r, sealed_data_sz, *p_sealed_data);
     if (SGX_SUCCESS != sgx_status)
     {
         log_err("Seal data failed!Error code:%lx\n", sgx_status);
@@ -829,4 +847,54 @@ std::string hash_to_cid(const uint8_t *hash)
     }
 
     return res;
+}
+
+/**
+ * @description: Unseal decrypted data
+ * @param data -> Pointer to sealed data
+ * @param data_size -> Sealed data size
+ * @param p_decrypted_data -> Pointer to pointer decrypted data
+ * @param decrypted_data_len -> Poniter to decrypted data length
+ * @return: Unseal result
+ */
+crust_status_t unseal_data_mrsigner(const sgx_sealed_data_t *data,
+                                    uint32_t data_size,
+                                    uint8_t **p_decrypted_data,
+                                    uint32_t *decrypted_data_len)
+{
+    sgx_sealed_data_t *data_r = const_cast<sgx_sealed_data_t *>(data);
+    *decrypted_data_len = sgx_get_encrypt_txt_len(data);
+    *p_decrypted_data = (uint8_t *)enc_malloc(*decrypted_data_len);
+    if (*p_decrypted_data == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(*p_decrypted_data, 0, *decrypted_data_len);
+
+    // Do unseal
+    int ret = sgx_is_within_enclave(data, data_size);
+    if (ret == 0)
+    {
+        data_r = (sgx_sealed_data_t *)enc_malloc(data_size);
+        if (data_r == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        memset(data_r, 0, data_size);
+        memcpy(data_r, data, data_size);
+    }
+    Defer def_data_r([&data_r, &ret](void) {
+        if (ret == 0)
+        {
+            free(data_r);
+        }
+    });
+    sgx_status_t sgx_status = sgx_unseal_data(data_r, NULL, NULL, *p_decrypted_data, decrypted_data_len);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        log_err("SGX unseal failed! Internal error:%lx\n", sgx_status);
+        return CRUST_UNSEAL_DATA_FAILED;
+    }
+
+    return CRUST_SUCCESS;
 }

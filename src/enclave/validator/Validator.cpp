@@ -9,7 +9,6 @@ sgx_thread_mutex_t g_validate_srd_m_iter_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 uint32_t g_validated_srd_num = 0;
 sgx_thread_mutex_t g_validated_srd_num_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 // File related method and variables
-crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size);
 std::unordered_set<std::string> g_del_files_cid_us;
 sgx_thread_mutex_t g_del_files_idx_us_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 std::map<std::string, json::JSON> g_validate_files_m;
@@ -264,7 +263,6 @@ void validate_meaningful_file()
         return;
     }
 
-    crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
@@ -378,8 +376,6 @@ void validate_meaningful_file()
                     log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n", cid.c_str());
                     // Change file status
                     wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    // Delete real file
-                    ocall_ipfs_del_all(&crust_status, cid.c_str());
                     // Reduce valid file
                     wl->set_wl_spec(FILE_STATUS_VALID, -g_validate_files_m[cid][FILE_SIZE].ToInt());
                 }
@@ -396,6 +392,9 @@ void validate_meaningful_file()
     sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
     g_validate_files_m.clear();
     sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
+
+    // Deal with failed sealing file
+    del_failed_file_info();
 }
 
 /**
@@ -475,48 +474,36 @@ void validate_meaningful_file_real()
     std::string root_hash = file[FILE_HASH].ToString();
     size_t file_block_num = file[FILE_BLOCK_NUM].ToInt();
     // Get tree string
-    uint8_t *p_data = NULL;
-    size_t data_len = 0;
-    crust_status_t crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
+    uint8_t *p_tree = NULL;
+    size_t tree_sz = 0;
+    crust_status_t crust_status = persist_get_unsafe(root_cid, &p_tree, &tree_sz);
     if (CRUST_SUCCESS != crust_status)
     {
         if (wl->is_in_deleted_file_buffer(root_cid))
         {
             return;
         }
-        log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
+        log_err("Validate meaningful data failed! Get tree:%s failed! Error code:%lx\n", root_cid.c_str(), crust_status);
         if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
             deleted = true;
         }
-        if (p_data != NULL)
+        if (p_tree != NULL)
         {
-            free(p_data);
-            p_data = NULL;
+            free(p_tree);
+            p_tree = NULL;
         }
         return;
     }
+    Defer defer_tree([&p_tree](void) {
+        free(p_tree);
+    });
     // Validate merkle tree
-    std::string tree_str(reinterpret_cast<const char *>(p_data), data_len);
-    if (p_data != NULL)
-    {
-        free(p_data);
-        p_data = NULL;
-    }
-    json::JSON tree_json = json::JSON::Load(tree_str);
-    bool valid_tree = true;
-    if (root_hash.compare(tree_json[MT_HASH].ToString()) != 0)
+    sgx_sha256_hash_t tree_hash;
+    sgx_sha256_msg(p_tree, tree_sz, &tree_hash);
+    if (memcmp(file[FILE_HASH].ToBytes(), &tree_hash, HASH_LENGTH) != 0)
     {
         log_err("File:%s merkle tree is not valid!Root hash doesn't equal!\n", root_cid.c_str());
-        valid_tree = false;
-    }
-    if (CRUST_SUCCESS != (crust_status = validate_merkletree_json(tree_json)))
-    {
-        log_err("File:%s merkle tree is not valid!Invalid merkle tree,error code:%lx\n", root_cid.c_str(), crust_status);
-        valid_tree = false;
-    }
-    if (!valid_tree)
-    {
         if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
             deleted = true;
@@ -524,7 +511,7 @@ void validate_meaningful_file_real()
         return;
     }
 
-    // ----- Validate MerkleTree ----- //
+    // ----- Validate file block ----- //
     // Get to be checked block index
     std::set<size_t> block_idx_s;
     size_t tmp_idx = 0;
@@ -539,39 +526,16 @@ void validate_meaningful_file_real()
         }
     }
     // Do check
-    // Note: should store serialized tree structure as "cid":x,"hash":"xxxxx"
-    // be careful to keep "cid", "hash" sequence
-    size_t pos = 0;
-    std::string dhash_tag(MT_DATA_HASH "\":\"");
-    size_t cur_block_idx = 0;
     for (auto check_block_idx : block_idx_s)
     {
-        // Get leaf node position
-        do
-        {
-            pos = tree_str.find(dhash_tag, pos);
-            if (pos == tree_str.npos)
-            {
-                break;
-            }
-            pos += dhash_tag.size();
-        } while (cur_block_idx++ < check_block_idx);
-        if (pos == tree_str.npos)
-        {
-            log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
-            {
-                deleted = true;
-            }
-            break;
-        }
         // Get current node hash
-        std::string leaf_hash = tree_str.substr(pos, HASH_LENGTH * 2);
+        uint8_t *p_leaf = p_tree + check_block_idx * HASH_LENGTH;
+        std::string leaf_hash = hexstring_safe(p_leaf, HASH_LENGTH);
         // Compute current node hash by data
         uint8_t *p_sealed_data = NULL;
-        size_t sealed_data_size = 0;
+        size_t sealed_data_sz = 0;
         std::string leaf_path = root_cid + "/" + leaf_hash;
-        crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_size);
+        crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_sz);
         if (CRUST_SUCCESS != crust_status)
         {
             if (p_sealed_data != NULL)
@@ -586,22 +550,13 @@ void validate_meaningful_file_real()
             {
                 deleted = true;
             }
-            log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
+            log_err("Get file(%s) block:%ld failed!\n", leaf_path.c_str(), check_block_idx);
             break;
         }
         // Validate sealed hash
         sgx_sha256_hash_t got_hash;
-        sgx_sha256_msg(p_sealed_data, sealed_data_size, &got_hash);
-        uint8_t *leaf_hash_u = hex_string_to_bytes(leaf_hash.c_str(), leaf_hash.size());
-        if (leaf_hash_u == NULL)
-        {
-            log_warn("Validate: Hexstring to bytes failed!Skip block:%ld check.\n", check_block_idx);
-            free(p_sealed_data);
-            continue;
-        }
-        int memret = memcmp(leaf_hash_u, got_hash, HASH_LENGTH);
-        free(leaf_hash_u);
-        if (memret != 0)
+        sgx_sha256_msg(p_sealed_data, sealed_data_sz, &got_hash);
+        if (memcmp(p_leaf, got_hash, HASH_LENGTH) != 0)
         {
             if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
@@ -613,114 +568,5 @@ void validate_meaningful_file_real()
             free(p_sealed_data);
             break;
         }
-        // Validate real file piece
-        crust_status = validate_real_file(p_sealed_data, sealed_data_size);
-        free(p_sealed_data);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            if (CRUST_SERVICE_UNAVAILABLE == crust_status)
-            {
-                service_unavailable = true;
-                return;
-            }
-            else
-            {
-                log_err("Get file(%s) block failed! Error code:%lx\n", root_cid.c_str(), crust_status);
-                deleted = true;
-            }
-            break;
-        }
     }
-}
-
-/**
- * @description: Validate real ipfs file
- * @param p_sealed_data -> Pointer to sealed data
- * @param sealed_data_size -> Sealed data size
- * @return: Validate result
- */
-crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size)
-{
-    if (sealed_data_size <= 0)
-    {
-        return CRUST_SUCCESS;
-    }
-
-    crust_status_t crust_status = CRUST_SUCCESS;
-    uint8_t *p_unsealed_data = NULL;
-    uint8_t *p_got_piece_data = NULL;
-    do
-    {
-        // Unseal data
-        uint32_t unsealed_data_size = sgx_get_encrypt_txt_len((sgx_sealed_data_t *)p_sealed_data);
-        p_unsealed_data = (uint8_t *)enc_malloc(unsealed_data_size);
-        if (p_unsealed_data == NULL)
-        {
-            crust_status = CRUST_MALLOC_FAILED;
-            break;
-        }
-        memset(p_unsealed_data, 0, unsealed_data_size);
-        sgx_status_t sgx_status = sgx_unseal_data((sgx_sealed_data_t *)p_sealed_data, NULL, NULL,
-                p_unsealed_data, &unsealed_data_size);
-        if (SGX_SUCCESS != sgx_status)
-        {
-            crust_status = CRUST_UNEXPECTED_ERROR;
-            break;
-        }
-
-        // Choose to be checked file piece
-        uint32_t piece_num = 0;
-        memcpy(&piece_num, p_unsealed_data, sizeof(uint32_t));
-        if (piece_num == 0)
-        {
-            crust_status = CRUST_UNEXPECTED_ERROR;
-            break;
-        }
-        uint32_t rand_num = 0;
-        sgx_read_rand((uint8_t *)&rand_num, sizeof(uint32_t));
-        int chk_index = rand_num % piece_num;
-        uint32_t chk_spos, chk_epos;
-        chk_spos = chk_epos = SEALED_BLOCK_TAG_SIZE;
-        do
-        {
-            chk_spos = chk_epos;
-            chk_epos = 0;
-            memcpy(&chk_epos, p_unsealed_data + chk_spos, SEALED_BLOCK_TAG_SIZE);
-            chk_spos += SEALED_BLOCK_TAG_SIZE;
-            chk_epos += chk_spos;
-        } while (chk_epos < unsealed_data_size && --chk_index >= 0);
-
-        // ----- Do check ----- //
-        // Get cid from unsealed data piece
-        size_t real_piece_size = chk_epos - chk_spos;
-        uint8_t *p_real_piece_data = p_unsealed_data + chk_spos;
-        sgx_sha256_hash_t piece_hash;
-        sgx_sha256_msg(p_real_piece_data, real_piece_size, &piece_hash);
-        std::string piece_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&piece_hash));
-        // Get related IPFS file data piece
-        size_t got_piece_size = 0;
-        crust_status = storage_ipfs_get_block(piece_cid.c_str(), &p_got_piece_data, &got_piece_size);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            break;
-        }
-        // Compare data piece
-        if (memcmp(p_real_piece_data, p_got_piece_data, real_piece_size) != 0)
-        {
-            crust_status = CRUST_UNEXPECTED_ERROR;
-            break;
-        }
-    } while (0);
-
-    if (p_unsealed_data != NULL)
-    {
-        free(p_unsealed_data);
-    }
-
-    if (p_got_piece_data != NULL)
-    {
-        free(p_got_piece_data);
-    }
-
-    return crust_status;
 }

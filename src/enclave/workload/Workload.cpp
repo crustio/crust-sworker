@@ -807,7 +807,7 @@ void Workload::deal_deleted_file()
 }
 
 /**
- * @description: Is file duplicated
+ * @description: Is file duplicated, must hold file_mutex before invoked
  * @param cid -> File's content id
  * @return: File duplicated or not
  */
@@ -818,7 +818,7 @@ bool Workload::is_file_dup(std::string cid)
 }
 
 /**
- * @description: Is file duplicated
+ * @description: Is file duplicated, must hold file_mutex before invoked
  * @param cid -> File's content id
  * @param pos -> Duplicated file's position
  * @return: Duplicated or not
@@ -856,7 +856,7 @@ bool Workload::is_file_dup(std::string cid, size_t &pos)
 }
 
 /**
- * @description: Add sealed file
+ * @description: Add sealed file, must hold file_mutex before invoked
  * @param file -> File content
  * @param pos -> Inserted position
  */
@@ -869,7 +869,7 @@ void Workload::add_sealed_file(json::JSON file, size_t pos)
 }
 
 /**
- * @description: Add sealed file
+ * @description: Add sealed file, must hold file_mutex before invoked
  * @param file -> File content
  */
 void Workload::add_sealed_file(json::JSON file)
@@ -884,7 +884,7 @@ void Workload::add_sealed_file(json::JSON file)
 }
 
 /**
- * @description: Delete sealed file
+ * @description: Delete sealed file, must hold file_mutex before invoked
  * @param cid -> File content id
  */
 void Workload::del_sealed_file(std::string cid)
@@ -897,7 +897,7 @@ void Workload::del_sealed_file(std::string cid)
 }
 
 /**
- * @description: Delete sealed file
+ * @description: Delete sealed file, must hold file_mutex before invoked
  * @param pos -> Deleted file position
  */
 void Workload::del_sealed_file(size_t pos)

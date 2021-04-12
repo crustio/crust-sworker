@@ -420,6 +420,32 @@ public:
             Internal.String->operator[](index) = c;
     }
 
+    void AppendStr(std::string str)
+    {
+        if (Type == Class::Null)
+        {
+            SetType(Class::String);
+        }
+
+        if (Type == Class::String)
+        {
+            Internal.String->append(str);
+        }
+    }
+
+    void AppendStr(const char *str, size_t size)
+    {
+        if (Type == Class::Null)
+        {
+            SetType(Class::String);
+        }
+
+        if (Type == Class::String)
+        {
+            Internal.String->append(str, size);
+        }
+    }
+
     JSON &at(const string &key)
     {
         return operator[](key);
@@ -465,8 +491,23 @@ public:
             return (long)Internal.List->size();
         else if (Type == Class::Hash)
             return _hash_length;
+        else if (Type == Class::String)
+            return Internal.String->size();
         else
             return -1;
+    }
+
+    void AddNum(int num)
+    {
+        if (Type == Class::Null)
+        {
+            SetType(Class::Integral);
+        }
+
+        if (Type == Class::Integral)
+        {
+            Internal.Int += num;
+        }
     }
 
     Class JSONType() const { return Type; }
@@ -490,6 +531,16 @@ public:
             return std::to_string(Internal.Int);
         else
             return string("");
+    }
+
+    const char *ToCStr()
+    {
+        if (Type == Class::String)
+        {
+            return Internal.String->c_str();
+        }
+
+        return NULL;
     }
 
     uint8_t *ToBytes()
