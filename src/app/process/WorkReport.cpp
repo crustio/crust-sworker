@@ -160,6 +160,7 @@ void work_report_loop(void)
         }
         else if (CRUST_SUCCESS != crust_status)
         {
+            p_log->err("Send work report failed!\n");
             switch (crust_status)
             {
             case CRUST_BLOCK_HEIGHT_EXPIRED:
