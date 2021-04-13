@@ -146,7 +146,7 @@ void work_report_loop(void)
             offline_base_height += REPORT_SLOT;
 
             // Wait
-            if(wait_and_check_exit(60))
+            if(wait_and_check_exit(180))
             {
                 return;
             }

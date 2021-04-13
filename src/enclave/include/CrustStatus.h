@@ -104,6 +104,7 @@ typedef enum _crust_status_t
 
     // Validation related
     CRUST_VALIDATE_GET_REQUEST_FAILED = CRUST_MK_ERROR(0x9001),
+    CRUST_VALIDATE_HIGH_PRIORITY = CRUST_MK_ERROR(0x9002),
 
     // Upgrade related
     CRUST_UPGRADE_RESTORE_SRD_FAILED = CRUST_MK_ERROR(0x10001),

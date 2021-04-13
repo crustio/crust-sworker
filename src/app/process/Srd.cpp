@@ -83,22 +83,27 @@ crust_status_t srd_change(long change)
         // ----- Do srd ----- //
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
         ctpl::thread_pool pool(p_config->srd_thread_num);
-        std::vector<std::shared_ptr<std::future<sgx_status_t>>> tasks_v;
+        std::vector<std::shared_ptr<std::future<crust_status_t>>> tasks_v;
         for (size_t i = 0; i < true_increase; i++)
         {
             sgx_enclave_id_t eid = global_eid;
-            tasks_v.push_back(std::make_shared<std::future<sgx_status_t>>(pool.push([eid](int /*id*/){
-                sgx_status_t sgx_status = SGX_SUCCESS;
-                if (SGX_SUCCESS != Ecall_srd_increase(eid))
+            tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid](int /*id*/){
+                sgx_status_t sgx_ret = SGX_SUCCESS;
+                crust_status_t crust_ret = CRUST_SUCCESS;
+                if (SGX_SUCCESS != (sgx_ret = Ecall_srd_increase(eid, &crust_ret))
+                        || CRUST_SUCCESS != crust_ret)
                 {
                     // If failed, add current task to next turn
                     crust_status_t ret = CRUST_SUCCESS;
                     long real_change = 0;
                     Ecall_change_srd_task(global_eid, &ret, 1, &real_change);
-                    sgx_status = SGX_ERROR_UNEXPECTED;
                 }
                 decrease_running_srd_task();
-                return sgx_status;
+                if (SGX_SUCCESS != sgx_ret)
+                {
+                    crust_ret = CRUST_UNEXPECTED_ERROR;
+                }
+                return crust_ret;
             })));
         }
         // Wait for srd task
@@ -107,7 +112,7 @@ crust_status_t srd_change(long change)
         {
             try 
             {
-                if (SGX_SUCCESS == it->get())
+                if (CRUST_SUCCESS == it->get())
                 {
                     srd_success_num++;
                 }

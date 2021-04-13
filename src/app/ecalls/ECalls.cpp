@@ -5,9 +5,10 @@ EnclaveQueue *eq = EnclaveQueue::get_instance();
 /**
  * @description: A wrapper function, seal one G srd files under directory, can be called from multiple threads
  * @param eid -> Enclave id
+ * @param status (out) -> Pointer to restore result status
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid)
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -15,7 +16,7 @@ sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid)
         return ret;
     }
 
-    ret = ecall_srd_increase(eid);
+    ret = ecall_srd_increase(eid, status);
 
     eq->free_enclave(__FUNCTION__);
 

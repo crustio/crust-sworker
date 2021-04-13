@@ -119,6 +119,7 @@ function srd_real_async()
 {
     local change=$1
 
+    validate_add_proof
     local ret_code=$(curl -s -XPOST $baseurl/srd/change --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
     if [ $ret_code -eq 200 ]; then
         return 0
@@ -131,6 +132,7 @@ function srd_real_sync()
 {
     local change=$1
 
+    validate_add_proof
     local ret_code=$(curl -s -XPOST $baseurl/srd/change_real --data-raw "{\"change\":$change}" -o /dev/null -w "%{http_code}")
     if [ $ret_code -eq 200 ]; then
         return 0

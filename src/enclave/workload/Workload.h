@@ -139,8 +139,6 @@ public:
     void del_sealed_file(std::string cid);
     void del_sealed_file(size_t pos);
     size_t get_file_sealing_count();
-    void increase_file_sealing_count();
-    void decrease_file_sealing_count();
     void restore_file_info();
 
     // File sealing count
