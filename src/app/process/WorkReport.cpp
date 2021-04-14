@@ -160,29 +160,28 @@ void work_report_loop(void)
         }
         else if (CRUST_SUCCESS != crust_status)
         {
-            p_log->err("Send work report failed!\n");
             switch (crust_status)
             {
             case CRUST_BLOCK_HEIGHT_EXPIRED:
-                p_log->err("Block height expired.\n");
+                p_log->err("Block height has expired, please check your chain. SF:WRE\n");
                 break;
             case CRUST_FIRST_WORK_REPORT_AFTER_REPORT:
                 p_log->warn("Can't generate work report for the first time after restart, please wait for next era.\n");
                 break;
             case CRUST_SERVICE_UNAVAILABLE:
-                p_log->err("Can't generate work report. You have meaningful files, please start ipfs or use delete interface to remove those files\n");
+                p_log->err("IPFS is offline, please start ipfs or use delete interface to remove those files. SF:WRE\n");
                 break;
             case CRUST_UPGRADE_IS_UPGRADING:
-                p_log->info("Can't report work in this era, because of upgrading or exiting\n");
+                p_log->info("Stop reporting work in this era, because of upgrading or exiting\n");
                 break;
             case CRUST_SGX_SIGN_FAILED:
-                p_log->err("SGX signed failed!");
+                p_log->err("Can't generate work report, SGX signed failed. SF:WRE");
                 break;
             case CRUST_WORK_REPORT_NOT_VALIDATED:
-                p_log->err("Validation has not been applied!\n");
+                p_log->err("Hardware is too slow, validation has not been applied. SF:WRE\n");
                 break;
             default:
-                p_log->err("Get work report or upload failed! Error code: %x\n", crust_status);
+                p_log->err("Get work report or upload failed. Error code: %x SF:WRE\n", crust_status);
             }
         }
     loop:
