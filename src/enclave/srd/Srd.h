@@ -17,7 +17,7 @@
 #include "Parameter.h"
 
 void srd_change();
-void srd_increase();
+crust_status_t srd_increase();
 size_t srd_decrease(size_t change);
 void srd_remove_space(size_t change);
 long get_srd_task();

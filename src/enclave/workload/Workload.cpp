@@ -921,29 +921,6 @@ size_t Workload::get_file_sealing_count()
 }
 
 /**
- * @description: Increase one file sealing count
- */
-void Workload::increase_file_sealing_count()
-{
-    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
-    this->file_sealing_count++;
-    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
-}
-
-/**
- * @description: Decrease one file sealing count
- */
-void Workload::decrease_file_sealing_count()
-{
-    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
-    if (this->file_sealing_count != 0)
-    {
-        this->file_sealing_count--;
-    }
-    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
-}
-
-/**
  * @description: Restore file informatione
  */
 void Workload::restore_file_info()

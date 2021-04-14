@@ -49,6 +49,12 @@ void srd_change()
         return;
     }
 
+    // Check if validation has been applied or not
+    if (!wl->report_has_validated_proof())
+    {
+        return;
+    }
+
     sgx_thread_mutex_lock(&g_srd_task_mutex);
     // Get real srd space
     long srd_change_num = 0;
@@ -81,8 +87,6 @@ void srd_change()
             g_srd_task = 0;
             sgx_thread_mutex_unlock(&g_srd_task_mutex);
         }
-
-        ocall_delete_folder_or_file(&crust_status, "", STORE_TYPE_SRD_TEMP);
     }
 
     // Update srd info
@@ -95,13 +99,20 @@ void srd_change()
 
 /**
  * @description: seal one G srd files under directory, can be called from multiple threads
+ * @return: Srd increase result
  */
-void srd_increase()
+crust_status_t srd_increase()
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_sealed_data_t *p_sealed_data = NULL;
     size_t sealed_data_size = 0;
     Workload *wl = Workload::get_instance();
+
+    // Check if validation has been applied or not
+    if (!wl->report_has_validated_proof())
+    {
+        return CRUST_VALIDATE_HIGH_PRIORITY;
+    }
 
     // Generate base random data
     do
@@ -118,7 +129,7 @@ void srd_increase()
             if (g_base_rand_buffer == NULL)
             {
                 log_err("Malloc memory failed!\n");
-                return;
+                return CRUST_MALLOC_FAILED;
             }
             memset(g_base_rand_buffer, 0, SRD_RAND_DATA_LENGTH);
             sgx_read_rand(g_base_rand_buffer, sizeof(g_base_rand_buffer));
@@ -135,7 +146,7 @@ void srd_increase()
     ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
     if (CRUST_SUCCESS != crust_status)
     {
-        return;
+        return crust_status;
     }
 
     // Generate all M hashs and store file to disk
@@ -143,7 +154,7 @@ void srd_increase()
     if (hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return;
+        return CRUST_MALLOC_FAILED;
     }
     Defer defer_hashs([&hashs](void) {
         free(hashs);
@@ -153,7 +164,7 @@ void srd_increase()
         crust_status = seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
-            return;
+            return crust_status;
         }
         Defer defer_sealed_data([&p_sealed_data](void) {
             free(p_sealed_data);
@@ -177,7 +188,7 @@ void srd_increase()
             {
                 log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
             }
-            return;
+            return crust_status;
         }
     }
 
@@ -194,7 +205,7 @@ void srd_increase()
         {
             log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
         }
-        return;
+        return crust_status;
     }
 
     // Change G path name
@@ -208,7 +219,7 @@ void srd_increase()
         {
             log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
         }
-        return;
+        return crust_status;
     }
 
     // Get g hash
@@ -216,7 +227,7 @@ void srd_increase()
     if (p_hash_u == NULL)
     {
         log_info("Seal random data failed! Malloc memory failed!\n");
-        return;
+        return CRUST_MALLOC_FAILED;
     }
     memset(p_hash_u, 0, HASH_LENGTH);
     memcpy(p_hash_u, g_out_hash256, HASH_LENGTH);
@@ -226,7 +237,7 @@ void srd_increase()
     if (hex_g_hash.compare("") == 0)
     {
         log_err("Hexstring failed!\n");
-        return;
+        return CRUST_UNEXPECTED_ERROR;
     }
     // Add new g_hash to srd_hashs
     // Because add this p_hash_u to the srd_hashs, so we cannot free p_hash_u
@@ -237,6 +248,8 @@ void srd_increase()
 
     // ----- Update srd info ----- //
     wl->set_srd_info(1);
+
+    return crust_status;
 }
 
 /**

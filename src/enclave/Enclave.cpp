@@ -54,15 +54,16 @@ void ecall_main_loop()
 
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
+ * @return: Src increase result
  */
-void ecall_srd_increase()
+crust_status_t ecall_srd_increase()
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    srd_increase();
+    return srd_increase();
 }
 
 /**

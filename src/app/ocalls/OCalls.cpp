@@ -129,7 +129,6 @@ crust_status_t ocall_upload_workreport(const char *work_report)
     {
         if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
         {
-            p_log->err("Send work report to crust chain failed!\n");
             return CRUST_UPGRADE_SEND_WORKREPORT_FAILED;
         }
     }

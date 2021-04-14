@@ -13,7 +13,7 @@ enclave {
 
     trusted {
         // Srd ecalls for srd files
-        public void ecall_srd_increase();
+        public crust_status_t ecall_srd_increase();
         public size_t ecall_srd_decrease(size_t change);  
         public void ecall_srd_remove_space(size_t change);
         public crust_status_t ecall_change_srd_task(long change, [out] long *real_change);
