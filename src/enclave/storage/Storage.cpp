@@ -453,6 +453,8 @@ crust_status_t storage_delete_file(const char *cid)
     {
         // ----- Delete file related data ----- //
         std::string del_cid = deleted_file[FILE_CID].ToString();
+        // Delete file directory
+        ocall_delete_folder_or_file(&crust_status, del_cid.c_str(), STORE_TYPE_FILE);
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info
