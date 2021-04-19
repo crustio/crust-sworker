@@ -39,7 +39,7 @@ crust_status_t id_gen_upgrade_data_test(size_t block_height)
     size_t random_time = 0;
 
     // ----- Generate and upload work report ----- //
-    // Current era has reported, wait for next era
+    // Current era has reported, wait for next slot
     if (block_height <= wl->get_report_height())
     {
         crust_status = CRUST_UNEXPECTED_ERROR;
