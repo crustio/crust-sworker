@@ -65,7 +65,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
                     switch (crust_status)
                     {
                         case CRUST_UPGRADE_BLOCK_EXPIRE:
-                            ret_info = "Block expired!Wait for next era.";
+                            ret_info = "Block expired!Wait for next slot.";
                             ret_code = 402;
                             break;
                         case CRUST_UPGRADE_NO_VALIDATE:
@@ -73,7 +73,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
                             ret_code = 403;
                             break;
                         case CRUST_UPGRADE_RESTART:
-                            ret_info = "Cannot report due to restart!Wait for next era.";
+                            ret_info = "Cannot report due to restart!Wait for next slot.";
                             ret_code = 404;
                             break;
                         case CRUST_UPGRADE_NO_FILE:

@@ -1076,7 +1076,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     Workload *wl = Workload::get_instance();
 
     // ----- Generate and upload work report ----- //
-    // Current era has reported, wait for next era
+    // Current era has reported, wait for next slot
     if (block_height <= wl->get_report_height())
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;

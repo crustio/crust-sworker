@@ -166,7 +166,7 @@ void work_report_loop(void)
                 p_log->err("Block height has expired, please check your chain. SF:WRE\n");
                 break;
             case CRUST_FIRST_WORK_REPORT_AFTER_REPORT:
-                p_log->warn("Can't generate work report for the first time after restart, please wait for next era.\n");
+                p_log->warn("Can't generate work report for the first time after restart, please wait for next slot.\n");
                 break;
             case CRUST_SERVICE_UNAVAILABLE:
                 p_log->err("IPFS is offline, please start ipfs or use delete interface to remove those files. SF:WRE\n");

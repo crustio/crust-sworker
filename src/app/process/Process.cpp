@@ -582,30 +582,7 @@ entry_network_flag:
                     return_status = -1;
                     goto cleanup;
                 }
-                
-                // Get mrenclave on chain
-                std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
-                if (code_on_chain == "")
-                {
-                    p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
-                    return_status = -1;
-                    goto cleanup;
-                }
-
-                // Compare these two mrenclave
-                if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
-                {
-                    std::string cmd1(HRED "sudo crust tools upgrade-image sworker && sudo crust reload sworker" NC);
-                    p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
-                    "please remove all old sworker data and get the latest sworker by running '%s'\n",
-                    id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());
-                    return_status = -1;
-                    goto cleanup;
-                }
-                else
-                {
-                    p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
-                }
+                p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
             }
         }
     }
@@ -663,7 +640,7 @@ entry_network_flag:
                 p_log->info("Add srd task successfully! %ldG has been added, will be executed later.\n", srd_real_change);
                 break;
             case CRUST_SRD_NUMBER_EXCEED:
-                p_log->warn("Add srd task failed!Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
+                p_log->warn("Add srd task failed! Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
                 break;
             default:
                 p_log->info("Unexpected error has occurred!\n");
