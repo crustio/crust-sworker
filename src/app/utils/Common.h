@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <random>
 
 #include <boost/algorithm/string.hpp>
 
@@ -46,6 +47,7 @@ extern "C"
     void print_attention();
     bool sleep_interval(uint32_t time, std::function<bool()> func);
     std::string float_to_string(double num);
+    void read_rand(uint8_t *buf, size_t buf_size);
 
 #if defined(__cplusplus)
 }

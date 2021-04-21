@@ -722,7 +722,7 @@ size_t id_get_metadata_title_size()
  */
 size_t id_get_srd_buffer_size(std::vector<uint8_t *> &srd_hashs)
 {
-    return srd_hashs.size() * (HASH_LENGTH * 2 + 3) + 10;
+    return srd_hashs.size() * (SRD_LENGTH * 2 + 3) + 10;
 }
 
 /**
@@ -812,10 +812,10 @@ crust_status_t id_store_metadata()
     offset += wl_title.size();
     for (size_t i = 0; i < wl->srd_hashs.size(); i++)
     {
-        std::string hash_str;
-        hash_str.append("\"").append(hexstring_safe(wl->srd_hashs[i], HASH_LENGTH)).append("\"");
-        memcpy(meta_buf + offset, hash_str.c_str(), hash_str.size());
-        offset += hash_str.size();
+        std::string srd_hex;
+        srd_hex.append("\"").append(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH)).append("\"");
+        memcpy(meta_buf + offset, srd_hex.c_str(), srd_hex.size());
+        offset += srd_hex.size();
         if (i != wl->srd_hashs.size() - 1)
         {
             memcpy(meta_buf + offset, ",", 1);

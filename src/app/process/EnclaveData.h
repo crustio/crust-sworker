@@ -39,7 +39,13 @@ public:
     void restore_sealed_file_info();
     void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     // Get workload
-    std::string gen_workload();
+    std::string gen_workload(long srd_task = 0);
+    // For uuid and disk path
+    void set_uuid_disk_path_map(std::string uuid, std::string path);
+    std::string get_disk_path(std::string uuid);
+    std::string get_uuid(std::string path);
+    bool is_disk_exist(std::string path);
+    bool is_uuid_exist(std::string uuid);
 
 private:
     EnclaveData()
@@ -64,6 +70,9 @@ private:
     // Sealed file map
     json::JSON sealed_file;
     std::mutex sealed_file_mutex;
+    // For uuid and disk path
+    std::unordered_map<std::string, std::string> uuid_to_disk_path;
+    std::unordered_map<std::string, std::string> disk_path_to_uuid;
 };
 
 #endif /* !_APP_ENCLAVE_DATA_H_ */

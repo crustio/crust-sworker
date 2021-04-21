@@ -33,7 +33,6 @@ Workload::Workload()
     this->report_files = true;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
     this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
-    this->file_sealing_count = 0;
 }
 
 /**
@@ -62,8 +61,10 @@ std::string Workload::get_workload(void)
     wl_json[WL_FILES] = this->wl_spec_info;
     sgx_thread_mutex_unlock(&wl_spec_info_mutex);
     // Srd info
-    wl_json[WL_SRD][WL_SRD_COMPLETE] = this->get_srd_info()[WL_SRD_COMPLETE].ToInt();
+    json::JSON srd_info = this->get_srd_info();
+    wl_json[WL_SRD][WL_SRD_COMPLETE] = srd_info[WL_SRD_COMPLETE].ToInt();
     wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_task();
+    wl_json[WL_SRD][WL_SRD_DETAIL] = srd_info[WL_SRD_DETAIL];
 
     std::string wl_str = wl_json.dump();
     remove_char(wl_str, '\n');
@@ -103,21 +104,21 @@ json::JSON Workload::gen_workload_info()
     }
     else
     {
-        size_t g_hashs_len = this->srd_hashs.size() * HASH_LENGTH;
-        uint8_t *g_hashs = (uint8_t *)enc_malloc(g_hashs_len);
-        if (g_hashs == NULL)
+        size_t srds_data_sz = this->srd_hashs.size() * SRD_LENGTH;
+        uint8_t *srds_data = (uint8_t *)enc_malloc(srds_data_sz);
+        if (srds_data == NULL)
         {
             log_err("Generate srd info failed due to malloc failed!\n");
             return ans;
         }
-        memset(g_hashs, 0, g_hashs_len);
+        memset(srds_data, 0, srds_data_sz);
         for (size_t i = 0; i < this->srd_hashs.size(); i++)
         {
-            memcpy(g_hashs + i * HASH_LENGTH, this->srd_hashs[i], HASH_LENGTH);
+            memcpy(srds_data + i * SRD_LENGTH, this->srd_hashs[i], SRD_LENGTH);
         }
         ans[WL_SRD_SPACE] = this->srd_hashs.size() * 1024 * 1024 * 1024;
-        sgx_sha256_msg(g_hashs, (uint32_t)g_hashs_len, &srd_root);
-        free(g_hashs);
+        sgx_sha256_msg(srds_data, (uint32_t)srds_data_sz, &srd_root);
+        free(srds_data);
         ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
     }
 
@@ -176,7 +177,7 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
     srd_offset += 1;
     for (size_t i = 0; i < this->srd_hashs.size(); i++)
     {
-        std::string tmp = "\"" + hexstring_safe(this->srd_hashs[i], HASH_LENGTH) + "\"";
+        std::string tmp = "\"" + hexstring_safe(this->srd_hashs[i], SRD_LENGTH) + "\"";
         if (i != this->srd_hashs.size() - 1)
         {
             tmp.append(",");
@@ -258,6 +259,10 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
             return CRUST_UNEXPECTED_ERROR;
         }
         this->srd_hashs.push_back(g_hash);
+
+        // Restore srd detail
+        std::string uuid = hex_g_hash.substr(0, UUID_LENGTH * 2);
+        this->srd_info_json[WL_SRD_DETAIL][uuid].AddNum(1);
     }
 
     // Restore srd info
@@ -308,14 +313,16 @@ bool Workload::get_report_file_flag()
  * @description: Set srd info
  * @param change -> Change number
  */
-void Workload::set_srd_info(long change)
+void Workload::set_srd_info(const char *uuid, long change)
 {
+    std::string uuid_str(uuid);
     sgx_thread_mutex_lock(&this->srd_info_mutex);
-    this->srd_info_json[WL_SRD_COMPLETE] = this->srd_info_json[WL_SRD_COMPLETE].ToInt() + change;
+    this->srd_info_json[WL_SRD_COMPLETE].AddNum(change);
     if (this->srd_info_json[WL_SRD_COMPLETE].ToInt() <= 0)
     {
         this->srd_info_json[WL_SRD_COMPLETE] = 0;
     }
+    this->srd_info_json[WL_SRD_DETAIL][uuid_str].AddNum(change);
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 }
 
@@ -729,8 +736,7 @@ void Workload::deal_deleted_srd(bool locked)
     sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
 
     // Delete hashs
-    long del_num = this->delete_srd_meta(tmp_del_idx_s);
-    this->set_srd_info(-del_num);
+    this->delete_srd_meta(tmp_del_idx_s);
 
     if (locked)
     {
@@ -906,41 +912,6 @@ void Workload::del_sealed_file(size_t pos)
     {
         this->sealed_files.erase(this->sealed_files.begin() + pos);
     }
-}
-
-/**
- * @description: Get file sealing count
- * @return file sealing count
- */
-size_t Workload::get_file_sealing_count()
-{
-    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
-    size_t res = this->file_sealing_count;
-    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
-    return res;
-}
-
-/**
- * @description: Increase one file sealing count
- */
-void Workload::increase_file_sealing_count()
-{
-    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
-    this->file_sealing_count++;
-    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
-}
-
-/**
- * @description: Decrease one file sealing count
- */
-void Workload::decrease_file_sealing_count()
-{
-    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
-    if (this->file_sealing_count != 0)
-    {
-        this->file_sealing_count--;
-    }
-    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
 }
 
 /**

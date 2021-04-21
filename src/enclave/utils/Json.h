@@ -61,7 +61,7 @@ string json_escape_pad(const string &str, string pad)
             output += "\\f";
             break;
         case '\n':
-            if (pad.size() > 2 && i + 1 < str.length() && str[i+1] == '}')
+            if (pad.size() > 2 && i + 1 == str.length() - 1 && str[i+1] == '}')
             {
                 output += "\\n" + pad.substr(2, pad.length());
             }

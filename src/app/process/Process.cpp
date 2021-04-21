@@ -449,13 +449,9 @@ int process_run()
     size_t srd_task = 0;
     long srd_real_change = 0;
     std::string srd_task_str;
-    std::string srd_ratio_str;
     EnclaveData *ed = EnclaveData::get_instance();
     crust::DataBase *db = NULL;
     bool is_restart = false;
-    bool has_recover_option = false;
-    json::JSON wl_json;
-    std::string wl_str;
     p_log->info("WorkerPID = %d\n", worker_pid);
 
     // Init conifigure
@@ -559,7 +555,6 @@ entry_network_flag:
             }
 
             is_restart = true;
-            wl_str = ed->gen_workload();
 
             if (!offline_chain_mode)
             {
@@ -611,24 +606,6 @@ entry_network_flag:
     }
     db = crust::DataBase::get_instance();
 
-    // Get srd ratio
-    if (CRUST_SUCCESS == db->get(WL_SRD_RATIO, srd_ratio_str))
-    {
-        std::stringstream sstream(srd_ratio_str);
-        double srd_ratio = 0.0;
-        sstream >> srd_ratio;
-        p_config->set_srd_ratio(srd_ratio);
-        if (is_restart)
-        {
-            if (wl_json.size() <= 0)
-            {
-                wl_json = json::JSON::Load(wl_str);
-            }
-            wl_json[WL_SRD][WL_SRD_RATIO] = srd_ratio;
-        }
-        has_recover_option = true;
-    }
-
     // Get srd remaining task
     if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
     {
@@ -636,15 +613,17 @@ entry_network_flag:
         size_t srd_task_remain = 0;
         sstream >> srd_task_remain;
         srd_task = std::max(srd_task, srd_task_remain);
-        if (is_restart)
-        {
-            if (wl_json.size() <= 0)
-            {
-                wl_json = json::JSON::Load(wl_str);
-            }
-            wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = srd_task;
-        }
-        has_recover_option = true;
+    }
+
+    // Print recovered workload
+    if (is_restart)
+    {
+        std::string wl_info = ed->gen_workload(srd_task);
+        p_log->info("Workload information:\n%s\n", wl_info.c_str());
+        p_log->info("Restore enclave data successfully, sworker is running now.\n");
+
+        // Restore sealed file information
+        ed->restore_sealed_file_info();
     }
 
     // Restore or add srd task
@@ -669,52 +648,6 @@ entry_network_flag:
                 p_log->info("Unexpected error has occurred!\n");
             }
         }
-    }
-
-    // Print recovered workload
-    if (is_restart)
-    {
-        if (has_recover_option)
-        {
-            std::string srd_info;
-            srd_info.append("{\n")
-                    .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
-                    .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
-                    .append("\"" WL_SRD_RATIO "\" : ").append(float_to_string(wl_json[WL_SRD][WL_SRD_RATIO].ToFloat())).append(",\n")
-                    .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
-                    .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_AVAILABLE].ToInt())).append(",\n")
-                    .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_VOLUME].ToInt())).append("\n")
-                    .append("}");
-            // Get file info
-            json::JSON file_info = wl_json[WL_FILES];
-            json::JSON n_file_info;
-            char buf[128];
-            int space_num = 0;
-            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
-            {
-                space_num = std::max(space_num, (int)it->first.size());
-            }
-            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
-            {
-                memset(buf, 0, sizeof(buf));
-                sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
-                        std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
-                n_file_info[it->first] = std::string(buf);
-            }
-            wl_json[WL_SRD] = srd_info;
-            wl_json[WL_FILES] = n_file_info;
-            wl_str = wl_json.dump();
-            replace(wl_str, "\"{", "{");
-            replace(wl_str, ": \" ", ":  ");
-            replace(wl_str, "}\"", "}");
-            replace(wl_str, "\\n", "\n");
-            remove_char(wl_str, '\\');
-        }
-        p_log->info("Workload information:\n%s\n", wl_str.c_str());
-        p_log->info("Restore enclave data successfully, sworker is running now.\n");
-
-        // Restore sealed file information
-        ed->restore_sealed_file_info();
     }
 
     // Check block height and post report to chain

@@ -41,7 +41,7 @@ public:
     ~Workload();
     std::string get_workload(void);
     void clean_srd_buffer();
-    void set_srd_info(long change);
+    void set_srd_info(const char *uuid, long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info();
 
@@ -116,6 +116,8 @@ public:
                 uint8_t *hash = this->srd_hashs[*rit];
                 if (hash != NULL)
                 {
+                    std::string uuid = hexstring_safe(hash, UUID_LENGTH);
+                    this->set_srd_info(uuid.c_str(), -1);
                     free(hash);
                 }
                 this->srd_hashs.erase(this->srd_hashs.begin() + *rit);
@@ -138,14 +140,7 @@ public:
     void add_sealed_file(json::JSON file, size_t pos);
     void del_sealed_file(std::string cid);
     void del_sealed_file(size_t pos);
-    size_t get_file_sealing_count();
-    void increase_file_sealing_count();
-    void decrease_file_sealing_count();
     void restore_file_info();
-
-    // File sealing count
-    size_t file_sealing_count;
-    sgx_thread_mutex_t file_sealing_count_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_spec_info()

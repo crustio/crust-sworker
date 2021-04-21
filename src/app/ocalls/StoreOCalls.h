@@ -11,7 +11,7 @@ extern "C"
 {
 #endif
 crust_status_t ocall_create_dir(const char *path, store_type_t type);
-crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t old_type, store_type_t new_type);
+crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t type);
 crust_status_t ocall_save_file(const char *path, const unsigned char *data, size_t len, store_type_t type);
 crust_status_t ocall_delete_folder_or_file(const char *path, store_type_t type);
 crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *len, store_type_t type);

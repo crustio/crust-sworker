@@ -109,8 +109,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     size_t g_hashs_num = wl->srd_hashs.size();
     if (g_hashs_num > 0)
     {
-        uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
-        if (hashs == NULL)
+        uint8_t *srd_data = (uint8_t *)enc_malloc(g_hashs_num * SRD_LENGTH);
+        if (srd_data == NULL)
         {
             log_err("Malloc memory failed!\n");
             return CRUST_MALLOC_FAILED;
@@ -118,13 +118,13 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         size_t hashs_offset = 0;
         for (auto g_hash : wl->srd_hashs)
         {
-            memcpy(hashs + hashs_offset, g_hash, HASH_LENGTH);
-            hashs_offset += HASH_LENGTH;
+            memcpy(srd_data + hashs_offset, g_hash, SRD_LENGTH);
+            hashs_offset += SRD_LENGTH;
         }
         // Generate srd information
         srd_workload = g_hashs_num * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)(g_hashs_num * HASH_LENGTH), &srd_root);
-        free(hashs);
+        sgx_sha256_msg(srd_data, (uint32_t)(g_hashs_num * SRD_LENGTH), &srd_root);
+        free(srd_data);
     }
     else
     {

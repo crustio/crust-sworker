@@ -17,9 +17,9 @@
 #include "Parameter.h"
 
 void srd_change();
-void srd_increase();
+crust_status_t srd_increase(const char *uuid);
 size_t srd_decrease(size_t change);
-void srd_remove_space(size_t change);
+void srd_remove_space(const char *data, size_t data_size);
 long get_srd_task();
 crust_status_t change_srd_task(long change, long *real_change);
 crust_status_t srd_get_file(const char *path, uint8_t **p_data, size_t *data_size);
