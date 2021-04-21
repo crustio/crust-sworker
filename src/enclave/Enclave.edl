@@ -13,9 +13,9 @@ enclave {
 
     trusted {
         // Srd ecalls for srd files
-        public void ecall_srd_increase();
+        public crust_status_t ecall_srd_increase([in, string] const char *uuid);
         public size_t ecall_srd_decrease(size_t change);  
-        public void ecall_srd_remove_space(size_t change);
+        public void ecall_srd_remove_space([in, size=data_size] const char *data, size_t data_size);
         public crust_status_t ecall_change_srd_task(long change, [out] long *real_change);
 
         public void ecall_main_loop();
@@ -54,7 +54,7 @@ enclave {
         void ocall_log_err([in, string] const char *str);
         void ocall_log_debug([in, string] const char *str);
         crust_status_t ocall_create_dir([in, string] const char *path, store_type_t type);
-        crust_status_t ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path, store_type_t old_type, store_type_t new_type);
+        crust_status_t ocall_rename_dir([in, string] const char *old_path, [in, string] const char *new_path, store_type_t type);
         crust_status_t ocall_save_file([in, string] const char *file_path, [in, size=len] const uint8_t *data, size_t len, store_type_t type);
         crust_status_t ocall_delete_folder_or_file([in, string] const char *path, store_type_t type);
         crust_status_t ocall_get_file([in, string] const char *file_path, [out] uint8_t **p_file, [out] size_t *len, store_type_t type);

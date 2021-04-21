@@ -356,3 +356,20 @@ std::string float_to_string(double num)
 
     return ans;
 }
+
+/**
+ * @description: Fill given buffer random bytes
+ * @param buf -> Pointer to given buffer
+ * @param buf_size -> Buffer size
+ */
+void read_rand(uint8_t *buf, size_t buf_size)
+{
+    std::random_device rd;  // Will be used to obtain a seed for the random number engine
+    std::mt19937 mt(rd()); // Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<uint8_t> dist(0, 255); // Same distribution as before, but explicit and without bias
+    for (size_t i = 0; i < buf_size; i++)
+    {
+        buf[i] = dist(mt);
+    }
+    shuffle(buf, buf + buf_size, mt);
+}

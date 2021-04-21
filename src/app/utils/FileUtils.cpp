@@ -317,7 +317,7 @@ crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
-    if (access(path, 0) == -1)
+    if (access(path, R_OK) == -1)
     {
         return CRUST_ACCESS_FILE_FAILED;
     }

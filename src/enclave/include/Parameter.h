@@ -94,7 +94,7 @@
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
 #define WL_SRD_REMAINING_TASK "srd_remaining_task"
-#define WL_SRD_RATIO "srd_ratio"
+#define WL_SRD_DETAIL "srd_detail"
 #define WL_FILES "files"
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
@@ -122,8 +122,10 @@
 // Basic parameters
 #define HASH_LENGTH 32
 #define CID_LENGTH 46
+#define UUID_LENGTH 8
 #define ENC_MAX_THREAD_NUM  30
 #define ENCLAVE_MALLOC_TRYOUT 3
+const int SRD_LENGTH = UUID_LENGTH + HASH_LENGTH;
 
 // For upgrade
 #define UPGRADE_PUBLIC_KEY "pub_key"
@@ -145,11 +147,9 @@ typedef enum _enc_upgrade_status_t {
 } enc_upgrade_status_t;
 
 typedef enum _store_type_t {
-    STORE_TYPE_REGULAR,
+    STORE_TYPE_REG,
     STORE_TYPE_SRD,
     STORE_TYPE_FILE,
-    STORE_TYPE_SRD_TEMP,
-    STORE_TYPE_FILE_TEMP,
 } store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

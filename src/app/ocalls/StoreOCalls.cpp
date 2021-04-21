@@ -10,20 +10,22 @@ crust::Log *p_log = crust::Log::get_instance();
  */
 std::string get_real_path_by_type(const char *path, store_type_t type)
 {
+    EnclaveData *ed = EnclaveData::get_instance();
     std::string r_path;
+    std::string uuid(path, UUID_LENGTH * 2);
+    std::string l_path(path + UUID_LENGTH * 2);
+    std::string d_path = ed->get_disk_path(uuid);
+    if (l_path.size() > 0)
+    {
+        l_path = "/" + l_path;
+    }
     switch (type)
     {
         case STORE_TYPE_SRD:
-            r_path = Config::get_instance()->srd_path + "/" + path;
+            r_path = d_path + DISK_SRD_DIR + "/" + l_path;
             break;
         case STORE_TYPE_FILE:
-            r_path = Config::get_instance()->file_path + "/" + path;
-            break;
-        case STORE_TYPE_SRD_TEMP:
-            r_path = Config::get_instance()->temp_srd_path + "/" + path;
-            break;
-        case STORE_TYPE_FILE_TEMP:
-            r_path = Config::get_instance()->temp_file_path + "/" + path;
+            r_path = d_path + DISK_FILE_DIR + "/" + l_path;
             break;
         default:
             r_path = std::string(path);
@@ -62,10 +64,10 @@ crust_status_t ocall_create_dir(const char *path, store_type_t type)
  * @param new_type -> New path storage type
  * @return: Renaming result status
  */
-crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t old_type, store_type_t new_type)
+crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t type)
 {
-    std::string r_old_path = get_real_path_by_type(old_path, old_type);
-    std::string r_new_path = get_real_path_by_type(new_path, new_type);
+    std::string r_old_path = get_real_path_by_type(old_path, type);
+    std::string r_new_path = get_real_path_by_type(new_path, type);
 
     if (access(r_old_path.c_str(), 0) == -1)
     {

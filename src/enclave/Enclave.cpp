@@ -55,14 +55,14 @@ void ecall_main_loop()
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
  */
-void ecall_srd_increase()
+crust_status_t ecall_srd_increase(const char *uuid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    srd_increase();
+    return srd_increase(uuid);
 }
 
 /**
@@ -100,16 +100,17 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 
 /**
  * @description: Update srd_metadata
- * @param change -> To be removed srd space
+ * @param data -> Pointer to deleted srd info
+ * @param data_size -> Data size
  */
-void ecall_srd_remove_space(size_t change)
+void ecall_srd_remove_space(const char *data, size_t data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
 
-    srd_remove_space(change);
+    srd_remove_space(data, data_size);
 }
 
 /************************************System****************************************/

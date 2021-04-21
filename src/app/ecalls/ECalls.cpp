@@ -5,9 +5,11 @@ EnclaveQueue *eq = EnclaveQueue::get_instance();
 /**
  * @description: A wrapper function, seal one G srd files under directory, can be called from multiple threads
  * @param eid -> Enclave id
+ * @param status (out) -> Pointer to restore result status
+ * @param uuid (in) -》 Pointer to disk uuid
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid)
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -15,7 +17,7 @@ sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid)
         return ret;
     }
 
-    ret = ecall_srd_increase(eid);
+    ret = ecall_srd_increase(eid, status, uuid);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -325,10 +327,11 @@ sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status,
 /**
  * @description: Update srd_g_hashs
  * @param eid -> Enclave id
- * @param change -> To be deleted srd size
+ * @param data -> Pointer to deleted srd info
+ * @param data_size -> Data size
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change)
+sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, const char *data, size_t data_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -336,7 +339,7 @@ sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change)
         return ret;
     }
 
-    ret = ecall_srd_remove_space(eid, change);
+    ret = ecall_srd_remove_space(eid, data, data_size);
 
     eq->free_enclave(__FUNCTION__);
 

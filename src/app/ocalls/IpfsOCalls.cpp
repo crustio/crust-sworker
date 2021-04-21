@@ -104,10 +104,6 @@ crust_status_t ocall_ipfs_del_all(const char *cid)
     // Delete sealed tree
     crust::DataBase::get_instance()->del(cid);
 
-    // Delete sealed file data
-    std::string sealed_file_path = Config::get_instance()->file_path + "/" + cid;
-    rm_dir(sealed_file_path);
-
     // Delete statistics information
     EnclaveData::get_instance()->del_sealed_file_info(cid);
 

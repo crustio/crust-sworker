@@ -330,11 +330,13 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
 
 /**
  * @description: Generate workload
+ * @param srd_task -> Indicate recovered srd task from restart
  * @return: Workload
  */
-std::string EnclaveData::gen_workload()
+std::string EnclaveData::gen_workload(long srd_task)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
+    EnclaveData *ed = EnclaveData::get_instance();
     // Get srd info
     if (SGX_SUCCESS != (sgx_status = Ecall_get_workload(global_eid)))
     {
@@ -346,14 +348,33 @@ std::string EnclaveData::gen_workload()
         return "Get workload failed!";
     }
     json::JSON disk_json = get_increase_srd_info();
+    std::string disk_info;
+    disk_info.append("{\n");
+    for (int i = 0; i < disk_json.size(); i++)
+    {
+        std::string uuid = ed->get_uuid(disk_json[i][WL_DISK_PATH].ToString());
+        std::string disk_path = disk_json[i][WL_DISK_PATH].ToString();
+        uint32_t buffer_sz = disk_path.size() + 128;
+        char buffer[buffer_sz];
+        memset(buffer, 0, buffer_sz);
+        sprintf(buffer, "  \"%s\" : { \"srd\" : %-6ld, \"avail\" : %-6ld, \"volumn\" : %-6ld }", 
+                disk_path.c_str(),
+                wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt(),
+                disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
+                disk_json[i][WL_DISK_VOLUME].ToInt());
+        disk_info.append(buffer);
+        if (i != disk_json.size() - 1)
+        {
+            disk_info.append(",");
+        }
+        disk_info.append("\n");
+    }
+    disk_info.append("}");
     std::string srd_info;
     srd_info.append("{\n")
             .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
-            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
-            .append("\"" WL_SRD_RATIO "\" : ").append(float_to_string(Config::get_instance()->get_srd_ratio())).append(",\n")
-            .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
-            .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_json[WL_DISK_AVAILABLE].ToInt())).append(",\n")
-            .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_json[WL_DISK_VOLUME].ToInt())).append("\n")
+            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
+            .append("\"" WL_SRD_DETAIL "\" : ").append(disk_info).append("\n")
             .append("}");
     wl_json[WL_SRD] = srd_info;
     // Get file info
@@ -381,4 +402,55 @@ std::string EnclaveData::gen_workload()
     replace(wl_str, "\\n", "\n");
     remove_char(wl_str, '\\');
     return wl_str;
+}
+
+/**
+ * @description: Set mapping between uuid and disk path
+ * @param uuid -> Disk uuid
+ * @param path -> Disk path
+ */
+void EnclaveData::set_uuid_disk_path_map(std::string uuid, std::string path)
+{
+    this->uuid_to_disk_path[uuid] = path;
+    this->disk_path_to_uuid[path] = uuid;
+}
+
+/**
+ * @description: Get uuid by disk path
+ * @param path -> Disk path
+ * @return: Disk uuid
+ */
+std::string EnclaveData::get_uuid(std::string path)
+{
+    return this->disk_path_to_uuid[path];
+}
+
+/**
+ * @description: Get disk path by uuid
+ * @param uuid -> Disk uuid
+ * @return: Disk path
+ */
+std::string EnclaveData::get_disk_path(std::string uuid)
+{
+    return this->uuid_to_disk_path[uuid];
+}
+
+/**
+ * @description: Check if related uuid is existed in given path
+ * @param path -> Disk path
+ * @return: Is the mapping existed by given disk path
+ */
+bool EnclaveData::is_disk_exist(std::string path)
+{
+    return this->disk_path_to_uuid.find(path) != this->disk_path_to_uuid.end();
+}
+
+/**
+ * @description: Check if related path is existed in given uuid
+ * @param uuid -> Disk uuid
+ * @return: Is the mapping existed by given uuid
+ */
+bool EnclaveData::is_uuid_exist(std::string uuid)
+{
+    return this->uuid_to_disk_path.find(uuid) != this->uuid_to_disk_path.end();
 }

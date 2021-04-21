@@ -50,7 +50,7 @@ crust_status_t storage_seal_file(const char *root,
             g_files_failed_to_um[rcid] = 0;
             sgx_thread_mutex_unlock(&g_files_failed_to_um_mutex);
             // Delete file directory
-            ocall_delete_folder_or_file(&seal_ret, root, STORE_TYPE_FILE_TEMP);
+            ocall_delete_folder_or_file(&seal_ret, root, STORE_TYPE_FILE);
             // Delete PENDING status file entry
             SafeLock sl_file(wl->file_mutex);
             sl_file.lock();
@@ -63,7 +63,6 @@ crust_status_t storage_seal_file(const char *root,
                 }
             }
             sl_file.unlock();
-            wl->decrease_file_sealing_count();
         }
     });
 
@@ -120,7 +119,7 @@ crust_status_t storage_seal_file(const char *root,
         sl_file.unlock();
 
         // Create directory
-        ocall_create_dir(&crust_status, root, STORE_TYPE_FILE_TEMP);
+        ocall_create_dir(&crust_status, root, STORE_TYPE_FILE);
         if (CRUST_SUCCESS != crust_status)
         {
             return crust_status;
@@ -130,8 +129,6 @@ crust_status_t storage_seal_file(const char *root,
         g_files_info_um[rcid][FILE_BLOCKS][rcid].AddNum(1);
         g_files_info_um[rcid][FILE_SESSION_KEY] = sk;
         g_files_info_um[rcid][FILE_SEAL_STATUS] = true;
-
-        wl->increase_file_sealing_count();
     }
 
     // ----- Parse file data ----- //
@@ -216,7 +213,7 @@ crust_status_t storage_seal_file(const char *root,
     sgx_sha256_msg(reinterpret_cast<uint8_t *>(p_sealed_data), sealed_data_sz, &sealed_hash);
     std::string sealed_path = std::string(root) + "/" + hexstring_safe(&sealed_hash, HASH_LENGTH);
     // Save sealed block
-    ocall_save_file(&seal_ret, sealed_path.c_str(), reinterpret_cast<uint8_t *>(p_sealed_data), sealed_data_sz, STORE_TYPE_FILE_TEMP);
+    ocall_save_file(&seal_ret, sealed_path.c_str(), reinterpret_cast<uint8_t *>(p_sealed_data), sealed_data_sz, STORE_TYPE_FILE);
     if (CRUST_SUCCESS != seal_ret)
     {
         return seal_ret;
@@ -251,7 +248,7 @@ crust_status_t _storage_seal_file_end(const char *cid)
         if (CRUST_SUCCESS != crust_status)
         {
             // Delete file directory
-            ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE_TEMP);
+            ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE);
         }
         sgx_thread_mutex_lock(&g_files_info_um_mutex);
         g_files_info_um.erase(rcid);
@@ -268,7 +265,6 @@ crust_status_t _storage_seal_file_end(const char *cid)
             }
         }
         sl.unlock();
-        wl->decrease_file_sealing_count();
     });
 
     // Check if seal complete
@@ -286,20 +282,6 @@ crust_status_t _storage_seal_file_end(const char *cid)
         }
     }
     sl.unlock();
-
-    ocall_rename_dir(&crust_status, cid, cid, STORE_TYPE_FILE_TEMP, STORE_TYPE_FILE);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        ocall_delete_folder_or_file(&crust_status, cid, STORE_TYPE_FILE_TEMP);
-        return crust_status;
-    }
-
-    sgx_thread_mutex_lock(&wl->file_sealing_count_mutex);
-    if (wl->file_sealing_count == 1)
-    {
-        ocall_delete_folder_or_file(&crust_status, "", STORE_TYPE_FILE_TEMP);
-    }
-    sgx_thread_mutex_unlock(&wl->file_sealing_count_mutex);
 
     std::string cid_str = std::string(cid, CID_LENGTH);
 

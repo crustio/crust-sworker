@@ -80,8 +80,8 @@ void validate_srd()
             log_err("Invoke validate srd task failed! Error code:%lx\n", sgx_status);
             // Increase validate srd iterator
             sgx_thread_mutex_lock(&g_validate_srd_m_iter_mutex);
-            uint32_t g_hash_index = g_validate_srd_m_iter->first;
-            uint8_t *p_g_hash = g_validate_srd_m_iter->second;
+            uint32_t srd_index = g_validate_srd_m_iter->first;
+            uint8_t *p_srd = g_validate_srd_m_iter->second;
             g_validate_srd_m_iter++;
             sgx_thread_mutex_unlock(&g_validate_srd_m_iter_mutex);
             // Increase validated srd finish num
@@ -90,9 +90,9 @@ void validate_srd()
             sgx_thread_mutex_unlock(&g_validated_srd_num_mutex);
             // Push current g_hash to delete buffer
             sgx_thread_mutex_lock(&g_del_srd_v_mutex);
-            g_del_srd_v.push_back(p_g_hash);
+            g_del_srd_v.push_back(p_srd);
             sgx_thread_mutex_unlock(&g_del_srd_v_mutex);
-            wl->add_srd_to_deleted_buffer(g_hash_index);
+            wl->add_srd_to_deleted_buffer(srd_index);
         }
     }
 
@@ -123,7 +123,7 @@ void validate_srd()
     sgx_thread_mutex_lock(&g_del_srd_v_mutex);
     for (auto hash : g_del_srd_v)
     {
-        std::string del_path = hexstring_safe(hash, HASH_LENGTH);
+        std::string del_path = hexstring_safe(hash, SRD_LENGTH);
         ocall_delete_folder_or_file(&crust_status, del_path.c_str(), STORE_TYPE_SRD);
     }
     // Clear deleted srd buffer
@@ -149,17 +149,18 @@ void validate_srd_real()
     // Get srd info from iterator
     SafeLock sl_iter(g_validate_srd_m_iter_mutex);
     sl_iter.lock();
-    uint32_t g_hash_index = g_validate_srd_m_iter->first;
-    uint8_t *p_g_hash = g_validate_srd_m_iter->second;
+    uint32_t srd_index = g_validate_srd_m_iter->first;
+    uint8_t *p_srd = g_validate_srd_m_iter->second;
     g_validate_srd_m_iter++;
     sl_iter.unlock();
 
     // Get g_hash corresponding path
-    std::string g_hash = hexstring_safe(p_g_hash, HASH_LENGTH);
+    std::string srd_hex = hexstring_safe(p_srd, SRD_LENGTH);
+    std::string g_hash_hex = srd_hex.substr(UUID_LENGTH * 2, srd_hex.length());
     Workload *wl = Workload::get_instance();
     bool deleted = false;
 
-    Defer finish_defer([&cur_validate_random, &deleted, &p_g_hash, &g_hash_index, &wl](void) {
+    Defer finish_defer([&cur_validate_random, &deleted, &p_srd, &srd_index, &wl](void) {
         // Get current validate random
         sgx_thread_mutex_lock(&g_validate_random_mutex);
         uint32_t now_validate_srd_random = g_validate_random;
@@ -174,9 +175,9 @@ void validate_srd_real()
             if (deleted)
             {
                 sgx_thread_mutex_lock(&g_del_srd_v_mutex);
-                g_del_srd_v.push_back(p_g_hash);
+                g_del_srd_v.push_back(p_srd);
                 sgx_thread_mutex_unlock(&g_del_srd_v_mutex);
-                wl->add_srd_to_deleted_buffer(g_hash_index);
+                wl->add_srd_to_deleted_buffer(srd_index);
             }
         }
     });
@@ -184,20 +185,18 @@ void validate_srd_real()
     // Get M hashs
     uint8_t *m_hashs_org = NULL;
     size_t m_hashs_size = 0;
-    srd_get_file(get_m_hashs_file_path(g_hash.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
+    crust_status_t crust_status= srd_get_file(get_m_hashs_file_path(srd_hex.c_str()).c_str(), &m_hashs_org, &m_hashs_size);
     if (m_hashs_org == NULL)
     {
-        if (!wl->add_srd_to_deleted_buffer(g_hash_index))
+        if (!wl->add_srd_to_deleted_buffer(srd_index))
         {
             return;
         }
-        log_err("Get srd(%s) metadata failed, please check your disk.\n", g_hash.c_str());
+        log_err("Get srd(%s) metadata failed, please check your disk. Error code:%lx\n", g_hash_hex.c_str(), crust_status);
         deleted = true;
         return;
     }
-    Defer hashs_org_defer([&m_hashs_org](void) {
-        free(m_hashs_org);
-    });
+    Defer hashs_org_defer([&m_hashs_org](void) { free(m_hashs_org); });
 
     uint8_t *m_hashs = (uint8_t *)enc_malloc(m_hashs_size);
     if (m_hashs == NULL)
@@ -205,18 +204,16 @@ void validate_srd_real()
         log_err("Malloc memory failed!\n");
         return;
     }
-    Defer hashs_defer([&m_hashs](void) {
-        free(m_hashs);
-    });
+    Defer hashs_defer([&m_hashs](void) { free(m_hashs); });
     memset(m_hashs, 0, m_hashs_size);
     memcpy(m_hashs, m_hashs_org, m_hashs_size);
 
     // Compare M hashs
     sgx_sha256_hash_t m_hashs_sha256;
     sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-    if (memcmp(p_g_hash, m_hashs_sha256, HASH_LENGTH) != 0)
+    if (memcmp(p_srd + UUID_LENGTH, m_hashs_sha256, HASH_LENGTH) != 0)
     {
-        log_err("Wrong srd(%s) metadata.\n", g_hash.c_str());
+        log_err("Wrong srd(%s) metadata.\n", g_hash_hex.c_str());
         deleted = true;
         return;
     }
@@ -225,30 +222,29 @@ void validate_srd_real()
     uint32_t rand_val;
     sgx_read_rand((uint8_t*)&rand_val, 4);
     size_t srd_block_index = rand_val % SRD_RAND_DATA_NUM;
-    std::string leaf_path = get_leaf_path(g_hash.c_str(), srd_block_index, m_hashs + srd_block_index * HASH_LENGTH);
+    std::string leaf_path = get_leaf_path(srd_hex.c_str(), srd_block_index, m_hashs + srd_block_index * HASH_LENGTH);
     uint8_t *leaf_data = NULL;
     size_t leaf_data_len = 0;
-    srd_get_file(leaf_path.c_str(), &leaf_data, &leaf_data_len);
+    crust_status = srd_get_file(leaf_path.c_str(), &leaf_data, &leaf_data_len);
     if (leaf_data == NULL)
     {
-        if (!wl->add_srd_to_deleted_buffer(g_hash_index))
+        if (!wl->add_srd_to_deleted_buffer(srd_index))
         {
             return;
         }
-        log_err("Get srd(%s) block failed.\n", g_hash.c_str());
+        log_err("Get srd(%s) block(%s) failed. Error code:%x\n", 
+                g_hash_hex.c_str(), hexstring_safe(m_hashs + srd_block_index * HASH_LENGTH, HASH_LENGTH).c_str(), crust_status);
         deleted = true;
         return;
     }
-    Defer leaf_defer([&leaf_data](void) {
-        free(leaf_data);
-    });
+    Defer leaf_defer([&leaf_data](void) { free(leaf_data); });
 
     // Compare leaf data
     sgx_sha256_hash_t leaf_hash;
     sgx_sha256_msg(leaf_data, leaf_data_len, &leaf_hash);
     if (memcmp(m_hashs + srd_block_index * HASH_LENGTH, leaf_hash, HASH_LENGTH) != 0)
     {
-        log_err("Wrong srd block data hash '%s'(file path:%s).\n", g_hash.c_str(), g_hash.c_str());
+        log_err("Wrong srd block data hash '%s'(file path:%s).\n", g_hash_hex.c_str(), g_hash_hex.c_str());
         deleted = true;
     }
 }

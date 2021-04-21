@@ -543,52 +543,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
-        // --- Change srd ratio --- //
-        cur_path = urlendpoint.base + "/srd/ratio";
-        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
-        {
-            json::JSON ret_body;
-            int ret_code = 400;
-            std::string ret_info;
-            // Check input parameters
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
-            if (!req_json.hasKey("ratio") || req_json["ratio"].JSONType() != json::JSON::Class::Integral)
-            {
-                ret_info = "Invalid srd ratio field!";
-                ret_code = 400;
-            }
-            else
-            {
-                double srd_ratio = (double)req_json["ratio"].ToInt() / 100;
-                if (srd_ratio > SRD_RATIO_UPPER || srd_ratio < 0)
-                {
-                    ret_info = "Srd ratio range should be 0 ~ " + std::to_string((int)(SRD_RATIO_UPPER * 100)) + " (%).";
-                    ret_code = 400;
-                }
-                else
-                {
-                    p_config->set_srd_ratio(srd_ratio);
-                    crust::DataBase::get_instance()->set(WL_SRD_RATIO, std::to_string(srd_ratio));
-                    ret_info = "Set srd ratio successfully!";
-                    ret_code = 200;
-                }
-            }
-
-            if (ret_code != 200)
-            {
-                p_log->err("%s\n", ret_info.c_str());
-            }
-            else
-            {
-                p_log->info("%s\n", ret_info.c_str());
-            }
-            ret_body[HTTP_STATUS_CODE] = ret_code;
-            ret_body[HTTP_MESSAGE] = ret_info;
-            res.result(ret_code);
-            res.body() = ret_body.dump();
-            goto postcleanup;
-        }
-
         // --- Change srd --- //
         cur_path = urlendpoint.base + "/srd/change";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
@@ -612,7 +566,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 json::JSON wl_info = json::JSON::Load(EnclaveData::get_instance()->gen_workload());
                 long srd_complete = wl_info[WL_SRD][WL_SRD_COMPLETE].ToInt();
                 long srd_remaining_task = wl_info[WL_SRD][WL_SRD_REMAINING_TASK].ToInt();
-                long disk_avail_for_srd = wl_info[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
+                long disk_avail_for_srd = 0;
+                for (auto disk_info : wl_info[WL_SRD][WL_SRD_DETAIL].ObjectRange())
+                {
+                    disk_avail_for_srd += (disk_info.second)["avail"].ToInt();
+                }
                 long running_srd_task = get_running_srd_task();
                 if (change_srd_num > 0)
                 {
@@ -764,72 +722,62 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             else
             {
                 sgx_status_t sgx_status = SGX_SUCCESS;
-                if(!create_directory(p_config->file_path))
+                char *index_path = (char *)malloc(IPFS_INDEX_LENGTH);
+                memset(index_path, 0, IPFS_INDEX_LENGTH);
+                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, sk, is_link, index_path, IPFS_INDEX_LENGTH)))
                 {
-                    ret_info = "Create file directory failed! No space or no privilege";
+                    ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 500;
-                    crust_status = CRUST_MKDIR_FAILED;
                 }
-                else
+                else if (CRUST_SUCCESS != crust_status)
                 {
-                    char *index_path = (char *)malloc(IPFS_INDEX_LENGTH);
-                    memset(index_path, 0, IPFS_INDEX_LENGTH);
-                    if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, sk, is_link, index_path, IPFS_INDEX_LENGTH)))
+                    switch (crust_status)
                     {
-                        ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                    case CRUST_SEAL_DATA_FAILED:
+                        ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
+                    case CRUST_FILE_NUMBER_EXCEED:
+                        ret_info = "Seal file '" + cid + "' failed! No more file can be sealed! File number reachs the upper limit";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        ret_info = "Seal file '" + cid + "' stoped due to upgrading or exiting";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 503;
+                        break;
+                    case CRUST_STORAGE_FILE_DUP:
+                        ret_info = "This file '" + cid + "' has been sealed";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 200;
+                        break;
+                    case CRUST_STORAGE_FILE_SEALING:
+                        ret_info = "Same file '" + cid + "' is being sealed.";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 200;
+                        break;
+                    case CRUST_STORAGE_FILE_DELETING:
+                        ret_info = "Same file '" + cid + "' is being deleted.";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 400;
+                        break;
+                    default:
+                        ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
                         p_log->err("%s\n", ret_info.c_str());
                         ret_code = 500;
                     }
-                    else if (CRUST_SUCCESS != crust_status)
-                    {
-                        switch (crust_status)
-                        {
-                        case CRUST_SEAL_DATA_FAILED:
-                            ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 500;
-                            break;
-                        case CRUST_FILE_NUMBER_EXCEED:
-                            ret_info = "Seal file '" + cid + "' failed! No more file can be sealed! File number reachs the upper limit";
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 500;
-                            break;
-                        case CRUST_UPGRADE_IS_UPGRADING:
-                            ret_info = "Seal file '" + cid + "' stoped due to upgrading or exiting";
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 503;
-                            break;
-                        case CRUST_STORAGE_FILE_DUP:
-                            ret_info = "This file '" + cid + "' has been sealed";
-                            p_log->info("%s\n", ret_info.c_str());
-                            ret_code = 200;
-                            break;
-                        case CRUST_STORAGE_FILE_SEALING:
-                            ret_info = "Same file '" + cid + "' is being sealed.";
-                            p_log->info("%s\n", ret_info.c_str());
-                            ret_code = 200;
-                            break;
-                        case CRUST_STORAGE_FILE_DELETING:
-                            ret_info = "Same file '" + cid + "' is being deleted.";
-                            p_log->info("%s\n", ret_info.c_str());
-                            ret_code = 400;
-                            break;
-                        default:
-                            ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 500;
-                        }
-                    }
-                    else
-                    {
-                        ret_info = "Seal file '" + cid + "' successfully";
-                        //p_log->info("%s\n", ret_info.c_str());
-                        ret_code = 200;
-                        ret_body[HTTP_IPFS_INDEX_PATH] = std::string(index_path);
-                    }
-                    free(index_path);
                 }
+                else
+                {
+                    ret_info = "Seal file '" + cid + "' successfully";
+                    //p_log->info("%s\n", ret_info.c_str());
+                    ret_code = 200;
+                    ret_body[HTTP_IPFS_INDEX_PATH] = std::string(index_path);
+                }
+                free(index_path);
             }
             ret_body[HTTP_STATUS_CODE] = stoi(num_to_hexstring(crust_status), NULL, 10);
             ret_body[HTTP_MESSAGE] = ret_info;

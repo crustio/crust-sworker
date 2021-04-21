@@ -16,13 +16,10 @@
 #include "EnclaveData.h"
 #include "Ctpl.h"
 #include "HttpClient.h"
+#include "../enclave/utils/Defer.h"
 
 // Indicates maximal srd reserved space
 #define DEFAULT_SRD_RESERVED 50
-// Indicates default srd ratio
-#define SRD_RATIO_DEFAULT 0.99
-// Srd ratio upper limit
-#define SRD_RATIO_UPPER 0.99
 // Indicates srd upgrade timeout
 #define SRD_UPGRADE_TIMEOUT 20
 
@@ -30,13 +27,14 @@
 #define SRD_UPGRADE_INFO_TIMEOUT "timeout"
 #define SRD_UPGRADE_INFO_SRD "srd"
 
+json::JSON get_increase_srd_info();
+json::JSON get_increase_srd_info(long &change);
 
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
 
-json::JSON get_increase_srd_info();
 crust_status_t srd_change(long change);
 void srd_check_reserved(void);
 size_t get_reserved_space();

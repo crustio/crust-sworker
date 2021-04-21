@@ -8,9 +8,9 @@ extern "C"
 {
 #endif
 
-sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid);
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid);
 sgx_status_t Ecall_srd_decrease(sgx_enclave_id_t eid, size_t *size, size_t change);
-sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change);
+sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, const char *data, size_t data_size);
 sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change);
 
 sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);

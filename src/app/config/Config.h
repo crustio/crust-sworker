@@ -37,10 +37,7 @@ class Config
 public:
     // base information
     std::string base_path;              /* sworker base path */
-    std::string srd_path;               /* srd validation files base path */
-    std::string file_path;              /* meaningful validation files base path */
-    std::string temp_srd_path;          /* temp path for srd */
-    std::string temp_file_path;         /* temp path for meaningful files */
+    std::vector<std::string> data_paths;               /* srd validation files base path */
     std::string db_path;                /* DB path */
     std::string base_url;               /* External API base url */
     
@@ -63,16 +60,11 @@ public:
     static Config *get_instance();
     std::string get_config_path();
 
-    void set_srd_ratio(double ratio);
-    double get_srd_ratio();
-
 private:
     Config() {}
     Config(const Config &);
     bool init(std::string path);
     Config& operator = (const Config &);
-    double srd_ratio;
-    std::mutex srd_ratio_mutex;
 };
 
 #endif /* !_CRUST_CONFIG_H_ */
