@@ -795,6 +795,7 @@ crust_status_t id_store_metadata()
     {
         return CRUST_MALLOC_FAILED;
     }
+    Defer def_meta_buf([&meta_buf](void) { free(meta_buf); });
     memset(meta_buf, 0, meta_len);
     size_t offset = 0;
 
@@ -878,7 +879,6 @@ crust_status_t id_store_metadata()
     offset += 2;
 
     crust_status = persist_set(ID_METADATA, meta_buf, offset);
-    free(meta_buf);
 
     sl.unlock();
 
@@ -967,6 +967,11 @@ crust_status_t id_restore_metadata()
                 + strlen(FILE_SEALED_SIZE) + 12 + 9
                 + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 9) * meta_json[ID_FILE].size() + 32;
         uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
+        if (file_info_buf == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        Defer def_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
         size_t file_info_offset = 0;
         memset(file_info_buf, 0, file_info_len);
         memcpy(file_info_buf, "{", 1);
@@ -989,7 +994,6 @@ crust_status_t id_restore_metadata()
         memcpy(file_info_buf + file_info_offset, "}", 1);
         file_info_offset += 1;
         persist_set_unsafe(DB_FILE_INFO, file_info_buf, file_info_offset);
-        free(file_info_buf);
         // Restore file metadata
         wl->sealed_files.resize(meta_json[ID_FILE].size());
         for (int i = 0; i < meta_json[ID_FILE].size(); i++)
@@ -1173,6 +1177,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     }
     memset(sigbuf, 0, sigbuf_len);
     uint8_t *p_sigbuf = sigbuf;
+    Defer def_sigbuf([&p_sigbuf](void) { free(p_sigbuf); });
     // Pub key
     memcpy(sigbuf, &wl->get_pub_key(), sizeof(sgx_ec256_public_t));
     sigbuf += sizeof(sgx_ec256_public_t);
@@ -1190,7 +1195,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     sgx_ec256_signature_t sgx_sig; 
     sgx_status = sgx_ecdsa_sign(p_sigbuf, sigbuf_len,
             const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &sgx_sig, ecc_state);
-    free(p_sigbuf);
     if (SGX_SUCCESS != sgx_status)
     {
         return CRUST_SGX_SIGN_FAILED;
@@ -1235,6 +1239,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     }
     memset(upgrade_buffer, 0, upgrade_buffer_len);
     uint8_t *p_upgrade_buffer = upgrade_buffer;
+    Defer def_upgrade_buffer([&p_upgrade_buffer](void) { free(p_upgrade_buffer); });
     // Public key
     memcpy(upgrade_buffer, pubkey_data.c_str(), pubkey_data.size());
     upgrade_buffer += pubkey_data.size();
@@ -1266,7 +1271,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
 
     // Store upgrade data
     store_large_data(p_upgrade_buffer, upgrade_buffer_len, ocall_store_upgrade_data, wl->ocall_upgrade_mutex);
-    free(p_upgrade_buffer);
 
     wl->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
 
@@ -1342,6 +1346,7 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     }
     memset(sigbuf, 0, sigbuf_len);
     uint8_t *p_sigbuf = sigbuf;
+    Defer def_sigbuf([&p_sigbuf](void) { free(p_sigbuf); });
     // A's public key
     memcpy(sigbuf, &sgx_a_pub_key, sizeof(sgx_ec256_public_t));
     sigbuf += sizeof(sgx_ec256_public_t);
@@ -1358,21 +1363,17 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     memcpy(sigbuf, wl_info[WL_FILE_ROOT_HASH].ToBytes(), sizeof(sgx_sha256_hash_t));
     // Verify signature
     sgx_ecc_state_handle_t ecc_state = NULL;
-    Defer defer([ecc_state, p_sigbuf](void) {
-        if (ecc_state != NULL)
-        {
-            sgx_ecc256_close_context(ecc_state);
-        }
-        if (p_sigbuf != NULL)
-        {
-            free(p_sigbuf);
-        }
-    });
     sgx_status = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
         return CRUST_SGX_SIGN_FAILED;
     }
+    Defer defer([&ecc_state](void) {
+        if (ecc_state != NULL)
+        {
+            sgx_ecc256_close_context(ecc_state);
+        }
+    });
     uint8_t *wl_sig_u = hex_string_to_bytes(wl_sig.c_str(), wl_sig.size());
     if (wl_sig_u == NULL)
     {

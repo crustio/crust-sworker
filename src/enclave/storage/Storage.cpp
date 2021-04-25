@@ -197,7 +197,7 @@ crust_status_t storage_seal_file(const char *root,
     {
         return seal_ret;
     }
-    sealed_path = uuid + sealed_path;
+    sealed_path = std::string(uuid, UUID_LENGTH * 2) + sealed_path;
     uint8_t *uuid_u = hex_string_to_bytes(uuid, UUID_LENGTH * 2);
     if (uuid_u == NULL)
     {
