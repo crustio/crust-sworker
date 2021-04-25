@@ -85,4 +85,10 @@ const char* UPGRADE_FAILED_LOGO =
 #define HTTP_MESSAGE "message"
 #define HTTP_IPFS_INDEX_PATH "path"
 
+typedef enum _save_file_type_t
+{
+    SF_NONE,
+    SF_CREATE_DIR,
+} save_file_type_t;
+
 #endif /* !_CRUST_RESOURCE_H_ */

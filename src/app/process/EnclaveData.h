@@ -39,7 +39,9 @@ public:
     void restore_sealed_file_info();
     void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     // Get workload
-    std::string gen_workload(long srd_task = 0);
+    std::string gen_workload_str(long srd_task = 0);
+    json::JSON gen_workload_for_print(long srd_task = 0);
+    json::JSON gen_workload(long srd_task = 0);
     // For uuid and disk path
     void set_uuid_disk_path_map(std::string uuid, std::string path);
     std::string get_disk_path(std::string uuid);

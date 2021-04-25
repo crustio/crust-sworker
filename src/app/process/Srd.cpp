@@ -54,7 +54,7 @@ bool check_or_init_disk(std::string path)
 
     // Get current disk info
     std::string srd_dir = path + DISK_SRD_DIR;
-    if (!create_directory(srd_dir))
+    if (CRUST_SUCCESS != create_directory(srd_dir))
     {
         p_log->err("Cannot create dir:%s\n", srd_dir.c_str());
     }

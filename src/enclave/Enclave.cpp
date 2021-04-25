@@ -208,23 +208,61 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 /************************************Files****************************************/
 
 /**
- * @description: Seal file according to given path and return new MerkleTree
- * @param cid (in) -> Pointer to ipfs content id
- * @param data (in) -> Pointer to raw data or link
- * @param data_size -> Raw data size or link size
- * @param sk -> Seal session key
- * @param is_link -> Indicate data is raw data or a link
- * @param path (in, out) -> Index path used to get file block
- * @return: Seal status
+ * @description: IPFS informs sWorker to prepare for seal
+ * @param root -> File root cid
+ * @return: Inform result
  */
-crust_status_t ecall_seal_file(const char *cid, const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, char *path, size_t path_size)
+crust_status_t ecall_seal_file_start(const char *root)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_seal_file(cid, data, data_size, sk, is_link, path, path_size);
+    crust_status_t ret = storage_seal_file_start(root);
+
+    return ret;
+}
+
+/**
+ * @description: Seal file according to given path and return new MerkleTree
+ * @param root (in) -> Pointer to file root cid
+ * @param data (in) -> Pointer to raw data or link
+ * @param data_size -> Raw data size or link size
+ * @param is_link -> Indicate data is raw data or a link
+ * @param path (in, out) -> Index path used to get file block
+ * @return: Seal status
+ */
+crust_status_t ecall_seal_file(const char *root,
+                               const uint8_t *data,
+                               size_t data_size,
+                               bool is_link,
+                               char *path,
+                               size_t path_size)
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return CRUST_UPGRADE_IS_UPGRADING;
+    }
+
+    crust_status_t ret = storage_seal_file(root, data, data_size, is_link, path, path_size);
+
+    return ret;
+}
+
+/**
+ * @description: IPFS informs sWorker seal end
+ * @param root -> File root cid
+ * @return: Inform result
+ */
+crust_status_t ecall_seal_file_end(const char *root)
+{
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return CRUST_UPGRADE_IS_UPGRADING;
+    }
+
+    crust_status_t ret = storage_seal_file_end(root);
 
     return ret;
 }

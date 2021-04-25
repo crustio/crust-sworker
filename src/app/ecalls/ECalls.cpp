@@ -245,13 +245,34 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
 }
 
 /**
+ * @description: A wrapper function, seal file start
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to seal result status
+ * @param cid (in) -> Pointer to file root cid
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_seal_file_start(eid, status, cid);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
  * @description: A wrapper function, Seal file according to given path and return new MerkleTree
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to seal result status
  * @param cid (in) -> Ipfs content id
  * @param data (in) -> Pointer to raw data or link
  * @param data_size -> Raw data size or link size
- * @param sk -> Seal session key
  * @param is_link -> Indicate data is raw data or a link
  * @param path (in, out) -> Index path used to get file block
  * @return: Invoking ecall return status
@@ -261,7 +282,6 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,
                              const char *cid,
                              const uint8_t *data,
                              size_t data_size,
-                             uint32_t sk,
                              bool is_link,
                              char *path,
                              size_t path_size)
@@ -272,7 +292,29 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,
         return ret;
     }
 
-    ret = ecall_seal_file(eid, status, cid, data, data_size, sk, is_link, path, path_size);
+    ret = ecall_seal_file(eid, status, cid, data, data_size, is_link, path, path_size);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: A wrapper function, seal file end
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to seal result status
+ * @param cid (in) -> Pointer to file root cid
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_seal_file_end(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_seal_file_end(eid, status, cid);
 
     eq->free_enclave(__FUNCTION__);
 

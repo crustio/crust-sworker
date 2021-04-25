@@ -331,9 +331,26 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
 /**
  * @description: Generate workload
  * @param srd_task -> Indicate recovered srd task from restart
- * @return: Workload
+ * @return: Workload in string
  */
-std::string EnclaveData::gen_workload(long srd_task)
+std::string EnclaveData::gen_workload_str(long srd_task)
+{
+    json::JSON wl_json = this->gen_workload_for_print(srd_task);
+    std::string wl_str = wl_json.dump();
+    replace(wl_str, "\"{", "{");
+    replace(wl_str, ": \" ", ":  ");
+    replace(wl_str, "}\"", "}");
+    replace(wl_str, "\\n", "\n");
+    remove_char(wl_str, '\\');
+    return wl_str;
+}
+
+/**
+ * @description: Generate workload
+ * @param srd_task -> Indicate recovered srd task from restart
+ * @return: Workload in json
+ */
+json::JSON EnclaveData::gen_workload_for_print(long srd_task)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
     EnclaveData *ed = EnclaveData::get_instance();
@@ -348,6 +365,9 @@ std::string EnclaveData::gen_workload(long srd_task)
         return "Get workload failed!";
     }
     json::JSON disk_json = get_increase_srd_info();
+    int disk_avail_for_srd = 0;
+    int disk_avail = 0;
+    int disk_volume = 0;
     std::string disk_info;
     disk_info.append("{\n");
     for (int i = 0; i < disk_json.size(); i++)
@@ -357,10 +377,11 @@ std::string EnclaveData::gen_workload(long srd_task)
         uint32_t buffer_sz = disk_path.size() + 128;
         char buffer[buffer_sz];
         memset(buffer, 0, buffer_sz);
-        sprintf(buffer, "  \"%s\" : { \"srd\" : %-6ld, \"avail\" : %-6ld, \"volumn\" : %-6ld }", 
+        sprintf(buffer, "  \"%s\" : { \"srd\" : %-6ld, \"srd_avail\" : %-6ld, \"avail\" : %-6ld, \"volumn\" : %-6ld }", 
                 disk_path.c_str(),
                 wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt(),
                 disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
+                disk_json[i][WL_DISK_AVAILABLE].ToInt(),
                 disk_json[i][WL_DISK_VOLUME].ToInt());
         disk_info.append(buffer);
         if (i != disk_json.size() - 1)
@@ -368,12 +389,18 @@ std::string EnclaveData::gen_workload(long srd_task)
             disk_info.append(",");
         }
         disk_info.append("\n");
+        disk_avail += disk_json[i][WL_DISK_AVAILABLE].ToInt();
+        disk_avail_for_srd += disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
+        disk_volume += disk_json[i][WL_DISK_VOLUME].ToInt();
     }
     disk_info.append("}");
     std::string srd_info;
     srd_info.append("{\n")
             .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
             .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
+            .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_avail_for_srd)).append(",\n")
+            .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_avail)).append(",\n")
+            .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_volume)).append(",\n")
             .append("\"" WL_SRD_DETAIL "\" : ").append(disk_info).append("\n")
             .append("}");
     wl_json[WL_SRD] = srd_info;
@@ -395,13 +422,53 @@ std::string EnclaveData::gen_workload(long srd_task)
     }
 
     wl_json[WL_FILES] = n_file_info;
-    std::string wl_str = wl_json.dump();
-    replace(wl_str, "\"{", "{");
-    replace(wl_str, ": \" ", ":  ");
-    replace(wl_str, "}\"", "}");
-    replace(wl_str, "\\n", "\n");
-    remove_char(wl_str, '\\');
-    return wl_str;
+    return wl_json;
+}
+
+/**
+ * @description: Generate workload
+ * @param srd_task -> Indicate recovered srd task from restart
+ * @return: Workload in json
+ */
+json::JSON EnclaveData::gen_workload(long srd_task)
+{
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    EnclaveData *ed = EnclaveData::get_instance();
+    // Get srd info
+    if (SGX_SUCCESS != (sgx_status = Ecall_get_workload(global_eid)))
+    {
+        p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
+    }
+    json::JSON wl_json = json::JSON::Load(get_enclave_workload());
+    if (wl_json.size() == -1)
+    {
+        return "Get workload failed!";
+    }
+    json::JSON disk_json = get_increase_srd_info();
+    int disk_avail_for_srd = 0;
+    int disk_avail = 0;
+    int disk_volume = 0;
+    json::JSON srd_detail;
+    for (int i = 0; i < disk_json.size(); i++)
+    {
+        std::string uuid = ed->get_uuid(disk_json[i][WL_DISK_PATH].ToString());
+        std::string disk_path = disk_json[i][WL_DISK_PATH].ToString();
+        srd_detail[disk_path]["srd"] = wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt();
+        srd_detail[disk_path]["srd_avail"] = disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
+        srd_detail[disk_path]["avail"] = disk_json[i][WL_DISK_AVAILABLE].ToInt();
+        srd_detail[disk_path]["volumn"] = disk_json[i][WL_DISK_VOLUME].ToInt();
+        disk_avail += disk_json[i][WL_DISK_AVAILABLE].ToInt();
+        disk_avail_for_srd += disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
+        disk_volume += disk_json[i][WL_DISK_VOLUME].ToInt();
+    }
+    wl_json[WL_SRD][WL_SRD_DETAIL] = srd_detail;
+    wl_json[WL_SRD][WL_SRD_COMPLETE]= wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt();
+    wl_json[WL_SRD][WL_SRD_REMAINING_TASK].AddNum(srd_task);
+    wl_json[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD]= disk_avail_for_srd;
+    wl_json[WL_SRD][WL_DISK_AVAILABLE]= disk_avail;
+    wl_json[WL_SRD][WL_DISK_VOLUME]= disk_volume;
+
+    return wl_json;
 }
 
 /**

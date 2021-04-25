@@ -226,7 +226,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            res.body() = EnclaveData::get_instance()->gen_workload();
+            res.body() = EnclaveData::get_instance()->gen_workload_str();
             goto getcleanup;
         }
 
@@ -563,14 +563,10 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             else
             {
                 crust_status_t crust_status = CRUST_SUCCESS;
-                json::JSON wl_info = json::JSON::Load(EnclaveData::get_instance()->gen_workload());
+                json::JSON wl_info = EnclaveData::get_instance()->gen_workload();
                 long srd_complete = wl_info[WL_SRD][WL_SRD_COMPLETE].ToInt();
                 long srd_remaining_task = wl_info[WL_SRD][WL_SRD_REMAINING_TASK].ToInt();
-                long disk_avail_for_srd = 0;
-                for (auto disk_info : wl_info[WL_SRD][WL_SRD_DETAIL].ObjectRange())
-                {
-                    disk_avail_for_srd += (disk_info.second)["avail"].ToInt();
-                }
+                long disk_avail_for_srd = wl_info[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
                 long running_srd_task = get_running_srd_task();
                 if (change_srd_num > 0)
                 {
@@ -694,24 +690,19 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
-        // ----- Seal file ----- //
-        cur_path = urlendpoint.base + "/storage/seal";
+        // ----- Seal file start ----- //
+        cur_path = urlendpoint.base + "/storage/seal_start";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             json::JSON ret_body;
             int ret_code = 400;
             std::string ret_info;
             crust_status_t crust_status = CRUST_SUCCESS;
-
-            // Parse paramters
-            std::string cid = params_m["cid"];
-            uint32_t sk = std::atoi(params_m["session_key"].c_str());
-            bool is_link = (params_m["is_link"] == "true");
-            std::vector<uint8_t> body_vec = req.body();
-            const uint8_t *sealed_data = (const uint8_t *)body_vec.data();
-            size_t sealed_data_sz = body_vec.size();
-            //p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
-
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            // Delete file
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string cid = req_json["cid"].ToString();
+            // Do start seal
             if (cid.size() != CID_LENGTH)
             {
                 ret_info = "Invalid cid!";
@@ -721,12 +712,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                sgx_status_t sgx_status = SGX_SUCCESS;
-                char *index_path = (char *)malloc(IPFS_INDEX_LENGTH);
-                memset(index_path, 0, IPFS_INDEX_LENGTH);
-                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, sk, is_link, index_path, IPFS_INDEX_LENGTH)))
+                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file_start(global_eid, &crust_status, cid.c_str())))
                 {
-                    ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                    ret_info = "Start seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 500;
                 }
@@ -734,18 +722,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     switch (crust_status)
                     {
-                    case CRUST_SEAL_DATA_FAILED:
-                        ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 500;
-                        break;
                     case CRUST_FILE_NUMBER_EXCEED:
                         ret_info = "Seal file '" + cid + "' failed! No more file can be sealed! File number reachs the upper limit";
                         p_log->err("%s\n", ret_info.c_str());
                         ret_code = 500;
                         break;
                     case CRUST_UPGRADE_IS_UPGRADING:
-                        ret_info = "Seal file '" + cid + "' stoped due to upgrading or exiting";
+                        ret_info = "Seal file '" + cid + "' stopped due to upgrading or exiting";
                         p_log->err("%s\n", ret_info.c_str());
                         ret_code = 503;
                         break;
@@ -772,6 +755,71 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 else
                 {
+                    ret_info = "Ready for sealing file '" + cid + "', waiting for file block";
+                    p_log->info("%s\n", ret_info.c_str());
+                    ret_code = 200;
+                }
+            }
+            ret_body[HTTP_STATUS_CODE] = std::stoi(num_to_hexstring(crust_status), NULL, 10);
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_code);
+            res.body() = ret_body.dump();
+
+            goto postcleanup;
+        }
+
+        // ----- Seal file ----- //
+        cur_path = urlendpoint.base + "/storage/seal";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            json::JSON ret_body;
+            int ret_code = 400;
+            std::string ret_info;
+            crust_status_t crust_status = CRUST_SUCCESS;
+
+            // Parse paramters
+            std::string cid = params_m["cid"];
+            bool is_link = (params_m["new_block"] == "true");
+            std::vector<uint8_t> body_vec = req.body();
+            const uint8_t *sealed_data = (const uint8_t *)body_vec.data();
+            size_t sealed_data_sz = body_vec.size();
+            //p_log->info("Dealing with seal request(file cid:'%s')...\n", cid.c_str());
+
+            if (cid.size() != CID_LENGTH)
+            {
+                ret_info = "Invalid cid!";
+                p_log->err("%s\n", ret_info.c_str());
+                crust_status = CRUST_INVALID_HTTP_INPUT;
+                ret_code = 400;
+            }
+            else
+            {
+                sgx_status_t sgx_status = SGX_SUCCESS;
+                char *index_path = (char *)malloc(IPFS_INDEX_LENGTH);
+                memset(index_path, 0, IPFS_INDEX_LENGTH);
+                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file(global_eid, &crust_status, cid.c_str(), sealed_data, sealed_data_sz, is_link, index_path, IPFS_INDEX_LENGTH)))
+                {
+                    ret_info = "Seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                    p_log->err("%s\n", ret_info.c_str());
+                    ret_code = 500;
+                }
+                else if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_SEAL_DATA_FAILED:
+                        ret_info = "Seal file '" + cid + "' failed! Internal error: seal data failed";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
+                    default:
+                        ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                    }
+                }
+                else
+                {
                     ret_info = "Seal file '" + cid + "' successfully";
                     //p_log->info("%s\n", ret_info.c_str());
                     ret_code = 200;
@@ -779,7 +827,64 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 free(index_path);
             }
-            ret_body[HTTP_STATUS_CODE] = stoi(num_to_hexstring(crust_status), NULL, 10);
+            ret_body[HTTP_STATUS_CODE] = std::stoi(num_to_hexstring(crust_status), NULL, 10);
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_code);
+            res.body() = ret_body.dump();
+
+            goto postcleanup;
+        }
+
+        // ----- Seal file end ----- //
+        cur_path = urlendpoint.base + "/storage/seal_end";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            json::JSON ret_body;
+            int ret_code = 400;
+            std::string ret_info;
+            crust_status_t crust_status = CRUST_SUCCESS;
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            // Delete file
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string cid = req_json["cid"].ToString();
+            if (cid.size() != CID_LENGTH)
+            {
+                ret_info = "Invalid cid!";
+                p_log->err("%s\n", ret_info.c_str());
+                crust_status = CRUST_INVALID_HTTP_INPUT;
+                ret_code = 400;
+            }
+            else
+            {
+                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file_end(global_eid, &crust_status, cid.c_str())))
+                {
+                    ret_info = "Start seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                    p_log->err("%s\n", ret_info.c_str());
+                    ret_code = 500;
+                }
+                else if (CRUST_SUCCESS != crust_status)
+                {
+                    switch (crust_status)
+                    {
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        ret_info = "Seal file '" + cid + "' stopped due to upgrading or exiting";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 503;
+                        break;
+                    default:
+                        ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                    }
+                }
+                else
+                {
+                    ret_info = "Seal file '" + cid + "' successfully";
+                    p_log->info("%s\n", ret_info.c_str());
+                    ret_code = 200;
+                }
+            }
+            ret_body[HTTP_STATUS_CODE] = std::stoi(num_to_hexstring(crust_status), NULL, 10);
             ret_body[HTTP_MESSAGE] = ret_info;
             res.result(ret_code);
             res.body() = ret_body.dump();

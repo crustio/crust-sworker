@@ -124,7 +124,7 @@ bool initialize_enclave()
 bool initialize_components(void)
 {
     // Create path
-    if (!create_directory(p_config->base_path))
+    if (CRUST_SUCCESS != create_directory(p_config->base_path))
     {
         p_log->err("Create base path failed!!\n");
         return false;
@@ -618,7 +618,7 @@ entry_network_flag:
     // Print recovered workload
     if (is_restart)
     {
-        std::string wl_info = ed->gen_workload(srd_task);
+        std::string wl_info = ed->gen_workload_str(srd_task);
         p_log->info("Workload information:\n%s\n", wl_info.c_str());
         p_log->info("Restore enclave data successfully, sworker is running now.\n");
 

@@ -1,5 +1,7 @@
 #include "FileUtils.h"
 
+crust::Log *p_log = crust::Log::get_instance();
+
 /**
  * @description: Get all files' name in directory
  * @param path -> the directory path
@@ -269,16 +271,39 @@ size_t get_free_space_under_directory(std::string path)
  * @param path -> the directory path
  * @return: Create status
  */
-bool create_directory(std::string path)
+crust_status_t create_directory(std::string path)
 {
     if (access(path.c_str(), 0) == -1)
     {
         if (system((std::string("mkdir -p ") + path).c_str()) == -1)
         {
-            return false;
+            p_log->err("Create directory:%s failed! No space or no privilege.\n", path.c_str());
+            return CRUST_MKDIR_FAILED;
         }
     }
-    return true;
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Rename old_path to new_path
+ * @param old_path -> Old path
+ * @param new_path -> New path
+ * @return: Rename result
+ */
+crust_status_t rename_dir(std::string old_path, std::string new_path)
+{
+    if (access(old_path.c_str(), 0) == -1)
+    {
+        return CRUST_RENAME_FILE_FAILED;
+    }
+
+    if (rename(old_path.c_str(), new_path.c_str()) == -1)
+    {
+        p_log->err("Rename file:%s to file:%s failed!\n", old_path.c_str(), new_path.c_str());
+        return CRUST_RENAME_FILE_FAILED;
+    }
+        
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -354,6 +379,66 @@ crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
     in.close();
 
     *p_data = p_buf;
+
+    return crust_status;
+}
+
+/**
+ * @description: Store file to given path
+ * @param path -> Pointer to stored path
+ * @param data -> Pointer to stored data
+ * @param data_size -> Stored data size
+ * @return: Store result
+ */
+crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size)
+{
+    return save_file_ex(path, data, data_size, SF_NONE);
+}
+
+/**
+ * @description: Store file to given path and create related directory
+ * @param path -> Pointer to stored path
+ * @param data -> Pointer to stored data
+ * @param data_size -> Stored data size
+ * @return: Store result
+ */
+crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_size, save_file_type_t type)
+{
+    if (SF_CREATE_DIR == type)
+    {
+        crust_status_t crust_status = CRUST_SUCCESS;
+        std::string path_str(path);
+        size_t last_slash = path_str.find_last_of("/");
+        if (last_slash != 0 && last_slash != std::string::npos)
+        {
+            std::string dir_path = path_str.substr(0, last_slash);
+            if (CRUST_SUCCESS != (crust_status = create_directory(dir_path)))
+            {
+                return crust_status;
+            }
+        }
+    }
+
+    std::ofstream out;
+    out.open(path, std::ios::out | std::ios::binary);
+    if (! out)
+    {
+        return CRUST_OPEN_FILE_FAILED;
+    }
+
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    try
+    {
+        out.write(reinterpret_cast<const char *>(data), data_size);
+    }
+    catch (std::exception e)
+    {
+        crust_status = CRUST_WRITE_FILE_FAILED;
+        p_log->err("Save file:%s failed! Error: %s\n", path, e.what());
+    }
+
+    out.close();
 
     return crust_status;
 }
