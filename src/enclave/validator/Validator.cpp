@@ -370,6 +370,9 @@ void validate_meaningful_file()
                 if (cur_block_num == val_block_num)
                 {
                     log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n", cid.c_str());
+                    // Delete file data
+                    crust_status_t del_ret = CRUST_SUCCESS;
+                    ocall_delete_ipfs_file(&del_ret, cid.c_str());
                     // Change file status
                     wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     // Reduce valid file
