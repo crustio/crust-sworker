@@ -275,6 +275,7 @@ sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status,
  * @param data_size -> Raw data size or link size
  * @param is_link -> Indicate data is raw data or a link
  * @param path (in, out) -> Index path used to get file block
+ * @param path_size -> Index path size
  * @return: Invoking ecall return status
  */
 sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,

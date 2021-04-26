@@ -59,8 +59,7 @@ crust_status_t ocall_create_dir(const char *path, store_type_t type)
  * @description: ocall for renaming directory
  * @param old_path (in) -> the old path of directory
  * @param new_path (in) -> the new path of directory
- * @param old_type -> Old path storage type
- * @param new_type -> New path storage type
+ * @param type -> File storage type
  * @return: Renaming result status
  */
 crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, store_type_t type)
@@ -75,7 +74,7 @@ crust_status_t ocall_rename_dir(const char *old_path, const char *new_path, stor
  * @description: ocall for saving data into file
  * @param path (in) -> file path for saving
  * @param data (in) -> data for saving
- * @param len -> the length of data
+ * @param data_size -> the length of data
  * @param type -> Storage type
  * @return: Saving result status
  */

@@ -50,6 +50,7 @@ crust_status_t storage_seal_file_start(const char *root)
  * @param data_size -> To be sealed data size
  * @param is_link -> Indicate data is raw data or a link
  * @param path -> Path in sWorker return to IPFS
+ * @param path_size -> Index path size
  * @return: Seal result
  */
 crust_status_t storage_seal_file(const char *root,

@@ -54,6 +54,8 @@ void ecall_main_loop()
 
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
+ * @param uuid -> Disk path uuid
+ * @return: Srd increase result
  */
 crust_status_t ecall_srd_increase(const char *uuid)
 {
@@ -231,6 +233,7 @@ crust_status_t ecall_seal_file_start(const char *root)
  * @param data_size -> Raw data size or link size
  * @param is_link -> Indicate data is raw data or a link
  * @param path (in, out) -> Index path used to get file block
+ * @param path_size -> Index path size
  * @return: Seal status
  */
 crust_status_t ecall_seal_file(const char *root,

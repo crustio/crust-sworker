@@ -296,6 +296,7 @@ restore_try_again:
 
 /**
  * @description: Inform old version upgrade result
+ * @param success -> Upgrade result
  */
 void upgrade_try_complete(bool success)
 {

@@ -93,6 +93,8 @@ void srd_change()
 
 /**
  * @description: seal one G srd files under directory, can be called from multiple threads
+ * @param uuid -> Disk path uuid
+ * @return: Srd increase result
  */
 crust_status_t srd_increase(const char *uuid)
 {

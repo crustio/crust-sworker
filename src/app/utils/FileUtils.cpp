@@ -400,6 +400,8 @@ crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size
  * @param path -> Pointer to stored path
  * @param data -> Pointer to stored data
  * @param data_size -> Stored data size
+ * @param mode -> File mode
+ * @param type -> Safe file type
  * @return: Store result
  */
 crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_size, mode_t mode, save_file_type_t type)

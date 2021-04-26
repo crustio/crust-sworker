@@ -311,6 +311,7 @@ bool Workload::get_report_file_flag()
 
 /**
  * @description: Set srd info
+ * @param uuid -> Disk path uuid
  * @param change -> Change number
  */
 void Workload::set_srd_info(const char *uuid, long change)
