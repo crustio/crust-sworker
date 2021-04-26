@@ -60,6 +60,9 @@ bool Config::init(std::string path)
     {
         this->data_paths.push_back(data_paths[i].ToString());
     }
+    sort(this->data_paths.begin(), this->data_paths.end(), [](std::string s1, std::string s2) {
+        return s1.compare(s2) < 0;
+    });
 
     // Set base url
     this->base_url = config_value["base_url"].ToString();

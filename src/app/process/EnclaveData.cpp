@@ -377,7 +377,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
         uint32_t buffer_sz = disk_path.size() + 128;
         char buffer[buffer_sz];
         memset(buffer, 0, buffer_sz);
-        sprintf(buffer, "  \"%s\" : { \"srd\" : %-6ld, \"srd_avail\" : %-6ld, \"avail\" : %-6ld, \"volumn\" : %-6ld }", 
+        sprintf(buffer, "  \"%s\" : { \"srd\" : %ld, \"srd_avail\" : %ld, \"avail\" : %ld, \"volumn\" : %ld }", 
                 disk_path.c_str(),
                 wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt(),
                 disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt(),

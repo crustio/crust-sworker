@@ -254,6 +254,7 @@ size_t srd_decrease(size_t change)
         return 0;
     }
     // Get change hashs
+    // Note: Cannot push srd hash pointer to vector because it will be deleted later
     std::vector<std::string> del_srds;
     std::vector<size_t> del_indexes;
     for (size_t i = 1; i <= change; i++)
@@ -301,6 +302,7 @@ void srd_remove_space(const char *data, size_t data_size)
     SafeLock sl(wl->srd_mutex);
     sl.lock();
     // Get change hashs
+    // Note: Cannot push srd hash pointer to vector because it will be deleted later
     std::vector<std::string> del_srds;
     for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
     {
