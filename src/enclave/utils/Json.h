@@ -8,6 +8,7 @@
 #include <cctype>
 #include <string>
 #include <deque>
+#include <vector>
 #include <map>
 #include <type_traits>
 #include <initializer_list>
@@ -26,6 +27,7 @@ namespace json
 {
 
 using std::deque;
+using std::vector;
 using std::enable_if;
 using std::initializer_list;
 using std::is_convertible;
@@ -155,6 +157,7 @@ class JSON
 
         deque<JSON> *List;
         uint8_t *HashList;
+        vector<uint8_t> *BufferList;
         map<string, JSON> *Map;
         string *String;
         double Float;
@@ -169,6 +172,7 @@ public:
         Object,
         Array,
         Hash,
+        Buffer,
         String,
         Floating,
         Integral,
@@ -248,6 +252,11 @@ public:
             Internal.HashList = new uint8_t[_hash_length];
             memcpy(Internal.HashList, other.Internal.HashList, _hash_length);
             break;
+        case Class::Buffer:
+            Internal.BufferList = 
+                new vector<uint8_t>(other.Internal.BufferList->begin(),
+                                    other.Internal.BufferList->end());
+            break;
         case Class::String:
             Internal.String =
                 new string(*other.Internal.String);
@@ -277,6 +286,11 @@ public:
             Internal.HashList = new uint8_t[_hash_length];
             memcpy(Internal.HashList, other.Internal.HashList, _hash_length);
             break;
+        case Class::Buffer:
+            Internal.BufferList =
+                new vector<uint8_t>(other.Internal.BufferList->begin(),
+                                    other.Internal.BufferList->end());
+            break;
         case Class::String:
             Internal.String =
                 new string(*other.Internal.String);
@@ -297,6 +311,9 @@ public:
             break;
         case Class::Hash:
             delete[] Internal.HashList;
+            break;
+        case Class::Buffer:
+            delete Internal.BufferList;
             break;
         case Class::Object:
             delete Internal.Map;
@@ -420,6 +437,19 @@ public:
             Internal.String->operator[](index) = c;
     }
 
+    void AppendBuffer(const uint8_t *data, size_t data_size)
+    {
+        if (Type == Class::Null)
+        {
+            SetType(Class::Buffer);
+        }
+
+        if (Type == Class::Buffer)
+        {
+            Internal.BufferList->insert(Internal.BufferList->end(), data, data + data_size);
+        }
+    }
+
     void AppendStr(std::string str)
     {
         if (Type == Class::Null)
@@ -491,6 +521,8 @@ public:
             return (long)Internal.List->size();
         else if (Type == Class::Hash)
             return _hash_length;
+        else if (Type == Class::Buffer)
+            return Internal.BufferList->size();
         else if (Type == Class::String)
             return Internal.String->size();
         else
@@ -527,6 +559,8 @@ public:
             return std::move(json_escape(*Internal.String));
         else if (Type == Class::Hash)
             return _hexstring(Internal.HashList, _hash_length);
+        else if (Type == Class::Buffer)
+            return _hexstring(Internal.BufferList->data(), Internal.BufferList->size());
         else if (Type == Class::Integral)
             return std::to_string(Internal.Int);
         else
@@ -545,13 +579,12 @@ public:
 
     uint8_t *ToBytes()
     {
-        bool b;
-        return ToBytes(b);
-    }
-    uint8_t *ToBytes(bool &ok)
-    {
-        ok = (Type == Class::Hash);
-        return ok ? Internal.HashList : NULL;
+        if (Type == Class::Hash)
+            return Internal.HashList;
+        else if (Type == Class::Buffer)
+            return Internal.BufferList->data();
+        else
+            return NULL;
     }
 
     double ToFloat() const
@@ -657,6 +690,10 @@ public:
         {
             return "\"" HASH_TAG + _hexstring(Internal.HashList, _hash_length) + "\"";
         }
+        case Class::Buffer:
+        {
+            return "\"" HASH_TAG + _hexstring(Internal.BufferList->data(), Internal.BufferList->size()) + "\"";
+        }
         case Class::String:
             return "\"" + json_escape_pad(*Internal.String, pad) + "\"";
         case Class::Floating:
@@ -695,6 +732,9 @@ private:
         case Class::Hash:
             Internal.HashList = new uint8_t[_hash_length];
             break;
+        case Class::Buffer:
+            Internal.BufferList = new vector<uint8_t>();
+            break;
         case Class::String:
             Internal.String = new string();
             break;
@@ -729,6 +769,9 @@ private:
             break;
         case Class::Hash:
             delete[] Internal.HashList;
+            break;
+        case Class::Buffer:
+            delete Internal.BufferList;
             break;
         case Class::String:
             delete Internal.String;

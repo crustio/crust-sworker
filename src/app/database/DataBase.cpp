@@ -19,7 +19,7 @@ DataBase *DataBase::get_instance()
 
         leveldb::Options options;
         options.create_if_missing = true;
-        if (!create_directory(Config::get_instance()->db_path))
+        if (CRUST_SUCCESS != create_directory(Config::get_instance()->db_path))
         {
             return NULL;
         }

@@ -111,6 +111,7 @@ json::JSON Workload::gen_workload_info()
             log_err("Generate srd info failed due to malloc failed!\n");
             return ans;
         }
+        Defer Def_srds_data([&srds_data](void) { free(srds_data); });
         memset(srds_data, 0, srds_data_sz);
         for (size_t i = 0; i < this->srd_hashs.size(); i++)
         {
@@ -118,7 +119,6 @@ json::JSON Workload::gen_workload_info()
         }
         ans[WL_SRD_SPACE] = this->srd_hashs.size() * 1024 * 1024 * 1024;
         sgx_sha256_msg(srds_data, (uint32_t)srds_data_sz, &srd_root);
-        free(srds_data);
         ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
     }
 
@@ -138,13 +138,13 @@ json::JSON Workload::gen_workload_info()
             log_err("Generate sealed files info failed due to malloc failed!\n");
             return ans;
         }
+        Defer def_f_hashs([&f_hashs](void) { free(f_hashs); });
         memset(f_hashs, 0, f_hashs_len);
         for (size_t i = 0; i < this->sealed_files.size(); i++)
         {
             memcpy(f_hashs + i * HASH_LENGTH, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
         }
         sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
-        free(f_hashs);
         ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
     }
 
@@ -311,6 +311,7 @@ bool Workload::get_report_file_flag()
 
 /**
  * @description: Set srd info
+ * @param uuid -> Disk path uuid
  * @param change -> Change number
  */
 void Workload::set_srd_info(const char *uuid, long change)
@@ -935,9 +936,7 @@ void Workload::restore_file_info()
         log_warn("Generate file information failed! No memory can be allocated!\n");
         return;
     }
-    Defer defer_file_info_buf([&file_info_buf](void) {
-        free(file_info_buf);
-    });
+    Defer defer_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
     size_t file_info_offset = 0;
     memset(file_info_buf, 0, file_info_len);
     memcpy(file_info_buf, "{", 1);

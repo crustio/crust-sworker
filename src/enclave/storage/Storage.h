@@ -24,7 +24,11 @@ extern "C"
 {
 #endif
 
-crust_status_t storage_seal_file(const char *root, const uint8_t *data, size_t data_size, uint32_t sk, bool is_link, char *path, size_t path_size);
+crust_status_t storage_seal_file_start(const char *root);
+
+crust_status_t storage_seal_file_end(const char *root);
+
+crust_status_t storage_seal_file(const char *root, const uint8_t *data, size_t data_size, bool is_link, char *path, size_t path_size);
 
 crust_status_t storage_unseal_file(const char *path);
 
@@ -39,8 +43,6 @@ crust_status_t storage_ipfs_cat(const char *cid, uint8_t **p_data, size_t *data_
 crust_status_t storage_ipfs_add(uint8_t *p_data, size_t data_size, char **cid);
 
 crust_status_t storage_get_file(const char *path, uint8_t **p_data, size_t *data_size);
-
-void del_failed_file_info();
 
 #if defined(__cplusplus)
 }

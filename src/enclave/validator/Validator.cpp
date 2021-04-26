@@ -370,6 +370,9 @@ void validate_meaningful_file()
                 if (cur_block_num == val_block_num)
                 {
                     log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n", cid.c_str());
+                    // Delete file data
+                    crust_status_t del_ret = CRUST_SUCCESS;
+                    ocall_delete_ipfs_file(&del_ret, cid.c_str());
                     // Change file status
                     wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
                     // Reduce valid file
@@ -388,9 +391,6 @@ void validate_meaningful_file()
     sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
     g_validate_files_m.clear();
     sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
-
-    // Deal with failed sealing file
-    del_failed_file_info();
 }
 
 /**
@@ -525,12 +525,14 @@ void validate_meaningful_file_real()
     for (auto check_block_idx : block_idx_s)
     {
         // Get current node hash
-        uint8_t *p_leaf = p_tree + check_block_idx * HASH_LENGTH;
-        std::string leaf_hash = hexstring_safe(p_leaf, HASH_LENGTH);
+        uint8_t *p_leaf = p_tree + check_block_idx * FILE_ITEM_LENGTH;
+        std::string file_item = hexstring_safe(p_leaf, FILE_ITEM_LENGTH);
+        std::string uuid = file_item.substr(0, UUID_LENGTH * 2);
+        std::string leaf_hash = file_item.substr(UUID_LENGTH * 2, HASH_LENGTH * 2);
         // Compute current node hash by data
         uint8_t *p_sealed_data = NULL;
         size_t sealed_data_sz = 0;
-        std::string leaf_path = root_cid + "/" + leaf_hash;
+        std::string leaf_path = uuid + root_cid + "/" + leaf_hash;
         crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_sz);
         if (CRUST_SUCCESS != crust_status)
         {
@@ -552,7 +554,7 @@ void validate_meaningful_file_real()
         // Validate sealed hash
         sgx_sha256_hash_t got_hash;
         sgx_sha256_msg(p_sealed_data, sealed_data_sz, &got_hash);
-        if (memcmp(p_leaf, got_hash, HASH_LENGTH) != 0)
+        if (memcmp(p_leaf + UUID_LENGTH, got_hash, HASH_LENGTH) != 0)
         {
             if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {

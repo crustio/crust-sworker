@@ -93,6 +93,8 @@ void srd_change()
 
 /**
  * @description: seal one G srd files under directory, can be called from multiple threads
+ * @param uuid -> Disk path uuid
+ * @return: Srd increase result
  */
 crust_status_t srd_increase(const char *uuid)
 {
@@ -254,12 +256,13 @@ size_t srd_decrease(size_t change)
         return 0;
     }
     // Get change hashs
-    std::vector<uint8_t *> del_hashs;
+    // Note: Cannot push srd hash pointer to vector because it will be deleted later
+    std::vector<std::string> del_srds;
     std::vector<size_t> del_indexes;
     for (size_t i = 1; i <= change; i++)
     {
         size_t index = wl->srd_hashs.size() - i;
-        del_hashs.push_back(wl->srd_hashs[index]);
+        del_srds.push_back(hexstring_safe(wl->srd_hashs[index], SRD_LENGTH));
         del_indexes.push_back(index);
     }
     std::reverse(del_indexes.begin(), del_indexes.end());
@@ -267,16 +270,13 @@ size_t srd_decrease(size_t change)
     sl.unlock();
 
     // Delete srd files
-    for (auto hash : del_hashs)
+    for (auto srd : del_srds)
     {
-        std::string hash_str = hexstring_safe(hash, HASH_LENGTH);
-        std::string uuid(hash_str.c_str(), UUID_LENGTH);
-
         // Delete srd data
-        ocall_delete_folder_or_file(&crust_status, hash_str.c_str(), STORE_TYPE_SRD);
+        ocall_delete_folder_or_file(&crust_status, srd.c_str(), STORE_TYPE_SRD);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_warn("Delete path:%s failed! Error code:%lx\n", hash_str.c_str(), crust_status);
+            log_warn("Delete path:%s failed! Error code:%lx\n", srd.c_str(), crust_status);
         }
     }
 
@@ -304,13 +304,14 @@ void srd_remove_space(const char *data, size_t data_size)
     SafeLock sl(wl->srd_mutex);
     sl.lock();
     // Get change hashs
-    std::vector<uint8_t *> del_hashs;
+    // Note: Cannot push srd hash pointer to vector because it will be deleted later
+    std::vector<std::string> del_srds;
     for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
     {
         std::string uuid = hexstring_safe(wl->srd_hashs[i], UUID_LENGTH);
         if (del_json[uuid].ToInt() > 0)
         {
-            del_hashs.push_back(wl->srd_hashs[i]);
+            del_srds.push_back(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH));
             wl->add_srd_to_deleted_buffer(i);
             del_json[uuid].AddNum(-1);
             change--;
@@ -319,15 +320,14 @@ void srd_remove_space(const char *data, size_t data_size)
     sl.unlock();
 
     // Delete srd files
-    if (del_hashs.size() > 0)
+    if (del_srds.size() > 0)
     {
-        for (auto srd : del_hashs)
+        for (auto srd : del_srds)
         {
-            std::string srd_hex = hexstring_safe(srd, SRD_LENGTH);
-            ocall_delete_folder_or_file(&crust_status, srd_hex.c_str(), STORE_TYPE_SRD);
+            ocall_delete_folder_or_file(&crust_status, srd.c_str(), STORE_TYPE_SRD);
             if (CRUST_SUCCESS != crust_status)
             {
-                log_warn("Delete path:%s failed! Error code:%lx\n", srd_hex.c_str(), crust_status);
+                log_warn("Delete path:%s failed! Error code:%lx\n", srd.c_str(), crust_status);
             }
         }
     }

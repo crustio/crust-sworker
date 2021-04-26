@@ -32,9 +32,7 @@
 #define FILE_STATUS_DELETED '2'
 #define FILE_STATUS_PENDING '3'
 // File seal info
-#define FILE_SESSION_KEY "sk"
 #define FILE_BLOCKS "blocks"
-#define FILE_SEAL_STATUS "s_status"
 // IPFS file
 #define IPFS_META "sbs"
 #define IPFS_META_PATH "path"
@@ -126,6 +124,7 @@
 #define ENC_MAX_THREAD_NUM  30
 #define ENCLAVE_MALLOC_TRYOUT 3
 const int SRD_LENGTH = UUID_LENGTH + HASH_LENGTH;
+const int FILE_ITEM_LENGTH = UUID_LENGTH + HASH_LENGTH;
 
 // For upgrade
 #define UPGRADE_PUBLIC_KEY "pub_key"

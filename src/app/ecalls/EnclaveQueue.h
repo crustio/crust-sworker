@@ -74,7 +74,9 @@ private:
         {"Ecall_disable_upgrade", 0},
         {"Ecall_validate_file", 1},
         {"Ecall_validate_srd", 1},
+        {"Ecall_seal_file_start", 1},
         {"Ecall_seal_file", 1},
+        {"Ecall_seal_file_end", 1},
         {"Ecall_unseal_file", 1},
         {"Ecall_srd_decrease", 1},
         {"Ecall_srd_remove_space", 1},
@@ -88,14 +90,18 @@ private:
         {
             "Ecall_srd_increase", 
             {
+                "Ecall_seal_file_start", 
                 "Ecall_seal_file", 
+                "Ecall_seal_file_end", 
                 "Ecall_unseal_file", 
             }
         },
     };
     // Upgrade blocks task set1
     std::unordered_set<std::string> upgrade_blocked_task_us = {
+        "Ecall_seal_file_start",
         "Ecall_seal_file",
+        "Ecall_seal_file_end",
         "Ecall_unseal_file",
         "Ecall_srd_decrease",
         "Ecall_srd_increase",
