@@ -19,7 +19,7 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
     {
         if (d_path.compare("") == 0)
         {
-            p_log->err("Cannot find path for uuid:%s\n", uuid.c_str());
+            //p_log->err("Cannot find path for uuid:%s\n", uuid.c_str());
             return "";
         }
     }
@@ -119,7 +119,10 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
             {
                 memcpy(uuid, uuid_str.c_str(), uuid_str.size());
                 std::string file_path = disk_path + DISK_FILE_DIR + "/" + path;
-                return save_file_ex(file_path.c_str(), data, data_size, SF_CREATE_DIR);
+                if (CRUST_SUCCESS == save_file_ex(file_path.c_str(), data, data_size, mode_t(0664), SF_CREATE_DIR))
+                {
+                    return CRUST_SUCCESS;
+                }
             }
         }
         if (++ci == disk_json.size())

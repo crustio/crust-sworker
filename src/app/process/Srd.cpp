@@ -16,6 +16,7 @@ extern bool offline_chain_mode;
  */
 bool check_or_init_disk(std::string path)
 {
+    crust_status_t crust_status = CRUST_SUCCESS;
     EnclaveData *ed = EnclaveData::get_instance();
     // Check if uuid file exists
     std::string uuid_file = path + DISK_UUID_FILE;
@@ -26,8 +27,7 @@ bool check_or_init_disk(std::string path)
         {
             uint8_t *p_data = NULL;
             size_t data_sz = 0;
-            crust_status_t crust_status = get_file(uuid_file.c_str(), &p_data, &data_sz);
-            if (CRUST_SUCCESS != crust_status)
+            if (CRUST_SUCCESS != (crust_status = get_file(uuid_file.c_str(), &p_data, &data_sz)))
             {
                 p_log->err("Get existed path:%s uuid failed! Error code:%lx\n", uuid_file.c_str(), crust_status);
             }
@@ -40,6 +40,19 @@ bool check_or_init_disk(std::string path)
         else
         {
             return true;
+        }
+    }
+    else
+    {
+        if (ed->is_disk_exist(path))
+        {
+            std::string uuid = ed->get_uuid(path);
+            crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+                return false;
+            }
         }
     }
 
@@ -76,29 +89,14 @@ bool check_or_init_disk(std::string path)
     }
 
     // Create uuid file
-    std::ofstream out;
-    out.open(uuid_file.c_str(), std::ios::out | std::ios::binary);
-    if (! out)
+    uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
+    memset(buf, 0, UUID_LENGTH);
+    read_rand(buf, UUID_LENGTH);
+    std::string uuid = hexstring_safe(buf, UUID_LENGTH);
+    crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
+    if (CRUST_SUCCESS != crust_status)
     {
-        return false;
-    }
-    Defer def_out([&out, &uuid_file](void) {
-        out.close();
-        chmod(uuid_file.c_str(), S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    });
-
-    std::string uuid;
-    try
-    {
-        uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
-        memset(buf, 0, UUID_LENGTH);
-        read_rand(buf, UUID_LENGTH);
-        uuid = hexstring_safe(buf, UUID_LENGTH);
-        out.write(uuid.c_str(), uuid.size());
-    }
-    catch (std::exception e)
-    {
-        p_log->err("Save file:%s failed! Error: %s\n", uuid_file.c_str(), e.what());
+        p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
         return false;
     }
 
@@ -153,9 +151,8 @@ json::JSON get_increase_srd_info_r(long &change)
         avail = false;
         for (int i = 0; i < disk_info_json.size() && change > 0; i++)
         {
-            if (disk_info_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt() > 0)
+            if (disk_info_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt() - disk_info_json[i][WL_DISK_USE].ToInt() > 0)
             {
-                disk_info_json[i][WL_DISK_AVAILABLE_FOR_SRD].AddNum(-1);
                 disk_info_json[i][WL_DISK_USE].AddNum(1);
                 change--;
                 avail = true;

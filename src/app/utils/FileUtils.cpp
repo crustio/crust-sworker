@@ -392,7 +392,7 @@ crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
  */
 crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size)
 {
-    return save_file_ex(path, data, data_size, SF_NONE);
+    return save_file_ex(path, data, data_size, 0664, SF_NONE);
 }
 
 /**
@@ -402,7 +402,7 @@ crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size
  * @param data_size -> Stored data size
  * @return: Store result
  */
-crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_size, save_file_type_t type)
+crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_size, mode_t mode, save_file_type_t type)
 {
     if (SF_CREATE_DIR == type)
     {
@@ -425,6 +425,10 @@ crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_s
     {
         return CRUST_OPEN_FILE_FAILED;
     }
+    Defer def_out([&out, &path, &mode](void) {
+        out.close();
+        chmod(path, mode);
+    });
 
     crust_status_t crust_status = CRUST_SUCCESS;
 
