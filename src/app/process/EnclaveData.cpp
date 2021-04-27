@@ -226,18 +226,18 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
         return "";
     }
 
-    std::string ans = this->sealed_file[cid].dump();
-    remove_char(ans, '\\');
-    replace(ans, "\"{", "{");
-    replace(ans, "}\"", "}");
-    json::JSON show_file = json::JSON::Load(ans);
-    std::string tree;
-    crust::DataBase::get_instance()->get(cid, tree);
-    show_file["smerkletree"] = json::JSON::Load(tree);
+    //std::string ans = this->sealed_file[cid].dump();
+    //remove_char(ans, '\\');
+    //replace(ans, "\"{", "{");
+    //replace(ans, "}\"", "}");
+    //json::JSON show_file = json::JSON::Load(ans);
+    //std::string tree;
+    //crust::DataBase::get_instance()->get(cid, tree);
+    //show_file["smerkletree"] = json::JSON::Load(tree);
 
-    ans = show_file.dump();
+    //ans = show_file.dump();
 
-    return ans;
+    return this->sealed_file[cid].dump();
 }
 
 /**

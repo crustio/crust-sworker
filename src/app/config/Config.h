@@ -38,7 +38,7 @@ class Config
 public:
     // base information
     std::string base_path;              /* sworker base path */
-    std::set<std::string> data_paths;               /* srd validation files base path */
+    std::set<std::string> data_paths;   /* data path */
     std::string db_path;                /* DB path */
     std::string base_url;               /* External API base url */
     
@@ -60,7 +60,7 @@ public:
     void show(void);
     static Config *get_instance();
     std::string get_config_path();
-    void unique_paths();
+    bool unique_paths();
     bool is_valid_data_path(const std::string &path);
 
 private:
@@ -68,6 +68,7 @@ private:
     Config(const Config &);
     bool init(std::string path);
     Config& operator = (const Config &);
+    std::string sys_fsid;
 };
 
 #endif /* !_CRUST_CONFIG_H_ */

@@ -7,7 +7,6 @@ size_t g_running_srd_task = 0;
 std::mutex g_running_srd_task_mutex;
 
 extern sgx_enclave_id_t global_eid;
-extern bool offline_chain_mode;
 
 /**
  * @description: Check or initilize disk
@@ -18,6 +17,7 @@ bool check_or_init_disk(std::string path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     EnclaveData *ed = EnclaveData::get_instance();
+
     // Check if uuid file exists
     std::string uuid_file = path + DISK_UUID_FILE;
     if (access(uuid_file.c_str(), R_OK) != -1)
@@ -56,36 +56,11 @@ bool check_or_init_disk(std::string path)
         }
     }
 
-    // Get base path disk info
-    Config *p_config = Config::get_instance();
-    struct statfs sys_info;
-    if (statfs(p_config->base_path.c_str(), &sys_info) == -1)
-    {
-        p_log->err("Get base path info failed!\n");
-        return false;
-    }
-
-    // Get current disk info
+    // Create current disk
     std::string srd_dir = path + DISK_SRD_DIR;
     if (CRUST_SUCCESS != create_directory(srd_dir))
     {
         p_log->err("Cannot create dir:%s\n", srd_dir.c_str());
-    }
-    struct statfs cur_info;
-    if (statfs(path.c_str(), &cur_info) == -1)
-    {
-        p_log->err("Get current path:%s info failed!\n", path.c_str());
-        return false;
-    }
-
-    if (!offline_chain_mode)
-    {
-        // Check if current disk is the system one
-        if (memcpy(&sys_info.f_fsid, &cur_info.f_fsid, sizeof(sys_info.f_fsid)) == 0)
-        {
-            p_log->err("Path:%s is in the same disk with system path:%s\n", path.c_str(), p_config->base_path.c_str());
-            return false;
-        }
     }
 
     // Create uuid file
@@ -100,6 +75,7 @@ bool check_or_init_disk(std::string path)
         return false;
     }
 
+    // Set uuid to data path information
     ed->set_uuid_disk_path_map(uuid, path);
 
     return true;

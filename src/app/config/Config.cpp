@@ -6,6 +6,8 @@ Config *Config::config = NULL;
 crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path;
 
+extern bool offline_chain_mode;
+
 /**
  * @desination: Single instance class function to get instance
  * @return: Configure instance
@@ -32,6 +34,8 @@ Config *Config::get_instance()
  */
 bool Config::init(std::string path)
 {
+    crust_status_t crust_status = CRUST_SUCCESS;
+
     /* Read user configurations from file */
     std::ifstream config_ifs(path);
     std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
@@ -44,10 +48,15 @@ bool Config::init(std::string path)
     this->base_path = config_value["base_path"].ToString();
     if (this->base_path.compare("") == 0)
     {
-        p_log->err("Please configure 'base_path'!\n");
+        p_log->err("'base path' cannot be empty! Please configure 'base_path'!\n");
         return false;
     }
     this->db_path = this->base_path + "/db";
+    if (CRUST_SUCCESS != (crust_status = create_directory(this->db_path)))
+    {
+        p_log->err("Create path'%s' failed! Error code:%lx\n", this->db_path, crust_status);
+        return false;
+    }
 
     // Set file path
     json::JSON data_paths = config_value["data_path"];
@@ -59,9 +68,19 @@ bool Config::init(std::string path)
     }
     for (int i = 0; i < data_paths.size(); i++)
     {
-        this->data_paths.insert(data_paths[i].ToString());
+        std::string d_path = data_paths[i].ToString();
+        this->data_paths.insert(d_path);
+        if (CRUST_SUCCESS != (crust_status = create_directory(d_path)))
+        {
+            p_log->err("Create path'%s' failed! Error code:%lx\n", d_path.c_str(), crust_status);
+            return false;
+        }
     }
-    unique_paths();
+    if (! this->unique_paths())
+    {
+        p_log->err("No valid data path is configured!\n");
+        return false;
+    }
 
     // Set base url
     this->base_url = config_value["base_url"].ToString();
@@ -179,31 +198,58 @@ std::string Config::get_config_path()
 /**
  * @description: Unique data paths
  */
-void Config::unique_paths()
+bool Config::unique_paths()
 {
+    // Get system disk fsid
+    if (!offline_chain_mode)
+    {
+        struct statfs sys_st;
+        if (statfs(this->base_path.c_str(), &sys_st) == -1)
+        {
+            p_log->warn("Get base path info failed!\n");
+        }
+        else
+        {
+            this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
+        }
+    }
+
     std::map<std::string, std::string> sid_m;
-    for (auto path : this->data_paths)
+    std::set<std::string> data_paths = this->data_paths;
+    for (auto path : data_paths)
     {
         struct statfs st;
         if (statfs(path.c_str(), &st) != -1)
         {
             std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
-            if (sid_m.find(fsid) == sid_m.end())
+            // Compare to check if current disk is system disk
+            if (this->sys_fsid.compare(fsid) == 0)
             {
-                sid_m[fsid] = path;
+                p_log->err("Data path:'%s' is in the same disk with system path:'%s'\n", path.c_str(), this->base_path.c_str());
+                this->data_paths.erase(path);
             }
             else
             {
-                p_log->warn("Given path:'%s' is in the same disk with configured path:'%s'\n",
-                        path.c_str(), sid_m[fsid].c_str());
-                this->data_paths.erase(path);
+                // Remove duplicated disk
+                if (sid_m.find(fsid) == sid_m.end())
+                {
+                    sid_m[fsid] = path;
+                }
+                else
+                {
+                    p_log->warn("Given data path:'%s' is in the same disk with configured path:'%s'\n",
+                            path.c_str(), sid_m[fsid].c_str());
+                    this->data_paths.erase(path);
+                }
             }
         }
         else
         {
-            p_log->err("Get path:'%s' info failed! Please check if it existed\n", path.c_str());
+            p_log->err("Get data path:'%s' info failed! Please check if it existed\n", path.c_str());
         }
     }
+
+    return 0 != this->data_paths.size();
 }
 
 /**
@@ -228,20 +274,27 @@ bool Config::is_valid_data_path(const std::string &path)
     if (statfs(path.c_str(), &st) != -1)
     {
         std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+        // Check if current disk is system disk
+        if (this->sys_fsid.compare(fsid) == 0 )
+        {
+            p_log->err("Add data path:'%s' is in the system disk!\n", path.c_str());
+            return false;
+        }
+        // Check if added path is duplicated
         if (sid_m.find(fsid) == sid_m.end())
         {
             return true;
         }
         else
         {
-            p_log->warn("Given path:'%s' is in the same disk with configured path:'%s'\n",
+            p_log->warn("Given data path:'%s' is in the same disk with configured path:'%s'\n",
                     path.c_str(), sid_m[fsid].c_str());
             return false;
         }
     }
     else
     {
-        p_log->err("Get path:'%s' info failed! Please check if it existed\n", path.c_str());
+        p_log->err("Get data path:'%s' info failed! Please check if it existed\n", path.c_str());
     }
 
     return false;
