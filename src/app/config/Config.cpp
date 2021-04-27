@@ -187,7 +187,6 @@ void Config::unique_paths()
         struct statfs st;
         if (statfs(path.c_str(), &st) != -1)
         {
-            //p_log->err("Get current path:%s info failed!\n", path.c_str());
             std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
             if (sid_m.find(fsid) == sid_m.end())
             {
@@ -195,10 +194,14 @@ void Config::unique_paths()
             }
             else
             {
-                p_log->warn("data config path:%s is in the same disk with path:%s\n",
+                p_log->warn("Given path:'%s' is in the same disk with configured path:'%s'\n",
                         path.c_str(), sid_m[fsid].c_str());
                 this->data_paths.erase(path);
             }
+        }
+        else
+        {
+            p_log->err("Get path:'%s' info failed! Please check if it existed\n", path.c_str());
         }
     }
 }
@@ -214,27 +217,31 @@ bool Config::is_valid_data_path(const std::string &path)
     for (auto p : this->data_paths)
     {
         struct statfs st;
-        std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
         if (statfs(p.c_str(), &st) != -1)
         {
+            std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
             sid_m[fsid] = p;
         }
     }
 
     struct statfs st;
-    std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
     if (statfs(path.c_str(), &st) != -1)
     {
+        std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
         if (sid_m.find(fsid) == sid_m.end())
         {
             return true;
         }
         else
         {
-            p_log->warn("data config path:%s is in the same disk with path:%s\n",
+            p_log->warn("Given path:'%s' is in the same disk with configured path:'%s'\n",
                     path.c_str(), sid_m[fsid].c_str());
             return false;
         }
+    }
+    else
+    {
+        p_log->err("Get path:'%s' info failed! Please check if it existed\n", path.c_str());
     }
 
     return false;
