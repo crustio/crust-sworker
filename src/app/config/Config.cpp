@@ -78,8 +78,7 @@ bool Config::init(std::string path)
     }
     if (! this->unique_paths())
     {
-        p_log->err("No valid data path is configured!\n");
-        return false;
+        p_log->warn("No valid data path is configured!\n");
     }
 
     // Set base url
