@@ -3,6 +3,7 @@
 using namespace std;
 
 Config *Config::config = NULL;
+crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path;
 
 /**
@@ -58,11 +59,9 @@ bool Config::init(std::string path)
     }
     for (int i = 0; i < data_paths.size(); i++)
     {
-        this->data_paths.push_back(data_paths[i].ToString());
+        this->data_paths.insert(data_paths[i].ToString());
     }
-    sort(this->data_paths.begin(), this->data_paths.end(), [](std::string s1, std::string s2) {
-        return s1.compare(s2) < 0;
-    });
+    unique_paths();
 
     // Set base url
     this->base_url = config_value["base_url"].ToString();
@@ -138,10 +137,10 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'srd path' : [\n");
-    for (size_t i = 0; i < this->data_paths.size(); i++)
+    for (auto it = this->data_paths.begin(); it != this->data_paths.end(); )
     {
-        printf("        \"%s\"", this->data_paths[i].c_str());
-        i == this->data_paths.size() - 1 ? printf("\n") : printf(",\n");
+        printf("        \"%s\"", (*it).c_str());
+        ++it == this->data_paths.end() ? printf("\n") : printf(",\n");
     }
     printf("    ],\n");
     printf("    'base url' : '%s',\n", this->base_url.c_str());
@@ -175,4 +174,68 @@ void Config::show(void)
 std::string Config::get_config_path()
 {
     return config_file_path;
+}
+
+/**
+ * @description: Unique data paths
+ */
+void Config::unique_paths()
+{
+    std::map<std::string, std::string> sid_m;
+    for (auto path : this->data_paths)
+    {
+        struct statfs st;
+        if (statfs(path.c_str(), &st) != -1)
+        {
+            //p_log->err("Get current path:%s info failed!\n", path.c_str());
+            std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+            if (sid_m.find(fsid) == sid_m.end())
+            {
+                sid_m[fsid] = path;
+            }
+            else
+            {
+                p_log->warn("data config path:%s is in the same disk with path:%s\n",
+                        path.c_str(), sid_m[fsid].c_str());
+                this->data_paths.erase(path);
+            }
+        }
+    }
+}
+
+/**
+ * @description: Check if given data path is valid
+ * @param path -> Reference to given data path
+ * @return: Valid or not
+ */
+bool Config::is_valid_data_path(const std::string &path)
+{
+    std::map<std::string, std::string> sid_m;
+    for (auto p : this->data_paths)
+    {
+        struct statfs st;
+        std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+        if (statfs(p.c_str(), &st) != -1)
+        {
+            sid_m[fsid] = p;
+        }
+    }
+
+    struct statfs st;
+    std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+    if (statfs(path.c_str(), &st) != -1)
+    {
+        if (sid_m.find(fsid) == sid_m.end())
+        {
+            return true;
+        }
+        else
+        {
+            p_log->warn("data config path:%s is in the same disk with path:%s\n",
+                    path.c_str(), sid_m[fsid].c_str());
+            return false;
+        }
+    }
+
+    return false;
 }

@@ -504,6 +504,72 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
+        // ----- Set config path ----- //
+        cur_path = urlendpoint.base + "/config/add_path";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            int ret_code = 400;
+            std::string ret_info;
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON ret_body;
+            crust_status_t crust_status = CRUST_SUCCESS;
+
+            if (req_json.JSONType() != json::JSON::Class::Array || req_json.size() <= 0)
+            {
+                ret_info = "Wrong paths parameter!";
+                p_log->err("%s\n", ret_info.c_str());
+                ret_code = 400;
+            }
+            else
+            {
+                uint8_t *p_data = NULL;
+                size_t data_size = 0;
+                std::string config_file_path = p_config->get_config_path();
+                if (CRUST_SUCCESS != (crust_status = get_file(config_file_path.c_str(), &p_data, &data_size)))
+                {
+                    ret_info = "Read config file failed!";
+                    p_log->err("%s\n", ret_info.c_str());
+                    ret_code = 400;
+                }
+                else
+                {
+                    json::JSON config_json = json::JSON::Load(p_data, data_size);
+                    std::set<std::string> data_paths = p_config->data_paths;
+                    for (auto p : req_json.ArrayRange())
+                    {
+                        data_paths.insert(p.ToString());
+                    }
+                    json::JSON paths_json;
+                    for (auto p : data_paths)
+                    {
+                        paths_json.append(p);
+                    }
+                    config_json["data_path"] = paths_json;
+                    std::string config_str = config_json.dump();
+                    replace(config_str, "\\\\", "\\");
+                    crust_status = save_file(config_file_path.c_str(), reinterpret_cast<const uint8_t *>(config_str.c_str()), config_str.size());
+                    if (CRUST_SUCCESS != crust_status)
+                    {
+                        ret_info = "Save config file failed!";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 400;
+                    }
+                    else
+                    {
+                        ret_info = "Change config path successfully!";
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 200;
+                        p_config->data_paths = data_paths;
+                    }
+                }
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+            goto postcleanup;
+        }
+
         // ----- Get sealed file information by cid ----- //
         cur_path = urlendpoint.base + "/file/info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)

@@ -536,10 +536,6 @@ void validate_meaningful_file_real()
         crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_sz);
         if (CRUST_SUCCESS != crust_status)
         {
-            if (p_sealed_data != NULL)
-            {
-                free(p_sealed_data);
-            }
             if (wl->is_in_deleted_file_buffer(root_cid))
             {
                 break;
@@ -551,6 +547,7 @@ void validate_meaningful_file_real()
             log_err("Get file(%s) block:%ld failed!\n", leaf_path.c_str(), check_block_idx);
             break;
         }
+        Defer def_sealed_data([&p_sealed_data](void) { free(p_sealed_data); });
         // Validate sealed hash
         sgx_sha256_hash_t got_hash;
         sgx_sha256_msg(p_sealed_data, sealed_data_sz, &got_hash);
@@ -563,7 +560,6 @@ void validate_meaningful_file_real()
                 log_err("Org hash : %s\n", leaf_hash.c_str());
                 deleted = true;
             }
-            free(p_sealed_data);
             break;
         }
     }

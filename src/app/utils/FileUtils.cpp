@@ -357,7 +357,7 @@ crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
 
     std::ifstream in;
 
-    in.open(path, std::ios::out | std::ios::binary);
+    in.open(path, std::ios::in | std::ios::binary);
     if (! in)
     {
         return CRUST_OPEN_FILE_FAILED;
