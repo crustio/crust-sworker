@@ -192,7 +192,6 @@ std::string flat_urlformat(std::string &url)
 {
     int len = url.size();
     char *dest = (char *)malloc(url.size());
-    Defer def_dest([&dest](void) { free(dest); });
     memset(dest, 0, url.size());
     char *org = dest;
 
@@ -220,7 +219,10 @@ std::string flat_urlformat(std::string &url)
     }
     *dest = '\0';
 
-    return std::string(org, dest - org);
+    std::string ret = std::string(org, dest - org);
+    free(dest);
+
+    return ret;
 }
 
 /**
