@@ -34,6 +34,7 @@ bool check_or_init_disk(std::string path)
             else
             {
                 ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
+                free(p_data);
                 return true;
             }
         }
@@ -65,6 +66,7 @@ bool check_or_init_disk(std::string path)
 
     // Create uuid file
     uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
+    Defer def_buf([&buf](void) { free(buf); });
     memset(buf, 0, UUID_LENGTH);
     read_rand(buf, UUID_LENGTH);
     std::string uuid = hexstring_safe(buf, UUID_LENGTH);

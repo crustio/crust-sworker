@@ -68,8 +68,8 @@ bool initialize_enclave()
         }
         else if (!(sgx_support & SGX_SUPPORT_ENABLED))
         {
-            p_log->err("Intel SGX is supported on this sytem but not available for use. \
-                    The system may lock BIOS support, or the Platform Software is not available\n");
+            p_log->err("Intel SGX is supported on this sytem but not available for use. "
+                    "The system may lock BIOS support, or the Platform Software is not available\n");
             return false;
         }
     }

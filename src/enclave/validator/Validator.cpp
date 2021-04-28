@@ -484,16 +484,9 @@ void validate_meaningful_file_real()
         {
             deleted = true;
         }
-        if (p_tree != NULL)
-        {
-            free(p_tree);
-            p_tree = NULL;
-        }
         return;
     }
-    Defer defer_tree([&p_tree](void) {
-        free(p_tree);
-    });
+    Defer defer_tree([&p_tree](void) { free(p_tree); });
     // Validate merkle tree
     sgx_sha256_hash_t tree_hash;
     sgx_sha256_msg(p_tree, tree_sz, &tree_hash);

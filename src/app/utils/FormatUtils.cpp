@@ -141,6 +141,7 @@ std::string hexstring_safe(const void *vsrc, size_t len)
     {
         return "";
     }
+    Defer def_buffer([&hex_buffer](void) { free(hex_buffer); });
     memset(hex_buffer, 0, len * 2);
     char *bp;
 

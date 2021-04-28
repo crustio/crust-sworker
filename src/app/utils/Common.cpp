@@ -191,7 +191,8 @@ static inline int htoi(char *s)
 std::string flat_urlformat(std::string &url)
 {
     int len = url.size();
-    char *dest = (char*)malloc(url.size());
+    char *dest = (char *)malloc(url.size());
+    Defer def_dest([&dest](void) { free(dest); });
     memset(dest, 0, url.size());
     char *org = dest;
 
