@@ -17,6 +17,13 @@ bool check_or_init_disk(std::string path)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     EnclaveData *ed = EnclaveData::get_instance();
+    Config *p_config = Config::get_instance();
+
+    // Check if given path is in the system disk
+    if (!p_config->is_valid_or_normal_disk(path))
+    {
+        return false;
+    }
 
     // Check if uuid file exists
     std::string uuid_file = path + DISK_UUID_FILE;
@@ -62,6 +69,7 @@ bool check_or_init_disk(std::string path)
     if (CRUST_SUCCESS != create_directory(srd_dir))
     {
         p_log->err("Cannot create dir:%s\n", srd_dir.c_str());
+        return false;
     }
 
     // Create uuid file
@@ -97,7 +105,7 @@ json::JSON get_increase_srd_info_r(long &change)
     json::JSON disk_info_json;
 
     // Create path
-    for (auto path : p_config->data_paths)
+    for (auto path : p_config->get_data_paths())
     {
         if (check_or_init_disk(path))
         {
@@ -155,7 +163,7 @@ json::JSON get_increase_srd_info(long &change)
  * @description: Wrapper for get_increase_srd_info_r
  * @return: Srd info in json format
  */
-json::JSON get_increase_srd_info()
+json::JSON get_disk_info()
 {
     long c = 0;
     return get_increase_srd_info_r(c);
@@ -215,21 +223,22 @@ crust_status_t srd_change(long change)
                 std::string uuid = disk_info_json[i][WL_DISK_UUID].ToString();
                 tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([&eid, uuid](int /*id*/){
                     sgx_status_t sgx_status = SGX_SUCCESS;
-                    crust_status_t ret = CRUST_SUCCESS;
-                    if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &ret, uuid.c_str()))
-                            || CRUST_SUCCESS != ret)
+                    crust_status_t increase_ret = CRUST_SUCCESS;
+                    if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &increase_ret, uuid.c_str()))
+                            || CRUST_SUCCESS != increase_ret)
                     {
                         // If failed, add current task to next turn
                         long real_change = 0;
-                        Ecall_change_srd_task(global_eid, &ret, 1, &real_change);
+                        crust_status_t change_ret = CRUST_SUCCESS;
+                        Ecall_change_srd_task(global_eid, &change_ret, 1, &real_change);
                         sgx_status = SGX_ERROR_UNEXPECTED;
                     }
                     if (SGX_SUCCESS != sgx_status)
                     {
-                        ret = CRUST_UNEXPECTED_ERROR;
+                        increase_ret = CRUST_UNEXPECTED_ERROR;
                     }
                     decrease_running_srd_task();
-                    return ret;
+                    return increase_ret;
                 })));
             }
         }
@@ -307,7 +316,7 @@ void srd_check_reserved(void)
         EnclaveData *ed = EnclaveData::get_instance();
         json::JSON srd_del_json;
         json::JSON srd_info_json = json::JSON::Load(srd_info_str);
-        for (auto path : p_config->data_paths)
+        for (auto path : p_config->get_data_paths())
         {
             size_t avail_space = get_avail_space_under_dir_g(path);
             long del_space = 0;

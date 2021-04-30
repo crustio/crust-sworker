@@ -512,71 +512,18 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string ret_info;
             json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             json::JSON ret_body;
-            crust_status_t crust_status = CRUST_SUCCESS;
 
-            if (req_json.JSONType() != json::JSON::Class::Array || req_json.size() <= 0)
+            if (!p_config->config_file_add_data_paths(req_json))
             {
-                ret_info = "Wrong paths parameter!";
+                ret_info = "Add data paths to config failed!";
                 p_log->err("%s\n", ret_info.c_str());
                 ret_code = 400;
             }
             else
             {
-                uint8_t *p_data = NULL;
-                size_t data_size = 0;
-                std::string config_file_path = p_config->get_config_path();
-                if (CRUST_SUCCESS != (crust_status = get_file(config_file_path.c_str(), &p_data, &data_size)))
-                {
-                    ret_info = "Read config file failed!";
-                    p_log->err("%s\n", ret_info.c_str());
-                    ret_code = 400;
-                }
-                else
-                {
-                    json::JSON config_json = json::JSON::Load(p_data, data_size);
-                    std::set<std::string> data_paths = p_config->data_paths;
-                    bool is_valid_paths = false;
-                    for (auto p : req_json.ArrayRange())
-                    {
-                        std::string pstr = p.ToString();
-                        if (p_config->is_valid_data_path(pstr))
-                        {
-                            data_paths.insert(pstr);
-                            is_valid_paths = true;
-                        }
-                    }
-                    if (!is_valid_paths)
-                    {
-                        ret_info = "Invalid paths!";
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 400;
-                    }
-                    else
-                    {
-                        json::JSON paths_json;
-                        for (auto p : data_paths)
-                        {
-                            paths_json.append(p);
-                        }
-                        config_json["data_path"] = paths_json;
-                        std::string config_str = config_json.dump();
-                        replace(config_str, "\\\\", "\\");
-                        crust_status = save_file(config_file_path.c_str(), reinterpret_cast<const uint8_t *>(config_str.c_str()), config_str.size());
-                        if (CRUST_SUCCESS != crust_status)
-                        {
-                            ret_info = "Save config file failed!";
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 400;
-                        }
-                        else
-                        {
-                            ret_info = "Change config path successfully!";
-                            p_log->err("%s\n", ret_info.c_str());
-                            ret_code = 200;
-                            p_config->data_paths = data_paths;
-                        }
-                    }
-                }
+                ret_info = "Change config data path successfully!";
+                p_log->err("%s\n", ret_info.c_str());
+                ret_code = 200;
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;
             ret_body[HTTP_MESSAGE] = ret_info;

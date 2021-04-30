@@ -27,7 +27,7 @@
 #define SRD_UPGRADE_INFO_TIMEOUT "timeout"
 #define SRD_UPGRADE_INFO_SRD "srd"
 
-json::JSON get_increase_srd_info();
+json::JSON get_disk_info();
 json::JSON get_increase_srd_info(long &change);
 
 #if defined(__cplusplus)

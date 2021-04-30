@@ -353,7 +353,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     {
         return "Get workload failed!";
     }
-    json::JSON disk_json = get_increase_srd_info();
+    json::JSON disk_json = get_disk_info();
     int disk_avail_for_srd = 0;
     int disk_avail = 0;
     int disk_volume = 0;
@@ -421,43 +421,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
  */
 json::JSON EnclaveData::gen_workload(long srd_task)
 {
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    EnclaveData *ed = EnclaveData::get_instance();
-    // Get srd info
-    if (SGX_SUCCESS != (sgx_status = Ecall_get_workload(global_eid)))
-    {
-        p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
-    }
-    json::JSON wl_json = json::JSON::Load(get_enclave_workload());
-    if (wl_json.size() == -1)
-    {
-        return "Get workload failed!";
-    }
-    json::JSON disk_json = get_increase_srd_info();
-    int disk_avail_for_srd = 0;
-    int disk_avail = 0;
-    int disk_volume = 0;
-    json::JSON srd_detail;
-    for (int i = 0; i < disk_json.size(); i++)
-    {
-        std::string uuid = ed->get_uuid(disk_json[i][WL_DISK_PATH].ToString());
-        std::string disk_path = disk_json[i][WL_DISK_PATH].ToString();
-        srd_detail[disk_path]["srd"] = wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt();
-        srd_detail[disk_path]["srd_avail"] = disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
-        srd_detail[disk_path]["avail"] = disk_json[i][WL_DISK_AVAILABLE].ToInt();
-        srd_detail[disk_path]["volumn"] = disk_json[i][WL_DISK_VOLUME].ToInt();
-        disk_avail += disk_json[i][WL_DISK_AVAILABLE].ToInt();
-        disk_avail_for_srd += disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt();
-        disk_volume += disk_json[i][WL_DISK_VOLUME].ToInt();
-    }
-    wl_json[WL_SRD][WL_SRD_DETAIL] = srd_detail;
-    wl_json[WL_SRD][WL_SRD_COMPLETE]= wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt();
-    wl_json[WL_SRD][WL_SRD_REMAINING_TASK].AddNum(srd_task);
-    wl_json[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD]= disk_avail_for_srd;
-    wl_json[WL_SRD][WL_DISK_AVAILABLE]= disk_avail;
-    wl_json[WL_SRD][WL_DISK_VOLUME]= disk_volume;
-
-    return wl_json;
+    return json::JSON::Load(gen_workload_str(srd_task));
 }
 
 /**

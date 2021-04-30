@@ -54,7 +54,7 @@ bool Config::init(std::string path)
     this->db_path = this->base_path + "/db";
     if (CRUST_SUCCESS != (crust_status = create_directory(this->db_path)))
     {
-        p_log->err("Create path'%s' failed! Error code:%lx\n", this->db_path, crust_status);
+        p_log->err("Create path:'%s' failed! Error code:%lx\n", this->db_path.c_str(), crust_status);
         return false;
     }
 
@@ -72,7 +72,7 @@ bool Config::init(std::string path)
         this->data_paths.insert(d_path);
         if (CRUST_SUCCESS != (crust_status = create_directory(d_path)))
         {
-            p_log->err("Create path'%s' failed! Error code:%lx\n", d_path.c_str(), crust_status);
+            p_log->err("Create path:'%s' failed! Error code:%lx\n", d_path.c_str(), crust_status);
             return false;
         }
     }
@@ -155,10 +155,11 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'srd path' : [\n");
-    for (auto it = this->data_paths.begin(); it != this->data_paths.end(); )
+    std::set<std::string> data_paths = this->get_data_paths();
+    for (auto it = data_paths.begin(); it != data_paths.end(); )
     {
         printf("        \"%s\"", (*it).c_str());
-        ++it == this->data_paths.end() ? printf("\n") : printf(",\n");
+        ++it == data_paths.end() ? printf("\n") : printf(",\n");
     }
     printf("    ],\n");
     printf("    'base url' : '%s',\n", this->base_url.c_str());
@@ -203,11 +204,7 @@ bool Config::unique_paths()
     if (!offline_chain_mode)
     {
         struct statfs sys_st;
-        if (statfs(this->base_path.c_str(), &sys_st) == -1)
-        {
-            p_log->warn("Get base path info failed!\n");
-        }
-        else
+        if (statfs(this->base_path.c_str(), &sys_st) != -1)
         {
             this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
         }
@@ -224,7 +221,6 @@ bool Config::unique_paths()
             // Compare to check if current disk is system disk
             if (this->sys_fsid.compare(fsid) == 0)
             {
-                p_log->err("Data path:'%s' is in the same disk with system path:'%s'\n", path.c_str(), this->base_path.c_str());
                 this->data_paths.erase(path);
             }
             else
@@ -236,15 +232,9 @@ bool Config::unique_paths()
                 }
                 else
                 {
-                    p_log->warn("Given data path:'%s' is in the same disk with configured path:'%s'\n",
-                            path.c_str(), sid_m[fsid].c_str());
                     this->data_paths.erase(path);
                 }
             }
-        }
-        else
-        {
-            p_log->err("Get data path:'%s' info failed! Please check if it existed\n", path.c_str());
         }
     }
 
@@ -256,17 +246,25 @@ bool Config::unique_paths()
  * @param path -> Reference to given data path
  * @return: Valid or not
  */
-bool Config::is_valid_data_path(const std::string &path)
+bool Config::is_valid_data_path(const std::string &path, bool lock)
 {
-    std::map<std::string, std::string> sid_m;
+    std::map<std::string, std::string> sid_2_path;
+    if (lock)
+    {
+        this->data_paths_mutex.lock();
+    }
     for (auto p : this->data_paths)
     {
         struct statfs st;
         if (statfs(p.c_str(), &st) != -1)
         {
             std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
-            sid_m[fsid] = p;
+            sid_2_path[fsid] = p;
         }
+    }
+    if (lock)
+    {
+        this->data_paths_mutex.unlock();
     }
 
     struct statfs st;
@@ -276,25 +274,109 @@ bool Config::is_valid_data_path(const std::string &path)
         // Check if current disk is system disk
         if (this->sys_fsid.compare(fsid) == 0 )
         {
-            p_log->err("Add data path:'%s' is in the system disk!\n", path.c_str());
             return false;
         }
         // Check if added path is duplicated
-        if (sid_m.find(fsid) == sid_m.end())
+        if (sid_2_path.find(fsid) == sid_2_path.end())
         {
             return true;
         }
         else
         {
-            p_log->warn("Given data path:'%s' is in the same disk with configured path:'%s'\n",
-                    path.c_str(), sid_m[fsid].c_str());
             return false;
         }
     }
-    else
-    {
-        p_log->err("Get data path:'%s' info failed! Please check if it existed\n", path.c_str());
-    }
 
     return false;
+}
+
+/**
+ * @description: Check if given path is in the system disk
+ * @param path -> Const reference to given path
+ * @return: System disk or not
+ */
+bool Config::is_valid_or_normal_disk(const std::string &path)
+{
+    struct statfs st;
+    if (statfs(path.c_str(), &st) == -1)
+    {
+        return false;
+    }
+
+    std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+
+    return this->sys_fsid.compare(fsid) != 0;
+}
+
+/**
+ * @description: Get data paths
+ * return: Data paths
+ */
+std::set<std::string> Config::get_data_paths()
+{
+    SafeLock sl(this->data_paths_mutex);
+    sl.lock();
+    return this->data_paths;
+}
+
+/**
+ * @description: Add data paths to config file
+ * @param paths -> Const reference to paths
+ * @return: Add success or not
+ */
+bool Config::config_file_add_data_paths(const json::JSON &paths)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    if (paths.JSONType() != json::JSON::Class::Array || paths.size() <= 0)
+    {
+        p_log->err("Add data path failed, Wrong paths parameter!\n");
+        return false;
+    }
+    else
+    {
+        uint8_t *p_data = NULL;
+        size_t data_size = 0;
+        if (CRUST_SUCCESS != (crust_status = get_file(config_file_path.c_str(), &p_data, &data_size)))
+        {
+            p_log->err("Add data path failed, read config file failed!\n");
+            return false;
+        }
+        else
+        {
+            json::JSON config_json = json::JSON::Load(p_data, data_size);
+            free(p_data);
+            if (config_json["data_path"].JSONType() != json::JSON::Class::Array)
+            {
+                p_log->err("Add data path failed, invalid config file!\n");
+                return false;
+            }
+            SafeLock sl(this->data_paths_mutex);
+            sl.lock();
+            bool is_valid = false;
+            for (auto path : paths.ArrayRange())
+            {
+                std::string pstr = path.ToString();
+                if (this->is_valid_data_path(pstr, false))
+                {
+                    config_json["data_path"].append(path);
+                    this->data_paths.insert(pstr);
+                    is_valid = true;
+                }
+            }
+            if (! is_valid)
+            {
+                return false;
+            }
+            std::string config_str = config_json.dump();
+            replace(config_str, "\\\\", "\\");
+            crust_status = save_file(config_file_path.c_str(), reinterpret_cast<const uint8_t *>(config_str.c_str()), config_str.size());
+            if (CRUST_SUCCESS != crust_status)
+            {
+                p_log->err("Save new config file failed! Error code: %lx\n", crust_status);
+                return false;
+            }
+        }
+    }
+
+    return true;
 }

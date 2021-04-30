@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <vector>
+#include <stack>
 #include <unordered_map>
 #include <string.h>
 #include <sys/stat.h>
@@ -23,7 +24,7 @@ int rm_dir(std::string dir_full_path);
 int rm(std::string path);
 size_t get_free_space_under_directory(std::string path);
 crust_status_t rename_dir(std::string old_path, std::string new_path);
-crust_status_t create_directory(std::string path);
+crust_status_t create_directory(const std::string &path);
 std::vector<std::string> get_sub_folders_and_files(const char *path);
 crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size);
 crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size);

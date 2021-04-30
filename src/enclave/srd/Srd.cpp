@@ -99,6 +99,7 @@ void srd_change()
 crust_status_t srd_increase(const char *uuid)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
+    crust_status_t del_ret = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
     // Get uuid bytes
@@ -142,6 +143,7 @@ crust_status_t srd_increase(const char *uuid)
     ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD);
     if (CRUST_SUCCESS != crust_status)
     {
+        log_err("Create tmp directory failed! Error code:%lx\n", crust_status);
         return crust_status;
     }
 
@@ -160,6 +162,7 @@ crust_status_t srd_increase(const char *uuid)
         crust_status = seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
+            log_err("Seal random data failed! Error code:%lx\n", crust_status);
             return crust_status;
         }
         Defer defer_sealed_data([&p_sealed_data](void) { free(p_sealed_data); });
@@ -172,11 +175,11 @@ crust_status_t srd_increase(const char *uuid)
         ocall_save_file(&crust_status, m_data_path.c_str(), reinterpret_cast<const uint8_t *>(p_sealed_data), SRD_RAND_DATA_LENGTH, STORE_TYPE_SRD);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Save srd file(%s) failed!\n", tmp_dir.c_str());
-            ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD);
-            if (CRUST_SUCCESS != crust_status)
+            log_err("Save srd file(%s) failed! Error code:%lx\n", tmp_dir.c_str(), crust_status);
+            ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
+            if (CRUST_SUCCESS != del_ret)
             {
-                log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+                log_warn("Delete temp directory %s failed! Error code:%lx\n", tmp_dir.c_str(), del_ret);
             }
             return crust_status;
         }
@@ -190,10 +193,10 @@ crust_status_t srd_increase(const char *uuid)
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD);
-        if (CRUST_SUCCESS != crust_status)
+        ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
+        if (CRUST_SUCCESS != del_ret)
         {
-            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+            log_warn("Delete temp directory %s failed! Error code:%lx\n", tmp_dir.c_str(), del_ret);
         }
         return crust_status;
     }
@@ -205,10 +208,10 @@ crust_status_t srd_increase(const char *uuid)
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), g_hash_path.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD);
-        if (CRUST_SUCCESS != crust_status)
+        ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
+        if (CRUST_SUCCESS != del_ret)
         {
-            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
+            log_warn("Delete temp directory %s failed!, Error code:%lx\n", tmp_dir.c_str(), del_ret);
         }
         return crust_status;
     }
