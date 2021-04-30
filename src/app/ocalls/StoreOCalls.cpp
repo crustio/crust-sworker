@@ -96,7 +96,7 @@ crust_status_t ocall_save_file(const char *path, const uint8_t *data, size_t dat
  */
 crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size_t data_size, char *uuid, size_t /*uuid_len*/)
 {
-    json::JSON disk_json = get_increase_srd_info();
+    json::JSON disk_json = get_disk_info();
     if (disk_json.JSONType() != json::JSON::Class::Array || disk_json.size() <= 0)
     {
         return CRUST_UNEXPECTED_ERROR;
@@ -159,7 +159,7 @@ crust_status_t ocall_delete_folder_or_file(const char *path, store_type_t type)
  */
 crust_status_t ocall_delete_ipfs_file(const char *cid)
 {
-    json::JSON disk_json = get_increase_srd_info();
+    json::JSON disk_json = get_disk_info();
     if (disk_json.JSONType() != json::JSON::Class::Array || disk_json.size() <= 0)
     {
         p_log->err("Cannot find disk information! Please check your disk!\n");

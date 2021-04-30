@@ -361,7 +361,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     switch (crust_status)
                     {
                         case CRUST_UPGRADE_BLOCK_EXPIRE:
-                            ret_info = "Block expired!Wait for next era.";
+                            ret_info = "Block expired!Wait for next report slot(300 blocks).";
                             ret_code = 400;
                             break;
                         case CRUST_UPGRADE_NO_VALIDATE:
@@ -369,7 +369,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             ret_code = 400;
                             break;
                         case CRUST_UPGRADE_RESTART:
-                            ret_info = "Cannot report due to restart!Wait for next era.";
+                            ret_info = "Cannot report due to restart!Wait for report slot(300 blocks).";
                             ret_code = 400;
                             break;
                         case CRUST_UPGRADE_NO_FILE:
@@ -495,6 +495,34 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 p_log->set_debug(debug_flag);
                 ret_info = "Set debug flag successfully!";
                 p_log->info("%s %s debug.\n", ret_info.c_str(), debug_flag ? "Open" : "Close");
+                ret_code = 200;
+            }
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+            goto postcleanup;
+        }
+
+        // ----- Set config path ----- //
+        cur_path = urlendpoint.base + "/config/add_path";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            int ret_code = 400;
+            std::string ret_info;
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON ret_body;
+
+            if (!p_config->config_file_add_data_paths(req_json))
+            {
+                ret_info = "Add data paths to config failed!";
+                p_log->err("%s\n", ret_info.c_str());
+                ret_code = 400;
+            }
+            else
+            {
+                ret_info = "Change config data path successfully!";
+                p_log->err("%s\n", ret_info.c_str());
                 ret_code = 200;
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;

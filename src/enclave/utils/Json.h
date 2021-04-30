@@ -577,7 +577,7 @@ public:
         return NULL;
     }
 
-    uint8_t *ToBytes()
+    const uint8_t *ToBytes()
     {
         if (Type == Class::Hash)
             return Internal.HashList;

@@ -40,5 +40,6 @@ crust-sworker/
 scripts/err.log
 scripts/prod_sign.sh
 src/.config_HW_RELEASE_x64
+src/.config_HW_DEBUG_x64
 src/crust-sworker
 err.log

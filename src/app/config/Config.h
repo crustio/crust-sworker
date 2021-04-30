@@ -5,11 +5,13 @@
 #include <string>
 #include <fstream>
 #include <omp.h>
+#include <set>
 
 #include <sgx_urts.h>
 
 #include "Resource.h"
 #include "../enclave/utils/Json.h"
+#include "../enclave/utils/Defer.h"
 #include "Common.h"
 #include "Srd.h"
 
@@ -37,7 +39,6 @@ class Config
 public:
     // base information
     std::string base_path;              /* sworker base path */
-    std::vector<std::string> data_paths;               /* srd validation files base path */
     std::string db_path;                /* DB path */
     std::string base_url;               /* External API base url */
     
@@ -59,12 +60,20 @@ public:
     void show(void);
     static Config *get_instance();
     std::string get_config_path();
+    bool unique_paths();
+    bool is_valid_or_normal_disk(const std::string &path);
+    bool is_valid_data_path(const std::string &path, bool lock = true);
+    std::set<std::string> get_data_paths();
+    bool config_file_add_data_paths(const json::JSON &paths);
 
 private:
     Config() {}
     Config(const Config &);
     bool init(std::string path);
     Config& operator = (const Config &);
+    std::string sys_fsid;
+    std::set<std::string> data_paths;   /* data path */
+    std::mutex data_paths_mutex;
 };
 
 #endif /* !_CRUST_CONFIG_H_ */

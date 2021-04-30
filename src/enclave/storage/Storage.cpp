@@ -517,7 +517,7 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
         {
             for (size_t i = 0; i < hashs.size(); i++)
             {
-                delete hashs[i];
+                free(hashs[i]);
             }
             hashs.clear();
             return CRUST_MALLOC_FAILED;

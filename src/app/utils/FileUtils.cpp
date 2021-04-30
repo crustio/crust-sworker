@@ -271,16 +271,34 @@ size_t get_free_space_under_directory(std::string path)
  * @param path -> the directory path
  * @return: Create status
  */
-crust_status_t create_directory(std::string path)
+crust_status_t create_directory(const std::string &path)
 {
-    if (access(path.c_str(), 0) == -1)
+    std::stack<std::string> sub_paths;
+    sub_paths.push(path);
+    while (!sub_paths.empty())
     {
-        if (system((std::string("mkdir -p ") + path).c_str()) == -1)
+        if (access(sub_paths.top().c_str(), 0) != -1)
         {
-            p_log->err("Create directory:%s failed! No space or no privilege.\n", path.c_str());
-            return CRUST_MKDIR_FAILED;
+            sub_paths.pop();
+            if (!sub_paths.empty())
+            {
+                if (mkdir(sub_paths.top().c_str(), 0775) == -1)
+                {
+                    return CRUST_MKDIR_FAILED;
+                }
+            }
+        }
+        else
+        {
+            std::string stop = sub_paths.top();
+            std::string sub_path = stop.substr(0, stop.find_last_of("/"));
+            if (sub_path.size() > 1)
+            {
+                sub_paths.push(sub_path);
+            }
         }
     }
+
     return CRUST_SUCCESS;
 }
 
@@ -357,7 +375,7 @@ crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
 
     std::ifstream in;
 
-    in.open(path, std::ios::out | std::ios::binary);
+    in.open(path, std::ios::in | std::ios::binary);
     if (! in)
     {
         return CRUST_OPEN_FILE_FAILED;

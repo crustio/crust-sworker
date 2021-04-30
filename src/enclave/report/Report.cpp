@@ -212,10 +212,9 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     // Generate files information
     size_t files_root_buffer_len = report_valid_idx_v.size() * HASH_LENGTH;
     sgx_sha256_hash_t files_root;
-    uint8_t *files_root_buffer = NULL;
     if (files_root_buffer_len > 0)
     {
-        files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
+        uint8_t *files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
         if (files_root_buffer == NULL)
         {
             return CRUST_MALLOC_FAILED;
