@@ -301,7 +301,24 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            res.body() = EnclaveData::get_instance()->get_sealed_file_info_all();
+            std::string ret_info;
+            int ret_code = 400;
+            json::JSON ret_body;
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string type = req_json["type"].ToString();
+            if (type.compare("") == 0)
+            {
+                ret_info = "Please give wanted file type('valid' or 'lost')!";
+                p_log->err("%s\n", ret_info.c_str());
+                ret_body[HTTP_STATUS_CODE] = ret_code;
+                ret_body[HTTP_MESSAGE] = ret_info;
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
+            }
+            else
+            {
+                res.body() = EnclaveData::get_instance()->get_sealed_file_info_all(type);
+            }
             goto getcleanup;
         }
 

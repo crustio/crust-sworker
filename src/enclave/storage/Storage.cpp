@@ -314,8 +314,8 @@ crust_status_t storage_seal_file_end(const char *root)
     file_entry_json[FILE_CID] = cid_str;
     file_entry_json[FILE_HASH] = (uint8_t *)&sealed_root;
     file_entry_json[FILE_CHAIN_BLOCK_NUM] = chain_block_num;
-    // Status indicates current new file's status, which must be one of valid, unverified and deleted
-    file_entry_json[FILE_STATUS] = "100";
+    // Status indicates current new file's status, which must be one of unverified, valid, lost and deleted
+    file_entry_json[FILE_STATUS].AppendChar(FILE_STATUS_VALID).AppendChar(FILE_STATUS_UNVERIFIED).AppendChar(FILE_STATUS_UNVERIFIED);
 
     // Print sealed file information
     log_info("Seal complete, file info; cid: %s -> size: %ld, status: valid\n",
@@ -426,6 +426,8 @@ crust_status_t storage_delete_file(const char *cid)
         std::string del_cid = deleted_file[FILE_CID].ToString();
         // Delete file directory
         ocall_delete_ipfs_file(&crust_status, del_cid.c_str());
+        // Delete file in IPFS
+        ocall_ipfs_del(&crust_status, del_cid.c_str());
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info
@@ -481,7 +483,7 @@ crust_status_t check_seal_file_dup(std::string cid)
         json::JSON file_entry_json;
         file_entry_json[FILE_CID] = cid;
         // Set file status to 'FILE_STATUS_PENDING,FILE_STATUS_UNVERIFIED,FILE_STATUS_UNVERIFIED'
-        file_entry_json[FILE_STATUS] = "300";
+        file_entry_json[FILE_STATUS].AppendChar(FILE_STATUS_PENDING).AppendChar(FILE_STATUS_UNVERIFIED).AppendChar(FILE_STATUS_UNVERIFIED);
         wl->add_sealed_file(file_entry_json, pos);
     }
 

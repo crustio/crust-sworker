@@ -209,7 +209,7 @@ void EnclaveData::add_sealed_file_info(std::string cid, std::string info)
         return;
     }
 
-    this->sealed_file[cid] = info;
+    this->sealed_file[FILE_TYPE_VALID][cid] = info;
 }
 
 /**
@@ -221,31 +221,59 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    if (this->sealed_file.hasKey(cid) == 0)
+    std::string type;
+    if (this->sealed_file[FILE_TYPE_VALID].hasKey(cid) != 0)
+    {
+        type = FILE_TYPE_VALID;
+    }
+    else if (this->sealed_file[FILE_TYPE_LOST].hasKey(cid) != 0)
+    {
+        type = FILE_TYPE_LOST;
+    }
+
+    if (type.compare("") == 0)
     {
         return "";
     }
 
-    return this->sealed_file[cid].dump();
+    return this->sealed_file[type][cid].dump();
+}
+
+/**
+ * @description: Change sealed file info from old type to new type
+ * @param cid -> File root cid
+ * @param old_type -> Old file type
+ * @param new_type -> New file type
+ */
+void EnclaveData::change_sealed_file_type(const std::string &cid, const std::string &old_type, const std::string &new_type)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    if (this->sealed_file[old_type].hasKey(cid) == 0)
+    {
+        return ;
+    }
+    this->sealed_file[new_type][cid] = this->sealed_file[old_type][cid];
+    this->sealed_file[old_type].ObjectRange().object->erase(cid);
 }
 
 /**
  * @description: Get all sealed file information
+ * @param type -> File type
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_all()
+std::string EnclaveData::get_sealed_file_info_all(const std::string &type)
 {
     std::string ans;
-    this->sealed_file_mutex.lock();
-    json::JSON tmp_sealed_file = this->sealed_file;
-    this->sealed_file_mutex.unlock();
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
 
-    if (tmp_sealed_file.size() <= 0)
+    if (this->sealed_file[type].size() <= 0)
     {
         return "{}";
     }
 
-    ans = tmp_sealed_file.dump();
+    ans = this->sealed_file[type].dump();
 
     replace(ans, "\"{", "{");
     replace(ans, "}\"", "}");
@@ -284,9 +312,13 @@ void EnclaveData::del_sealed_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    if (this->sealed_file.hasKey(cid))
+    if (this->sealed_file[FILE_TYPE_VALID].hasKey(cid))
     {
-        this->sealed_file.ObjectRange().object->erase(cid);
+        this->sealed_file[FILE_TYPE_VALID].ObjectRange().object->erase(cid);
+    }
+    if (this->sealed_file[FILE_TYPE_LOST].hasKey(cid))
+    {
+        this->sealed_file[FILE_TYPE_LOST].ObjectRange().object->erase(cid);
     }
 }
 
@@ -297,12 +329,16 @@ void EnclaveData::restore_sealed_file_info()
 {
     this->sealed_file_mutex.lock();
     // Restore file information
-    std::string file_info;
-    crust::DataBase::get_instance()->get(DB_FILE_INFO, file_info);
-    this->sealed_file = json::JSON::Load(file_info);
+    std::string file_valid_info;
+    std::string file_lost_info;
+    crust::DataBase::get_instance()->get(DB_FILE_VALID_INFO, file_valid_info);
+    crust::DataBase::get_instance()->get(DB_FILE_LOST_INFO, file_lost_info);
+    this->sealed_file[FILE_TYPE_VALID] = json::JSON::Load(file_valid_info);
+    this->sealed_file[FILE_TYPE_LOST] = json::JSON::Load(file_lost_info);
     this->sealed_file_mutex.unlock();
 
-    crust::DataBase::get_instance()->del(DB_FILE_INFO);
+    crust::DataBase::get_instance()->del(DB_FILE_VALID_INFO);
+    crust::DataBase::get_instance()->del(DB_FILE_LOST_INFO);
 }
 
 /**

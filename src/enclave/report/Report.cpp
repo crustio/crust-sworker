@@ -172,6 +172,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
             if (reported_files_acc < WORKREPORT_FILE_LIMIT)
             {
                 if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
                     std::string file_str;
@@ -181,7 +183,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
                         .append(std::to_string(wl->sealed_files[i][FILE_SIZE].ToInt())).append(",");
                     file_str.append("\"").append(FILE_CHAIN_BLOCK_NUM).append("\":")
                         .append(std::to_string(wl->sealed_files[i][FILE_CHAIN_BLOCK_NUM].ToInt())).append("}");
-                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED
+                            || status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
                     {
                         if (deleted_files.size() != 1)
                         {

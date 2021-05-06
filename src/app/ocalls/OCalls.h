@@ -67,6 +67,8 @@ extern "C"
     void ocall_recall_validate_file();
     void ocall_recall_validate_srd();
 
+    void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type);
+
 #if defined(__cplusplus)
 }
 #endif

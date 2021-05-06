@@ -197,6 +197,7 @@ std::string Config::get_config_path()
 
 /**
  * @description: Unique data paths
+ * @return: Has valid data path or not
  */
 bool Config::unique_paths()
 {
@@ -244,6 +245,7 @@ bool Config::unique_paths()
 /**
  * @description: Check if given data path is valid
  * @param path -> Reference to given data path
+ * @param lock -> Get data paths lock or not
  * @return: Valid or not
  */
 bool Config::is_valid_data_path(const std::string &path, bool lock)
@@ -310,7 +312,7 @@ bool Config::is_valid_or_normal_disk(const std::string &path)
 
 /**
  * @description: Get data paths
- * return: Data paths
+ * @return: Data paths
  */
 std::set<std::string> Config::get_data_paths()
 {

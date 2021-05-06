@@ -359,3 +359,14 @@ void ocall_recall_validate_srd()
 {
     Validator::get_instance()->validate_srd();
 }
+
+/**
+ * @description: Change sealed file info from old type to new type
+ * @param cid -> File root cid
+ * @param old_type -> Old file type
+ * @param new_type -> New file type
+ */
+void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type)
+{
+    EnclaveData::get_instance()->change_sealed_file_type(cid, old_type, new_type);
+}
