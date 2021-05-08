@@ -165,6 +165,8 @@ crust_status_t gen_work_report_test(const char *block_hash, size_t block_height,
             if (reported_files_acc < WORKREPORT_FILE_LIMIT)
             {
                 if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
                     std::string file_str;
@@ -174,7 +176,8 @@ crust_status_t gen_work_report_test(const char *block_hash, size_t block_height,
                         .append(std::to_string(wl->sealed_files[i][FILE_SIZE].ToInt())).append(",");
                     file_str.append("\"").append(FILE_CHAIN_BLOCK_NUM).append("\":")
                         .append(std::to_string(wl->sealed_files[i][FILE_CHAIN_BLOCK_NUM].ToInt())).append("}");
-                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED
+                            || status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
                     {
                         if (deleted_files.size() != 1)
                         {
@@ -205,10 +208,9 @@ crust_status_t gen_work_report_test(const char *block_hash, size_t block_height,
     // Generate files information
     size_t files_root_buffer_len = report_valid_idx_v.size() * HASH_LENGTH;
     sgx_sha256_hash_t files_root;
-    uint8_t *files_root_buffer = NULL;
     if (files_root_buffer_len > 0)
     {
-        files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
+        uint8_t *files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
         if (files_root_buffer == NULL)
         {
             return CRUST_MALLOC_FAILED;

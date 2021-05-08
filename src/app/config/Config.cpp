@@ -154,7 +154,7 @@ void Config::show(void)
     printf("Config : {\n");
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
-    printf("    'srd path' : [\n");
+    printf("    'data path' : [\n");
     std::set<std::string> data_paths = this->get_data_paths();
     for (auto it = data_paths.begin(); it != data_paths.end(); )
     {

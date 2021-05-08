@@ -34,8 +34,9 @@ function seal()
         verbose ERROR "add file to IPFS failed!"
         return 1
     fi
-    local ret_code=$(curl -s -XPOST $baseurl/storage/seal_sync --data-raw "{\"cid\":\"$cid\"}" -o /dev/null -w "%{http_code}")
-    if [ ${ret_code} -eq 200 ]; then
+    ipfs pin add $cid &>/dev/null
+    local ret=$?
+    if [ $ret -eq 0 ]; then
         echo $cid
     else
         echo ""
@@ -45,8 +46,8 @@ function seal()
 function seal_by_cid()
 {
     local cid=$1
-    local ret_code=$(curl -s -XPOST $baseurl/storage/seal --data-raw "{\"cid\":\"$cid\"}" -o /dev/null -w "%{http_code}")
-    if [ ${ret_code} -eq 200 ]; then
+    ipfs pin add $cid &>/dev/null
+    if [ $? -eq 0 ]; then
         echo $cid
     else
         echo ""
@@ -112,7 +113,7 @@ function get_file_info()
 
 function get_file_info_all()
 {
-    curl -s -XGET $baseurl/file/info_all
+    curl -s -XGET $baseurl/file/info_all --data-raw '{"type":"valid"}'
 }
 
 function srd_real_async()
@@ -336,6 +337,16 @@ function get_config()
         return 1
     fi
     cat $configfile | jq "$exp" | sed ':a;N;s/\n//g;ta' | sed 's/^"\|"$//g'
+}
+
+function get_config_array()
+{
+    local exp=$1
+    if [ ! -s "$configfile" ]; then
+        verbose ERROR "config file:$configfile isn't existed!" >&2
+        return 1
+    fi
+    cat $configfile | jq -r "${exp}|.[]"
 }
 
 function print_space()

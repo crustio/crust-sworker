@@ -1,5 +1,5 @@
 {
-    "srd_path" : "%SRDPATH%",
+    "data_path" : "%SRDPATH%",
     "functionality" : {
         "srd_size": 6,
         "srd_max_per_turn": 800,
