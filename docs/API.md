@@ -141,15 +141,13 @@ Output (200, success):
 {
   "c_block_num" : 0,
   "s_size" : 16783146,
-  "size" : 16781194,
-  "smerkletree" : null
+  "size" : 16781194
 }
 ```
 Description:
 1. c_block_num: chain block number when sealing the file
 1. s_size: sealed file size
 1. size: file real size
-1. smerkletree: sealed file merkle tree structure
 
 Output (400, failed):
 ```
@@ -388,7 +386,7 @@ Output (200, success):
 ```
 {
   "message" : "Seal file 'xxx' successfully",  
-  "status_code" : 200
+  "status_code" : 0
 }
 ```
 
@@ -396,7 +394,7 @@ Output (400, failed):
 ```
 {
   "message" : "Invalid cid!",  
-  "status_code" : 400
+  "status_code" : 11001
 }
 ```
 
@@ -404,7 +402,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
-  "status_code" : 500
+  "status_code" : 4001
 }
 ```
 
@@ -412,7 +410,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
-  "status_code" : 500
+  "status_code" : xxx
 }
 ```
 
@@ -420,7 +418,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
-  "status_code" : 500
+  "status_code" : xxx
 }
 ```
 
@@ -435,7 +433,7 @@ Output (200, success):
 ```
 {
   "message" : "Seal file 'xxx' successfully",  
-  "status_code" : 200
+  "status_code" : 0
 }
 ```
 
@@ -443,7 +441,7 @@ Output (400, failed):
 ```
 {
   "message" : "Invalid cid!",  
-  "status_code" : 400
+  "status_code" : 11001
 }
 ```
 
@@ -451,7 +449,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
-  "status_code" : 500
+  "status_code" : xxx
 }
 ```
 
@@ -459,7 +457,7 @@ Output (500, failed):
 ```
 {
   "message" : "Start seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
-  "status_code" : 500
+  "status_code" : xxx
 }
 ```
 
@@ -467,7 +465,7 @@ Output (503, failed):
 ```
 {
   "message" : "Seal file 'xxx' stopped due to upgrading or exiting",  
-  "status_code" : 503
+  "status_code" : 10010
 }
 ```
 
