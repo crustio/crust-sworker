@@ -355,13 +355,19 @@ crust_status_t storage_seal_file_end(const char *root)
 /**
  * @description: Unseal file according to given path
  * @param path -> Pointer to file block stored path
+ * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param decrypted_data_size -> Decrypted data buffer size
+ * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Unseal status
  */
-crust_status_t storage_unseal_file(const char *path)
+crust_status_t storage_unseal_file(const char *path,
+                                   uint8_t *p_decrypted_data,
+                                   size_t /*decrypted_data_size*/,
+                                   size_t *p_decrypted_data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    uint8_t *p_decrypted_data = NULL;
-    uint32_t decrypted_data_sz = 0;
+    uint8_t *p_unsealed_data = NULL;
+    uint32_t unsealed_data_sz = 0;
 
     // Get sealed file block data
     uint8_t *p_data = NULL;
@@ -373,20 +379,21 @@ crust_status_t storage_unseal_file(const char *path)
     Defer defer_data([&p_data](void) { free(p_data); });
     
     // Do unseal
-    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, data_size, &p_decrypted_data, &decrypted_data_sz)))
+    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, data_size, &p_unsealed_data, &unsealed_data_sz)))
     {
         return crust_status;
     }
-    Defer def_decrypted_data([&p_decrypted_data](void) { free(p_decrypted_data); });
+    Defer def_decrypted_data([&p_unsealed_data](void) { free(p_unsealed_data); });
 
     // Check if data is private data
-    if (memcmp(p_decrypted_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)
+    if (memcmp(p_unsealed_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)
     {
         return CRUST_MALWARE_DATA_BLOCK;
     }
 
     // Store unsealed data
-    ocall_store_unsealed_data(path, p_decrypted_data, decrypted_data_sz);
+    *p_decrypted_data_size = unsealed_data_sz;
+    memcpy(p_decrypted_data, p_unsealed_data, *p_decrypted_data_size);
 
     return crust_status;
 }

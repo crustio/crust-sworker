@@ -269,16 +269,19 @@ crust_status_t ecall_seal_file_end(const char *root)
 /**
  * @description: Unseal file according to given path
  * @param path (in) -> Pointer to file block stored path
+ * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param decrypted_data_size -> Decrypted data buffer size
+ * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Unseal status
  */
-crust_status_t ecall_unseal_file(const char *path)
+crust_status_t ecall_unseal_file(const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_unseal_file(path);
+    crust_status_t ret = storage_unseal_file(path, p_decrypted_data, decrypted_data_size, p_decrypted_data_size);
 
     return ret;
 }

@@ -34,7 +34,7 @@ public:
     void add_sealed_file_info(std::string cid, std::string info);
     std::string get_sealed_file_info(std::string cid);
     void change_sealed_file_type(const std::string &cid, const std::string &old_type, const std::string &new_type);
-    std::string get_sealed_file_info_all(const std::string &type);
+    std::string get_sealed_file_info_all();
     void del_sealed_file_info(std::string cid);
     bool is_sealed_file_dup(std::string cid, bool locked = true);
     void restore_sealed_file_info();

@@ -259,21 +259,20 @@ void EnclaveData::change_sealed_file_type(const std::string &cid, const std::str
 
 /**
  * @description: Get all sealed file information
- * @param type -> File type
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_all(const std::string &type)
+std::string EnclaveData::get_sealed_file_info_all()
 {
     std::string ans;
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
 
-    if (this->sealed_file[type].size() <= 0)
+    if (this->sealed_file.size() <= 0)
     {
         return "{}";
     }
 
-    ans = this->sealed_file[type].dump();
+    ans = this->sealed_file.dump();
 
     replace(ans, "\"{", "{");
     replace(ans, "}\"", "}");

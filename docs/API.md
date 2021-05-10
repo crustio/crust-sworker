@@ -82,16 +82,17 @@ Use '/api/v0/file/info_all' to get all sealed file information
 --------------------------------------------------------------
 ```
 curl -XGET http://<url:port>/api/v0/file/info_all
---data-raw '{"type": "xxx"}'
 ```
-
-Parameter:
-1. type: required parameter can only be 'valid' or 'lost', 'valid' will give valid file information, while 'lost' give the lost
 
 Output:
 ```
 {
-  "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen" : { "size" : 16781194 , "s_size" : 16783146 , "c_block_num" : 0 }
+  "lost" : {
+    "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen" : { "size" : 16781194 , "s_size" : 16783146 , "c_block_num" : 0 }
+  },
+  "valid" : {
+    "QmaJ6kN9fW3TKpVkpf1NuW7cjhHjNp5Jwr3cQuHzsoZWkJ" : { "size" : 2323423 , "s_size" : 2323923 , "c_block_num" : 0 }
+  }
 }
 ```
 Description:
@@ -309,7 +310,7 @@ Output (200, success):
 ```
 {
   "message" : "Ready for sealing file 'xxx', waiting for file block",  
-  "status_code" : 200
+  "status_code" : 0
 }
 ```
 
@@ -317,7 +318,7 @@ Output (200, success):
 ```
 {
   "message" : "Same file 'xxx' is being sealed.",  
-  "status_code" : 200
+  "status_code" : 8013
 }
 ```
 
@@ -325,7 +326,7 @@ Output (200, success):
 ```
 {
   "message" : "This file 'xxx' has been sealed",  
-  "status_code" : 200
+  "status_code" : 8012
 }
 ```
 
@@ -333,7 +334,7 @@ Output (400, failed):
 ```
 {
   "message" : "Invalid cid!",  
-  "status_code" : 400
+  "status_code" : 11001
 }
 ```
 
@@ -341,7 +342,7 @@ Output (400, failed):
 ```
 {
   "message" : "Same file 'xxx' is being deleted.",  
-  "status_code" : 400
+  "status_code" : 8014
 }
 ```
 
@@ -349,7 +350,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
-  "status_code" : 500
+  "status_code" : 4038
 }
 ```
 
@@ -357,7 +358,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
-  "status_code" : 500
+  "status_code" : xxx
 }
 ```
 
@@ -365,7 +366,7 @@ Output (500, failed):
 ```
 {
   "message" : "Start seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
-  "status_code" : 500
+  "status_code" : 0
 }
 ```
 
@@ -373,7 +374,7 @@ Output (503, failed):
 ```
 {
   "message" : "Seal file 'xxx' stopped due to upgrading or exiting",  
-  "status_code" : 503
+  "status_code" : 10010
 }
 ```
 
