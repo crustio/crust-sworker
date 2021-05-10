@@ -314,8 +314,8 @@ crust_status_t storage_seal_file_end(const char *root)
     file_entry_json[FILE_CID] = cid_str;
     file_entry_json[FILE_HASH] = (uint8_t *)&sealed_root;
     file_entry_json[FILE_CHAIN_BLOCK_NUM] = chain_block_num;
-    // Status indicates current new file's status, which must be one of valid, unverified and deleted
-    file_entry_json[FILE_STATUS] = "100";
+    // Status indicates current new file's status, which must be one of unverified, valid, lost and deleted
+    file_entry_json[FILE_STATUS].AppendChar(FILE_STATUS_VALID).AppendChar(FILE_STATUS_UNVERIFIED).AppendChar(FILE_STATUS_UNVERIFIED);
 
     // Print sealed file information
     log_info("Seal complete, file info; cid: %s -> size: %ld, status: valid\n",
@@ -355,13 +355,19 @@ crust_status_t storage_seal_file_end(const char *root)
 /**
  * @description: Unseal file according to given path
  * @param path -> Pointer to file block stored path
+ * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param decrypted_data_size -> Decrypted data buffer size
+ * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Unseal status
  */
-crust_status_t storage_unseal_file(const char *path)
+crust_status_t storage_unseal_file(const char *path,
+                                   uint8_t *p_decrypted_data,
+                                   size_t /*decrypted_data_size*/,
+                                   size_t *p_decrypted_data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    uint8_t *p_decrypted_data = NULL;
-    uint32_t decrypted_data_sz = 0;
+    uint8_t *p_unsealed_data = NULL;
+    uint32_t unsealed_data_sz = 0;
 
     // Get sealed file block data
     uint8_t *p_data = NULL;
@@ -373,20 +379,21 @@ crust_status_t storage_unseal_file(const char *path)
     Defer defer_data([&p_data](void) { free(p_data); });
     
     // Do unseal
-    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, data_size, &p_decrypted_data, &decrypted_data_sz)))
+    if (CRUST_SUCCESS != (crust_status = unseal_data_mrsigner((sgx_sealed_data_t *)p_data, data_size, &p_unsealed_data, &unsealed_data_sz)))
     {
         return crust_status;
     }
-    Defer def_decrypted_data([&p_decrypted_data](void) { free(p_decrypted_data); });
+    Defer def_decrypted_data([&p_unsealed_data](void) { free(p_unsealed_data); });
 
     // Check if data is private data
-    if (memcmp(p_decrypted_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)
+    if (memcmp(p_unsealed_data, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG)) == 0)
     {
         return CRUST_MALWARE_DATA_BLOCK;
     }
 
     // Store unsealed data
-    ocall_store_unsealed_data(path, p_decrypted_data, decrypted_data_sz);
+    *p_decrypted_data_size = unsealed_data_sz;
+    memcpy(p_decrypted_data, p_unsealed_data, *p_decrypted_data_size);
 
     return crust_status;
 }
@@ -424,8 +431,11 @@ crust_status_t storage_delete_file(const char *cid)
     {
         // ----- Delete file related data ----- //
         std::string del_cid = deleted_file[FILE_CID].ToString();
+        crust_status_t del_ret = CRUST_SUCCESS;
         // Delete file directory
-        ocall_delete_ipfs_file(&crust_status, del_cid.c_str());
+        ocall_delete_ipfs_file(&del_ret, del_cid.c_str());
+        // Delete file in IPFS
+        ocall_ipfs_del(&del_ret, del_cid.c_str());
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info
@@ -481,7 +491,7 @@ crust_status_t check_seal_file_dup(std::string cid)
         json::JSON file_entry_json;
         file_entry_json[FILE_CID] = cid;
         // Set file status to 'FILE_STATUS_PENDING,FILE_STATUS_UNVERIFIED,FILE_STATUS_UNVERIFIED'
-        file_entry_json[FILE_STATUS] = "300";
+        file_entry_json[FILE_STATUS].AppendChar(FILE_STATUS_PENDING).AppendChar(FILE_STATUS_UNVERIFIED).AppendChar(FILE_STATUS_UNVERIFIED);
         wl->add_sealed_file(file_entry_json, pos);
     }
 

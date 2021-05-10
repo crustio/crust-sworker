@@ -154,7 +154,7 @@ void Config::show(void)
     printf("Config : {\n");
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
-    printf("    'srd path' : [\n");
+    printf("    'data path' : [\n");
     std::set<std::string> data_paths = this->get_data_paths();
     for (auto it = data_paths.begin(); it != data_paths.end(); )
     {
@@ -197,6 +197,7 @@ std::string Config::get_config_path()
 
 /**
  * @description: Unique data paths
+ * @return: Has valid data path or not
  */
 bool Config::unique_paths()
 {
@@ -244,6 +245,7 @@ bool Config::unique_paths()
 /**
  * @description: Check if given data path is valid
  * @param path -> Reference to given data path
+ * @param lock -> Get data paths lock or not
  * @return: Valid or not
  */
 bool Config::is_valid_data_path(const std::string &path, bool lock)
@@ -310,7 +312,7 @@ bool Config::is_valid_or_normal_disk(const std::string &path)
 
 /**
  * @description: Get data paths
- * return: Data paths
+ * @return: Data paths
  */
 std::set<std::string> Config::get_data_paths()
 {

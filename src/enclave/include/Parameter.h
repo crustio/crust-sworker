@@ -26,11 +26,13 @@
 #define FILE_SEALED_SIZE "s_size"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_CHAIN_BLOCK_NUM "c_block_num"
+#define FILE_LOST_INDEX "l_idx"
 #define FILE_STATUS "status"
 #define FILE_STATUS_UNVERIFIED '0'
 #define FILE_STATUS_VALID '1'
-#define FILE_STATUS_DELETED '2'
-#define FILE_STATUS_PENDING '3'
+#define FILE_STATUS_LOST '2'
+#define FILE_STATUS_DELETED '3'
+#define FILE_STATUS_PENDING '4'
 // File seal info
 #define FILE_BLOCKS "blocks"
 // IPFS file
@@ -44,10 +46,13 @@
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 400000
 #define FILE_CAL_BUFFER_SIZE 7340032
+#define FILE_TYPE_VALID "valid"
+#define FILE_TYPE_LOST "lost"
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
-#define DB_FILE_INFO "file_info"
+#define DB_FILE_VALID_INFO "file_valid_info"
+#define DB_FILE_LOST_INFO "file_lost_info"
 #define DB_WL_SPEC_INFO "wl_spec_info"
 
 // For chain data

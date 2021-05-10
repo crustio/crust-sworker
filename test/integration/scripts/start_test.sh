@@ -58,6 +58,8 @@ function kill_process()
     else
         kill_descendent $cursworkerpid
     fi
+
+    kill -9 $sworkerpid
 }
 
 function print_end()
@@ -158,8 +160,9 @@ fi
 
 ### Replace predefined parameter in configfile
 cp $configfileorg $configfile
-tmpstr=$(cat $testconfigfile | jq '.data_path' -r )/srd
-sed -i "/\"srd_path\" : \"%SRDPATH%\",/ c \    \"srd_path\" : \"$tmpstr\"," $configfile
+tmpstr=$(cat $testconfigfile | jq '.data_path' -r)
+tmpstr=$(echo $tmpstr)
+sed -i "/\"data_path\" : \"%SRDPATH%\",/ c \    \"data_path\" : $tmpstr," $configfile
 
 ### Select chose cases
 orgcase_arry=($(ls $casedir | sort))
@@ -212,10 +215,10 @@ while true; do
         verbose ERROR "start crust sworker failed! Please check $errfile for details."
         kill -9 $sworkerpid
         exit 1
-    elif cat $TMPFILE | jq '.' &>/dev/null; then
+    elif [ x"$(cat $TMPFILE | jq '.srd' 2>/dev/null)" != x"" ]; then
         break
     fi
-    sleep 1
+    sleep 3
 done
 if ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
     verbose ERROR "failed" t

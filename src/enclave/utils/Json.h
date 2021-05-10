@@ -450,7 +450,15 @@ public:
         }
     }
 
-    void AppendStr(std::string str)
+    void FreeBuffer()
+    {
+        if (Type == Class::Buffer)
+        {
+            Internal.BufferList->clear();
+        }
+    }
+
+    JSON &AppendStr(std::string str)
     {
         if (Type == Class::Null)
         {
@@ -461,9 +469,11 @@ public:
         {
             Internal.String->append(str);
         }
+
+        return *this;
     }
 
-    void AppendStr(const char *str, size_t size)
+    JSON &AppendStr(const char *str, size_t size)
     {
         if (Type == Class::Null)
         {
@@ -474,6 +484,23 @@ public:
         {
             Internal.String->append(str, size);
         }
+
+        return *this;
+    }
+
+    JSON &AppendChar(const char c)
+    {
+        if (Type == Class::Null)
+        {
+            SetType(Class::String);
+        }
+
+        if (Type == Class::String)
+        {
+            Internal.String->append(1, c);
+        }
+
+        return *this;
     }
 
     JSON &at(const string &key)

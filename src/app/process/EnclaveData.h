@@ -27,12 +27,10 @@ public:
     void set_upgrade_data(std::string data);
     upgrade_status_t get_upgrade_status();
     void set_upgrade_status(upgrade_status_t status);
-    void add_unsealed_data(std::string root, uint8_t *data, size_t data_size);
-    std::string get_unsealed_data(std::string root);
-    void del_unsealed_data(std::string root);
     // Sealed information
     void add_sealed_file_info(std::string cid, std::string info);
     std::string get_sealed_file_info(std::string cid);
+    void change_sealed_file_type(const std::string &cid, const std::string &old_type, const std::string &new_type);
     std::string get_sealed_file_info_all();
     void del_sealed_file_info(std::string cid);
     bool is_sealed_file_dup(std::string cid, bool locked = true);
@@ -66,9 +64,6 @@ private:
     upgrade_status_t upgrade_status;
     // Upgrade status mutex
     std::mutex upgrade_status_mutex;
-    // Unsealed data map
-    std::unordered_map<std::string, std::pair<uint8_t *, size_t>> unsealed_data_um;
-    std::mutex unsealed_data_mutex;
     // Sealed file map
     json::JSON sealed_file;
     std::mutex sealed_file_mutex;

@@ -67,14 +67,14 @@ void ecall_test_delete_file_unsafe(uint32_t file_num)
     WorkloadTest::get_instance()->test_delete_file_unsafe(file_num);
 }
 
-void ecall_srd_increase_test()
+crust_status_t ecall_srd_increase_test(const char *uuid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    srd_increase_test();
+    return srd_increase_test(uuid);
 }
 
 size_t ecall_srd_decrease_test(size_t change)

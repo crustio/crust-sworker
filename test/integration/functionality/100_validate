@@ -55,8 +55,8 @@ trap 'validate_exit' EXIT
 . $scriptdir/utils.sh
 
 
+data_path=($(get_config_array ".data_path"))
 srd_num=$(get_config ".functionality|.validate|.srd_num")
-srd_path=$(get_config ".srd_path")
 deleted_srd=$(get_config ".functionality|.validate|.deleted_srd")
 file_num=$(get_config ".functionality|.validate|.file_num")
 deleted_file=$(get_config ".functionality|.validate|.deleted_file")
@@ -65,11 +65,19 @@ deleted_file=$(get_config ".functionality|.validate|.deleted_file")
 srd_real_sync $srd_num &>/dev/null
 i=0
 # Delete some srd
-for sf in $(ls $srd_path); do
-    if [ $((i++)) -ge $deleted_srd ]; then
-        break
-    fi
-    rm -rf $srd_path/$sf
+while [ $i -lt $deleted_srd ]; do
+    for d_path in ${data_path[@]}; do
+        del=false
+        s_path=$d_path/sworker/srd
+        for sf in $(ls $s_path); do
+            filepath=$s_path/$sf
+            rm -rf $filepath
+            ((i++))
+            del=true
+            break
+        done
+        if $del; then break; fi
+    done
 done
 
 ### Seal some file
@@ -83,22 +91,34 @@ done
 # Delete some file
 deleted_cid_arry=()
 i=0
-for cid in ${cid_arry[@]}; do
-    if [ $i -ge $deleted_file ]; then
-        break
-    fi
-    rm -r $testfiledir/$cid
-    deleted_cid_arry[$i]=$cid
-    ((i++))
+while [ $i -lt $deleted_file ]; do
+    for d_path in ${data_path[@]}; do
+        cid=${cid_arry[$i]}
+        f_path=$d_path/sworker/files/$cid
+        if [ -e "$f_path" ]; then
+            rm -r $f_path
+            if [ $? -eq 0 ]; then
+                deleted_cid_arry[$i]=$cid
+            else
+                verbose ERROR "Delete file:$f_path failed"
+            fi
+            ((i++))
+        fi
+    done
 done
 
 ### Validate
 _validate
 
 ### Check validate result
+get_workload &>$TMPFILE2
+if [ $? -ne 0 ]; then
+    verbose ERROR "get workload failed!" n
+    ret=1
+fi
 # Check srd
 ret=0
-punish_srd=$(ls $srd_path | wc -l)
+punish_srd=$(cat $TMPFILE2 | jq '.srd|.srd_complete')
 ((punish_srd=srd_num-punish_srd))
 if [ $punish_srd -ne $((deleted_srd)) ]; then
     verbose ERROR "srd validate for punishment failed!real punished num:$punish_srd" n
@@ -106,11 +126,6 @@ if [ $punish_srd -ne $((deleted_srd)) ]; then
 fi
 # Check file
 get_file_info_all &>$TMPFILE
-if [ $? -ne 0 ]; then
-    verbose ERROR "get workload failed!" n
-    ret=1
-fi
-get_workload &>$TMPFILE2
 if [ $? -ne 0 ]; then
     verbose ERROR "get workload failed!" n
     ret=1

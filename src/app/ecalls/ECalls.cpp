@@ -327,9 +327,12 @@ sgx_status_t Ecall_seal_file_end(sgx_enclave_id_t eid, crust_status_t *status, c
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to unseal result status
  * @param path (in) -> Pointer to file block stored path
+ * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param decrypted_data_size -> Decrypted data buffer size
+ * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path)
+sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -337,7 +340,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, con
         return ret;
     }
 
-    ret = ecall_unseal_file(eid, status, path);
+    ret = ecall_unseal_file(eid, status, path, p_decrypted_data, decrypted_data_size, p_decrypted_data_size);
 
     eq->free_enclave(__FUNCTION__);
 

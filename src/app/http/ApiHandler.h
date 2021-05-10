@@ -41,6 +41,7 @@
 #include "Srd.h"
 #include "EnclaveData.h"
 #include "Chain.h"
+#include "../../enclave/utils/Defer.h"
 
 #ifdef _CRUST_TEST_FLAG_
 #include "ApiHandlerTest.h"
@@ -935,45 +936,68 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
 
-            if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, index_path.c_str())))
+            long sealed_data_sz = get_file_size(index_path.c_str());
+
+            if (sealed_data_sz == 0 || sealed_data_sz > OCALL_STORE_THRESHOLD)
             {
-                ret_info = "Unseal failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
-                p_log->err("%s\n", ret_info.c_str());
-                ret_code = 500;
-            }
-            else
-            {
-                if (CRUST_SUCCESS == crust_status)
+                if (sealed_data_sz == 0)
                 {
-                    ret_info = "Unseal data successfully!";
-                    ret_code = 200;
-                    p_log->info("%s\n", ret_info.c_str());
-                    res.body() = ed->get_unsealed_data(index_path);
-                    ed->del_unsealed_data(index_path);
-                    res.result(ret_code);
+                    ret_info = "Get empty by path:" + index_path;
                 }
                 else
                 {
-                    switch (crust_status)
+                    ret_info = "Unseal data cannot exceed:" + float_to_string((float)(OCALL_STORE_THRESHOLD)/1024/1024) + "MB";
+                }
+                p_log->err("%s\n", ret_info.c_str());
+                ret_code = 400;
+            }
+            else
+            {
+                size_t decrypted_data_sz = sealed_data_sz;
+                uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_sz);
+                size_t decrypted_data_sz_r = 0;
+                memset(p_decrypted_data, 0, decrypted_data_sz);
+                Defer def_decrypted_data([&p_decrypted_data](void) { free(p_decrypted_data); });
+                if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, index_path.c_str(), p_decrypted_data, decrypted_data_sz, &decrypted_data_sz_r)))
+                {
+                    ret_info = "Unseal failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                    p_log->err("%s\n", ret_info.c_str());
+                    ret_code = 500;
+                }
+                else
+                {
+                    if (CRUST_SUCCESS == crust_status)
                     {
-                    case CRUST_UNSEAL_DATA_FAILED:
-                        ret_info = "Unseal data failed";
-                        ret_code = 400;
-                        break;
-                    case CRUST_UPGRADE_IS_UPGRADING:
-                        ret_info = "Unseal file stoped due to upgrading or exiting";
-                        ret_code = 503;
-                        break;
-                    default:
-                        ret_info = "File not found";
-                        ret_code = 404;
+                        ret_info = "Unseal data successfully!";
+                        ret_code = 200;
+                        p_log->info("%s\n", ret_info.c_str());
+                        res.body().clear();
+                        res.body().append(reinterpret_cast<char *>(p_decrypted_data), decrypted_data_sz_r);
+                        res.result(ret_code);
                     }
-                    p_log->err("%s. Error code:%lx\n", ret_info.c_str(), crust_status);
-                    json::JSON ret_body;
-                    ret_body[HTTP_STATUS_CODE] = ret_code;
-                    ret_body[HTTP_MESSAGE] = ret_info;
-                    res.result(ret_body[HTTP_STATUS_CODE].ToInt());
-                    res.body() = ret_body.dump();
+                    else
+                    {
+                        switch (crust_status)
+                        {
+                        case CRUST_UNSEAL_DATA_FAILED:
+                            ret_info = "Unseal data failed";
+                            ret_code = 400;
+                            break;
+                        case CRUST_UPGRADE_IS_UPGRADING:
+                            ret_info = "Unseal file stoped due to upgrading or exiting";
+                            ret_code = 503;
+                            break;
+                        default:
+                            ret_info = "File not found";
+                            ret_code = 404;
+                        }
+                        p_log->err("Unseal data:'%s' failed. %s. Error code:%lx\n", index_path.c_str(), ret_info.c_str(), crust_status);
+                        json::JSON ret_body;
+                        ret_body[HTTP_STATUS_CODE] = ret_code;
+                        ret_body[HTTP_MESSAGE] = ret_info;
+                        res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                        res.body() = ret_body.dump();
+                    }
                 }
             }
 

@@ -3,46 +3,6 @@
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
- * @description: Get real path by type
- * @param path (in) -> Pointer to path
- * @param type -> Store type
- * @return: Real path
- */
-std::string get_real_path_by_type(const char *path, store_type_t type)
-{
-    EnclaveData *ed = EnclaveData::get_instance();
-    std::string r_path;
-    std::string uuid(path, UUID_LENGTH * 2);
-    std::string l_path(path + UUID_LENGTH * 2);
-    std::string d_path = ed->get_disk_path(uuid);
-    if (STORE_TYPE_SRD == type || STORE_TYPE_FILE == type)
-    {
-        if (d_path.compare("") == 0)
-        {
-            //p_log->err("Cannot find path for uuid:%s\n", uuid.c_str());
-            return "";
-        }
-    }
-    if (l_path.size() > 0)
-    {
-        l_path = "/" + l_path;
-    }
-    switch (type)
-    {
-        case STORE_TYPE_SRD:
-            r_path = d_path + DISK_SRD_DIR + "/" + l_path;
-            break;
-        case STORE_TYPE_FILE:
-            r_path = d_path + DISK_FILE_DIR + "/" + l_path;
-            break;
-        default:
-            r_path = std::string(path);
-    }
-
-    return r_path;
-}
-
-/**
  * @description: ocall for creating directory
  * @param path (in) -> the path of directory
  * @param type -> Storage type

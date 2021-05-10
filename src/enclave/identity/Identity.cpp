@@ -962,20 +962,46 @@ crust_status_t id_restore_metadata()
             && meta_json[ID_FILE].JSONType() == json::JSON::Class::Array)
     {
         // Retore file info
-        size_t file_info_len = (CID_LENGTH + 8
-                + strlen(FILE_SIZE) + 12 + 9
-                + strlen(FILE_SEALED_SIZE) + 12 + 9
-                + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 9) * meta_json[ID_FILE].size() + 32;
-        uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
-        if (file_info_buf == NULL)
+        size_t file_info_item_len = CID_LENGTH + 8
+                + strlen(FILE_SIZE) + 12 + 10
+                + strlen(FILE_SEALED_SIZE) + 12 + 10
+                + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;
+        size_t file_valid_info_len = 0;
+        size_t file_lost_info_len = 0;
+        for (long i = 0; i < meta_json[ID_FILE].size(); i++)
+        {
+            char cur_status = meta_json[ID_FILE][i][FILE_STATUS].get_char(CURRENT_STATUS);
+            if (FILE_STATUS_VALID == cur_status)
+            {
+                file_valid_info_len += file_info_item_len;
+            }
+            else if (FILE_STATUS_LOST == cur_status)
+            {
+                file_lost_info_len += file_info_item_len;
+            }
+        }
+        file_valid_info_len += 32;
+        file_lost_info_len += 32;
+        uint8_t *file_valid_info_buf = (uint8_t *)enc_malloc(file_valid_info_len);
+        if (file_valid_info_buf == NULL)
         {
             return CRUST_MALLOC_FAILED;
         }
-        Defer def_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
-        size_t file_info_offset = 0;
-        memset(file_info_buf, 0, file_info_len);
-        memcpy(file_info_buf, "{", 1);
-        file_info_offset += 1;
+        Defer def_file_valid_info_buf([&file_valid_info_buf](void) { free(file_valid_info_buf); });
+        uint8_t *file_lost_info_buf = (uint8_t *)enc_malloc(file_lost_info_len);
+        if (file_lost_info_buf == NULL)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+        Defer def_file_lost_info_buf([&file_lost_info_buf](void) { free(file_lost_info_buf); });
+        size_t file_valid_info_offset = 0;
+        size_t file_lost_info_offset = 0;
+        memset(file_valid_info_buf, 0, file_valid_info_len);
+        memcpy(file_valid_info_buf, "{", 1);
+        file_valid_info_offset += 1;
+        memset(file_lost_info_buf, 0, file_lost_info_len);
+        memcpy(file_lost_info_buf, "{", 1);
+        file_lost_info_offset += 1;
         for (long i = 0; i < meta_json[ID_FILE].size(); i++)
         {
             json::JSON file = meta_json[ID_FILE][i];
@@ -983,17 +1009,32 @@ crust_status_t id_restore_metadata()
             info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
                 .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
                 .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-                .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
-            if (i != meta_json[ID_FILE].size() - 1)
+                .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\",");
+            if (FILE_STATUS_VALID == file[FILE_STATUS].get_char(CURRENT_STATUS))
             {
-                info.append(",");
+                memcpy(file_valid_info_buf + file_valid_info_offset, info.c_str(), info.size());
+                file_valid_info_offset += info.size();
             }
-            memcpy(file_info_buf + file_info_offset, info.c_str(), info.size());
-            file_info_offset += info.size();
+            else if (FILE_STATUS_LOST == file[FILE_STATUS].get_char(CURRENT_STATUS))
+            {
+                memcpy(file_lost_info_buf + file_lost_info_offset, info.c_str(), info.size());
+                file_lost_info_offset += info.size();
+            }
         }
-        memcpy(file_info_buf + file_info_offset, "}", 1);
-        file_info_offset += 1;
-        persist_set_unsafe(DB_FILE_INFO, file_info_buf, file_info_offset);
+        if (file_valid_info_offset > 1)
+        {
+            file_valid_info_offset--;
+        }
+        memcpy(file_valid_info_buf + file_valid_info_offset, "}", 1);
+        file_valid_info_offset += 1;
+        if (file_lost_info_offset > 1)
+        {
+            file_lost_info_offset--;
+        }
+        memcpy(file_lost_info_buf + file_lost_info_offset, "}", 1);
+        file_lost_info_offset += 1;
+        persist_set_unsafe(DB_FILE_VALID_INFO, file_valid_info_buf, file_valid_info_offset);
+        persist_set_unsafe(DB_FILE_LOST_INFO, file_lost_info_buf, file_lost_info_offset);
         // Restore file metadata
         wl->sealed_files.resize(meta_json[ID_FILE].size());
         for (int i = 0; i < meta_json[ID_FILE].size(); i++)
@@ -1004,7 +1045,8 @@ crust_status_t id_restore_metadata()
     else
     {
         // Clean previous file info
-        persist_del(DB_FILE_INFO);
+        persist_del(DB_FILE_VALID_INFO);
+        persist_del(DB_FILE_LOST_INFO);
     }
     // Restore id key pair
     ecc_key_pair tmp_key_pair;

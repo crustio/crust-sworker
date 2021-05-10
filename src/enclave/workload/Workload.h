@@ -22,9 +22,18 @@
 
 #define VALIDATE_PROOF_MAX_NUM 2
 
+std::map<char, std::string> file_status_2_name = {
+    {FILE_STATUS_PENDING, "pending"},
+    {FILE_STATUS_UNVERIFIED, "unverified"},
+    {FILE_STATUS_VALID, "valid"},
+    {FILE_STATUS_LOST, "lost"},
+    {FILE_STATUS_DELETED, "deleted"},
+};
+
 // Show information
 std::map<char, std::string> g_file_status = {
     {FILE_STATUS_VALID, "valid"},
+    {FILE_STATUS_LOST, "lost"},
 };
 
 class Workload

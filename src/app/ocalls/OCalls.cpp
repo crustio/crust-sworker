@@ -283,20 +283,6 @@ void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
 }
 
 /**
- * @description: Store unsealed data
- * @param path (in) -> File block stored path as key
- * @param p_unsealed_data (in) -> Unsealed data
- * @param unsealed_data_len -> Unsealed data size
- */
-void ocall_store_unsealed_data(const char *path, uint8_t *p_unsealed_data, size_t unsealed_data_len)
-{
-    uint8_t *p_unsealed_data_r = (uint8_t *)malloc(unsealed_data_len);
-    memset(p_unsealed_data_r, 0, unsealed_data_len);
-    memcpy(p_unsealed_data_r, p_unsealed_data, unsealed_data_len);
-    EnclaveData::get_instance()->add_unsealed_data(path, p_unsealed_data_r, unsealed_data_len);
-}
-
-/**
  * @description: Get chain block information
  * @param data (in, out) -> Pointer to file block information
  * @param data_size -> Pointer to file block data size
@@ -358,4 +344,15 @@ void ocall_recall_validate_file()
 void ocall_recall_validate_srd()
 {
     Validator::get_instance()->validate_srd();
+}
+
+/**
+ * @description: Change sealed file info from old type to new type
+ * @param cid -> File root cid
+ * @param old_type -> Old file type
+ * @param new_type -> New file type
+ */
+void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type)
+{
+    EnclaveData::get_instance()->change_sealed_file_type(cid, old_type, new_type);
 }

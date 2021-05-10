@@ -466,3 +466,56 @@ crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_s
 
     return crust_status;
 }
+
+/**
+ * @description: Get real path by type
+ * @param path (in) -> Pointer to path
+ * @param type -> Store type
+ * @return: Real path
+ */
+std::string get_real_path_by_type(const char *path, store_type_t type)
+{
+    EnclaveData *ed = EnclaveData::get_instance();
+    std::string r_path;
+    std::string uuid(path, UUID_LENGTH * 2);
+    std::string l_path(path + UUID_LENGTH * 2);
+    std::string d_path = ed->get_disk_path(uuid);
+    if (STORE_TYPE_SRD == type || STORE_TYPE_FILE == type)
+    {
+        if (d_path.compare("") == 0)
+        {
+            //p_log->err("Cannot find path for uuid:%s\n", uuid.c_str());
+            return "";
+        }
+    }
+    if (l_path.size() > 0)
+    {
+        l_path = "/" + l_path;
+    }
+    switch (type)
+    {
+        case STORE_TYPE_SRD:
+            r_path = d_path + DISK_SRD_DIR + "/" + l_path;
+            break;
+        case STORE_TYPE_FILE:
+            r_path = d_path + DISK_FILE_DIR + "/" + l_path;
+            break;
+        default:
+            r_path = std::string(path);
+    }
+
+    return r_path;
+}
+
+/**
+ * @description: Get file path by given path
+ * @param path -> Pointer to file path
+ * @return: File size
+ */
+long get_file_size(const char *path)
+{
+    std::string r_path = get_real_path_by_type(path, STORE_TYPE_FILE);
+    struct stat stat_buf;
+    int ret = stat(r_path.c_str(), &stat_buf);
+    return ret == 0 ? stat_buf.st_size : 0;
+}

@@ -31,7 +31,7 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
 
 sgx_status_t Ecall_seal_file_end(sgx_enclave_id_t eid, crust_status_t *status, const char *cid);
 
-sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path);
+sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size);
 
 sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash);
 

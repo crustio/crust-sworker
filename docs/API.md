@@ -11,19 +11,25 @@ Output:
 ```
 {
   "files" : {
-    "valid" : {  "num" : 1     , "size" : 16781194  }
+    "lost" :  {  "num" : 1     , "size" : 6548  },
+    "valid" : {  "num" : 1     , "size" : 4  }
   },
   "srd" : {
-    "srd_complete" : 10,
-    "srd_remaining_task" : 2,
-    "disk_available_for_srd" : 228,
-    "disk_available" : 278,
-    "disk_volume" : 456
+    "srd_complete" : 1,
+    "srd_remaining_task" : 0,
+    "disk_available_for_srd" : 772,
+    "disk_available" : 872,
+    "disk_volume" : 1372,
+    "srd_detail" : {
+      "/disk1" : { "srd" : 1, "srd_avail" : 666, "avail" : 716, "volumn" : 916 },
+      "/disk2" : { "srd" : 0, "srd_avail" : 106, "avail" : 156, "volumn" : 456 }
+    }
   }
 }
 ```
 Description:
 1. files: give meaningful file information
+    1. lost: lost file information, includes 'num' and 'size'
     1. valid: valid file information, includes 'num' and 'size'
 1. srd: give srd information
     1. srd_complete: srded space volume
@@ -31,6 +37,7 @@ Description:
     1. disk_available_for_srd: available volume for srd in current disk
     1. disk_available: free space in current disk
     1. disk_volume: current disk total volume
+    1. srd_detail: show disks' detail information
 
 Use '/api/v0/stop' to stop sworker
 ----------------------------------
@@ -80,7 +87,12 @@ curl -XGET http://<url:port>/api/v0/file/info_all
 Output:
 ```
 {
-  "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen" : { "size" : 16781194 , "s_size" : 16783146 , "c_block_num" : 0 }
+  "lost" : {
+    "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen" : { "size" : 16781194 , "s_size" : 16783146 , "c_block_num" : 0 }
+  },
+  "valid" : {
+    "QmaJ6kN9fW3TKpVkpf1NuW7cjhHjNp5Jwr3cQuHzsoZWkJ" : { "size" : 2323423 , "s_size" : 2323923 , "c_block_num" : 0 }
+  }
 }
 ```
 Description:
@@ -129,29 +141,13 @@ Output (200, success):
 {
   "c_block_num" : 0,
   "s_size" : 16783146,
-  "size" : 16781194,
-  "smerkletree" : {
-    "cid" : "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen",
-    "hash" : "55c54c3ce9b68fb2be3ee0c6ae2594d44b798c22eaaa1b12b4da11668861d0ac",
-    "links" : [
-      {
-        "d_hash" : "28cb72d7a0a77857b7308b7f7a7e666ac113e4fd756a6905f5fa663fa6008618"
-      },
-      {
-        "d_hash" : "449d84a283f669309be9b8def4fbc5d36deb44ebdb43d830b6b362b67b704d00"
-      },
-      {
-        "d_hash" : "8d9d6a648e33bf26bf05ca9ff13a0c7aac61d2b9d48f0ffeed23faee4b3a1e78"
-      }
-    ]
-  }
+  "size" : 16781194
 }
 ```
 Description:
 1. c_block_num: chain block number when sealing the file
 1. s_size: sealed file size
 1. size: file real size
-1. smerkletree: sealed file merkle tree structure
 
 Output (400, failed):
 ```
@@ -166,37 +162,6 @@ Output (404, failed):
 {
   "message" : "File not found.",  
   "status_code" : 404
-}
-```
-
-Use '/api/v0/srd/ratio' to change srd ratio
--------------------------------------------
-```
-curl -XPOST http://<url:port>/api/v0/srd/ratio
---data-raw '{"ratio": xxx}'
-```
-
-Output (200, success):
-```
-{
-  "message" : "Set srd ratio successfully!",  
-  "status_code" : 200
-}
-```
-
-Output (400, failed):
-```
-{
-  "message" : "Invalid srd ratio field!",  
-  "status_code" : 400
-}
-```
-
-Output (400, failed):
-```
-{
-  "message" : "Srd ratio range should be 0 ~ xxx",  
-  "status_code" : 400
 }
 ```
 
@@ -332,29 +297,26 @@ Output (503, failed):
 }
 ```
 
-Use '/api/v0/storage/seal' to seal file
----------------------------------------
+Use '/api/v0/storage/seal_start' to seal file start
+---------------------------------------------------
 ```
-curl -XPOST http://<url:port>/api/v0/storage/seal
+curl -XPOST http://<url:port>/api/v0/storage/seal_start
 --data-raw '{"cid": xxx}'
 ```
-
-Parameter:
-1. cid: file content id
 
 Output (200, success):
 ```
 {
-  "message" : "Same file 'xxx' is being sealed.",  
-  "status_code" : 8013
+  "message" : "Ready for sealing file 'xxx', waiting for file block",  
+  "status_code" : 0
 }
 ```
 
 Output (200, success):
 ```
 {
-  "message" : "Seal file 'xxx' successfully",  
-  "status_code" : 0
+  "message" : "Same file 'xxx' is being sealed.",  
+  "status_code" : 8013
 }
 ```
 
@@ -385,22 +347,6 @@ Output (400, failed):
 Output (500, failed):
 ```
 {
-  "message" : "Seal file 'xxx' failed! Can't get block from ipfs",  
-  "status_code" : 8008
-}
-```
-
-Output (500, failed):
-```
-{
-  "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
-  "status_code" : 4001
-}
-```
-
-Output (500, failed):
-```
-{
   "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
   "status_code" : 4038
 }
@@ -417,7 +363,7 @@ Output (500, failed):
 Output (500, failed):
 ```
 {
-  "message" : "Seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
+  "message" : "Start seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
   "status_code" : 0
 }
 ```
@@ -425,7 +371,100 @@ Output (500, failed):
 Output (503, failed):
 ```
 {
-  "message" : "Seal file 'xxx' stoped due to upgrading or exiting",  
+  "message" : "Seal file 'xxx' stopped due to upgrading or exiting",  
+  "status_code" : 10010
+}
+```
+
+Use '/api/v0/storage/seal' to seal file
+---------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/storage/seal
+```
+
+Output (200, success):
+```
+{
+  "message" : "Seal file 'xxx' successfully",  
+  "status_code" : 0
+}
+```
+
+Output (400, failed):
+```
+{
+  "message" : "Invalid cid!",  
+  "status_code" : 11001
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Internal error: seal data failed",  
+  "status_code" : 4001
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
+  "status_code" : xxx
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
+  "status_code" : xxx
+}
+```
+
+Use '/api/v0/storage/seal_end' to seal file end
+-----------------------------------------------
+```
+curl -XPOST http://<url:port>/api/v0/storage/seal_end
+--data-raw '{"cid": xxx}'
+```
+
+Output (200, success):
+```
+{
+  "message" : "Seal file 'xxx' successfully",  
+  "status_code" : 0
+}
+```
+
+Output (400, failed):
+```
+{
+  "message" : "Invalid cid!",  
+  "status_code" : 11001
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Seal file 'xxx' failed! Unexpected error, error code:xxx",  
+  "status_code" : xxx
+}
+```
+
+Output (500, failed):
+```
+{
+  "message" : "Start seal file '%s' failed! Invoke SGX API failed! Error code:xxx",  
+  "status_code" : xxx
+}
+```
+
+Output (503, failed):
+```
+{
+  "message" : "Seal file 'xxx' stopped due to upgrading or exiting",  
   "status_code" : 10010
 }
 ```
@@ -434,7 +473,11 @@ Use '/api/v0/storage/unseal' to unseal data
 -------------------------------------------
 ```
 curl -XPOST http://<url:port>/api/v0/storage/unseal
+--data-raw '{"path": "xxx"}'
 ```
+
+Parameter:
+1. path is the index path which indicates data block path
 
 Output (200, success):
 ```

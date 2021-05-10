@@ -60,7 +60,7 @@ while true; do
         verbose ERROR "start crust sworker failed! Please check $errfile for details."
         kill -9 $sworkerpid
         exit 1
-    elif cat $TMPFILE | jq '.' &>/dev/null; then
+    elif [ x"$(cat $TMPFILE | jq '.srd' 2>/dev/null)" != x"" ]; then
         break
     fi
     sleep 1

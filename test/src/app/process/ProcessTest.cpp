@@ -135,7 +135,7 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
+            p_log->info("Workload information:\n%s\n", ed->gen_workload_str().c_str());
             p_log->info("Restore enclave data successfully, sworker is running now.\n");
         }
     }

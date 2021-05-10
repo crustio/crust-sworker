@@ -31,8 +31,11 @@ Workload *Workload::get_instance()
 Workload::Workload()
 {
     this->report_files = true;
-    this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
-    this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
+    for (auto item : g_file_status)
+    {
+        this->wl_spec_info[item.second]["num"] = 0;
+        this->wl_spec_info[item.second]["size"] = 0;
+    }
 }
 
 /**
@@ -801,7 +804,8 @@ void Workload::deal_deleted_file()
     {
         std::string status = (*it)[FILE_STATUS].ToString();
         if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED))
+                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED)
+                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
         {
             it = this->sealed_files.erase(it);
         }

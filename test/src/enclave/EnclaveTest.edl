@@ -12,7 +12,7 @@ enclave {
     from "sgx_tsgxssl.edl" import *;
 
     trusted {
-        public void ecall_srd_increase_test();
+        public crust_status_t ecall_srd_increase_test([in, string] const char *uuid);
         public size_t ecall_srd_decrease_test(size_t change);  
         public void ecall_add_validate_proof();
 		public void ecall_validate_srd_test();
