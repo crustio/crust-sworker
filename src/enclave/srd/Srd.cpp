@@ -134,9 +134,13 @@ crust_status_t srd_increase(const char *uuid)
     } while (0);
 
     // Generate current G hash index
-    char tmp_val[16];
-    sgx_read_rand((unsigned char *)&tmp_val, 16);
-    std::string tmp_dir = uuid + hexstring_safe(tmp_val, 16);
+    size_t tmp_val_len = 18;
+    char tmp_val[tmp_val_len];
+    sgx_read_rand((unsigned char *)&tmp_val, tmp_val_len);
+    std::string tmp_val_str = hexstring_safe(tmp_val, tmp_val_len);
+    char *p_mid_dir = tmp_val;
+    std::string mid_dir = tmp_val_str.substr(0, LAYER_LENGTH * 2);
+    std::string tmp_dir = uuid + tmp_val_str;
 
     // ----- Generate srd file ----- //
     // Create directory
@@ -203,7 +207,7 @@ crust_status_t srd_increase(const char *uuid)
 
     // Change G path name
     std::string g_hash_hex = hexstring_safe(&g_hash, HASH_LENGTH);
-    std::string g_hash_path = uuid + g_hash_hex;
+    std::string g_hash_path = uuid + mid_dir + g_hash_hex;
     ocall_rename_dir(&crust_status, tmp_dir.c_str(), g_hash_path.c_str(), STORE_TYPE_SRD);
     if (CRUST_SUCCESS != crust_status)
     {
@@ -226,7 +230,8 @@ crust_status_t srd_increase(const char *uuid)
     }
     memset(srd_item, 0, SRD_LENGTH);
     memcpy(srd_item, p_uuid_u, UUID_LENGTH);
-    memcpy(srd_item + UUID_LENGTH, g_hash, HASH_LENGTH);
+    memcpy(srd_item + UUID_LENGTH, p_mid_dir, LAYER_LENGTH);
+    memcpy(srd_item + UUID_LENGTH + LAYER_LENGTH, g_hash, HASH_LENGTH);
     sgx_thread_mutex_lock(&wl->srd_mutex);
     wl->srd_hashs.push_back(srd_item);
     log_info("Seal random data -> %s, %luG success\n", g_hash_hex.c_str(), wl->srd_hashs.size());

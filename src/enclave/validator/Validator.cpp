@@ -161,7 +161,7 @@ void validate_srd_real()
 
     // Get g_hash corresponding path
     std::string srd_hex = hexstring_safe(p_srd, SRD_LENGTH);
-    std::string g_hash_hex = srd_hex.substr(UUID_LENGTH * 2, srd_hex.length());
+    std::string g_hash_hex = srd_hex.substr(UUID_LENGTH * 2 + LAYER_LENGTH * 2, srd_hex.length());
     Workload *wl = Workload::get_instance();
     bool deleted = false;
 
@@ -216,7 +216,7 @@ void validate_srd_real()
     // Compare M hashs
     sgx_sha256_hash_t m_hashs_sha256;
     sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-    if (memcmp(p_srd + UUID_LENGTH, m_hashs_sha256, HASH_LENGTH) != 0)
+    if (memcmp(p_srd + UUID_LENGTH + LAYER_LENGTH, m_hashs_sha256, HASH_LENGTH) != 0)
     {
         log_err("Wrong srd(%s) metadata.\n", g_hash_hex.c_str());
         deleted = true;

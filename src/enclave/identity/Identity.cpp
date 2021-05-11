@@ -737,6 +737,7 @@ size_t id_get_file_buffer_size(std::vector<json::JSON> &sealed_files)
                + strlen(FILE_SIZE) + 3 + 12 + 1
                + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
                + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+               + strlen(FILE_LOST_INDEX) + 3 + 6 + 1
                + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
                + strlen(FILE_STATUS) + 3 + 3 + 3
                + 2;

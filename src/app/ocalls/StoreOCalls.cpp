@@ -77,7 +77,8 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
             if (uuid_str.size() == UUID_LENGTH * 2)
             {
                 memcpy(uuid, uuid_str.c_str(), uuid_str.size());
-                std::string file_path = disk_path + DISK_FILE_DIR + "/" + path;
+                std::string tmp_path = uuid_str + path;
+                std::string file_path = get_real_path_by_type(tmp_path.c_str(), STORE_TYPE_FILE);
                 if (CRUST_SUCCESS == save_file_ex(file_path.c_str(), data, data_size, mode_t(0664), SF_CREATE_DIR))
                 {
                     return CRUST_SUCCESS;
