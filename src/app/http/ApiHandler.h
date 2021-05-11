@@ -949,7 +949,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     ret_info = "Unseal data cannot exceed:" + float_to_string((float)(OCALL_STORE_THRESHOLD)/1024/1024) + "MB";
                 }
                 p_log->err("%s\n", ret_info.c_str());
-                ret_code = 400;
+                ret_code = 404;
             }
             else
             {
@@ -992,14 +992,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             ret_code = 404;
                         }
                         p_log->err("Unseal data:'%s' failed. %s. Error code:%lx\n", index_path.c_str(), ret_info.c_str(), crust_status);
-                        json::JSON ret_body;
-                        ret_body[HTTP_STATUS_CODE] = ret_code;
-                        ret_body[HTTP_MESSAGE] = ret_info;
-                        res.result(ret_body[HTTP_STATUS_CODE].ToInt());
-                        res.body() = ret_body.dump();
                     }
                 }
             }
+            json::JSON ret_body;
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
 
             goto postcleanup;
         }
