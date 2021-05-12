@@ -60,7 +60,12 @@ bool Chain::get_block_header(BlockHeader &block_header)
 {
     if (this->is_offline)
     {
-        block_header.number = this->get_offline_block_height() + REPORT_SLOT;
+        if (this->offline_block_height == 0)
+        {
+            this->offline_block_height = this->get_offline_block_height();
+        }
+        
+        block_header.number = this->offline_block_height;
         block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
         return true;
     }
@@ -290,8 +295,6 @@ bool Chain::post_sworker_identity(std::string identity)
 {
     if (this->is_offline)
     {
-        size_t now = this->get_offline_block_height();
-        crust::DataBase::get_instance()->set("offline_block_height_key", std::to_string(now + REPORT_SLOT));
         return true;
     }
 
@@ -331,6 +334,11 @@ bool Chain::post_sworker_identity(std::string identity)
  */
 bool Chain::post_sworker_work_report(std::string work_report)
 {
+    if (this->is_offline)
+    {
+        return true;
+    }
+
     for(int i = 0; i < 20; i++)
     {
         std::string path = this->url + "/swork/workreport";
@@ -396,6 +404,11 @@ size_t Chain::get_offline_block_height(void)
         return h;
     }
     return 0;
+}
+
+void Chain::add_offline_block_height(size_t h)
+{
+    crust::DataBase::get_instance()->set("offline_block_height_key", std::to_string(this->offline_block_height + h));
 }
 
 } // namespace crust

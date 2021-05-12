@@ -24,6 +24,7 @@ private:
     std::string password;          /* The password of chain account */
     std::string backup;            /* The backup of chain account */
     bool is_offline;               /* Offline mode */
+    size_t offline_block_height;     /* Base offline block */
 public:
     static Chain *chain;
     static Chain *get_instance();
@@ -36,6 +37,7 @@ public:
     bool is_syncing(void);
     bool wait_for_running(void);
     size_t get_offline_block_height(void);
+    void Chain::add_offline_block_height(size_t h);
     ~Chain();
 };
 

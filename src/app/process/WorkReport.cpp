@@ -50,6 +50,8 @@ void work_report_loop(void)
     int stop_timeout = 10 * BLOCK_INTERVAL;
     int stop_tryout = stop_timeout / wr_wait_time;
     EnclaveData *ed = EnclaveData::get_instance();
+    size_t cut_wait_time = 0;
+    size_t wait_time = 0;
 
     // Set srand
     json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
@@ -102,9 +104,9 @@ void work_report_loop(void)
             goto loop;
         }
 
-        size_t cut_wait_time = (block_header.number - (block_header.number / REPORT_SLOT) * REPORT_SLOT) * BLOCK_INTERVAL;
+        cut_wait_time = (block_header.number - (block_header.number / REPORT_SLOT) * REPORT_SLOT) * BLOCK_INTERVAL;
 
-        size_t wait_time = get_random_wait_time(id_json["pub_key"].ToString());
+        wait_time = get_random_wait_time(id_json["pub_key"].ToString());
         if (cut_wait_time >= wait_time)
         {
             wait_time = 0;
@@ -133,15 +135,6 @@ void work_report_loop(void)
         }
 
         target_block_height = block_header.number + REPORT_SLOT;
-        
-        if (offline_chain_mode)
-        {
-            // Wait
-            if(wait_and_check_exit(60))
-            {
-                return;
-            }
-        }
 
         // Get signed validation report
         if (SGX_SUCCESS != Ecall_gen_and_upload_work_report(global_eid, &crust_status,
@@ -179,6 +172,11 @@ void work_report_loop(void)
         if(wait_and_check_exit(wr_wait_time))
         {
             return;
+        }
+        if (offline_chain_mode)
+        {
+            // Wait
+            p_chain->add_offline_block_height(15);
         }
     }
 }
