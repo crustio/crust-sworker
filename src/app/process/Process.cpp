@@ -16,7 +16,6 @@ Config *p_config = NULL;
 std::map<task_func_t, std::shared_ptr<std::future<void>>> g_tasks_m;
 
 crust::Log *p_log = crust::Log::get_instance();
-extern bool offline_chain_mode;
 extern int g_start_server_success;
 extern bool g_upgrade_flag;
 
@@ -519,24 +518,20 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            // Send identity to chain and send work report
-            if (!offline_chain_mode)
+            // Entry network
+            crust_status = entry_network();
+            if (CRUST_SUCCESS != crust_status)
             {
-                // Entry network
-                crust_status = entry_network();
-                if (CRUST_SUCCESS != crust_status)
+                if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
                 {
-                    if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
-                    {
-                        entry_tryout--;
-                        sgx_destroy_enclave(global_eid);
-                        global_eid = 0;
-                        sleep(60);
-                        goto entry_network_flag;
-                    }
-                    goto cleanup;
-                    return_status = -1;
+                    entry_tryout--;
+                    sgx_destroy_enclave(global_eid);
+                    global_eid = 0;
+                    sleep(60);
+                    goto entry_network_flag;
                 }
+                goto cleanup;
+                return_status = -1;
             }
 
             // Set init srd capacity
@@ -556,53 +551,6 @@ entry_network_flag:
             }
 
             is_restart = true;
-
-            if (!offline_chain_mode)
-            {
-                // Wait chain
-                crust::Chain::get_instance()->wait_for_running();
-
-                // Get local mrenclave
-                json::JSON id_info;
-                std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
-                if (id_info_str == "")
-                {
-                    p_log->err("Cannot get id info");
-                    return_status = -1;
-                    goto cleanup;
-                }
-                id_info = json::JSON::Load(id_info_str);
-                if (!id_info.hasKey("mrenclave"))
-                {
-                    p_log->err("Get sWorker identity information failed!\n");
-                    return_status = -1;
-                    goto cleanup;
-                }
-                
-                // Get mrenclave on chain
-                std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
-                if (code_on_chain == "")
-                {
-                    p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
-                    return_status = -1;
-                    goto cleanup;
-                }
-
-                // Compare these two mrenclave
-                if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
-                {
-                    std::string cmd1(HRED "sudo crust tools upgrade-image sworker && sudo crust reload sworker" NC);
-                    p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
-                    "please remove all old sworker data and get the latest sworker by running '%s'\n",
-                    id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());
-                    return_status = -1;
-                    goto cleanup;
-                }
-                else
-                {
-                    p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
-                }
-            }
         }
     }
     db = crust::DataBase::get_instance();

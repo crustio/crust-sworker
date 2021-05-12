@@ -2,6 +2,7 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 HttpClient *pri_chain_client = NULL;
+extern bool offline_chain_mode;
 
 namespace crust
 {
@@ -17,7 +18,7 @@ Chain *Chain::get_instance()
     if (Chain::chain == NULL)
     {
         Config *p_config = Config::get_instance();
-        Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup);
+        Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup, offline_chain_mode);
     }
 
     return Chain::chain;
@@ -29,11 +30,12 @@ Chain *Chain::get_instance()
  * @param password_tmp -> the password of chain account id
  * @param backup_tmp ->  the backup of chain account id
  */
-Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp)
+Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp, bool is_offline)
 {
     this->url = url;
     this->password = password_tmp;
     this->backup = backup_tmp;
+    this->is_offline = is_offline;
     pri_chain_client = new HttpClient();
 }
 
@@ -56,6 +58,13 @@ Chain::~Chain()
  */
 bool Chain::get_block_header(BlockHeader &block_header)
 {
+    if (this->is_offline)
+    {
+        block_header.number = this->get_offline_block_height() + REPORT_SLOT;
+        block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
+        return true;
+    }
+
     std::string path = this->url + "/block/header";
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
@@ -86,6 +95,11 @@ bool Chain::get_block_header(BlockHeader &block_header)
  */
 std::string Chain::get_block_hash(size_t block_number)
 {
+    if (this->is_offline)
+    {
+        return "1000000000000000000000000000000000000000000000000000000000000001";
+    }
+
     std::string url = this->url + "/block/hash?blockNumber=" + std::to_string(block_number);
     http::response<http::string_body> res = pri_chain_client->Get(url.c_str());
     std::string res_body = res.body();
@@ -116,6 +130,11 @@ std::string Chain::get_block_hash(size_t block_number)
  */
 std::string Chain::get_swork_code()
 {
+    if (this->is_offline)
+    {
+        return "04579f4102301d39f68032446b63fc0cede4817cf099312a0c397a760651af98";
+    }
+
     std::string url = this->url + "/swork/code";
     http::response<http::string_body> res = pri_chain_client->Get(url.c_str());
     std::string res_body = res.body();
@@ -145,6 +164,11 @@ std::string Chain::get_swork_code()
  */
 bool Chain::is_online(void)
 {
+    if (this->is_offline)
+    {
+        return true;
+    }
+
     std::string path = this->url + "/block/header";
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
@@ -161,6 +185,11 @@ bool Chain::is_online(void)
  */
 bool Chain::is_syncing(void)
 {
+    if (this->is_offline)
+    {
+        return false;
+    }
+
     std::string path = this->url + "/system/health";
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
@@ -187,6 +216,11 @@ bool Chain::is_syncing(void)
  */
 bool Chain::wait_for_running(void)
 {
+    if (this->is_offline)
+    {
+        return true;
+    }
+
     size_t start_block_height = 10;
 
     while (true)
@@ -254,6 +288,13 @@ bool Chain::wait_for_running(void)
  */
 bool Chain::post_sworker_identity(std::string identity)
 {
+    if (this->is_offline)
+    {
+        size_t now = this->get_offline_block_height();
+        crust::DataBase::get_instance()->set("offline_block_height_key", std::to_string(now + REPORT_SLOT));
+        return true;
+    }
+
     for(int i = 0; i < 20; i++)
     {
         std::string path = this->url + "/swork/identity";
@@ -342,6 +383,19 @@ bool Chain::post_sworker_work_report(std::string work_report)
     }
 
     return false;
+}
+
+size_t Chain::get_offline_block_height(void)
+{
+    std::string offline_base_height_str = "";
+    if (crust::DataBase::get_instance()->get("offline_block_height_key", offline_base_height_str) == CRUST_SUCCESS)
+    {
+        std::stringstream sstream(offline_base_height_str);
+        size_t h = 0;
+        sstream >> h;
+        return h;
+    }
+    return 0;
 }
 
 } // namespace crust
