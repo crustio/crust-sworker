@@ -409,6 +409,17 @@ json::JSON EnclaveData::gen_workload(long srd_task)
 }
 
 /**
+ * @description: Construct uuid and disk path map
+ */
+void EnclaveData::construct_uuid_disk_path_map()
+{
+    for (auto path : Config::get_instance()->get_data_paths())
+    {
+        check_or_init_disk(path);
+    }
+}
+
+/**
  * @description: Set mapping between uuid and disk path
  * @param uuid -> Disk uuid
  * @param path -> Disk path

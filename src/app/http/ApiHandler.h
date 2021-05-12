@@ -77,8 +77,7 @@ private:
         "/workload",
         "/srd/change",
         "/storage/delete",
-        "/storage/seal",
-        "/storage/unseal",
+        "/storage/seal_start",
     };
     std::set<std::string> http_mute_req_s = {
         "/workload",

@@ -497,27 +497,19 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
     {
         case STORE_TYPE_SRD:
             {
-                uint32_t dir1_num = 0;
-                uint32_t dir2_num = 0;
-                memcpy(&dir1_num, path + UUID_LENGTH * 2, 1);
-                memcpy(&dir2_num, path + UUID_LENGTH * 2 + 2, 1);
                 r_path = d_path
                        + DISK_SRD_DIR
-                       + "/" + std::to_string(dir1_num)
-                       + "/" + std::to_string(dir2_num)
+                       + "/" + std::string(path + UUID_LENGTH * 2, 2)
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 2, 2)
                        + "/" + std::string(path + UUID_LENGTH * 2 + 4);
                 break;
             }
         case STORE_TYPE_FILE:
             {
-                uint32_t dir1_num = 0;
-                uint32_t dir2_num = 0;
-                memcpy(&dir1_num, path + UUID_LENGTH * 2 + 2, 1);
-                memcpy(&dir2_num, path + UUID_LENGTH * 2 + 3, 1);
                 r_path = d_path
                        + DISK_FILE_DIR
-                       + "/" + std::to_string(dir1_num)
-                       + "/" + std::to_string(dir2_num)
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 2, 2)
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 4, 2)
                        + "/" + std::string(path + UUID_LENGTH * 2);
                 break;
             }

@@ -454,11 +454,6 @@ crust_status_t Workload::can_report_work(size_t block_height)
         return CRUST_UPGRADE_RESTART;
     }
 
-    if (!this->get_report_file_flag())
-    {
-        return CRUST_UPGRADE_NO_FILE;
-    }
-
     return CRUST_SUCCESS;
 }
 

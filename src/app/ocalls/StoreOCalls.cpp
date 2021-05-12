@@ -62,17 +62,21 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
         return CRUST_UNEXPECTED_ERROR;
     }
 
+    // Choose disk
+    std::string cid(path, CID_LENGTH);
     uint32_t index = 0;
     read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(index));
-    index = index % disk_json.size();
-    uint32_t ci = index;    // Current index
-    uint32_t oi = ci;       // Origin index
+    index = index % FILE_DISK_LIMIT;
+    uint32_t ci = index + 2;    // Current index, jump the first "Qm"
+    uint32_t oi = ci;           // Origin index
+    uint32_t loop_num = FILE_DISK_LIMIT;
     do
     {
-        size_t reserved = disk_json[ci][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
+        uint32_t di = path[ci] % disk_json.size();
+        size_t reserved = disk_json[di][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
         if (reserved > data_size)
         {
-            std::string disk_path = disk_json[ci][WL_DISK_PATH].ToString();
+            std::string disk_path = disk_json[di][WL_DISK_PATH].ToString();
             std::string uuid_str = EnclaveData::get_instance()->get_uuid(disk_path);
             if (uuid_str.size() == UUID_LENGTH * 2)
             {
@@ -85,11 +89,13 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
                 }
             }
         }
-        if (++ci == disk_json.size())
+        ci = (ci + 1) % loop_num;
+        if (ci == oi)
         {
-            ci = 0;
+            ci = FILE_DISK_LIMIT + 2;
+            loop_num = CID_LENGTH + 1;
         }
-    } while (ci != oi);
+    } while (ci != CID_LENGTH);
 
     return CRUST_STORAGE_NO_ENOUGH_SPACE;
 }

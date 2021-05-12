@@ -41,6 +41,7 @@ public:
     json::JSON gen_workload_for_print(long srd_task = 0);
     json::JSON gen_workload(long srd_task = 0);
     // For uuid and disk path
+    void construct_uuid_disk_path_map();
     void set_uuid_disk_path_map(std::string uuid, std::string path);
     std::string get_disk_path(std::string uuid);
     std::string get_uuid(std::string path);

@@ -651,6 +651,9 @@ entry_network_flag:
         }
     }
 
+    // Construct uuid to disk path map
+    ed->construct_uuid_disk_path_map();
+
     // Check block height and post report to chain
     start_task(work_report_loop);
 

@@ -459,9 +459,8 @@ void validate_meaningful_file_real()
 
     bool changed = false;
     bool lost = false;
-    bool service_unavailable = false;
 
-    Defer finish_defer([&cur_validate_random, &changed, &service_unavailable, &file, &wl](void) {
+    Defer finish_defer([&cur_validate_random, &changed, &file, &wl](void) {
         // Get current validate random
         sgx_thread_mutex_lock(&g_validate_random_mutex);
         uint32_t now_validate_random = g_validate_random;
@@ -469,25 +468,9 @@ void validate_meaningful_file_real()
         // Check if validate random is the same
         if (cur_validate_random == now_validate_random)
         {
-            // Get current validate files size
-            sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
-            size_t tmp_validate_files_m_num = g_validate_files_m.size();
-            sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
             // Increase validated files number
             sgx_thread_mutex_lock(&g_validated_files_num_mutex);
-            if (service_unavailable)
-            {
-                if (g_validated_files_num < tmp_validate_files_m_num)
-                {
-                    g_validated_files_num = tmp_validate_files_m_num;
-                    wl->set_report_file_flag(false);
-                    log_err("IPFS is offline! Please start it.\n");
-                }
-            }
-            else
-            {
-                g_validated_files_num++;
-            }
+            g_validated_files_num++;
             sgx_thread_mutex_unlock(&g_validated_files_num_mutex);
             // Deal with result
             if (changed)

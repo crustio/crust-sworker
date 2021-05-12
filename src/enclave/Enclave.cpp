@@ -239,14 +239,7 @@ crust_status_t ecall_seal_file(const char *root,
                                char *path,
                                size_t path_size)
 {
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return CRUST_UPGRADE_IS_UPGRADING;
-    }
-
-    crust_status_t ret = storage_seal_file(root, data, data_size, is_link, path, path_size);
-
-    return ret;
+    return storage_seal_file(root, data, data_size, is_link, path, path_size);
 }
 
 /**
@@ -256,14 +249,7 @@ crust_status_t ecall_seal_file(const char *root,
  */
 crust_status_t ecall_seal_file_end(const char *root)
 {
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return CRUST_UPGRADE_IS_UPGRADING;
-    }
-
-    crust_status_t ret = storage_seal_file_end(root);
-
-    return ret;
+    return storage_seal_file_end(root);
 }
 
 /**
@@ -276,11 +262,6 @@ crust_status_t ecall_seal_file_end(const char *root)
  */
 crust_status_t ecall_unseal_file(const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size)
 {
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return CRUST_UPGRADE_IS_UPGRADING;
-    }
-
     crust_status_t ret = storage_unseal_file(path, p_decrypted_data, decrypted_data_size, p_decrypted_data_size);
 
     return ret;

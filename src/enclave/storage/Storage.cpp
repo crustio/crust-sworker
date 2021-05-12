@@ -90,6 +90,11 @@ crust_status_t storage_seal_file(const char *root,
         }
     });
 
+    if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
+    {
+        return seal_ret = CRUST_UPGRADE_IS_UPGRADING;
+    }
+
     // If file transfer completed
     if (p_plain_data == NULL || plain_data_sz == 0)
     {
@@ -255,6 +260,11 @@ crust_status_t storage_seal_file_end(const char *root)
         }
         sl.unlock();
     });
+
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return crust_status = CRUST_UPGRADE_IS_UPGRADING;
+    }
 
     // Check if seal complete
     SafeLock sl(g_files_info_um_mutex);
