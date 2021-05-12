@@ -409,6 +409,7 @@ size_t Chain::get_offline_block_height(void)
 void Chain::add_offline_block_height(size_t h)
 {
     crust::DataBase::get_instance()->set("offline_block_height_key", std::to_string(this->offline_block_height + h));
+    this->offline_block_height += h;
 }
 
 } // namespace crust
