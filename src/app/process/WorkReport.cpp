@@ -78,6 +78,18 @@ void work_report_loop(void)
 
         crust::BlockHeader block_header;
 
+        // ----- Report work report ----- //
+        if (!p_chain->get_block_header(block_header))
+        {
+            p_log->warn("Cannot get block header!\n");
+            goto loop;
+        }
+
+        if (block_header.number < target_block_height)
+        {
+            goto loop;
+        }
+
         // Avoid A competing work-report with B
         if (UPGRADE_STATUS_STOP_WORKREPORT == ed->get_upgrade_status())
         {
@@ -89,18 +101,6 @@ void work_report_loop(void)
             {
                 goto loop;
             }
-        }
-
-        // ----- Report work report ----- //
-        if (!p_chain->get_block_header(block_header))
-        {
-            p_log->warn("Cannot get block header!\n");
-            goto loop;
-        }
-
-        if (block_header.number < target_block_height)
-        {
-            goto loop;
         }
         
         cut_wait_time = (block_header.number - (block_header.number / REPORT_SLOT) * REPORT_SLOT) * BLOCK_INTERVAL;
@@ -121,13 +121,19 @@ void work_report_loop(void)
 
         if (!offline_chain_mode)
         {
-            // Wait
             if(wait_and_check_exit(wait_time))
             {
                 return;
             }
         }
-
+        else
+        {
+            if(wait_and_check_exit(10))
+            {
+                return;
+            }
+        }
+        
         // Get confirmed block hash
         block_header.hash = p_chain->get_block_hash(block_header.number);
         if (block_header.hash == "" || block_header.hash == "0000000000000000000000000000000000000000000000000000000000000000")
