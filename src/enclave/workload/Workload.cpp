@@ -246,8 +246,18 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
  * @param g_hashs -> G hashs json data
  * @return: Restore status
  */
-crust_status_t Workload::restore_srd(json::JSON g_hashs)
+crust_status_t Workload::restore_srd(json::JSON &g_hashs)
 {
+    if (g_hashs.JSONType() != json::JSON::Class::Array)
+    {
+        return CRUST_BAD_SEAL_DATA;
+    }
+
+    if (g_hashs.size() == 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
     crust_status_t crust_status = CRUST_SUCCESS;
     this->clean_srd_buffer();
     
@@ -271,15 +281,30 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
     // Restore srd info
     this->srd_info_json[WL_SRD_COMPLETE] = this->srd_hashs.size();
 
+    // Restore srd info
+    std::string srd_info_str = this->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
+
     return crust_status;
 }
 
 /**
  * @description: Restore file from json
  * @param file_json -> File json
+ * @return: Restore file result
  */
-void Workload::restore_file(json::JSON file_json)
+crust_status_t Workload::restore_file(json::JSON &file_json)
 {
+    if (file_json.JSONType() != json::JSON::Class::Array)
+    {
+        return CRUST_BAD_SEAL_DATA;
+    }
+
+    if (file_json.size() == 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
     this->sealed_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
@@ -287,6 +312,11 @@ void Workload::restore_file(json::JSON file_json)
         // Restore workload spec info
         set_wl_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
     }
+
+    // Restore file information
+    this->restore_file_info();
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -355,6 +385,32 @@ void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 {
     this->upgrade = true;
     memcpy(&this->pre_pub_key, &pub_key, sizeof(sgx_ec256_public_t));
+}
+
+/**
+ * @description: Restore previous public key
+ * @param key -> Previous key in json format
+ * @return: Restore result
+ */
+crust_status_t Workload::restore_pre_pub_key(json::JSON &key)
+{
+    if (key.JSONType() != json::JSON::Class::String)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    sgx_ec256_public_t pre_pub_key;
+    std::string pre_pub_key_str = key.ToString();
+    uint8_t *pre_pub_key_u = hex_string_to_bytes(pre_pub_key_str.c_str(), pre_pub_key_str.size());
+    if (pre_pub_key_u == NULL)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    memcpy(&pre_pub_key, pre_pub_key_u, sizeof(sgx_ec256_public_t));
+    free(pre_pub_key_u);
+    this->set_upgrade(pre_pub_key);
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -485,11 +541,21 @@ const json::JSON &Workload::get_wl_spec()
 
 /*
  * @description: Restore workload spec information from data
- * @param data -> Workload spec information
  */
-void Workload::restore_wl_spec_info(std::string data)
+void Workload::restore_wl_spec_info()
 {
-    this->wl_spec_info = json::JSON::Load(data);
+    crust_status_t crust_status = CRUST_SUCCESS;
+    uint8_t *p_wl_spec = NULL;
+    size_t wl_spec_len = 0;
+    if (CRUST_SUCCESS != (crust_status = persist_get_unsafe(DB_WL_SPEC_INFO, &p_wl_spec, &wl_spec_len)))
+    {
+        log_warn("Cannot get workload spec info, code:%lx\n", crust_status);
+    }
+    else if (p_wl_spec != NULL)
+    {
+        this->wl_spec_info = json::JSON::Load(p_wl_spec, wl_spec_len);
+        free(p_wl_spec);
+    }
 }
 
 /**
@@ -916,46 +982,82 @@ void Workload::del_sealed_file(size_t pos)
 
 /**
  * @description: Restore file informatione
+ * @return: Restore file information result
  */
-void Workload::restore_file_info()
+crust_status_t Workload::restore_file_info()
 {
-    sgx_thread_mutex_lock(&this->file_mutex);
-    std::vector<json::JSON> tmp_sealed_files;
-    tmp_sealed_files.insert(tmp_sealed_files.end(), this->sealed_files.begin(), this->sealed_files.end());
-    sgx_thread_mutex_unlock(&this->file_mutex);
-
-    // Retore file info
-    size_t file_info_len = (CID_LENGTH + 8
-            + strlen(FILE_SIZE) + 12 + 9
-            + strlen(FILE_SEALED_SIZE) + 12 + 9
-            + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 9) * tmp_sealed_files.size() + 32;
-    uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
-    if (file_info_buf == NULL)
+    size_t file_info_item_len = CID_LENGTH + 8
+            + strlen(FILE_SIZE) + 12 + 10
+            + strlen(FILE_SEALED_SIZE) + 12 + 10
+            + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;
+    size_t file_valid_info_len = 0;
+    size_t file_lost_info_len = 0;
+    for (size_t i = 0; i < this->sealed_files.size(); i++)
     {
-        log_warn("Generate file information failed! No memory can be allocated!\n");
-        return;
+        char cur_status = this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS);
+        if (FILE_STATUS_VALID == cur_status)
+        {
+            file_valid_info_len += file_info_item_len;
+        }
+        else if (FILE_STATUS_LOST == cur_status)
+        {
+            file_lost_info_len += file_info_item_len;
+        }
     }
-    Defer defer_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
-    size_t file_info_offset = 0;
-    memset(file_info_buf, 0, file_info_len);
-    memcpy(file_info_buf, "{", 1);
-    file_info_offset += 1;
-    for (size_t i = 0; i < tmp_sealed_files.size(); i++)
+    file_valid_info_len += 32;
+    file_lost_info_len += 32;
+    uint8_t *file_valid_info_buf = (uint8_t *)enc_malloc(file_valid_info_len);
+    if (file_valid_info_buf == NULL)
     {
-        json::JSON file = tmp_sealed_files[i];
+        return CRUST_MALLOC_FAILED;
+    }
+    Defer def_file_valid_info_buf([&file_valid_info_buf](void) { free(file_valid_info_buf); });
+    uint8_t *file_lost_info_buf = (uint8_t *)enc_malloc(file_lost_info_len);
+    if (file_lost_info_buf == NULL)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+    Defer def_file_lost_info_buf([&file_lost_info_buf](void) { free(file_lost_info_buf); });
+    size_t file_valid_info_offset = 0;
+    size_t file_lost_info_offset = 0;
+    memset(file_valid_info_buf, 0, file_valid_info_len);
+    memcpy(file_valid_info_buf, "{", 1);
+    file_valid_info_offset += 1;
+    memset(file_lost_info_buf, 0, file_lost_info_len);
+    memcpy(file_lost_info_buf, "{", 1);
+    file_lost_info_offset += 1;
+    for (size_t i = 0; i < this->sealed_files.size(); i++)
+    {
+        json::JSON file = this->sealed_files[i];
         std::string info;
         info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
             .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
             .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
-        if (i != tmp_sealed_files.size() - 1)
+            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\",");
+        if (FILE_STATUS_VALID == file[FILE_STATUS].get_char(CURRENT_STATUS))
         {
-            info.append(",");
+            memcpy(file_valid_info_buf + file_valid_info_offset, info.c_str(), info.size());
+            file_valid_info_offset += info.size();
         }
-        memcpy(file_info_buf + file_info_offset, info.c_str(), info.size());
-        file_info_offset += info.size();
+        else if (FILE_STATUS_LOST == file[FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            memcpy(file_lost_info_buf + file_lost_info_offset, info.c_str(), info.size());
+            file_lost_info_offset += info.size();
+        }
     }
-    memcpy(file_info_buf + file_info_offset, "}", 1);
-    file_info_offset += 1;
-    ocall_store_file_info_all(file_info_buf, file_info_offset);
+    if (file_valid_info_offset > 1)
+    {
+        file_valid_info_offset--;
+    }
+    memcpy(file_valid_info_buf + file_valid_info_offset, "}", 1);
+    file_valid_info_offset += 1;
+    if (file_lost_info_offset > 1)
+    {
+        file_lost_info_offset--;
+    }
+    memcpy(file_lost_info_buf + file_lost_info_offset, "}", 1);
+    file_lost_info_offset += 1;
+    ocall_store_file_info_all(file_valid_info_buf, file_valid_info_offset, file_lost_info_buf, file_lost_info_offset);
+
+    return CRUST_SUCCESS;
 }

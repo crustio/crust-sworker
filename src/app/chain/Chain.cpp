@@ -29,6 +29,7 @@ Chain *Chain::get_instance()
  * @param url -> chain API base url, like: http://127.0.0.1:56666/api/v1
  * @param password_tmp -> the password of chain account id
  * @param backup_tmp ->  the backup of chain account id
+ * @param is_offline -> Off chain mode or not
  */
 Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp, bool is_offline)
 {

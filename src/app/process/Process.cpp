@@ -570,9 +570,6 @@ entry_network_flag:
         std::string wl_info = ed->gen_workload_str(srd_task);
         p_log->info("Workload information:\n%s\n", wl_info.c_str());
         p_log->info("Restore enclave data successfully, sworker is running now.\n");
-
-        // Restore sealed file information
-        ed->restore_sealed_file_info();
     }
 
     // Restore or add srd task

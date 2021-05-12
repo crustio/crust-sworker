@@ -17,6 +17,7 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
 crust_status_t ocall_delete_folder_or_file(const char *path, store_type_t type);
 crust_status_t ocall_delete_ipfs_file(const char *cid);
 crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *len, store_type_t type);
+void ocall_set_srd_info(const uint8_t *data, size_t data_size);
 #if defined(__cplusplus)
 }
 #endif

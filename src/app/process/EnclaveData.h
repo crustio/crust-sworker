@@ -34,8 +34,9 @@ public:
     std::string get_sealed_file_info_all();
     void del_sealed_file_info(std::string cid);
     bool is_sealed_file_dup(std::string cid, bool locked = true);
-    void restore_sealed_file_info();
-    void restore_sealed_file_info(const uint8_t *data, size_t data_size);
+    void restore_sealed_file_info(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size);
+    void set_srd_info(const uint8_t *data, size_t data_size);
+    json::JSON get_srd_info();
     // Get workload
     std::string gen_workload_str(long srd_task = 0);
     json::JSON gen_workload_for_print(long srd_task = 0);
@@ -68,6 +69,9 @@ private:
     // Sealed file map
     json::JSON sealed_file;
     std::mutex sealed_file_mutex;
+    // Srd info
+    json::JSON srd_info;
+    std::mutex srd_info_mutex;
     // For uuid and disk path
     std::unordered_map<std::string, std::string> uuid_to_disk_path;
     std::unordered_map<std::string, std::string> disk_path_to_uuid;

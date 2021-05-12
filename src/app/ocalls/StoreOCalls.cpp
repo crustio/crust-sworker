@@ -156,3 +156,13 @@ crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *
 
     return get_file(r_path.c_str(), p_file, len);
 }
+
+/**
+ * @description: Set srd information
+ * @param data -> Pointer to srd info data
+ * @param data_size -> Srd info data size
+ */
+void ocall_set_srd_info(const uint8_t *data, size_t data_size)
+{
+    EnclaveData::get_instance()->set_srd_info(data, data_size);
+}

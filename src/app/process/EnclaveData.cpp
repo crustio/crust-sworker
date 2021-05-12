@@ -272,33 +272,42 @@ void EnclaveData::del_sealed_file_info(std::string cid)
 
 /**
  * @description: Restore sealed file information
+ * @param valid_data -> All valid file information
+ * @param valid_size -> All valid file information size
+ * @param lost_data -> All lost file information
+ * @param lost_size -> All lost file information size
  */
-void EnclaveData::restore_sealed_file_info()
+void EnclaveData::restore_sealed_file_info(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size)
 {
     this->sealed_file_mutex.lock();
-    // Restore file information
-    std::string file_valid_info;
-    std::string file_lost_info;
-    crust::DataBase::get_instance()->get(DB_FILE_VALID_INFO, file_valid_info);
-    crust::DataBase::get_instance()->get(DB_FILE_LOST_INFO, file_lost_info);
-    this->sealed_file[FILE_TYPE_VALID] = json::JSON::Load(file_valid_info);
-    this->sealed_file[FILE_TYPE_LOST] = json::JSON::Load(file_lost_info);
+    json::JSON valid_json = json::JSON::Load(valid_data, valid_size);
+    json::JSON lost_json = json::JSON::Load(lost_data, lost_size);
+    this->sealed_file[FILE_TYPE_VALID] = valid_json;
+    this->sealed_file[FILE_TYPE_LOST] = lost_json;
     this->sealed_file_mutex.unlock();
-
-    crust::DataBase::get_instance()->del(DB_FILE_VALID_INFO);
-    crust::DataBase::get_instance()->del(DB_FILE_LOST_INFO);
 }
 
 /**
- * @description: Restore sealed file information
- * @param data -> All file information data
- * @param data_size -> All file information data size
+ * @description: Set srd information
+ * @param data -> Pointer to srd info data
+ * @param data_size -> Srd info data size
  */
-void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
+void EnclaveData::set_srd_info(const uint8_t *data, size_t data_size)
 {
-    this->sealed_file_mutex.lock();
-    this->sealed_file = json::JSON::Load(data, data_size);
-    this->sealed_file_mutex.unlock();
+    this->srd_info_mutex.lock();
+    this->srd_info = json::JSON::Load(data, data_size);
+    this->srd_info_mutex.unlock();
+}
+
+/**
+ * @description: Get srd information
+ * @return: Srd information
+ */
+json::JSON EnclaveData::get_srd_info()
+{
+    SafeLock sl(this->srd_info_mutex);
+    sl.lock();
+    return this->srd_info;
 }
 
 /**

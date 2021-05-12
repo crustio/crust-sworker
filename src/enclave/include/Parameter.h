@@ -51,8 +51,6 @@
 
 // For DB data
 #define DB_SRD_INFO "srd_info"
-#define DB_FILE_VALID_INFO "file_valid_info"
-#define DB_FILE_LOST_INFO "file_lost_info"
 #define DB_WL_SPEC_INFO "wl_spec_info"
 
 // For chain data

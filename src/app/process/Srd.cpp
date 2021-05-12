@@ -289,9 +289,7 @@ crust_status_t srd_change(long change)
  */
 void srd_check_reserved(void)
 {
-    crust::DataBase *db = crust::DataBase::get_instance();
     Config *p_config = Config::get_instance();
-    crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     size_t check_interval = 10;
 
@@ -303,19 +301,11 @@ void srd_check_reserved(void)
             return;
         }
 
-        std::string srd_info_str;
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
-        crust_status = db->get(DB_SRD_INFO, srd_info_str);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            //p_log->debug("Srd info not found!Check srd reserved failed!\n");
-            sleep(10);
-            continue;
-        }
         EnclaveData *ed = EnclaveData::get_instance();
         json::JSON srd_del_json;
-        json::JSON srd_info_json = json::JSON::Load(srd_info_str);
+        json::JSON srd_info_json = ed->get_srd_info();
         for (auto path : p_config->get_data_paths())
         {
             size_t avail_space = get_avail_space_under_dir_g(path);

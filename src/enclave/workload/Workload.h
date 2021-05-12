@@ -53,12 +53,14 @@ public:
     void set_srd_info(const char *uuid, long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info();
+    crust_status_t restore_pre_pub_key(json::JSON &key);
 
     // For persistence
     crust_status_t serialize_srd(uint8_t **p_data, size_t *data_size);
     crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
-    crust_status_t restore_srd(json::JSON g_hashs);
-    void restore_file(json::JSON file_json);
+    crust_status_t restore_srd(json::JSON &g_hashs);
+    crust_status_t restore_file(json::JSON &file_json);
+    crust_status_t restore_file_info();
 
     // For report
     void report_add_validated_srd_proof();
@@ -82,7 +84,7 @@ public:
     // For workload spec
     void set_wl_spec(char file_status, long long change);
     const json::JSON &get_wl_spec();
-    void restore_wl_spec_info(std::string data);
+    void restore_wl_spec_info();
 
     // For identity
     void set_account_id(std::string account_id);
@@ -149,7 +151,6 @@ public:
     void add_sealed_file(json::JSON file, size_t pos);
     void del_sealed_file(std::string cid);
     void del_sealed_file(size_t pos);
-    void restore_file_info();
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_spec_info()

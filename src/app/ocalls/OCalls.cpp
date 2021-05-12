@@ -271,12 +271,14 @@ void ocall_store_file_info(const char* cid, const char *data)
 
 /**
  * @description: Store all file information
- * @param data -> All file information
- * @param data_size -> All file information size
+ * @param valid_data -> All valid file information
+ * @param valid_size -> All valid file information size
+ * @param lost_data -> All lost file information
+ * @param lost_size -> All lost file information size
  */
-void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
+void ocall_store_file_info_all(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size)
 {
-    EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+    EnclaveData::get_instance()->restore_sealed_file_info(valid_data, valid_size, lost_data, lost_size);
 }
 
 /**
