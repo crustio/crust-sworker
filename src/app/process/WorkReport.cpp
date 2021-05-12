@@ -184,7 +184,7 @@ void work_report_loop(void)
 
         if (offline_chain_mode)
         {
-            p_chain->add_offline_block_height(15);
+            p_chain->add_offline_block_height(REPORT_SLOT/20);
         }
     }
 }
