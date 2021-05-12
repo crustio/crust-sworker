@@ -36,6 +36,7 @@ Chain::Chain(std::string url, std::string password_tmp, std::string backup_tmp, 
     this->password = password_tmp;
     this->backup = backup_tmp;
     this->is_offline = is_offline;
+    this->offline_block_height = 0;
     pri_chain_client = new HttpClient();
 }
 

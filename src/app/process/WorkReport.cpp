@@ -57,7 +57,6 @@ void work_report_loop(void)
     json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
 
     // Generate target block height
-    
     crust::BlockHeader block_header;
     if (!p_chain->get_block_header(block_header))
     {
@@ -103,7 +102,7 @@ void work_report_loop(void)
         {
             goto loop;
         }
-
+        
         cut_wait_time = (block_header.number - (block_header.number / REPORT_SLOT) * REPORT_SLOT) * BLOCK_INTERVAL;
 
         wait_time = get_random_wait_time(id_json["pub_key"].ToString());
@@ -119,13 +118,16 @@ void work_report_loop(void)
 
         p_log->info("It is estimated that the workload will be reported at the %lu block\n", block_header.number + (wait_time / BLOCK_INTERVAL) + 1);
         block_header.number = (block_header.number / REPORT_SLOT) * REPORT_SLOT;
-            
-        // Wait
-        if(wait_and_check_exit(wait_time))
+
+        if (!offline_chain_mode)
         {
-            return;
+            // Wait
+            if(wait_and_check_exit(wait_time))
+            {
+                return;
+            }
         }
-            
+
         // Get confirmed block hash
         block_header.hash = p_chain->get_block_hash(block_header.number);
         if (block_header.hash == "" || block_header.hash == "0000000000000000000000000000000000000000000000000000000000000000")
@@ -173,9 +175,9 @@ void work_report_loop(void)
         {
             return;
         }
+
         if (offline_chain_mode)
         {
-            // Wait
             p_chain->add_offline_block_height(15);
         }
     }
