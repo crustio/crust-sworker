@@ -37,7 +37,7 @@ public:
     bool is_syncing(void);
     bool wait_for_running(void);
     size_t get_offline_block_height(void);
-    void Chain::add_offline_block_height(size_t h);
+    void add_offline_block_height(size_t h);
     ~Chain();
 };
 
