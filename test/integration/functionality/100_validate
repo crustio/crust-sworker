@@ -64,20 +64,24 @@ deleted_file=$(get_config ".functionality|.validate|.deleted_file")
 ### Srd some space
 srd_real_sync $srd_num &>/dev/null
 i=0
+srd_path_arry=()
 # Delete some srd
-while [ $i -lt $deleted_srd ]; do
-    for d_path in ${data_path[@]}; do
-        del=false
-        s_path=$d_path/sworker/srd
-        for sf in $(ls $s_path); do
-            filepath=$s_path/$sf
-            rm -rf $filepath
-            ((i++))
-            del=true
-            break
-        done
-        if $del; then break; fi
+for d_path in ${data_path[@]}; do
+    s_path=$d_path/sworker/srd
+    cd $s_path
+    for sf in $(find . -maxdepth 3 -mindepth 3 "*"); do
+        srd_path_arry[$i]=$s_path/$sf
+        ((i++))
     done
+    cd -
+done
+i=0
+while [ $i -lt $deleted_srd ]; do
+    index=$((RANDOM % ${#srd_path_arry[@]}))
+    sf=${srd_path_arry[$index]}
+    rm -rf $sf
+    srd_path_arry=( "${srd_path_arry[@]/$sf}" )
+    ((i++))
 done
 
 ### Seal some file
@@ -90,21 +94,25 @@ while [ $((i++)) -lt $file_num ]; do
 done
 # Delete some file
 deleted_cid_arry=()
-i=0
-while [ $i -lt $deleted_file ]; do
-    for d_path in ${data_path[@]}; do
-        cid=${cid_arry[$i]}
-        f_path=$d_path/sworker/files/$cid
-        if [ -e "$f_path" ]; then
-            rm -r $f_path
-            if [ $? -eq 0 ]; then
-                deleted_cid_arry[$i]=$cid
-            else
-                verbose ERROR "Delete file:$f_path failed"
-            fi
-            ((i++))
-        fi
+declare -A del_cid_map
+for d_path in ${data_path[@]}; do
+    s_path=$d_path/sworker/files
+    cd $s_path
+    for sf in $(find . -maxdepth 3 -mindepth 3 "*"); do
+        cid=$(basename $sf)
+        del_cid_map[$cid]="${del_cid_map[$cid]} $s_path/$sf"
     done
+    cd -
+done
+i=0
+for cid in $(cid_arry[@]); do
+    sf=${del_cid_map[$cid]}
+    rm -rf $sf
+    deleted_cid_arry[$i]=$cid
+    ((i++))
+    if [ $i -lt $deleted_file ]; then
+        break
+    fi
 done
 
 ### Validate
@@ -131,7 +139,7 @@ if [ $? -ne 0 ]; then
     ret=1
 fi
 real_vfile=$(cat $TMPFILE2 | jq '.files|.valid|.num')
-expected_vfile=$((file_num-deleted_file))
+expected_vfile=$((file_num-deleted_file_r))
 if [ $real_vfile -ne $expected_vfile ]; then
     verbose ERROR "expected valid file num:$expected_vfile, real:$real_vfile" n
     ret=1

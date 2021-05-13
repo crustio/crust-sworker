@@ -171,8 +171,8 @@ entry_network_flag:
         }
     }
 
-    // Restore sealed file information
-    ed->restore_sealed_file_info();
+    // Construct uuid to disk path map
+    ed->construct_uuid_disk_path_map();
 
     // Check block height and post report to chain
     //start_task(work_report_loop);

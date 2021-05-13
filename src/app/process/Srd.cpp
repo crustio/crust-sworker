@@ -221,7 +221,7 @@ crust_status_t srd_change(long change)
             {
                 sgx_enclave_id_t eid = global_eid;
                 std::string uuid = disk_info_json[i][WL_DISK_UUID].ToString();
-                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([&eid, uuid](int /*id*/){
+                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
                     sgx_status_t sgx_status = SGX_SUCCESS;
                     crust_status_t increase_ret = CRUST_SUCCESS;
                     if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &increase_ret, uuid.c_str()))
@@ -230,7 +230,7 @@ crust_status_t srd_change(long change)
                         // If failed, add current task to next turn
                         long real_change = 0;
                         crust_status_t change_ret = CRUST_SUCCESS;
-                        Ecall_change_srd_task(global_eid, &change_ret, 1, &real_change);
+                        Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
                         sgx_status = SGX_ERROR_UNEXPECTED;
                     }
                     if (SGX_SUCCESS != sgx_status)
