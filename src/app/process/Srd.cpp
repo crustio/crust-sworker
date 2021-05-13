@@ -206,7 +206,7 @@ crust_status_t srd_change(long change)
                         info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                         info[WL_DISK_PATH].ToString().c_str(),
                         info[WL_DISK_USE].ToInt());
-                disk_use_json.Append(info);
+                disk_use_json.append(info);
             }
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
