@@ -49,11 +49,11 @@ public:
     static Workload *get_instance();
     ~Workload();
     std::string get_workload(void);
-    void clean_srd_buffer();
     void set_srd_info(const char *uuid, long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info();
-    crust_status_t restore_pre_pub_key(json::JSON &key);
+    crust_status_t restore_pre_pub_key(json::JSON &meta);
+    void clean_all();
 
     // For persistence
     crust_status_t serialize_srd(uint8_t **p_data, size_t *data_size);
@@ -77,6 +77,7 @@ public:
 
     // For upgrade
     void set_upgrade(sgx_ec256_public_t pub_key);
+    void unset_upgrade();
     bool is_upgrade();
     void set_upgrade_status(enc_upgrade_status_t status);
     enc_upgrade_status_t get_upgrade_status();
@@ -84,7 +85,6 @@ public:
     // For workload spec
     void set_wl_spec(char file_status, long long change);
     const json::JSON &get_wl_spec();
-    void restore_wl_spec_info();
 
     // For identity
     void set_account_id(std::string account_id);
@@ -94,6 +94,7 @@ public:
     const sgx_ec256_public_t& get_pub_key();
     const sgx_ec256_private_t& get_pri_key();
     void set_key_pair(ecc_key_pair id_key_pair);
+    void unset_key_pair();
     const ecc_key_pair& get_key_pair();
     // MR enclave
     void set_mr_enclave(sgx_measurement_t mr);
@@ -102,6 +103,7 @@ public:
     void set_report_height(size_t height);
     size_t get_report_height();
     // Srd related
+    void clean_srd();
     bool add_srd_to_deleted_buffer(uint32_t index);
     template <class InputIterator>
     void add_srd_to_deleted_buffer(InputIterator begin, InputIterator end)
@@ -141,6 +143,7 @@ public:
     bool is_srd_in_deleted_buffer(uint32_t index);
     void deal_deleted_srd(bool locked = true);
     // File related
+    void clean_file();
     bool add_to_deleted_file_buffer(std::string cid);
     bool is_in_deleted_file_buffer(std::string cid);
     void recover_from_deleted_file_buffer(std::string cid);

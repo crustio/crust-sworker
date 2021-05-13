@@ -490,7 +490,7 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
     std::string d_path = ed->get_disk_path(uuid);
     if (d_path.compare("") == 0)
     {
-        p_log->err("Cannot find path for uuid:%s\n", uuid.c_str());
+        p_log->warn("Cannot find path for uuid:%s\n", uuid.c_str());
         return "";
     }
     switch (type)

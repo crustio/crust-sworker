@@ -498,7 +498,7 @@ entry_network_flag:
         {
             // ----- Normal startup ----- //
             // Restore data failed
-            p_log->info("Starting a new enclave...(code:%lx)\n", crust_status);
+            p_log->info("Starting a new enclave...(restore code:%lx)\n", crust_status);
 
             // Generate ecc key pair
             if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status, p_config->chain_account_id.c_str(), p_config->chain_account_id.size())

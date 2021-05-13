@@ -767,13 +767,6 @@ crust_status_t id_store_metadata()
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string hex_id_key_str = hexstring_safe(&wl->get_key_pair(), sizeof(ecc_key_pair));
 
-    // Store workload spec info
-    std::string wl_spec_info_str = wl->get_wl_spec().dump();
-    remove_char(wl_spec_info_str, '\n');
-    remove_char(wl_spec_info_str, '\\');
-    remove_char(wl_spec_info_str, ' ');
-    persist_set_unsafe(DB_WL_SPEC_INFO, reinterpret_cast<const uint8_t *>(wl_spec_info_str.c_str()), wl_spec_info_str.size());
-
     // ----- Calculate metadata volumn ----- //
     // Get srd data copy
     sgx_thread_mutex_lock(&wl->srd_mutex);
@@ -921,16 +914,20 @@ crust_status_t id_restore_metadata()
         log_err("Identity: Get id key pair failed!\n");
         return CRUST_INVALID_META_DATA;
     }
+    Defer def_id_key([&p_id_key](void) { free(p_id_key); });
     if (wl->try_get_key_pair() && memcmp(p_id_key, &wl->get_key_pair(), sizeof(ecc_key_pair)) != 0)
     {
-        free(p_id_key);
         log_err("Identity: Get wrong id key pair!\n");
         return CRUST_INVALID_META_DATA;
     }
 
     // ----- Restore metadata ----- //
-    // Restore workload spec information
-    wl->restore_wl_spec_info();
+    Defer def_clean_all([&crust_status, &wl](void) { 
+        if (CRUST_SUCCESS != crust_status)
+        {
+            wl->clean_all(); 
+        }
+    });
     // Restore srd
     if (CRUST_SUCCESS != (crust_status = wl->restore_srd(meta_json[ID_SRD])))
     {
@@ -945,17 +942,17 @@ crust_status_t id_restore_metadata()
     ecc_key_pair tmp_key_pair;
     memcpy(&tmp_key_pair, p_id_key, sizeof(ecc_key_pair));
     wl->set_key_pair(tmp_key_pair);
-    free(p_id_key);
     // Restore report height
     wl->set_report_height(meta_json[ID_REPORT_HEIGHT].ToInt());
     // Restore previous public key
-    if (CRUST_SUCCESS != (crust_status = wl->restore_pre_pub_key(meta_json[ID_PRE_PUB_KEY])))
+    if (CRUST_SUCCESS != (crust_status = wl->restore_pre_pub_key(meta_json)))
     {
         return crust_status;
     }
     // Restore chain account id
     wl->set_account_id(meta_json[ID_CHAIN_ACCOUNT_ID].ToString());
 
+    // Set restart flag
     wl->set_restart_flag();
 
     return CRUST_SUCCESS;

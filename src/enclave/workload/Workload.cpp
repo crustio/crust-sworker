@@ -81,7 +81,7 @@ std::string Workload::get_workload(void)
 /**
  * @description: Clean up work report data
  */
-void Workload::clean_srd_buffer()
+void Workload::clean_srd()
 {
     for (auto g_hash : this->srd_hashs)
     {
@@ -89,6 +89,10 @@ void Workload::clean_srd_buffer()
             free(g_hash);
     }
     this->srd_hashs.clear();
+
+    // Clean srd info json
+    this->srd_info_json = json::JSON();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>("{}"), 2);
 }
 
 /**
@@ -259,7 +263,7 @@ crust_status_t Workload::restore_srd(json::JSON &g_hashs)
     }
 
     crust_status_t crust_status = CRUST_SUCCESS;
-    this->clean_srd_buffer();
+    this->clean_srd();
     
     // Restore srd_hashs
     for (auto it : g_hashs.ArrayRange())
@@ -268,7 +272,7 @@ crust_status_t Workload::restore_srd(json::JSON &g_hashs)
         uint8_t *g_hash = hex_string_to_bytes(hex_g_hash.c_str(), hex_g_hash.size());
         if (g_hash == NULL)
         {
-            this->clean_srd_buffer();
+            this->clean_srd();
             return CRUST_UNEXPECTED_ERROR;
         }
         this->srd_hashs.push_back(g_hash);
@@ -286,6 +290,21 @@ crust_status_t Workload::restore_srd(json::JSON &g_hashs)
     ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 
     return crust_status;
+}
+
+/**
+ * @description: Clean file related data
+ */
+void Workload::clean_file()
+{
+    // Clean sealed files
+    this->sealed_files.clear();
+
+    // Clean workload spec info
+    this->wl_spec_info = json::JSON();
+
+    // Clean file info
+    ocall_store_file_info_all(reinterpret_cast<const uint8_t *>("{}"), 2, reinterpret_cast<const uint8_t *>("{}"), 2);
 }
 
 /**
@@ -388,19 +407,27 @@ void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 }
 
 /**
+ * @description: Unset upgrade
+ */
+void Workload::unset_upgrade()
+{
+    this->upgrade = false;
+}
+
+/**
  * @description: Restore previous public key
- * @param key -> Previous key in json format
+ * @param meta -> Reference to metadata
  * @return: Restore result
  */
-crust_status_t Workload::restore_pre_pub_key(json::JSON &key)
+crust_status_t Workload::restore_pre_pub_key(json::JSON &meta)
 {
-    if (key.JSONType() != json::JSON::Class::String)
+    if (!meta.hasKey(ID_PRE_PUB_KEY))
     {
-        return CRUST_UNEXPECTED_ERROR;
+        return CRUST_SUCCESS;
     }
 
     sgx_ec256_public_t pre_pub_key;
-    std::string pre_pub_key_str = key.ToString();
+    std::string pre_pub_key_str = meta[ID_PRE_PUB_KEY].ToString();
     uint8_t *pre_pub_key_u = hex_string_to_bytes(pre_pub_key_str.c_str(), pre_pub_key_str.size());
     if (pre_pub_key_u == NULL)
     {
@@ -539,25 +566,6 @@ const json::JSON &Workload::get_wl_spec()
     return this->wl_spec_info;
 }
 
-/*
- * @description: Restore workload spec information from data
- */
-void Workload::restore_wl_spec_info()
-{
-    crust_status_t crust_status = CRUST_SUCCESS;
-    uint8_t *p_wl_spec = NULL;
-    size_t wl_spec_len = 0;
-    if (CRUST_SUCCESS != (crust_status = persist_get_unsafe(DB_WL_SPEC_INFO, &p_wl_spec, &wl_spec_len)))
-    {
-        log_warn("Cannot get workload spec info, code:%lx\n", crust_status);
-    }
-    else if (p_wl_spec != NULL)
-    {
-        this->wl_spec_info = json::JSON::Load(p_wl_spec, wl_spec_len);
-        free(p_wl_spec);
-    }
-}
-
 /**
  * @description: Set chain account id
  * @param account_id -> Chain account id
@@ -615,6 +623,14 @@ void Workload::set_key_pair(ecc_key_pair id_key_pair)
 }
 
 /**
+ * @description: Unset id key pair
+ */
+void Workload::unset_key_pair()
+{
+    this->is_set_key_pair = false;
+}
+
+/**
  * @description: Get identity key pair
  * @return: Const reference to identity key pair
  */
@@ -657,6 +673,24 @@ void Workload::set_report_height(size_t height)
 size_t Workload::get_report_height()
 {
     return this->report_height;
+}
+
+/**
+ * @description: Clean all workload information
+ */
+void Workload::clean_all()
+{
+    // Clean srd
+    this->clean_srd();
+
+    // Clean file
+    this->clean_file();
+
+    // Clean id key pair
+    this->unset_key_pair();
+
+    // Clean upgrade related
+    this->unset_upgrade();
 }
 
 /**
