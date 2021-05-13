@@ -91,8 +91,9 @@ void Workload::clean_srd()
     this->srd_hashs.clear();
 
     // Clean srd info json
-    this->srd_info_json = json::JSON();
-    ocall_set_srd_info(reinterpret_cast<const uint8_t *>("{}"), 2);
+    this->srd_info_json = json::Object();
+    std::string srd_info_str = this->srd_info_json.dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
@@ -388,7 +389,7 @@ json::JSON Workload::get_srd_info()
     sgx_thread_mutex_lock(&this->srd_info_mutex);
     if (this->srd_info_json.size() <= 0)
     {
-        this->srd_info_json = json::JSON();
+        this->srd_info_json = json::Object();
     }
     json::JSON srd_info = this->srd_info_json;
     sgx_thread_mutex_unlock(&this->srd_info_mutex);

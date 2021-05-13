@@ -43,6 +43,7 @@ bool wait_and_check_exit(size_t t)
  */
 void work_report_loop(void)
 {
+    sgx_status_t sgx_status = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     crust::Chain *p_chain = crust::Chain::get_instance();
     size_t target_block_height = REPORT_SLOT;
@@ -145,10 +146,10 @@ void work_report_loop(void)
         target_block_height = block_header.number + REPORT_SLOT;
 
         // Get signed validation report
-        if (SGX_SUCCESS != Ecall_gen_and_upload_work_report(global_eid, &crust_status,
-                block_header.hash.c_str(), block_header.number))
+        if (SGX_SUCCESS != (sgx_status = Ecall_gen_and_upload_work_report(global_eid, &crust_status,
+                block_header.hash.c_str(), block_header.number)))
         {
-            p_log->err("Get signed work report failed! Message:Invoke SGX API failed!\n");
+            p_log->err("Get signed work report failed! Message:Invoke SGX API failed, error code:%lx!\n", sgx_status);
         }
         else if (CRUST_SUCCESS != crust_status)
         {

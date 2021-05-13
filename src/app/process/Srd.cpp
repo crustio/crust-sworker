@@ -235,7 +235,11 @@ crust_status_t srd_change(long change)
                     }
                     if (SGX_SUCCESS != sgx_status)
                     {
-                        increase_ret = CRUST_UNEXPECTED_ERROR;
+                        p_log->err("Increase srd failed! Error code:%lx\n", sgx_status);
+                        if (CRUST_SUCCESS == increase_ret)
+                        {
+                            increase_ret = CRUST_UNEXPECTED_ERROR;
+                        }
                     }
                     decrease_running_srd_task();
                     return increase_ret;
