@@ -69,11 +69,11 @@ srd_path_arry=()
 for d_path in ${data_path[@]}; do
     s_path=$d_path/sworker/srd
     cd $s_path
-    for sf in $(find . -maxdepth 3 -mindepth 3 "*"); do
+    for sf in $(find . -maxdepth 3 -mindepth 3 -name "*"); do
         srd_path_arry[$i]=$s_path/$sf
         ((i++))
     done
-    cd -
+    cd - &>/dev/null
 done
 i=0
 while [ $i -lt $deleted_srd ]; do
@@ -98,19 +98,18 @@ declare -A del_cid_map
 for d_path in ${data_path[@]}; do
     s_path=$d_path/sworker/files
     cd $s_path
-    for sf in $(find . -maxdepth 3 -mindepth 3 "*"); do
+    for sf in $(find . -maxdepth 3 -mindepth 3 -name "*"); do
         cid=$(basename $sf)
         del_cid_map[$cid]="${del_cid_map[$cid]} $s_path/$sf"
     done
-    cd -
+    cd - &>/dev/null
 done
 i=0
-for cid in $(cid_arry[@]); do
+for cid in ${cid_arry[@]}; do
     sf=${del_cid_map[$cid]}
     rm -rf $sf
     deleted_cid_arry[$i]=$cid
-    ((i++))
-    if [ $i -lt $deleted_file ]; then
+    if [ $((++i)) -ge $deleted_file ]; then
         break
     fi
 done
@@ -139,7 +138,7 @@ if [ $? -ne 0 ]; then
     ret=1
 fi
 real_vfile=$(cat $TMPFILE2 | jq '.files|.valid|.num')
-expected_vfile=$((file_num-deleted_file_r))
+expected_vfile=$((file_num-deleted_file))
 if [ $real_vfile -ne $expected_vfile ]; then
     verbose ERROR "expected valid file num:$expected_vfile, real:$real_vfile" n
     ret=1
@@ -147,7 +146,6 @@ fi
 for cid in ${deleted_cid_arry[@]}; do
     if grep $cid $TMPFILE &>/dev/null; then
         verbose ERROR "delete file($cid) failed!" n
-        ret=1
     fi
 done
 

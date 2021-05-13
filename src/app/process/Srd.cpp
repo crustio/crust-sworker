@@ -197,6 +197,7 @@ crust_status_t srd_change(long change)
         }
         set_running_srd_task(true_increase);
         // Print disk info
+        json::JSON disk_use_json;
         for (auto info : disk_info_json.ArrayRange())
         {
             if (info[WL_DISK_USE].ToInt() > 0)
@@ -205,6 +206,7 @@ crust_status_t srd_change(long change)
                         info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                         info[WL_DISK_PATH].ToString().c_str(),
                         info[WL_DISK_USE].ToInt());
+                disk_use_json.Append(info);
             }
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
@@ -217,10 +219,10 @@ crust_status_t srd_change(long change)
         long task = true_increase;
         while (task > 0)
         {
-            for (int i = 0; i < disk_info_json.size() && task > 0; i++, task--)
+            for (int i = 0; i < disk_use_json.size() && task > 0; i++, task--)
             {
                 sgx_enclave_id_t eid = global_eid;
-                std::string uuid = disk_info_json[i][WL_DISK_UUID].ToString();
+                std::string uuid = disk_use_json[i][WL_DISK_UUID].ToString();
                 tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
                     sgx_status_t sgx_status = SGX_SUCCESS;
                     crust_status_t increase_ret = CRUST_SUCCESS;
