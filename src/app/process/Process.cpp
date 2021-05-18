@@ -136,6 +136,13 @@ bool initialize_components(void)
         return false;
     }
 
+    // Start http service
+    if (!start_task(start_webservice))
+    {
+        p_log->err("Start web service failed!\n");
+        return false;
+    }
+
     // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)
     {
@@ -548,18 +555,18 @@ entry_network_flag:
     }
     db = crust::DataBase::get_instance();
 
-    // Get srd remaining task
-    if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
-    {
-        std::stringstream sstream(srd_task_str);
-        size_t srd_task_remain = 0;
-        sstream >> srd_task_remain;
-        srd_task = std::max(srd_task, srd_task_remain);
-    }
-
-    // Print recovered workload
+    // Do restart related
     if (is_restart)
     {
+        // Get srd remaining task
+        if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
+        {
+            std::stringstream sstream(srd_task_str);
+            size_t srd_task_remain = 0;
+            sstream >> srd_task_remain;
+            srd_task = std::max(srd_task, srd_task_remain);
+        }
+        // Print recovered workload
         std::string wl_info = ed->gen_workload_str(srd_task);
         p_log->info("Workload information:\n%s\n", wl_info.c_str());
         p_log->info("Restore enclave data successfully, sworker is running now.\n");
@@ -591,9 +598,6 @@ entry_network_flag:
 
     // Construct uuid to disk path map
     ed->construct_uuid_disk_path_map();
-
-    // Start http service
-    start_task(start_webservice);
 
     // Check block height and post report to chain
     start_task(work_report_loop);
