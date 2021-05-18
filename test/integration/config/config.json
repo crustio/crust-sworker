@@ -1,7 +1,7 @@
 {
     "data_path" : "%SRDPATH%",
     "functionality" : {
-        "srd_size": 6,
+        "srd_size": 16,
         "srd_max_per_turn": 800,
         "file_arry": "1m 2m 4m 8m",
         "srd_limit": 512000,

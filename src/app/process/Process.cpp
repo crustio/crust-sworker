@@ -136,13 +136,6 @@ bool initialize_components(void)
         return false;
     }
 
-    // Start http service
-    if (!start_task(start_webservice))
-    {
-        p_log->err("Start web service failed!\n");
-        return false;
-    }
-
     // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)
     {
@@ -598,6 +591,9 @@ entry_network_flag:
 
     // Construct uuid to disk path map
     ed->construct_uuid_disk_path_map();
+
+    // Start http service
+    start_task(start_webservice);
 
     // Check block height and post report to chain
     start_task(work_report_loop);

@@ -135,7 +135,8 @@ crust_status_t ocall_delete_ipfs_file(const char *cid)
 
     for (int i = 0; i < disk_json.size(); i++)
     {
-        std::string path = disk_json[i][WL_DISK_PATH].ToString() + DISK_FILE_DIR + "/" + cid;
+        std::string path = disk_json[i][WL_DISK_UUID].ToString() + cid;
+        path = get_real_path_by_type(path.c_str(), STORE_TYPE_FILE);
         rm_dir(path);
     }
 

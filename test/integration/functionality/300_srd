@@ -45,7 +45,8 @@ srd_real_sync "-$p_srd_num" &>/dev/null
 srd_real_sync $srd_num &>/dev/null
 _store_meta &>/dev/null
 get_workload &>$TMPFILE
-if [ x"$(cat $TMPFILE | jq '.srd|.srd_complete')" != x"$srd_num" ]; then
+srd_real=$(cat $TMPFILE | jq '.srd|.srd_complete')
+if [ x"$srd_real" != x"$srd_num" ]; then
     verbose ERROR "srd failed!Wrong result, expected:$srd_num, real:$(cat $TMPFILE | jq '.srd|.srd_complete')" n
     exit 1
 fi

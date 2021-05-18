@@ -29,6 +29,9 @@ function validate_exit()
 {
     rm -rf $tmpdir
 
+    # Delete test srd
+    srd_real_sync -$srd_num &>/dev/null
+
     # Delete test files
     for cid in ${cid_arry[@]}; do
         delete_file $cid &>/dev/null

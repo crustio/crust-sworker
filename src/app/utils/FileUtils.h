@@ -22,6 +22,7 @@ std::vector<std::string> get_files_under_path(std::string path);
 std::vector<std::string> get_folders_under_path(std::string path);
 int rm_dir(std::string dir_full_path);
 int rm(std::string path);
+int mkdir_sync(const char *path, mode_t mode);
 size_t get_free_space_under_directory(std::string path);
 crust_status_t rename_dir(std::string old_path, std::string new_path);
 crust_status_t create_directory(const std::string &path);
