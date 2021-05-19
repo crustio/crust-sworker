@@ -49,6 +49,12 @@ void srd_change()
         return;
     }
 
+    // Check if validation has been applied or not
+    if (!wl->report_has_validated_proof())
+    {
+        return;
+    }
+
     sgx_thread_mutex_lock(&g_srd_task_mutex);
     // Get real srd space
     long srd_change_num = 0;
@@ -107,6 +113,12 @@ crust_status_t srd_increase(const char *uuid)
         return CRUST_UNEXPECTED_ERROR;
     }
     Defer def_uuid([&p_uuid_u](void) { free(p_uuid_u); });
+
+    // Check if validation has been applied or not
+    if (!wl->report_has_validated_proof())
+    {
+        return CRUST_VALIDATE_HIGH_PRIORITY;
+    }
 
     // Generate base random data
     do

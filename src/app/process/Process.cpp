@@ -588,7 +588,7 @@ entry_network_flag:
                 p_log->info("Add srd task successfully! %ldG has been added, will be executed later.\n", srd_real_change);
                 break;
             case CRUST_SRD_NUMBER_EXCEED:
-                p_log->warn("Add srd task failed!Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
+                p_log->warn("Add srd task failed! Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
                 break;
             default:
                 p_log->info("Unexpected error has occurred!\n");
