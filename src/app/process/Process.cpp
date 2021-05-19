@@ -18,6 +18,7 @@ std::map<task_func_t, std::shared_ptr<std::future<void>>> g_tasks_m;
 crust::Log *p_log = crust::Log::get_instance();
 extern int g_start_server_success;
 extern bool g_upgrade_flag;
+extern bool offline_chain_mode;
 
 /**
  * @description: Init configuration
@@ -519,19 +520,26 @@ entry_network_flag:
             }
 
             // Entry network
-            crust_status = entry_network();
-            if (CRUST_SUCCESS != crust_status)
+            if (!offline_chain_mode)
             {
-                if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
+                crust_status = entry_network();
+                if (CRUST_SUCCESS != crust_status)
                 {
-                    entry_tryout--;
-                    sgx_destroy_enclave(global_eid);
-                    global_eid = 0;
-                    sleep(60);
-                    goto entry_network_flag;
+                    if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
+                    {
+                        entry_tryout--;
+                        sgx_destroy_enclave(global_eid);
+                        global_eid = 0;
+                        sleep(60);
+                        goto entry_network_flag;
+                    }
+                    goto cleanup;
+                    return_status = -1;
                 }
-                goto cleanup;
-                return_status = -1;
+            }
+            else
+            {
+                p_log->info("Enclave id info:%s\n", ed->get_enclave_id_info().c_str());
             }
 
             // Set init srd capacity
@@ -588,7 +596,7 @@ entry_network_flag:
                 p_log->info("Add srd task successfully! %ldG has been added, will be executed later.\n", srd_real_change);
                 break;
             case CRUST_SRD_NUMBER_EXCEED:
-                p_log->warn("Add srd task failed!Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
+                p_log->warn("Add srd task failed! Srd number has reached the upper limit! Real srd task is %ldG.\n", srd_real_change);
                 break;
             default:
                 p_log->info("Unexpected error has occurred!\n");

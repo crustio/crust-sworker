@@ -163,7 +163,7 @@ bool Ipfs::del(std::string cid)
                 //p_log->err("IPFS is offline! Please start it.\n");
                 break;
             case 500:
-                p_log->err("Cannot find IPFS file block!\n");
+                //p_log->err("Cannot find IPFS file block!\n");
                 break;
             default:
                 p_log->err("Delete file error, code is: %d\n", res_code);

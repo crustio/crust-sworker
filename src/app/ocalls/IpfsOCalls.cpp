@@ -84,7 +84,7 @@ crust_status_t ocall_ipfs_del(const char *cid)
 {
     if (!Ipfs::get_instance()->del(cid))
     {
-        p_log->warn("Cannot delete sealed block(cid:%s)!\n", cid);
+        p_log->warn("Invoke IPFS pin rm file(cid:%s) failed! Please check your IPFS.\n", cid);
         return CRUST_UNEXPECTED_ERROR;
     }
 

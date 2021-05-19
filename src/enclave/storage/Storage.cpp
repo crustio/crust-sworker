@@ -442,10 +442,10 @@ crust_status_t storage_delete_file(const char *cid)
         // ----- Delete file related data ----- //
         std::string del_cid = deleted_file[FILE_CID].ToString();
         crust_status_t del_ret = CRUST_SUCCESS;
-        // Delete file directory
-        ocall_delete_ipfs_file(&del_ret, del_cid.c_str());
         // Delete file in IPFS
         ocall_ipfs_del(&del_ret, del_cid.c_str());
+        // Delete file directory
+        ocall_delete_ipfs_file(&del_ret, del_cid.c_str());
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info
@@ -530,7 +530,29 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             break;
         }
         index++;
-        uint8_t link_size = block_data[index];
+
+        // Get link size
+        uint32_t link_size = 0;
+        for(uint8_t shift = 0;;shift += 7)
+        {
+            if(shift >= 64)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+
+            if(index >= block_size)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+
+            uint8_t b = block_data[index];
+            index++;
+            link_size |= uint32_t(b&0x7F) << shift;
+            if(b < 0x80)
+            {
+                break;
+            }
+        }
         
         uint8_t* hash = (uint8_t *)enc_malloc(HASH_LENGTH);
         if (hash == NULL)
@@ -543,10 +565,10 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             return CRUST_MALLOC_FAILED;
         }
 
-        memcpy(hash, block_data + index + 5, HASH_LENGTH);
+        memcpy(hash, block_data + index + 4, HASH_LENGTH);
         hashs.push_back(hash);
 
-        index += link_size + 1;
+        index += link_size;
     }
 
     return CRUST_SUCCESS;
