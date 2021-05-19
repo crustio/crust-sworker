@@ -233,7 +233,6 @@ crust_status_t srd_change(long change)
                         long real_change = 0;
                         crust_status_t change_ret = CRUST_SUCCESS;
                         Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
-                        sgx_status = SGX_ERROR_UNEXPECTED;
                     }
                     if (SGX_SUCCESS != sgx_status)
                     {
