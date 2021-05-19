@@ -594,7 +594,7 @@ crust_status_t check_seal_file_dup(std::string cid)
  * @param hashs -> Return hashs, which need to be released when used up
  * @return: Status
  */
-crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t *> &hashs)
+crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size, std::vector<uint8_t *> &hashs)
 {
     if (block_data == NULL || block_size == 0)
     {
@@ -609,23 +609,45 @@ crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std:
             break;
         }
         index++;
-        uint8_t link_size = block_data[index];
+
+        // Get link size
+        uint32_t link_size = 0;
+        for(uint8_t shift = 0;;shift += 7)
+        {
+            if(shift >= 64)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+
+            if(index >= block_size)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+
+            uint8_t b = block_data[index];
+            index++;
+            link_size |= uint32_t(b&0x7F) << shift;
+            if(b < 0x80)
+            {
+                break;
+            }
+        }
         
         uint8_t* hash = (uint8_t *)enc_malloc(HASH_LENGTH);
         if (hash == NULL)
         {
             for (size_t i = 0; i < hashs.size(); i++)
             {
-                delete hashs[i];
+                free(hashs[i]);
             }
             hashs.clear();
             return CRUST_MALLOC_FAILED;
         }
 
-        memcpy(hash, block_data + index + 5, HASH_LENGTH);
+        memcpy(hash, block_data + index + 4, HASH_LENGTH);
         hashs.push_back(hash);
 
-        index += link_size + 1;
+        index += link_size;
     }
 
     return CRUST_SUCCESS;

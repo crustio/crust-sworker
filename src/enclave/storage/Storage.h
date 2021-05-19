@@ -28,7 +28,7 @@ crust_status_t storage_unseal_file(const char *data, size_t data_size);
 
 crust_status_t storage_delete_file(const char *hash);
 
-crust_status_t get_hashs_from_block(uint8_t *block_data, size_t block_size, std::vector<uint8_t*> &hashs);
+crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size, std::vector<uint8_t*> &hashs);
 
 crust_status_t storage_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *data_size);
 
