@@ -442,10 +442,10 @@ crust_status_t storage_delete_file(const char *cid)
         // ----- Delete file related data ----- //
         std::string del_cid = deleted_file[FILE_CID].ToString();
         crust_status_t del_ret = CRUST_SUCCESS;
-        // Delete file directory
-        ocall_delete_ipfs_file(&del_ret, del_cid.c_str());
         // Delete file in IPFS
         ocall_ipfs_del(&del_ret, del_cid.c_str());
+        // Delete file directory
+        ocall_delete_ipfs_file(&del_ret, del_cid.c_str());
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info

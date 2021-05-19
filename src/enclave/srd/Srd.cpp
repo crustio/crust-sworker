@@ -102,7 +102,6 @@ void srd_change()
 crust_status_t srd_increase(const char *uuid)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    crust_status_t del_ret = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
     // Get uuid bytes
@@ -159,13 +158,25 @@ crust_status_t srd_increase(const char *uuid)
         log_err("Create tmp directory failed! Error code:%lx\n", crust_status);
         return crust_status;
     }
+    // Delete tmp directory if failed
+    Defer def_del_dir([&crust_status, &tmp_dir](void) {
+        if (CRUST_SUCCESS != crust_status)
+        {
+            crust_status_t del_ret = CRUST_SUCCESS;
+            ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
+            if (CRUST_SUCCESS != del_ret)
+            {
+                log_warn("Delete temp directory %s failed! Error code:%lx\n", tmp_dir.c_str(), del_ret);
+            }
+        }
+    });
 
     // Generate all M hashs and store file to disk
     uint8_t *m_hashs = (uint8_t *)enc_malloc(SRD_RAND_DATA_NUM * HASH_LENGTH);
     if (m_hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
+        return crust_status = CRUST_MALLOC_FAILED;
     }
     Defer defer_hashs([&m_hashs](void) { free(m_hashs); });
     for (size_t i = 0; i < SRD_RAND_DATA_NUM; i++)
@@ -189,11 +200,6 @@ crust_status_t srd_increase(const char *uuid)
         if (CRUST_SUCCESS != crust_status)
         {
             log_err("Save srd file(%s) failed! Error code:%lx\n", tmp_dir.c_str(), crust_status);
-            ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
-            if (CRUST_SUCCESS != del_ret)
-            {
-                log_warn("Delete temp directory %s failed! Error code:%lx\n", tmp_dir.c_str(), del_ret);
-            }
             return crust_status;
         }
     }
@@ -206,11 +212,6 @@ crust_status_t srd_increase(const char *uuid)
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());
-        ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
-        if (CRUST_SUCCESS != del_ret)
-        {
-            log_warn("Delete temp directory %s failed! Error code:%lx\n", tmp_dir.c_str(), del_ret);
-        }
         return crust_status;
     }
 
@@ -220,12 +221,7 @@ crust_status_t srd_increase(const char *uuid)
     ocall_rename_dir(&crust_status, tmp_dir.c_str(), g_hash_path.c_str(), STORE_TYPE_SRD);
     if (CRUST_SUCCESS != crust_status)
     {
-        log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), g_hash_path.c_str());
-        ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
-        if (CRUST_SUCCESS != del_ret)
-        {
-            log_warn("Delete temp directory %s failed!, Error code:%lx\n", tmp_dir.c_str(), del_ret);
-        }
+        log_err("Rename directory %s to %s failed!\n", tmp_dir.c_str(), g_hash_path.c_str());
         return crust_status;
     }
     // ----- Update srd_hashs ----- //
@@ -235,7 +231,7 @@ crust_status_t srd_increase(const char *uuid)
     if (srd_item == NULL)
     {
         log_err("Malloc for srd item failed!\n");
-        return CRUST_MALLOC_FAILED;
+        return crust_status = CRUST_MALLOC_FAILED;
     }
     memset(srd_item, 0, SRD_LENGTH);
     memcpy(srd_item, p_uuid_u, UUID_LENGTH);

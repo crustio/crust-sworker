@@ -155,7 +155,16 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'data path' : [\n");
-    std::set<std::string> data_paths = this->get_data_paths();
+    std::vector<std::string> data_paths;
+    std::set<std::string> tmp_paths = this->get_data_paths();
+    data_paths.insert(data_paths.end(), tmp_paths.begin(), tmp_paths.end());
+    std::sort(data_paths.begin(), data_paths.end(), [](std::string s1, std::string s2) {
+        if (s1.length() != s2.length())
+        {
+            return s1.length() < s2.length();
+        }
+        return s1.compare(s2) < 0;
+    });
     for (auto it = data_paths.begin(); it != data_paths.end(); )
     {
         printf("        \"%s\"", (*it).c_str());
