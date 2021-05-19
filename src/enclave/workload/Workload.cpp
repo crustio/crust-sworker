@@ -33,8 +33,8 @@ Workload::Workload()
     this->report_files = true;
     for (auto item : g_file_status)
     {
-        this->wl_spec_info[item.second]["num"] = 0;
-        this->wl_spec_info[item.second]["size"] = 0;
+        this->wl_file_spec[item.second]["num"] = 0;
+        this->wl_file_spec[item.second]["size"] = 0;
     }
 }
 
@@ -60,9 +60,7 @@ std::string Workload::get_workload(void)
     json::JSON wl_json;
 
     // File info
-    sgx_thread_mutex_lock(&wl_spec_info_mutex);
-    wl_json[WL_FILES] = this->wl_spec_info;
-    sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+    wl_json[WL_FILES] = this->get_file_spec();
     // Srd info
     json::JSON srd_info = this->get_srd_info();
     wl_json[WL_SRD][WL_SRD_COMPLETE] = srd_info[WL_SRD_COMPLETE].ToInt();
@@ -302,7 +300,7 @@ void Workload::clean_file()
     this->sealed_files.clear();
 
     // Clean workload spec info
-    this->wl_spec_info = json::JSON();
+    this->wl_file_spec = json::JSON();
 
     // Clean file info
     ocall_store_file_info_all(reinterpret_cast<const uint8_t *>("{}"), 2, reinterpret_cast<const uint8_t *>("{}"), 2);
@@ -330,7 +328,7 @@ crust_status_t Workload::restore_file(json::JSON &file_json)
     {
         this->sealed_files.push_back(file_json[i]);
         // Restore workload spec info
-        set_wl_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
+        set_file_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
     }
 
     // Restore file information
@@ -546,25 +544,27 @@ crust_status_t Workload::can_report_work(size_t block_height)
  * @param file_status -> Workload spec
  * @param change -> Spec information change
  */
-void Workload::set_wl_spec(char file_status, long long change)
+void Workload::set_file_spec(char file_status, long long change)
 {
     if (g_file_status.find(file_status) != g_file_status.end())
     {
-        sgx_thread_mutex_lock(&wl_spec_info_mutex);
+        sgx_thread_mutex_lock(&wl_file_spec_mutex);
         std::string ws_name = g_file_status[file_status];
-        this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
-        this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
-        sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+        this->wl_file_spec[ws_name]["num"] = this->wl_file_spec[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
+        this->wl_file_spec[ws_name]["size"] = this->wl_file_spec[ws_name]["size"].ToInt() + change;
+        sgx_thread_mutex_unlock(&wl_file_spec_mutex);
     }
 }
 
 /**
  * @description: Get workload spec info reference
- * @return: Const reference to wl_spec_infop
+ * @return: Const reference to wl_file_spec
  */
-const json::JSON &Workload::get_wl_spec()
+const json::JSON &Workload::get_file_spec()
 {
-    return this->wl_spec_info;
+    SafeLock sl(wl_file_spec_mutex);
+    sl.lock();
+    return this->wl_file_spec;
 }
 
 /**

@@ -83,8 +83,8 @@ public:
     enc_upgrade_status_t get_upgrade_status();
 
     // For workload spec
-    void set_wl_spec(char file_status, long long change);
-    const json::JSON &get_wl_spec();
+    void set_file_spec(char file_status, long long change);
+    const json::JSON &get_file_spec();
 
     // For identity
     void set_account_id(std::string account_id);
@@ -156,11 +156,11 @@ public:
     void del_sealed_file(size_t pos);
 
 #ifdef _CRUST_TEST_FLAG_
-    void clean_wl_spec_info()
+    void clean_wl_file_spec()
     {
-        sgx_thread_mutex_lock(&wl_spec_info_mutex);
-        this->wl_spec_info = json::JSON();
-        sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+        sgx_thread_mutex_lock(&wl_file_spec_mutex);
+        this->wl_file_spec = json::JSON();
+        sgx_thread_mutex_unlock(&wl_file_spec_mutex);
     }
 #endif
 
@@ -192,8 +192,8 @@ private:
     sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     bool upgrade = false; // True indicates workreport should contain previous public key
     enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE; // Initial value indicates no upgrade
-    json::JSON wl_spec_info; // For workload statistics
-    sgx_thread_mutex_t wl_spec_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    json::JSON wl_file_spec; // For workload statistics
+    sgx_thread_mutex_t wl_file_spec_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     // Deleted srd index in metadata while the value indicates whether
     // this srd metadata has been deleted by other thread
     std::set<uint32_t> srd_del_idx_s;

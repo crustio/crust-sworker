@@ -49,10 +49,6 @@
 #define FILE_TYPE_VALID "valid"
 #define FILE_TYPE_LOST "lost"
 
-// For DB data
-#define DB_SRD_INFO "srd_info"
-#define DB_WL_SPEC_INFO "wl_spec_info"
-
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"
 #define CHAIN_BLOCK_HASH "c_block_hash"

@@ -1247,12 +1247,17 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
 
     // ----- Restore workload ----- //
     // Restore srd
-    if (CRUST_SUCCESS != wl->restore_srd(upgrade_json[UPGRADE_SRD]))
+    if (CRUST_SUCCESS != (crust_status = wl->restore_srd(upgrade_json[UPGRADE_SRD])))
     {
+        log_err("Restore srd failed! Error code:%lx\n", crust_status);
         return CRUST_UPGRADE_RESTORE_SRD_FAILED;
     }
     // Restore file
-    wl->restore_file(upgrade_json[UPGRADE_FILE]);
+    if (CRUST_SUCCESS != (crust_status = wl->restore_file(upgrade_json[UPGRADE_FILE])))
+    {
+        log_err("Restore file failed! Error code:%lx\n", crust_status);
+        return CRUST_UPGRADE_RESTORE_FILE_FAILED;
+    }
 
     // ----- Verify workload signature ----- //
     json::JSON wl_info = wl->gen_workload_info();

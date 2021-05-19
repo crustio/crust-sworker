@@ -350,7 +350,7 @@ crust_status_t storage_seal_file_end(const char *root)
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // Add info in workload spec
-    wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SIZE].ToInt());
+    wl->set_file_spec(FILE_STATUS_VALID, file_entry_json[FILE_SIZE].ToInt());
 
     // Store file information
     std::string file_info;
@@ -449,7 +449,7 @@ crust_status_t storage_delete_file(const char *cid)
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info
-        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
+        wl->set_file_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
         log_info("Delete file:%s successfully!\n", cid);
     }
     else
