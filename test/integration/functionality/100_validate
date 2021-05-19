@@ -29,6 +29,9 @@ function validate_exit()
 {
     rm -rf $tmpdir
 
+    # Delete test srd
+    srd_real_sync -$srd_num &>/dev/null
+
     # Delete test files
     for cid in ${cid_arry[@]}; do
         delete_file $cid &>/dev/null
@@ -64,20 +67,24 @@ deleted_file=$(get_config ".functionality|.validate|.deleted_file")
 ### Srd some space
 srd_real_sync $srd_num &>/dev/null
 i=0
+srd_path_arry=()
 # Delete some srd
-while [ $i -lt $deleted_srd ]; do
-    for d_path in ${data_path[@]}; do
-        del=false
-        s_path=$d_path/sworker/srd
-        for sf in $(ls $s_path); do
-            filepath=$s_path/$sf
-            rm -rf $filepath
-            ((i++))
-            del=true
-            break
-        done
-        if $del; then break; fi
+for d_path in ${data_path[@]}; do
+    s_path=$d_path/sworker/srd
+    cd $s_path
+    for sf in $(find . -maxdepth 3 -mindepth 3 -name "*"); do
+        srd_path_arry[$i]=$s_path/$sf
+        ((i++))
     done
+    cd - &>/dev/null
+done
+i=0
+while [ $i -lt $deleted_srd ]; do
+    index=$((RANDOM % ${#srd_path_arry[@]}))
+    sf=${srd_path_arry[$index]}
+    rm -rf $sf
+    srd_path_arry=( "${srd_path_arry[@]/$sf}" )
+    ((i++))
 done
 
 ### Seal some file
@@ -90,21 +97,24 @@ while [ $((i++)) -lt $file_num ]; do
 done
 # Delete some file
 deleted_cid_arry=()
-i=0
-while [ $i -lt $deleted_file ]; do
-    for d_path in ${data_path[@]}; do
-        cid=${cid_arry[$i]}
-        f_path=$d_path/sworker/files/$cid
-        if [ -e "$f_path" ]; then
-            rm -r $f_path
-            if [ $? -eq 0 ]; then
-                deleted_cid_arry[$i]=$cid
-            else
-                verbose ERROR "Delete file:$f_path failed"
-            fi
-            ((i++))
-        fi
+declare -A del_cid_map
+for d_path in ${data_path[@]}; do
+    s_path=$d_path/sworker/files
+    cd $s_path
+    for sf in $(find . -maxdepth 3 -mindepth 3 -name "*"); do
+        cid=$(basename $sf)
+        del_cid_map[$cid]="${del_cid_map[$cid]} $s_path/$sf"
     done
+    cd - &>/dev/null
+done
+i=0
+for cid in ${cid_arry[@]}; do
+    sf=${del_cid_map[$cid]}
+    rm -rf $sf
+    deleted_cid_arry[$i]=$cid
+    if [ $((++i)) -ge $deleted_file ]; then
+        break
+    fi
 done
 
 ### Validate
@@ -139,7 +149,6 @@ fi
 for cid in ${deleted_cid_arry[@]}; do
     if grep $cid $TMPFILE &>/dev/null; then
         verbose ERROR "delete file($cid) failed!" n
-        ret=1
     fi
 done
 

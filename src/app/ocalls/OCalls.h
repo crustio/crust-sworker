@@ -44,7 +44,7 @@ extern "C"
     // For file
     crust_status_t ocall_chain_get_block_info(char *data, size_t data_size);
     void ocall_store_file_info(const char* cid, const char *data);
-    void ocall_store_file_info_all(const uint8_t *data, size_t data_size);
+    void ocall_store_file_info_all(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size);
     
     void ocall_usleep(int u);
     crust_status_t ocall_free_outer_buffer(uint8_t **value);

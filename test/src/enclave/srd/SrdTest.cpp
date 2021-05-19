@@ -55,10 +55,7 @@ void srd_change_test(long change, bool real)
         }
         // Update srd info
         std::string srd_info_str = wl->get_srd_info().dump();
-        if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
-        {
-            log_warn("Set srd info failed! Error code:%lx\n", crust_status);
-        }
+        ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
     }
 }
 

@@ -197,6 +197,7 @@ crust_status_t srd_change(long change)
         }
         set_running_srd_task(true_increase);
         // Print disk info
+        json::JSON disk_use_json;
         for (auto info : disk_info_json.ArrayRange())
         {
             if (info[WL_DISK_USE].ToInt() > 0)
@@ -205,6 +206,7 @@ crust_status_t srd_change(long change)
                         info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                         info[WL_DISK_PATH].ToString().c_str(),
                         info[WL_DISK_USE].ToInt());
+                disk_use_json.append(info);
             }
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
@@ -217,11 +219,11 @@ crust_status_t srd_change(long change)
         long task = true_increase;
         while (task > 0)
         {
-            for (int i = 0; i < disk_info_json.size() && task > 0; i++, task--)
+            for (int i = 0; i < disk_use_json.size() && task > 0; i++, task--)
             {
                 sgx_enclave_id_t eid = global_eid;
-                std::string uuid = disk_info_json[i][WL_DISK_UUID].ToString();
-                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([&eid, uuid](int /*id*/){
+                std::string uuid = disk_use_json[i][WL_DISK_UUID].ToString();
+                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
                     sgx_status_t sgx_status = SGX_SUCCESS;
                     crust_status_t increase_ret = CRUST_SUCCESS;
                     if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &increase_ret, uuid.c_str()))
@@ -230,12 +232,16 @@ crust_status_t srd_change(long change)
                         // If failed, add current task to next turn
                         long real_change = 0;
                         crust_status_t change_ret = CRUST_SUCCESS;
-                        Ecall_change_srd_task(global_eid, &change_ret, 1, &real_change);
+                        Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
                         sgx_status = SGX_ERROR_UNEXPECTED;
                     }
                     if (SGX_SUCCESS != sgx_status)
                     {
-                        increase_ret = CRUST_UNEXPECTED_ERROR;
+                        p_log->err("Increase srd failed! Error code:%lx\n", sgx_status);
+                        if (CRUST_SUCCESS == increase_ret)
+                        {
+                            increase_ret = CRUST_UNEXPECTED_ERROR;
+                        }
                     }
                     decrease_running_srd_task();
                     return increase_ret;
@@ -289,9 +295,7 @@ crust_status_t srd_change(long change)
  */
 void srd_check_reserved(void)
 {
-    crust::DataBase *db = crust::DataBase::get_instance();
     Config *p_config = Config::get_instance();
-    crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
     size_t check_interval = 10;
 
@@ -303,19 +307,11 @@ void srd_check_reserved(void)
             return;
         }
 
-        std::string srd_info_str;
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
-        crust_status = db->get(DB_SRD_INFO, srd_info_str);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            //p_log->debug("Srd info not found!Check srd reserved failed!\n");
-            sleep(10);
-            continue;
-        }
         EnclaveData *ed = EnclaveData::get_instance();
         json::JSON srd_del_json;
-        json::JSON srd_info_json = json::JSON::Load(srd_info_str);
+        json::JSON srd_info_json = ed->get_srd_info();
         for (auto path : p_config->get_data_paths())
         {
             size_t avail_space = get_avail_space_under_dir_g(path);

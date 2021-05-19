@@ -38,7 +38,7 @@ void WorkloadTest::test_add_file(long file_num)
         free(p_cid_buffer);
         free(n_u);
         wl->add_sealed_file(file_entry_json);
-        wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
+        wl->set_file_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
         acc++;
     }
     sgx_thread_mutex_unlock(&wl->file_mutex);
@@ -61,7 +61,7 @@ void WorkloadTest::test_delete_file(uint32_t file_num)
         auto status = &wl->sealed_files[index][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) != FILE_STATUS_DELETED)
         {
-            wl->set_wl_spec(status->get_char(CURRENT_STATUS), -wl->sealed_files[index][FILE_SEALED_SIZE].ToInt());
+            wl->set_file_spec(status->get_char(CURRENT_STATUS), -wl->sealed_files[index][FILE_SEALED_SIZE].ToInt());
             status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             i++;
             j = 0;
@@ -82,5 +82,5 @@ void WorkloadTest::test_delete_file_unsafe(uint32_t file_num)
     wl->sealed_files.erase(wl->sealed_files.begin(), wl->sealed_files.begin() + file_num);
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
-    wl->clean_wl_spec_info();
+    wl->clean_wl_file_spec();
 }

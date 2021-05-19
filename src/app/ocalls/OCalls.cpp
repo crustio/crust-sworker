@@ -8,8 +8,6 @@ size_t ocall_file_data_len = 0;
 // Used to validation websocket client
 WebsocketClient *wssclient = NULL;
 
-extern bool offline_chain_mode;
-
 /**
  * @description: ocall for printing string
  * @param str (in) -> string for printing
@@ -125,13 +123,11 @@ crust_status_t ocall_upload_workreport(const char *work_report)
     remove_char(work_str, '\n');
     remove_char(work_str, ' ');
     p_log->info("Sending work report:%s\n", work_str.c_str());
-    if (!offline_chain_mode)
+    
+    if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
     {
-        if (!crust::Chain::get_instance()->post_sworker_work_report(work_str))
-        {
-            p_log->err("Send work report to crust chain failed!\n");
-            return CRUST_UPGRADE_SEND_WORKREPORT_FAILED;
-        }
+        p_log->err("Send work report to crust chain failed!\n");
+        return CRUST_UPGRADE_SEND_WORKREPORT_FAILED;
     }
 
     p_log->info("Send work report to crust chain successfully!\n");
@@ -170,65 +166,18 @@ crust_status_t ocall_upload_identity(const char *id)
     std::string sworker_identity = entrance_info.dump();
     p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());
 
-    if (!offline_chain_mode)
+    // Send identity to crust chain
+    if (!crust::Chain::get_instance()->wait_for_running())
     {
-        // Send identity to crust chain
-        if (!crust::Chain::get_instance()->wait_for_running())
-        {
-            return CRUST_UNEXPECTED_ERROR;
-        }
-
-        // ----- Compare mrenclave ----- //
-        // Get local mrenclave
-        json::JSON id_info;
-        for (int i = 0; i < 20; i++)
-        {
-            std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
-            if (id_info_str.compare("") != 0)
-            {
-                id_info = json::JSON::Load(id_info_str);
-                break;
-            }
-            sleep(3);
-            p_log->info("Cannot get id info, try again(%d)...\n", i+1);
-        }
-        if (!id_info.hasKey("mrenclave"))
-        {
-            p_log->err("Get sWorker identity information failed!\n");
-            return CRUST_UNEXPECTED_ERROR;
-        }
-        // Get mrenclave on chain
-        std::string code_on_chain = crust::Chain::get_instance()->get_swork_code();
-        if (code_on_chain == "")
-        {
-            p_log->err("Get sworker code from chain failed! Please check the running status of the chain.\n");
-            return CRUST_UNEXPECTED_ERROR;
-        }
-        // Compare these two mrenclave
-        if (code_on_chain.compare(id_info["mrenclave"].ToString()) != 0)
-        {
-            print_attention();
-            std::string cmd1(HRED "sudo crust tools upgrade-image sworker && sudo crust reload sworker" NC);
-            p_log->err("Mrenclave is '%s', code on chain is '%s'. Your sworker need to upgrade, "
-                    "please get the latest sworker by running '%s'\n",
-                    id_info["mrenclave"].ToString().c_str(), code_on_chain.c_str(), cmd1.c_str());
-            return CRUST_SWORKER_UPGRADE_NEEDED;
-        }
-        else
-        {
-            p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
-        }
-
-        if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
-        {
-            p_log->err("Send identity to crust chain failed!\n");
-            return CRUST_UNEXPECTED_ERROR;
-        }
+        return CRUST_UNEXPECTED_ERROR;
     }
-    else
+
+    if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
     {
-        p_log->info("Send identity to crust chain successfully!\n");
+        p_log->err("Send identity to crust chain failed!\n");
+        return CRUST_UNEXPECTED_ERROR;
     }
+    p_log->info("Send identity to crust chain successfully!\n");
 
     return CRUST_SUCCESS;
 }
@@ -322,12 +271,14 @@ void ocall_store_file_info(const char* cid, const char *data)
 
 /**
  * @description: Store all file information
- * @param data -> All file information
- * @param data_size -> All file information size
+ * @param valid_data -> All valid file information
+ * @param valid_size -> All valid file information size
+ * @param lost_data -> All lost file information
+ * @param lost_size -> All lost file information size
  */
-void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
+void ocall_store_file_info_all(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size)
 {
-    EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+    EnclaveData::get_instance()->restore_sealed_file_info(valid_data, valid_size, lost_data, lost_size);
 }
 
 /**

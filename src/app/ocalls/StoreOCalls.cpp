@@ -62,33 +62,40 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
         return CRUST_UNEXPECTED_ERROR;
     }
 
+    // Choose disk
+    std::string cid(path, CID_LENGTH);
     uint32_t index = 0;
     read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(index));
-    index = index % disk_json.size();
-    uint32_t ci = index;    // Current index
-    uint32_t oi = ci;       // Origin index
+    index = index % FILE_DISK_LIMIT;
+    uint32_t ci = index + 2;    // Current index, jump the first "Qm"
+    uint32_t oi = ci;           // Origin index
+    uint32_t loop_num = FILE_DISK_LIMIT;
     do
     {
-        size_t reserved = disk_json[ci][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
+        uint32_t di = path[ci] % disk_json.size();
+        size_t reserved = disk_json[di][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
         if (reserved > data_size)
         {
-            std::string disk_path = disk_json[ci][WL_DISK_PATH].ToString();
+            std::string disk_path = disk_json[di][WL_DISK_PATH].ToString();
             std::string uuid_str = EnclaveData::get_instance()->get_uuid(disk_path);
             if (uuid_str.size() == UUID_LENGTH * 2)
             {
                 memcpy(uuid, uuid_str.c_str(), uuid_str.size());
-                std::string file_path = disk_path + DISK_FILE_DIR + "/" + path;
+                std::string tmp_path = uuid_str + path;
+                std::string file_path = get_real_path_by_type(tmp_path.c_str(), STORE_TYPE_FILE);
                 if (CRUST_SUCCESS == save_file_ex(file_path.c_str(), data, data_size, mode_t(0664), SF_CREATE_DIR))
                 {
                     return CRUST_SUCCESS;
                 }
             }
         }
-        if (++ci == disk_json.size())
+        ci = (ci + 1) % loop_num;
+        if (ci == oi)
         {
-            ci = 0;
+            ci = FILE_DISK_LIMIT + 2;
+            loop_num = CID_LENGTH + 1;
         }
-    } while (ci != oi);
+    } while (ci != CID_LENGTH);
 
     return CRUST_STORAGE_NO_ENOUGH_SPACE;
 }
@@ -128,7 +135,8 @@ crust_status_t ocall_delete_ipfs_file(const char *cid)
 
     for (int i = 0; i < disk_json.size(); i++)
     {
-        std::string path = disk_json[i][WL_DISK_PATH].ToString() + DISK_FILE_DIR + "/" + cid;
+        std::string path = disk_json[i][WL_DISK_UUID].ToString() + cid;
+        path = get_real_path_by_type(path.c_str(), STORE_TYPE_FILE);
         rm_dir(path);
     }
 
@@ -148,4 +156,14 @@ crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *
     std::string r_path = get_real_path_by_type(path, type);
 
     return get_file(r_path.c_str(), p_file, len);
+}
+
+/**
+ * @description: Set srd information
+ * @param data -> Pointer to srd info data
+ * @param data_size -> Srd info data size
+ */
+void ocall_set_srd_info(const uint8_t *data, size_t data_size)
+{
+    EnclaveData::get_instance()->set_srd_info(data, data_size);
 }

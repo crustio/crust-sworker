@@ -69,7 +69,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     // Judge whether block height is expired
-    if (block_height == 0 || block_height - wl->get_report_height() < REPORT_SLOT)
+    if (block_height == 0 || wl->get_report_height() + REPORT_SLOT > block_height)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
@@ -77,7 +77,6 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     Defer defer_status([&wl, &block_height](void) {
         wl->set_report_height(block_height);
         wl->reduce_restart_flag();
-        wl->set_report_file_flag(true);
         wl->report_reset_validated_proof();
     });
 
@@ -90,11 +89,6 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     {
         // Judge whether the current data is validated 
         return CRUST_WORK_REPORT_NOT_VALIDATED;
-    }
-    if (!wl->get_report_file_flag())
-    {
-        // Have files and no karst
-        return CRUST_SERVICE_UNAVAILABLE;
     }
 
     ecc_key_pair id_key_pair = wl->get_key_pair();

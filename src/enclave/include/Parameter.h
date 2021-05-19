@@ -49,12 +49,6 @@
 #define FILE_TYPE_VALID "valid"
 #define FILE_TYPE_LOST "lost"
 
-// For DB data
-#define DB_SRD_INFO "srd_info"
-#define DB_FILE_VALID_INFO "file_valid_info"
-#define DB_FILE_LOST_INFO "file_lost_info"
-#define DB_WL_SPEC_INFO "wl_spec_info"
-
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"
 #define CHAIN_BLOCK_HASH "c_block_hash"
@@ -126,9 +120,11 @@
 #define HASH_LENGTH 32
 #define CID_LENGTH 46
 #define UUID_LENGTH 8
+#define FILE_DISK_LIMIT 8
+#define LAYER_LENGTH 2
 #define ENC_MAX_THREAD_NUM  30
 #define ENCLAVE_MALLOC_TRYOUT 3
-const int SRD_LENGTH = UUID_LENGTH + HASH_LENGTH;
+const int SRD_LENGTH = UUID_LENGTH + LAYER_LENGTH + HASH_LENGTH;
 const int FILE_ITEM_LENGTH = UUID_LENGTH + HASH_LENGTH;
 
 // For upgrade

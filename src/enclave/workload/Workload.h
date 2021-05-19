@@ -49,16 +49,18 @@ public:
     static Workload *get_instance();
     ~Workload();
     std::string get_workload(void);
-    void clean_srd_buffer();
     void set_srd_info(const char *uuid, long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info();
+    crust_status_t restore_pre_pub_key(json::JSON &meta);
+    void clean_all();
 
     // For persistence
     crust_status_t serialize_srd(uint8_t **p_data, size_t *data_size);
     crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
-    crust_status_t restore_srd(json::JSON g_hashs);
-    void restore_file(json::JSON file_json);
+    crust_status_t restore_srd(json::JSON &g_hashs);
+    crust_status_t restore_file(json::JSON &file_json);
+    crust_status_t restore_file_info();
 
     // For report
     void report_add_validated_srd_proof();
@@ -75,14 +77,14 @@ public:
 
     // For upgrade
     void set_upgrade(sgx_ec256_public_t pub_key);
+    void unset_upgrade();
     bool is_upgrade();
     void set_upgrade_status(enc_upgrade_status_t status);
     enc_upgrade_status_t get_upgrade_status();
 
     // For workload spec
-    void set_wl_spec(char file_status, long long change);
-    const json::JSON &get_wl_spec();
-    void restore_wl_spec_info(std::string data);
+    void set_file_spec(char file_status, long long change);
+    const json::JSON &get_file_spec();
 
     // For identity
     void set_account_id(std::string account_id);
@@ -92,6 +94,7 @@ public:
     const sgx_ec256_public_t& get_pub_key();
     const sgx_ec256_private_t& get_pri_key();
     void set_key_pair(ecc_key_pair id_key_pair);
+    void unset_key_pair();
     const ecc_key_pair& get_key_pair();
     // MR enclave
     void set_mr_enclave(sgx_measurement_t mr);
@@ -100,6 +103,7 @@ public:
     void set_report_height(size_t height);
     size_t get_report_height();
     // Srd related
+    void clean_srd();
     bool add_srd_to_deleted_buffer(uint32_t index);
     template <class InputIterator>
     void add_srd_to_deleted_buffer(InputIterator begin, InputIterator end)
@@ -139,6 +143,7 @@ public:
     bool is_srd_in_deleted_buffer(uint32_t index);
     void deal_deleted_srd(bool locked = true);
     // File related
+    void clean_file();
     bool add_to_deleted_file_buffer(std::string cid);
     bool is_in_deleted_file_buffer(std::string cid);
     void recover_from_deleted_file_buffer(std::string cid);
@@ -149,14 +154,13 @@ public:
     void add_sealed_file(json::JSON file, size_t pos);
     void del_sealed_file(std::string cid);
     void del_sealed_file(size_t pos);
-    void restore_file_info();
 
 #ifdef _CRUST_TEST_FLAG_
-    void clean_wl_spec_info()
+    void clean_wl_file_spec()
     {
-        sgx_thread_mutex_lock(&wl_spec_info_mutex);
-        this->wl_spec_info = json::JSON();
-        sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+        sgx_thread_mutex_lock(&wl_file_spec_mutex);
+        this->wl_file_spec = json::JSON();
+        sgx_thread_mutex_unlock(&wl_file_spec_mutex);
     }
 #endif
 
@@ -188,8 +192,8 @@ private:
     sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     bool upgrade = false; // True indicates workreport should contain previous public key
     enc_upgrade_status_t upgrade_status = ENC_UPGRADE_STATUS_NONE; // Initial value indicates no upgrade
-    json::JSON wl_spec_info; // For workload statistics
-    sgx_thread_mutex_t wl_spec_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    json::JSON wl_file_spec; // For workload statistics
+    sgx_thread_mutex_t wl_file_spec_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     // Deleted srd index in metadata while the value indicates whether
     // this srd metadata has been deleted by other thread
     std::set<uint32_t> srd_del_idx_s;

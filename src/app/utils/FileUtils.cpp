@@ -2,6 +2,8 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
+std::mutex g_mkdir_mutex;
+
 /**
  * @description: Get all files' name in directory
  * @param path -> the directory path
@@ -282,7 +284,7 @@ crust_status_t create_directory(const std::string &path)
             sub_paths.pop();
             if (!sub_paths.empty())
             {
-                if (mkdir(sub_paths.top().c_str(), 0775) == -1)
+                if (mkdir_sync(sub_paths.top().c_str(), 0775) == -1)
                 {
                     return CRUST_MKDIR_FAILED;
                 }
@@ -475,31 +477,44 @@ crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_s
  */
 std::string get_real_path_by_type(const char *path, store_type_t type)
 {
+    switch (type)
+    {
+        case STORE_TYPE_SRD:
+            break;
+        case STORE_TYPE_FILE:
+            break;
+        default:
+            return std::string(path);
+    }
     EnclaveData *ed = EnclaveData::get_instance();
     std::string r_path;
     std::string uuid(path, UUID_LENGTH * 2);
-    std::string l_path(path + UUID_LENGTH * 2);
     std::string d_path = ed->get_disk_path(uuid);
-    if (STORE_TYPE_SRD == type || STORE_TYPE_FILE == type)
+    if (d_path.compare("") == 0)
     {
-        if (d_path.compare("") == 0)
-        {
-            //p_log->err("Cannot find path for uuid:%s\n", uuid.c_str());
-            return "";
-        }
-    }
-    if (l_path.size() > 0)
-    {
-        l_path = "/" + l_path;
+        p_log->warn("Cannot find path for uuid:%s\n", uuid.c_str());
+        return "";
     }
     switch (type)
     {
         case STORE_TYPE_SRD:
-            r_path = d_path + DISK_SRD_DIR + "/" + l_path;
-            break;
+            {
+                r_path = d_path
+                       + DISK_SRD_DIR
+                       + "/" + std::string(path + UUID_LENGTH * 2, 2)
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 2, 2)
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 4);
+                break;
+            }
         case STORE_TYPE_FILE:
-            r_path = d_path + DISK_FILE_DIR + "/" + l_path;
-            break;
+            {
+                r_path = d_path
+                       + DISK_FILE_DIR
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 2, 2)
+                       + "/" + std::string(path + UUID_LENGTH * 2 + 4, 2)
+                       + "/" + std::string(path + UUID_LENGTH * 2);
+                break;
+            }
         default:
             r_path = std::string(path);
     }
@@ -518,4 +533,17 @@ long get_file_size(const char *path)
     struct stat stat_buf;
     int ret = stat(r_path.c_str(), &stat_buf);
     return ret == 0 ? stat_buf.st_size : 0;
+}
+
+/**
+ * @description: Create directory sync
+ * @param path -> Directory path
+ * @param mode -> Directory mode
+ * @return: Create result
+ */
+int mkdir_sync(const char *path, mode_t mode)
+{
+    SafeLock sl(g_mkdir_mutex);
+    sl.lock();
+    return mkdir(path, mode);
 }

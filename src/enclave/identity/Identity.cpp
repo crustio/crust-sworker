@@ -737,6 +737,7 @@ size_t id_get_file_buffer_size(std::vector<json::JSON> &sealed_files)
                + strlen(FILE_SIZE) + 3 + 12 + 1
                + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
                + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
+               + strlen(FILE_LOST_INDEX) + 3 + 6 + 1
                + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
                + strlen(FILE_STATUS) + 3 + 3 + 3
                + 2;
@@ -765,13 +766,6 @@ crust_status_t id_store_metadata()
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string hex_id_key_str = hexstring_safe(&wl->get_key_pair(), sizeof(ecc_key_pair));
-
-    // Store workload spec info
-    std::string wl_spec_info_str = wl->get_wl_spec().dump();
-    remove_char(wl_spec_info_str, '\n');
-    remove_char(wl_spec_info_str, '\\');
-    remove_char(wl_spec_info_str, ' ');
-    persist_set_unsafe(DB_WL_SPEC_INFO, reinterpret_cast<const uint8_t *>(wl_spec_info_str.c_str()), wl_spec_info_str.size());
 
     // ----- Calculate metadata volumn ----- //
     // Get srd data copy
@@ -920,158 +914,45 @@ crust_status_t id_restore_metadata()
         log_err("Identity: Get id key pair failed!\n");
         return CRUST_INVALID_META_DATA;
     }
+    Defer def_id_key([&p_id_key](void) { free(p_id_key); });
     if (wl->try_get_key_pair() && memcmp(p_id_key, &wl->get_key_pair(), sizeof(ecc_key_pair)) != 0)
     {
-        free(p_id_key);
         log_err("Identity: Get wrong id key pair!\n");
         return CRUST_INVALID_META_DATA;
     }
 
     // ----- Restore metadata ----- //
-    // Restore workload spec information
-    uint8_t *p_wl_spec = NULL;
-    size_t wl_spec_len = 0;
-    if (CRUST_SUCCESS != (crust_status = persist_get_unsafe(DB_WL_SPEC_INFO, &p_wl_spec, &wl_spec_len)))
-    {
-        log_warn("Cannot get workload spec info, code:%lx\n", crust_status);
-    }
-    else if (p_wl_spec != NULL)
-    {
-        wl->restore_wl_spec_info(std::string(reinterpret_cast<const char *>(p_wl_spec), wl_spec_len));
-        free(p_wl_spec);
-    }
-    // Restore srd
-    if (meta_json.hasKey(ID_SRD)
-            && meta_json[ID_SRD].JSONType() == json::JSON::Class::Array)
-    {
-        crust_status = wl->restore_srd(meta_json[ID_SRD]);
+    Defer def_clean_all([&crust_status, &wl](void) { 
         if (CRUST_SUCCESS != crust_status)
         {
-            return CRUST_BAD_SEAL_DATA;
+            wl->clean_all(); 
         }
-    }
-    // Restore srd info
-    std::string srd_info_str = wl->get_srd_info().dump();
-    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, 
-                    reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
+    });
+    // Restore srd
+    if (CRUST_SUCCESS != (crust_status = wl->restore_srd(meta_json[ID_SRD])))
     {
-        log_warn("Wait for srd info, code:%lx\n", crust_status);
+        return crust_status;
     }
-    // Restore meaningful files
-    if (meta_json.hasKey(ID_FILE)
-            && meta_json[ID_FILE].JSONType() == json::JSON::Class::Array)
+    // Restore file
+    if (CRUST_SUCCESS != (crust_status = wl->restore_file(meta_json[ID_FILE])))
     {
-        // Retore file info
-        size_t file_info_item_len = CID_LENGTH + 8
-                + strlen(FILE_SIZE) + 12 + 10
-                + strlen(FILE_SEALED_SIZE) + 12 + 10
-                + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;
-        size_t file_valid_info_len = 0;
-        size_t file_lost_info_len = 0;
-        for (long i = 0; i < meta_json[ID_FILE].size(); i++)
-        {
-            char cur_status = meta_json[ID_FILE][i][FILE_STATUS].get_char(CURRENT_STATUS);
-            if (FILE_STATUS_VALID == cur_status)
-            {
-                file_valid_info_len += file_info_item_len;
-            }
-            else if (FILE_STATUS_LOST == cur_status)
-            {
-                file_lost_info_len += file_info_item_len;
-            }
-        }
-        file_valid_info_len += 32;
-        file_lost_info_len += 32;
-        uint8_t *file_valid_info_buf = (uint8_t *)enc_malloc(file_valid_info_len);
-        if (file_valid_info_buf == NULL)
-        {
-            return CRUST_MALLOC_FAILED;
-        }
-        Defer def_file_valid_info_buf([&file_valid_info_buf](void) { free(file_valid_info_buf); });
-        uint8_t *file_lost_info_buf = (uint8_t *)enc_malloc(file_lost_info_len);
-        if (file_lost_info_buf == NULL)
-        {
-            return CRUST_MALLOC_FAILED;
-        }
-        Defer def_file_lost_info_buf([&file_lost_info_buf](void) { free(file_lost_info_buf); });
-        size_t file_valid_info_offset = 0;
-        size_t file_lost_info_offset = 0;
-        memset(file_valid_info_buf, 0, file_valid_info_len);
-        memcpy(file_valid_info_buf, "{", 1);
-        file_valid_info_offset += 1;
-        memset(file_lost_info_buf, 0, file_lost_info_len);
-        memcpy(file_lost_info_buf, "{", 1);
-        file_lost_info_offset += 1;
-        for (long i = 0; i < meta_json[ID_FILE].size(); i++)
-        {
-            json::JSON file = meta_json[ID_FILE][i];
-            std::string info;
-            info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
-                .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
-                .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-                .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\",");
-            if (FILE_STATUS_VALID == file[FILE_STATUS].get_char(CURRENT_STATUS))
-            {
-                memcpy(file_valid_info_buf + file_valid_info_offset, info.c_str(), info.size());
-                file_valid_info_offset += info.size();
-            }
-            else if (FILE_STATUS_LOST == file[FILE_STATUS].get_char(CURRENT_STATUS))
-            {
-                memcpy(file_lost_info_buf + file_lost_info_offset, info.c_str(), info.size());
-                file_lost_info_offset += info.size();
-            }
-        }
-        if (file_valid_info_offset > 1)
-        {
-            file_valid_info_offset--;
-        }
-        memcpy(file_valid_info_buf + file_valid_info_offset, "}", 1);
-        file_valid_info_offset += 1;
-        if (file_lost_info_offset > 1)
-        {
-            file_lost_info_offset--;
-        }
-        memcpy(file_lost_info_buf + file_lost_info_offset, "}", 1);
-        file_lost_info_offset += 1;
-        persist_set_unsafe(DB_FILE_VALID_INFO, file_valid_info_buf, file_valid_info_offset);
-        persist_set_unsafe(DB_FILE_LOST_INFO, file_lost_info_buf, file_lost_info_offset);
-        // Restore file metadata
-        wl->sealed_files.resize(meta_json[ID_FILE].size());
-        for (int i = 0; i < meta_json[ID_FILE].size(); i++)
-        {
-            wl->sealed_files[i] = meta_json[ID_FILE][i];
-        }
-    }
-    else
-    {
-        // Clean previous file info
-        persist_del(DB_FILE_VALID_INFO);
-        persist_del(DB_FILE_LOST_INFO);
+        return crust_status;
     }
     // Restore id key pair
     ecc_key_pair tmp_key_pair;
     memcpy(&tmp_key_pair, p_id_key, sizeof(ecc_key_pair));
     wl->set_key_pair(tmp_key_pair);
-    free(p_id_key);
     // Restore report height
     wl->set_report_height(meta_json[ID_REPORT_HEIGHT].ToInt());
     // Restore previous public key
-    if (meta_json.hasKey(ID_PRE_PUB_KEY))
+    if (CRUST_SUCCESS != (crust_status = wl->restore_pre_pub_key(meta_json)))
     {
-        sgx_ec256_public_t pre_pub_key;
-        std::string pre_pub_key_str = meta_json[ID_PRE_PUB_KEY].ToString();
-        uint8_t *pre_pub_key_u = hex_string_to_bytes(pre_pub_key_str.c_str(), pre_pub_key_str.size());
-        if (pre_pub_key_u == NULL)
-        {
-            return CRUST_UNEXPECTED_ERROR;
-        }
-        memcpy(&pre_pub_key, pre_pub_key_u, sizeof(sgx_ec256_public_t));
-        free(pre_pub_key_u);
-        wl->set_upgrade(pre_pub_key);
+        return crust_status;
     }
     // Restore chain account id
     wl->set_account_id(meta_json[ID_CHAIN_ACCOUNT_ID].ToString());
 
+    // Set restart flag
     wl->set_restart_flag();
 
     return CRUST_SUCCESS;
@@ -1366,12 +1247,17 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
 
     // ----- Restore workload ----- //
     // Restore srd
-    if (CRUST_SUCCESS != wl->restore_srd(upgrade_json[UPGRADE_SRD]))
+    if (CRUST_SUCCESS != (crust_status = wl->restore_srd(upgrade_json[UPGRADE_SRD])))
     {
+        log_err("Restore srd failed! Error code:%lx\n", crust_status);
         return CRUST_UPGRADE_RESTORE_SRD_FAILED;
     }
     // Restore file
-    wl->restore_file(upgrade_json[UPGRADE_FILE]);
+    if (CRUST_SUCCESS != (crust_status = wl->restore_file(upgrade_json[UPGRADE_FILE])))
+    {
+        log_err("Restore file failed! Error code:%lx\n", crust_status);
+        return CRUST_UPGRADE_RESTORE_FILE_FAILED;
+    }
 
     // ----- Verify workload signature ----- //
     json::JSON wl_info = wl->gen_workload_info();
@@ -1462,9 +1348,6 @@ crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_
     {
         return crust_status;
     }
-
-    // Restore file info
-    wl->restore_file_info();
 
     return crust_status;
 }

@@ -161,7 +161,7 @@ void validate_srd_real()
 
     // Get g_hash corresponding path
     std::string srd_hex = hexstring_safe(p_srd, SRD_LENGTH);
-    std::string g_hash_hex = srd_hex.substr(UUID_LENGTH * 2, srd_hex.length());
+    std::string g_hash_hex = srd_hex.substr(UUID_LENGTH * 2 + LAYER_LENGTH * 2, srd_hex.length());
     Workload *wl = Workload::get_instance();
     bool deleted = false;
 
@@ -216,7 +216,7 @@ void validate_srd_real()
     // Compare M hashs
     sgx_sha256_hash_t m_hashs_sha256;
     sgx_sha256_msg(m_hashs, m_hashs_size, &m_hashs_sha256);
-    if (memcmp(p_srd + UUID_LENGTH, m_hashs_sha256, HASH_LENGTH) != 0)
+    if (memcmp(p_srd + UUID_LENGTH + LAYER_LENGTH, m_hashs_sha256, HASH_LENGTH) != 0)
     {
         log_err("Wrong srd(%s) metadata.\n", g_hash_hex.c_str());
         deleted = true;
@@ -413,8 +413,8 @@ void validate_meaningful_file()
                         wl->sealed_files[index][FILE_LOST_INDEX] = -1;
                     }
                     // Reduce valid file
-                    wl->set_wl_spec(new_status, g_validate_files_m[cid][FILE_SIZE].ToInt());
-                    wl->set_wl_spec(old_status, -g_validate_files_m[cid][FILE_SIZE].ToInt());
+                    wl->set_file_spec(new_status, g_validate_files_m[cid][FILE_SIZE].ToInt());
+                    wl->set_file_spec(old_status, -g_validate_files_m[cid][FILE_SIZE].ToInt());
                     // Sync with APP sealed file info
                     ocall_change_sealed_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
                 }
@@ -459,9 +459,8 @@ void validate_meaningful_file_real()
 
     bool changed = false;
     bool lost = false;
-    bool service_unavailable = false;
 
-    Defer finish_defer([&cur_validate_random, &changed, &service_unavailable, &file, &wl](void) {
+    Defer finish_defer([&cur_validate_random, &changed, &file, &wl](void) {
         // Get current validate random
         sgx_thread_mutex_lock(&g_validate_random_mutex);
         uint32_t now_validate_random = g_validate_random;
@@ -469,25 +468,9 @@ void validate_meaningful_file_real()
         // Check if validate random is the same
         if (cur_validate_random == now_validate_random)
         {
-            // Get current validate files size
-            sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
-            size_t tmp_validate_files_m_num = g_validate_files_m.size();
-            sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
             // Increase validated files number
             sgx_thread_mutex_lock(&g_validated_files_num_mutex);
-            if (service_unavailable)
-            {
-                if (g_validated_files_num < tmp_validate_files_m_num)
-                {
-                    g_validated_files_num = tmp_validate_files_m_num;
-                    wl->set_report_file_flag(false);
-                    log_err("IPFS is offline! Please start it.\n");
-                }
-            }
-            else
-            {
-                g_validated_files_num++;
-            }
+            g_validated_files_num++;
             sgx_thread_mutex_unlock(&g_validated_files_num_mutex);
             // Deal with result
             if (changed)

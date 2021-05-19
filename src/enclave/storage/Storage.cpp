@@ -90,6 +90,11 @@ crust_status_t storage_seal_file(const char *root,
         }
     });
 
+    if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
+    {
+        return seal_ret = CRUST_UPGRADE_IS_UPGRADING;
+    }
+
     // If file transfer completed
     if (p_plain_data == NULL || plain_data_sz == 0)
     {
@@ -256,6 +261,11 @@ crust_status_t storage_seal_file_end(const char *root)
         sl.unlock();
     });
 
+    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
+    {
+        return crust_status = CRUST_UPGRADE_IS_UPGRADING;
+    }
+
     // Check if seal complete
     SafeLock sl(g_files_info_um_mutex);
     sl.lock();
@@ -340,7 +350,7 @@ crust_status_t storage_seal_file_end(const char *root)
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // Add info in workload spec
-    wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SIZE].ToInt());
+    wl->set_file_spec(FILE_STATUS_VALID, file_entry_json[FILE_SIZE].ToInt());
 
     // Store file information
     std::string file_info;
@@ -439,7 +449,7 @@ crust_status_t storage_delete_file(const char *cid)
         // Delete file tree structure
         persist_del(del_cid);
         // Update workload spec info
-        wl->set_wl_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
+        wl->set_file_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
         log_info("Delete file:%s successfully!\n", cid);
     }
     else

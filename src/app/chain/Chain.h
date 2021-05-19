@@ -19,10 +19,12 @@ struct BlockHeader
 class Chain
 {
 private:
-    Chain(std::string url, std::string password_tmp, std::string backup_tmp);
+    Chain(std::string url, std::string password_tmp, std::string backup_tmp, bool is_offline);
     std::string url;               /* Request url */
     std::string password;          /* The password of chain account */
     std::string backup;            /* The backup of chain account */
+    bool is_offline;               /* Offline mode */
+    size_t offline_block_height;     /* Base offline block */
 public:
     static Chain *chain;
     static Chain *get_instance();
@@ -34,6 +36,8 @@ public:
     bool is_online(void);
     bool is_syncing(void);
     bool wait_for_running(void);
+    size_t get_offline_block_height(void);
+    void add_offline_block_height(size_t h);
     ~Chain();
 };
 

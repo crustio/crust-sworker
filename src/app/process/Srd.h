@@ -41,6 +41,7 @@ size_t get_reserved_space();
 void set_running_srd_task(long srd_task);
 long get_running_srd_task();
 void decrease_running_srd_task();
+bool check_or_init_disk(std::string path);
 
 #if defined(__cplusplus)
 }

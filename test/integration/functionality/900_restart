@@ -9,6 +9,21 @@ function restart_exit()
     rm -rf $tmpdir
 }
 
+function deal_ret()
+{
+    local ret=$1
+    local info=$2
+    restart_ret=$(($restart_ret|$ret))
+
+    if [ $ret -ne 0 ]; then
+        verbose ERROR "$info"
+        return $ret
+    else
+        verbose INFO "$info"
+        return $ret
+    fi
+}
+
 ########## MAIN BODY ##########
 # basic variable
 basedir=$(cd `dirname $0`;pwd)
@@ -19,6 +34,7 @@ errfile=$scriptdir/err.log
 tmpdir=$basedir/tmp
 TMPFILE=$tmpdir/TMPFILE.$(date +%N)${RANDOM}
 sworkerlog=$instdir/sworker.log
+restart_ret=0
 
 trap "restart_exit" EXIT
 
@@ -73,23 +89,22 @@ verbose INFO "success" t
 cd - &>/dev/null
 
 # Re-test
-res=0
 get_workload &>/dev/null
-res=$(($?|$res))
+deal_ret $? "get workload failed!" > $TMPFILE
 report_work &>/dev/null
-res=$(($?|$res))
+deal_ret $? "report workload failed!" > $TMPFILE
 srd 100 &>/dev/null
-res=$(($?|$res))
+deal_ret $? "srd 100 failed!" > $TMPFILE
 srd -50 &>/dev/null
-res=$(($?|$res))
+deal_ret $? "srd -50 failed!" > $TMPFILE
 store_metadata &>/dev/null
-res=$(($?|$res))
+deal_ret $? "store metadata failed!" > $TMPFILE
 get_workload &>/dev/null
-res=$(($?|$res))
+deal_ret $? "get workload again failed!" > $TMPFILE
 report_work &>/dev/null
-res=$(($?|$res))
+deal_ret $? "report workload again failed!" > $TMPFILE
 
-if [ $res -ne 0 ]; then
+if [ $restart_ret -ne 0 ]; then
     verbose ERROR "Test failed after restart!" n
     exit 1
 fi

@@ -55,7 +55,7 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 {
     "base_path" : "/opt/crust/crust-sworker/0.9.0/sworker_base_path",    # sWorker key information location, must be absolute path
     "base_url" : "http://127.0.0.1:12222/api/v0",                        # your sWorker node api address
-    "data_path" : "/data1",                                              # If this item is not set, base_path will be used
+    "data_path" : ["/data1"],                                            # If this item is not set, srd and sealing function cannot be applied
     
     "ipfs_url" : "http://0.0.0.0:5001/api/v0",                           # the IPFS node url
 
