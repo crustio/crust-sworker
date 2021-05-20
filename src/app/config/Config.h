@@ -63,16 +63,17 @@ public:
     bool unique_paths();
     bool is_valid_or_normal_disk(const std::string &path);
     bool is_valid_data_path(const std::string &path, bool lock = true);
-    std::set<std::string> get_data_paths();
+    std::vector<std::string> get_data_paths();
     bool config_file_add_data_paths(const json::JSON &paths);
 
 private:
     Config() {}
     Config(const Config &);
     bool init(std::string path);
+    void sort_data_paths();
     Config& operator = (const Config &);
     std::string sys_fsid;
-    std::set<std::string> data_paths;   /* data path */
+    std::vector<std::string> data_paths;   /* data path */
     std::mutex data_paths_mutex;
 };
 

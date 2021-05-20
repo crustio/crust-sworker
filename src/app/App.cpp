@@ -2,6 +2,7 @@
 
 bool offline_chain_mode = false;
 bool g_upgrade_flag = false;
+bool g_use_sys_disk = false;
 extern std::string config_file_path;
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -42,6 +43,10 @@ int SGX_CDECL main(int argc, char *argv[])
                   \nSWorker     version: %s\n", VERSION, SWORKER_VERSION);
             return 0;
         }
+        else if (strcmp(argv[i], "--use-sysdisk") == 0)
+        {
+            g_use_sys_disk = true;
+        }
         else if (strcmp(argv[i], "--offline") == 0)
         {
             offline_chain_mode = true;
@@ -60,8 +65,7 @@ int SGX_CDECL main(int argc, char *argv[])
     // Check if configure path has been indicated
     if (!is_set_config)
     {
-        p_log->err("Please indicate configure file path!\n");
-        goto show_help;
+        p_log->info("-c argument is not provided, default config path: %s.json will be used.\n", config_file_path.c_str());
     }
 
     // Main branch
@@ -75,8 +79,9 @@ show_help:
     printf("          option: \n");
     printf("           -h, --help: help information. \n");
     printf("           -c, --config: required, indicate configure file path, followed by configure file path. Like: '--config Config.json'\n");
-    printf("               If no file provided, default path is etc/Config.json. \n");
+    printf("               If no file provided, default path is %s. \n", config_file_path.c_str());
     printf("           -v, --version: show whole version and sworker version. \n");
+    printf("           --use-sysdisk: use system disk as data disk(be careful to using this argument leading to unexpected error). \n");
     printf("           --offline: add this flag, program will not interact with the chain. \n");
     printf("           --debug: add this flag, program will output debug logs. \n");
     printf("           --upgrade: used to upgrade.\n");
