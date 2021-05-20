@@ -4,7 +4,7 @@ using namespace std;
 
 Config *Config::config = NULL;
 crust::Log *p_log = crust::Log::get_instance();
-std::string config_file_path;
+std::string config_file_path = CRUST_INST_DIR "/etc/Config.json";
 
 extern bool offline_chain_mode;
 extern bool g_use_sys_disk;
