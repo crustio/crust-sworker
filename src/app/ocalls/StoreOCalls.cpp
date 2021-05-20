@@ -77,7 +77,7 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
         uint32_t ii = ci * 2;
         uint32_t di = (p_index_path[ii] + p_index_path[ii+1]) % disk_json.size();
         size_t reserved = disk_json[di][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
-        if (reserved > data_size)
+        if (reserved > data_size * 4)
         {
             std::string disk_path = disk_json[di][WL_DISK_PATH].ToString();
             std::string uuid_str = EnclaveData::get_instance()->get_uuid(disk_path);
