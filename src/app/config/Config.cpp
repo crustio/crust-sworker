@@ -7,6 +7,7 @@ crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path;
 
 extern bool offline_chain_mode;
+extern bool g_use_sys_disk;
 
 /**
  * @desination: Single instance class function to get instance
@@ -69,7 +70,7 @@ bool Config::init(std::string path)
     for (int i = 0; i < data_paths.size(); i++)
     {
         std::string d_path = data_paths[i].ToString();
-        this->data_paths.insert(d_path);
+        this->data_paths.push_back(d_path);
         if (CRUST_SUCCESS != (crust_status = create_directory(d_path)))
         {
             p_log->err("Create path:'%s' failed! Error code:%lx\n", d_path.c_str(), crust_status);
@@ -155,17 +156,7 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'data path' : [\n");
-    std::vector<std::string> data_paths;
-    std::set<std::string> tmp_paths = this->get_data_paths();
-    data_paths.insert(data_paths.end(), tmp_paths.begin(), tmp_paths.end());
-    std::sort(data_paths.begin(), data_paths.end(), [](std::string s1, std::string s2) {
-        if (s1.length() != s2.length())
-        {
-            return s1.length() < s2.length();
-        }
-        return s1.compare(s2) < 0;
-    });
-    for (auto it = data_paths.begin(); it != data_paths.end(); )
+    for (auto it = this->data_paths.begin(); it != this->data_paths.end(); )
     {
         printf("        \"%s\"", (*it).c_str());
         ++it == data_paths.end() ? printf("\n") : printf(",\n");
@@ -211,7 +202,7 @@ std::string Config::get_config_path()
 bool Config::unique_paths()
 {
     // Get system disk fsid
-    if (!offline_chain_mode)
+    if (!offline_chain_mode && !g_use_sys_disk)
     {
         struct statfs sys_st;
         if (statfs(this->base_path.c_str(), &sys_st) != -1)
@@ -220,8 +211,9 @@ bool Config::unique_paths()
         }
     }
 
-    std::map<std::string, std::string> sid_m;
-    std::set<std::string> data_paths = this->data_paths;
+    std::set<std::string> sids_s;
+    std::set<std::string> data_paths(this->data_paths.begin(), this->data_paths.end());
+    this->data_paths.clear();
     for (auto path : data_paths)
     {
         struct statfs st;
@@ -229,26 +221,35 @@ bool Config::unique_paths()
         {
             std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
             // Compare to check if current disk is system disk
-            if (this->sys_fsid.compare(fsid) == 0)
-            {
-                this->data_paths.erase(path);
-            }
-            else
+            if (this->sys_fsid.compare(fsid) != 0)
             {
                 // Remove duplicated disk
-                if (sid_m.find(fsid) == sid_m.end())
+                if (sids_s.find(fsid) == sids_s.end())
                 {
-                    sid_m[fsid] = path;
-                }
-                else
-                {
-                    this->data_paths.erase(path);
+                    this->data_paths.push_back(path);
                 }
             }
         }
     }
+    this->sort_data_paths();
 
     return 0 != this->data_paths.size();
+}
+
+/**
+ * @description: Sort data paths
+ */
+void Config::sort_data_paths()
+{
+    this->data_paths_mutex.lock();
+    std::sort(this->data_paths.begin(), this->data_paths.end(), [](std::string s1, std::string s2) {
+        if (s1.length() != s2.length())
+        {
+            return s1.size() < s2.size();
+        }
+        return s1.compare(s2) < 0;
+    });
+    this->data_paths_mutex.unlock();
 }
 
 /**
@@ -323,7 +324,7 @@ bool Config::is_valid_or_normal_disk(const std::string &path)
  * @description: Get data paths
  * @return: Data paths
  */
-std::set<std::string> Config::get_data_paths()
+std::vector<std::string> Config::get_data_paths()
 {
     SafeLock sl(this->data_paths_mutex);
     sl.lock();
@@ -363,6 +364,7 @@ bool Config::config_file_add_data_paths(const json::JSON &paths)
             }
             SafeLock sl(this->data_paths_mutex);
             sl.lock();
+            std::set<std::string> paths_s(this->data_paths.begin(), this->data_paths.end());
             bool is_valid = false;
             for (auto path : paths.ArrayRange())
             {
@@ -370,14 +372,20 @@ bool Config::config_file_add_data_paths(const json::JSON &paths)
                 if (this->is_valid_data_path(pstr, false))
                 {
                     config_json["data_path"].append(path);
-                    this->data_paths.insert(pstr);
-                    is_valid = true;
+                    if (paths_s.find(pstr) == paths_s.end())
+                    {
+                        this->data_paths.push_back(pstr);
+                        paths_s.insert(pstr);
+                        is_valid = true;
+                    }
                 }
             }
+            sl.unlock();
             if (! is_valid)
             {
                 return false;
             }
+            this->sort_data_paths();
             std::string config_str = config_json.dump();
             replace(config_str, "\\\\", "\\");
             crust_status = save_file(config_file_path.c_str(), reinterpret_cast<const uint8_t *>(config_str.c_str()), config_str.size());

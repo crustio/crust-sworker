@@ -64,15 +64,18 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
 
     // Choose disk
     std::string cid(path, CID_LENGTH);
-    uint32_t index = 0;
-    read_rand(reinterpret_cast<uint8_t *>(&index), sizeof(index));
-    index = index % FILE_DISK_LIMIT;
-    uint32_t ci = index + 2;    // Current index, jump the first "Qm"
+    uint32_t start_index = 0;
+    read_rand(reinterpret_cast<uint8_t *>(&start_index), sizeof(start_index));
+    start_index = start_index % FILE_DISK_LIMIT;
+    uint32_t end_index = (CID_LENGTH - 2) / 2;
+    uint32_t ci = start_index;  // Current index
     uint32_t oi = ci;           // Origin index
     uint32_t loop_num = FILE_DISK_LIMIT;
+    const char *p_index_path = path + 2;
     do
     {
-        uint32_t di = path[ci] % disk_json.size();
+        uint32_t ii = ci * 2;
+        uint32_t di = (p_index_path[ii] + p_index_path[ii+1]) % disk_json.size();
         size_t reserved = disk_json[di][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
         if (reserved > data_size)
         {
@@ -92,10 +95,10 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
         ci = (ci + 1) % loop_num;
         if (ci == oi)
         {
-            ci = FILE_DISK_LIMIT + 2;
-            loop_num = CID_LENGTH + 1;
+            ci = FILE_DISK_LIMIT;
+            loop_num = end_index + 1;
         }
-    } while (ci != CID_LENGTH);
+    } while (ci < end_index);
 
     return CRUST_STORAGE_NO_ENOUGH_SPACE;
 }
