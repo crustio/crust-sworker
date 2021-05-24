@@ -147,6 +147,7 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
  * @description: Add sealed file info
  * @param cid -> IPFS content id
  * @param info -> Related file info
+ * @param type -> File type
  */
 void EnclaveData::add_sealed_file_info(std::string cid, std::string info, std::string type)
 {

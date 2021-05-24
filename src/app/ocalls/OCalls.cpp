@@ -268,6 +268,7 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
  * @description: Store file information
  * @param cid (in) -> File content identity
  * @param data (in) -> File information data
+ * @param type (in) -> File information type
  */
 void ocall_store_file_info(const char* cid, const char *data, const char *type)
 {
