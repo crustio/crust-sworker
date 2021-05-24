@@ -24,7 +24,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
     // ----- Respond to GET request ----- //
     if(method.compare("GET") == 0)
     {
-        cur_path = urlendpoint.base + "/upgrade/start_test";
+        cur_path = urlendpoint.base + "/upgrade/start";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             int ret_code = 200;
@@ -84,6 +84,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
                             ret_info = "Unknown error.";
                             ret_code = 406;
                     }
+                    g_block_height += REPORT_SLOT;
                 }
             }
             res_json[HTTP_STATUS_CODE] = ret_code;

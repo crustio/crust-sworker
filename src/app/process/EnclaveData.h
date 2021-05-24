@@ -28,13 +28,14 @@ public:
     upgrade_status_t get_upgrade_status();
     void set_upgrade_status(upgrade_status_t status);
     // Sealed information
-    void add_sealed_file_info(std::string cid, std::string info);
+    void add_sealed_file_info(std::string cid, std::string info, std::string type);
     std::string get_sealed_file_info(std::string cid);
     void change_sealed_file_type(const std::string &cid, const std::string &old_type, const std::string &new_type);
     std::string get_sealed_file_info_all();
+    std::string get_sealed_file_info_by_type(std::string type);
     void del_sealed_file_info(std::string cid);
     bool is_sealed_file_dup(std::string cid, bool locked = true);
-    void restore_sealed_file_info(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size);
+    void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
     json::JSON get_srd_info();
     // Get workload

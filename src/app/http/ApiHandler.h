@@ -305,6 +305,17 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
+        // ----- Get sealed file information by type ----- //
+        cur_path = urlendpoint.base + "/file/info_by_type";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            res.result(200);
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string type = req_json["type"].ToString();
+            res.body() = EnclaveData::get_instance()->get_sealed_file_info_by_type(type);
+            goto getcleanup;
+        }
+
         // ----- Inform upgrade ----- //
         cur_path = urlendpoint.base + "/upgrade/start";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)

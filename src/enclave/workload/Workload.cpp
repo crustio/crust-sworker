@@ -6,8 +6,7 @@ sgx_thread_mutex_t g_upgrade_status_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 Workload *Workload::workload = NULL;
 
-/**
- * @desination: Single instance class function to get instance
+/** * @desination: Single instance class function to get instance
  * @return: Workload instance
  */
 Workload *Workload::get_instance()
@@ -31,7 +30,7 @@ Workload *Workload::get_instance()
 Workload::Workload()
 {
     this->report_files = true;
-    for (auto item : g_file_status)
+    for (auto item : g_file_spec_status)
     {
         this->wl_file_spec[item.second]["num"] = 0;
         this->wl_file_spec[item.second]["size"] = 0;
@@ -208,7 +207,8 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
  */
 crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
-    sgx_thread_mutex_lock(&this->file_mutex);
+    SafeLock sl(this->file_mutex);
+    sl.lock();
 
     size_t buffer_size = id_get_file_buffer_size(this->sealed_files);
     *p_data = (uint8_t *)enc_malloc(buffer_size);
@@ -238,8 +238,6 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
     offset += 1;
 
     *data_size = offset;
-
-    sgx_thread_mutex_unlock(&this->file_mutex);
 
     return CRUST_SUCCESS;
 }
@@ -303,7 +301,7 @@ void Workload::clean_file()
     this->wl_file_spec = json::JSON();
 
     // Clean file info
-    ocall_store_file_info_all(reinterpret_cast<const uint8_t *>("{}"), 2, reinterpret_cast<const uint8_t *>("{}"), 2);
+    safe_ocall_store2(OS_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>("{}"), 2);
 }
 
 /**
@@ -328,7 +326,7 @@ crust_status_t Workload::restore_file(json::JSON &file_json)
     {
         this->sealed_files.push_back(file_json[i]);
         // Restore workload spec info
-        set_file_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
+        this->set_file_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
     }
 
     // Restore file information
@@ -546,12 +544,12 @@ crust_status_t Workload::can_report_work(size_t block_height)
  */
 void Workload::set_file_spec(char file_status, long long change)
 {
-    if (g_file_status.find(file_status) != g_file_status.end())
+    if (g_file_spec_status.find(file_status) != g_file_spec_status.end())
     {
         sgx_thread_mutex_lock(&wl_file_spec_mutex);
-        std::string ws_name = g_file_status[file_status];
-        this->wl_file_spec[ws_name]["num"] = this->wl_file_spec[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
-        this->wl_file_spec[ws_name]["size"] = this->wl_file_spec[ws_name]["size"].ToInt() + change;
+        std::string ws_name = g_file_spec_status[file_status];
+        this->wl_file_spec[ws_name]["num"].AddNum(change > 0 ? 1 : -1);
+        this->wl_file_spec[ws_name]["size"].AddNum(change);
         sgx_thread_mutex_unlock(&wl_file_spec_mutex);
     }
 }
@@ -890,24 +888,25 @@ void Workload::deal_deleted_file()
 {
     // Clear file deleted buffer
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    std::set<std::string> tmp_del_cid_s = this->file_del_cid_s;
     this->file_del_cid_s.clear();
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     // Deleted invalid file item
     SafeLock sealed_files_sl(this->file_mutex);
     sealed_files_sl.lock();
-    for (auto it = this->sealed_files.begin(); it != this->sealed_files.end();)
+    for (auto cid : tmp_del_cid_s)
     {
-        std::string status = (*it)[FILE_STATUS].ToString();
-        if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
+        size_t pos = 0;
+        if (this->is_file_dup(cid, pos))
         {
-            it = this->sealed_files.erase(it);
-        }
-        else
-        {
-            it++;
+            std::string status = this->sealed_files[pos][FILE_STATUS].ToString();
+            if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
+                    || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED)
+                    || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
+            {
+                this->sealed_files.erase(this->sealed_files.begin() + pos);
+            }
         }
     }
     sealed_files_sl.unlock();
@@ -1021,78 +1020,100 @@ void Workload::del_sealed_file(size_t pos)
  */
 crust_status_t Workload::restore_file_info()
 {
+    // Get file item length
     size_t file_info_item_len = CID_LENGTH + 8
             + strlen(FILE_SIZE) + 12 + 10
             + strlen(FILE_SEALED_SIZE) + 12 + 10
             + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;
-    size_t file_valid_info_len = 0;
-    size_t file_lost_info_len = 0;
+
+    const std::string START_TMP("start");
+    const std::string OFFSET_TMP("offset");
+    const std::string LENGTH_TMP("length");
+    const std::string HASPRE_TMP("has_pre");
+
+    // Get file total size
+    size_t file_info_len = 0;
+    json::JSON file_info;
     for (size_t i = 0; i < this->sealed_files.size(); i++)
     {
-        char cur_status = this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS);
-        if (FILE_STATUS_VALID == cur_status)
+        char s = this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS);
+        if (g_file_spec_status.find(s) != g_file_spec_status.end())
         {
-            file_valid_info_len += file_info_item_len;
-        }
-        else if (FILE_STATUS_LOST == cur_status)
-        {
-            file_lost_info_len += file_info_item_len;
+            file_info[g_file_spec_status[s]][LENGTH_TMP].AddNum(file_info_item_len);
         }
     }
-    file_valid_info_len += 32;
-    file_lost_info_len += 32;
-    uint8_t *file_valid_info_buf = (uint8_t *)enc_malloc(file_valid_info_len);
-    if (file_valid_info_buf == NULL)
+    for (auto s : g_file_spec_status)
+    {
+        file_info[s.second][LENGTH_TMP].AddNum(32);
+        file_info_len += file_info[s.second][LENGTH_TMP].ToInt();
+    }
+    char *file_info_buf = (char *)enc_malloc(file_info_len);
+    if (file_info_buf == NULL)
     {
         return CRUST_MALLOC_FAILED;
     }
-    Defer def_file_valid_info_buf([&file_valid_info_buf](void) { free(file_valid_info_buf); });
-    uint8_t *file_lost_info_buf = (uint8_t *)enc_malloc(file_lost_info_len);
-    if (file_lost_info_buf == NULL)
+    Defer def_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
+    memset(file_info_buf, 0, file_info_len);
+
+    // ----- Construct file information json string ----- //
+    // Init file_info json
+    size_t buf_offset = 0;
+    for (auto info : file_info.ObjectRange())
     {
-        return CRUST_MALLOC_FAILED;
+        std::string s(info.first);
+        std::string title;
+        if (buf_offset == 0)
+        {
+            title.append("{");
+        }
+        else
+        {
+            title.append(",");
+        }
+        title.append("\"").append(s).append("\":{");
+        memcpy(file_info_buf + buf_offset, title.c_str(), title.size());
+        file_info[s][START_TMP] = buf_offset;
+        file_info[s][OFFSET_TMP].AddNum(title.size());
+        buf_offset += file_info[s][LENGTH_TMP].ToInt();
     }
-    Defer def_file_lost_info_buf([&file_lost_info_buf](void) { free(file_lost_info_buf); });
-    size_t file_valid_info_offset = 0;
-    size_t file_lost_info_offset = 0;
-    memset(file_valid_info_buf, 0, file_valid_info_len);
-    memcpy(file_valid_info_buf, "{", 1);
-    file_valid_info_offset += 1;
-    memset(file_lost_info_buf, 0, file_lost_info_len);
-    memcpy(file_lost_info_buf, "{", 1);
-    file_lost_info_offset += 1;
+    // Copy data to related buffer
     for (size_t i = 0; i < this->sealed_files.size(); i++)
     {
         json::JSON file = this->sealed_files[i];
+        std::string s = g_file_spec_status[file[FILE_STATUS].get_char(CURRENT_STATUS)];
         std::string info;
         info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
             .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
             .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\",");
-        if (FILE_STATUS_VALID == file[FILE_STATUS].get_char(CURRENT_STATUS))
+            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
+        if (file_info[s][HASPRE_TMP].ToBool())
         {
-            memcpy(file_valid_info_buf + file_valid_info_offset, info.c_str(), info.size());
-            file_valid_info_offset += info.size();
+            info = "," + info;
         }
-        else if (FILE_STATUS_LOST == file[FILE_STATUS].get_char(CURRENT_STATUS))
+        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), info.c_str(), info.size());
+        file_info[s][OFFSET_TMP].AddNum(info.size());
+        file_info[s][HASPRE_TMP] = true;
+    }
+
+    // Adjust json format
+    size_t file_info_len_r = 0;
+    for (auto info : file_info.ObjectRange())
+    {
+        std::string s(info.first);
+        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), "}", 1);
+        file_info[s][OFFSET_TMP].AddNum(1);
+        for (long i = file_info_len_r, j = file_info[s][START_TMP].ToInt(); 
+                j < file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(); i++, j++)
         {
-            memcpy(file_lost_info_buf + file_lost_info_offset, info.c_str(), info.size());
-            file_lost_info_offset += info.size();
+            file_info_buf[i] = file_info_buf[j];
         }
+        file_info_len_r += file_info[s][OFFSET_TMP].ToInt();
     }
-    if (file_valid_info_offset > 1)
-    {
-        file_valid_info_offset--;
-    }
-    memcpy(file_valid_info_buf + file_valid_info_offset, "}", 1);
-    file_valid_info_offset += 1;
-    if (file_lost_info_offset > 1)
-    {
-        file_lost_info_offset--;
-    }
-    memcpy(file_lost_info_buf + file_lost_info_offset, "}", 1);
-    file_lost_info_offset += 1;
-    ocall_store_file_info_all(file_valid_info_buf, file_valid_info_offset, file_lost_info_buf, file_lost_info_offset);
+    memcpy(file_info_buf + file_info_len_r, "}", 1);
+    file_info_len_r += 1;
+
+    // Store file information to app
+    safe_ocall_store2(OS_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>(file_info_buf), file_info_len_r);
 
     return CRUST_SUCCESS;
 }

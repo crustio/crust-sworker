@@ -539,7 +539,7 @@ entry_network_flag:
             }
             else
             {
-                p_log->info("Enclave id info:%s\n", ed->get_enclave_id_info().c_str());
+                p_log->info("Enclave id info:\n%s\n", ed->get_enclave_id_info().c_str());
             }
 
             // Set init srd capacity

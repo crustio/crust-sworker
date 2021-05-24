@@ -101,6 +101,7 @@ void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_fun
 char *base64_decode(const char *msg, size_t *sz);
 std::string base58_encode(const uint8_t *input, size_t len);
 std::string hash_to_cid(const uint8_t *hash);
+crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t s);
 
 #if defined(__cplusplus)
 }

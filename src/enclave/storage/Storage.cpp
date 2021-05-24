@@ -40,6 +40,13 @@ crust_status_t storage_seal_file_start(const char *root)
     g_files_info_um[root_cid][FILE_BLOCKS][root_cid].AddNum(1);
     sgx_thread_mutex_unlock(&g_files_info_um_mutex);
 
+    // Add info in workload spec
+    wl->set_file_spec(FILE_STATUS_PENDING, 1);
+
+    // Store file information
+    std::string file_info("{}");
+    ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_PENDING);
+
     return CRUST_SUCCESS;
 }
 
@@ -84,6 +91,10 @@ crust_status_t storage_seal_file(const char *root,
                 if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
                 {
                     wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                    // Delete pending status
+                    ocall_change_sealed_file_type(rcid.c_str(), FILE_TYPE_PENDING, FILE_TYPE_PENDING);
+                    // Delete info in workload spec
+                    wl->set_file_spec(FILE_STATUS_PENDING, -1);
                 }
             }
             sl_file.unlock();
@@ -256,6 +267,10 @@ crust_status_t storage_seal_file_end(const char *root)
             if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
             {
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                // Delete pending status
+                ocall_change_sealed_file_type(root, FILE_TYPE_PENDING, FILE_TYPE_PENDING);
+                // Delete info in workload spec
+                wl->set_file_spec(FILE_STATUS_PENDING, -1);
             }
         }
         sl.unlock();
@@ -343,10 +358,10 @@ crust_status_t storage_seal_file_end(const char *root)
         }
         wl->sealed_files[pos] = file_entry_json;
     }
-    else
-    {
-        wl->add_sealed_file(file_entry_json, pos);
-    }
+    // Delete pending status
+    ocall_change_sealed_file_type(root, FILE_TYPE_PENDING, FILE_TYPE_PENDING);
+    // Delete info in workload spec
+    wl->set_file_spec(FILE_STATUS_PENDING, -1);
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // Add info in workload spec
@@ -357,7 +372,7 @@ crust_status_t storage_seal_file_end(const char *root)
     file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SIZE].ToInt())).append(" , ")
         .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SEALED_SIZE].ToInt())).append(" , ")
         .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(chain_block_num)).append(" }");
-    ocall_store_file_info(root, file_info.c_str());
+    ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_VALID);
 
     return CRUST_SUCCESS;
 }

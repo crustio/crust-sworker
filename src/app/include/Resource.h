@@ -42,6 +42,7 @@ const uint32_t UPGRADE_COMPLETE_TRYOUT = BLOCK_INTERVAL * 10;
 #define WL_DISK_AVAILABLE_FOR_SRD "disk_available_for_srd"
 #define WL_DISK_RESERVED "disk_reserved"
 #define WL_DISK_VOLUME "disk_volume"
+#define WL_SYS_DISK_AVAILABLE "sys_disk_available"
 #define WL_DISK_PATH "disk_path"
 #define WL_DISK_USE "disk_use"
 #define WL_DISK_UUID "disk_uuid"

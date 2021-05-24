@@ -148,7 +148,7 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
  * @param cid -> IPFS content id
  * @param info -> Related file info
  */
-void EnclaveData::add_sealed_file_info(std::string cid, std::string info)
+void EnclaveData::add_sealed_file_info(std::string cid, std::string info, std::string type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -158,7 +158,7 @@ void EnclaveData::add_sealed_file_info(std::string cid, std::string info)
         return;
     }
 
-    this->sealed_file[FILE_TYPE_VALID][cid] = info;
+    this->sealed_file[type][cid] = info;
 }
 
 /**
@@ -198,7 +198,7 @@ void EnclaveData::change_sealed_file_type(const std::string &cid, const std::str
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    if (this->sealed_file[old_type].hasKey(cid) == 0)
+    if (!this->sealed_file[old_type].hasKey(cid))
     {
         return ;
     }
@@ -231,6 +231,31 @@ std::string EnclaveData::get_sealed_file_info_all()
 }
 
 /**
+ * @description: Get sealed file information by type
+ * @param type -> File type
+ * @return: All sealed file information
+ */
+std::string EnclaveData::get_sealed_file_info_by_type(std::string type)
+{
+    std::string ans;
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+
+    if (!this->sealed_file.hasKey(type))
+    {
+        return "{}";
+    }
+
+    ans = this->sealed_file[type].dump();
+
+    replace(ans, "\"{", "{");
+    replace(ans, "}\"", "}");
+    remove_char(ans,'\\');
+
+    return ans;
+}
+
+/**
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
  * @param locked -> Lock sealed_file or not
@@ -244,9 +269,12 @@ bool EnclaveData::is_sealed_file_dup(std::string cid, bool locked)
         sl.lock();
     }
 
-    if (this->sealed_file.hasKey(cid))
+    for (auto files : this->sealed_file.ObjectRange())
     {
-        return true;
+        if (files.second.hasKey(cid))
+        {
+            return true;
+        }
     }
 
     return false;
@@ -272,18 +300,14 @@ void EnclaveData::del_sealed_file_info(std::string cid)
 
 /**
  * @description: Restore sealed file information
- * @param valid_data -> All valid file information
- * @param valid_size -> All valid file information size
- * @param lost_data -> All lost file information
- * @param lost_size -> All lost file information size
+ * @param data -> All file information
+ * @param data_size -> All file information size
  */
-void EnclaveData::restore_sealed_file_info(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size)
+void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
 {
+    // Restore file information
     this->sealed_file_mutex.lock();
-    json::JSON valid_json = json::JSON::Load(valid_data, valid_size);
-    json::JSON lost_json = json::JSON::Load(lost_data, lost_size);
-    this->sealed_file[FILE_TYPE_VALID] = valid_json;
-    this->sealed_file[FILE_TYPE_LOST] = lost_json;
+    this->sealed_file = json::JSON::Load(data, data_size);
     this->sealed_file_mutex.unlock();
 }
 
@@ -383,6 +407,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
             .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_avail_for_srd)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_avail)).append(",\n")
             .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_volume)).append(",\n")
+            .append("\"" WL_SYS_DISK_AVAILABLE "\" : ").append(std::to_string(get_avail_space_under_dir_g(Config::get_instance()->base_path))).append(",\n")
             .append("\"" WL_SRD_DETAIL "\" : ").append(disk_info).append("\n")
             .append("}");
     wl_json[WL_SRD] = srd_info;
