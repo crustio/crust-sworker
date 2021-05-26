@@ -265,7 +265,7 @@ void EnclaveData::change_sealed_file_type(const std::string &cid, std::string ol
     {
         return ;
     }
-    std::string info = this->sealed_file[old_type][pos].ToString();
+    std::string info = this->sealed_file[old_type][pos][cid].ToString();
     this->sealed_file[old_type].erase(this->sealed_file[old_type].begin() + pos);
     sl.unlock();
     add_sealed_file_info(cid, new_type, info);
