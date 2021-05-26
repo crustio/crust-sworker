@@ -156,7 +156,7 @@ void EnclaveData::add_sealed_file_info(const std::string &cid, std::string type,
     size_t pos = 0;
     if (type.compare(FILE_TYPE_PENDING) == 0)
     {
-        info = "{ \"start_second\" : " + std::to_string(get_seconds_since_epoch()) + " }";
+        info = "{ \"" FILE_PENDING_STIME "\" : " + std::to_string(get_seconds_since_epoch()) + " }";
     }
     else if (type.compare(FILE_TYPE_VALID) == 0)
     {
@@ -210,12 +210,12 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
     remove_char(data, '\\');
     json::JSON data_json = json::JSON::Load(data);
 
-    if(data_json.hasKey("start_second"))
+    if(data_json.hasKey(FILE_PENDING_STIME))
     {
-        long stime = data_json["start_second"].ToInt();
+        long stime = data_json[FILE_PENDING_STIME].ToInt();
         long etime = get_seconds_since_epoch();
         long utime = etime - stime;
-        data = "{ \"used_time\" : \"" + get_time_diff(utime) + "\" }";
+        data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" + get_time_diff(utime) + "\" }";
     }
 
     if (raw)
@@ -492,9 +492,9 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
     json::JSON sealed_files = json::JSON::Load(data, data_size);
     for (auto it : *(sealed_files.ObjectRange().object))
     {
-        for (auto f_it : *(it.second.ObjectRange().object))
+        for (auto f_it : *(it.second.ArrayRange().object))
         {
-            this->sealed_file[it.first].push_back(f_it.second);
+            this->sealed_file[it.first].push_back(f_it);
         }
     }
     this->sealed_file_mutex.unlock();

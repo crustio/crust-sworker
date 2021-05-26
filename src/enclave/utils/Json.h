@@ -556,7 +556,7 @@ public:
             return -1;
     }
 
-    void AddNum(int num)
+    void AddNum(long num)
     {
         if (Type == Class::Null)
         {

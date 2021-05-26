@@ -325,9 +325,22 @@ crust_status_t Workload::restore_file(json::JSON &file_json)
     this->sealed_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
-        this->sealed_files.push_back(file_json[i]);
-        // Restore workload spec info
-        this->set_file_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
+        char s = file_json[i][FILE_STATUS].get_char(CURRENT_STATUS);
+        if (FILE_STATUS_PENDING == s)
+        {
+            crust_status_t del_ret = CRUST_SUCCESS;
+            std::string cid = file_json[i][FILE_CID].ToString();
+            // Delete file directory
+            ocall_delete_ipfs_file(&del_ret, cid.c_str());
+            // Delete file tree structure
+            persist_del(cid);
+        }
+        else
+        {
+            this->sealed_files.push_back(file_json[i]);
+            // Restore workload spec info
+            this->set_file_spec(s, file_json[i][FILE_SIZE].ToInt());
+        }
     }
 
     // Restore file information
@@ -1071,7 +1084,7 @@ crust_status_t Workload::restore_file_info()
         {
             title.append(",");
         }
-        title.append("\"").append(s).append("\":{");
+        title.append("\"").append(s).append("\":[");
         memcpy(file_info_buf + buf_offset, title.c_str(), title.size());
         file_info[s][START_TMP] = buf_offset;
         file_info[s][OFFSET_TMP].AddNum(title.size());
@@ -1083,10 +1096,10 @@ crust_status_t Workload::restore_file_info()
         json::JSON file = this->sealed_files[i];
         std::string s = g_file_spec_status[file[FILE_STATUS].get_char(CURRENT_STATUS)];
         std::string info;
-        info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
-            .append("\"" FILE_SIZE "\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
-            .append("\"" FILE_SEALED_SIZE "\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\"" FILE_CHAIN_BLOCK_NUM "\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
+        info.append("{\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
+            .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+            .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
+            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"}");
         if (file_info[s][HASPRE_TMP].ToBool())
         {
             info = "," + info;
@@ -1101,7 +1114,7 @@ crust_status_t Workload::restore_file_info()
     for (auto info : file_info.ObjectRange())
     {
         std::string s(info.first);
-        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), "}", 1);
+        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), "]", 1);
         file_info[s][OFFSET_TMP].AddNum(1);
         for (long i = file_info_len_r, j = file_info[s][START_TMP].ToInt(); 
                 j < file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(); i++, j++)
