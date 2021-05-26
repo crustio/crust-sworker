@@ -1084,9 +1084,9 @@ crust_status_t Workload::restore_file_info()
         std::string s = g_file_spec_status[file[FILE_STATUS].get_char(CURRENT_STATUS)];
         std::string info;
         info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
-            .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
+            .append("\"" FILE_SIZE "\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+            .append("\"" FILE_SEALED_SIZE "\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
+            .append("\"" FILE_CHAIN_BLOCK_NUM "\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
         if (file_info[s][HASPRE_TMP].ToBool())
         {
             info = "," + info;

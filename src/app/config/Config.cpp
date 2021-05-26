@@ -227,6 +227,7 @@ bool Config::unique_paths()
                 if (sids_s.find(fsid) == sids_s.end())
                 {
                     this->data_paths.push_back(path);
+                    sids_s.insert(fsid);
                 }
             }
         }

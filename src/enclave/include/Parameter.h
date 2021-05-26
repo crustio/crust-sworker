@@ -54,6 +54,8 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define FILE_TYPE_VALID "valid"
 #define FILE_TYPE_LOST "lost"
 #define FILE_TYPE_DELETED "deleted"
+// File limit
+#define FILE_PENDING_LIMIT 500
 
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"

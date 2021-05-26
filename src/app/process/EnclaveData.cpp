@@ -146,20 +146,84 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
 /**
  * @description: Add sealed file info
  * @param cid -> IPFS content id
- * @param info -> Related file info
  * @param type -> File type
+ * @param info -> Related file info
  */
-void EnclaveData::add_sealed_file_info(std::string cid, std::string info, std::string type)
+void EnclaveData::add_sealed_file_info(const std::string &cid, std::string type, std::string info)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    if (is_sealed_file_dup(cid, false))
+    size_t pos = 0;
+    if (type.compare(FILE_TYPE_PENDING) == 0)
+    {
+        info = "{ \"start_second\" : " + std::to_string(get_seconds_since_epoch()) + " }";
+    }
+    else if (type.compare(FILE_TYPE_VALID) == 0)
+    {
+        if (find_sealed_file_pos(cid, FILE_TYPE_PENDING, pos))
+        {
+            this->sealed_file[FILE_TYPE_PENDING].erase(this->sealed_file[FILE_TYPE_PENDING].begin() + pos);
+        }
+    }
+    pos = 0;
+    if (find_sealed_file_pos(cid, type, pos))
     {
         p_log->warn("file(%s) has been sealed!\n", cid.c_str());
         return;
     }
 
-    this->sealed_file[type][cid] = info;
+    json::JSON file_json;
+    file_json[cid] = info;
+
+    this->sealed_file[type].insert(this->sealed_file[type].begin() + pos, file_json);
+}
+
+/**
+ * @description: Set files
+ * @param data -> Pointer to files data
+ * @param data_size -> Files data size
+ * @param type -> Files type
+ */
+void EnclaveData::set_files_info(const uint8_t *data, size_t data_size, std::string type)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    this->sealed_file[type].clear();
+    json::JSON file_json = json::JSON::Load(data, data_size);
+    for (auto file : *(file_json.ArrayRange().object))
+    {
+        this->sealed_file[type].push_back(file);
+    }
+}
+
+/**
+ * @description: Get sealed file item
+ * @param info -> Reference to file item
+ * @param raw -> Return raw data or a json
+ * @return: File data
+ */
+std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
+{
+    std::string cid = info.ObjectRange().begin()->first;
+    std::string ans;
+    std::string data = info[cid].ToString();
+    remove_char(data, '\\');
+    json::JSON data_json = json::JSON::Load(data);
+
+    if(data_json.hasKey("start_second"))
+    {
+        long stime = data_json["start_second"].ToInt();
+        long etime = get_seconds_since_epoch();
+        long utime = etime - stime;
+        data = "{ \"used_time\" : \"" + get_time_diff(utime) + "\" }";
+    }
+
+    if (raw)
+    {
+        return "\""+cid+"\" : " + data;
+    }
+
+    return "{ \""+cid+"\" : " + data + " }";
 }
 
 /**
@@ -172,21 +236,18 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
     std::string type;
-    if (this->sealed_file[FILE_TYPE_VALID].hasKey(cid) != 0)
-    {
-        type = FILE_TYPE_VALID;
-    }
-    else if (this->sealed_file[FILE_TYPE_LOST].hasKey(cid) != 0)
-    {
-        type = FILE_TYPE_LOST;
-    }
-
-    if (type.compare("") == 0)
+    size_t pos = 0;
+    if (!is_sealed_file_dup(cid, type, pos))
     {
         return "";
     }
 
-    return this->sealed_file[type][cid].dump();
+    json::JSON file = json::JSON::Load(get_sealed_file_info_item(this->sealed_file[type][pos], false));
+    file[cid]["type"] = type;
+    std::string file_str = file.dump();
+    remove_char(file_str, '\\');
+
+    return file_str;
 }
 
 /**
@@ -195,16 +256,19 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
  * @param old_type -> Old file type
  * @param new_type -> New file type
  */
-void EnclaveData::change_sealed_file_type(const std::string &cid, const std::string &old_type, const std::string &new_type)
+void EnclaveData::change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    if (!this->sealed_file[old_type].hasKey(cid))
+    size_t pos = 0;
+    if (!find_sealed_file_pos(cid, old_type, pos))
     {
         return ;
     }
-    this->sealed_file[new_type][cid] = this->sealed_file[old_type][cid];
-    this->sealed_file[old_type].ObjectRange().object->erase(cid);
+    std::string info = this->sealed_file[old_type][pos].ToString();
+    this->sealed_file[old_type].erase(this->sealed_file[old_type].begin() + pos);
+    sl.unlock();
+    add_sealed_file_info(cid, new_type, info);
 }
 
 /**
@@ -213,20 +277,26 @@ void EnclaveData::change_sealed_file_type(const std::string &cid, const std::str
  */
 std::string EnclaveData::get_sealed_file_info_all()
 {
-    std::string ans;
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
 
-    if (this->sealed_file.size() <= 0)
+    std::string ans = "{";
+    std::string pad = "  ";
+    std::string tag;
+    for (auto it = this->sealed_file.begin(); it != this->sealed_file.end(); it++)
     {
-        return "{}";
+        std::string info = get_sealed_file_info_by_type(it->first, pad + "  ", true, false);
+        if (info.size() != 0)
+        {
+            ans += tag + "\n" + pad + "\"" + it->first + "\" : {\n" + info + "\n" + pad + "}";
+            tag = ",";
+        }
     }
-
-    ans = this->sealed_file.dump();
-
-    replace(ans, "\"{", "{");
-    replace(ans, "}\"", "}");
-    remove_char(ans,'\\');
+    if (tag.compare(",") == 0)
+    {
+        ans += "\n";
+    }
+    ans += "}";
 
     return ans;
 }
@@ -234,35 +304,12 @@ std::string EnclaveData::get_sealed_file_info_all()
 /**
  * @description: Get sealed file information by type
  * @param type -> File type
+ * @param pad -> Space pad
+ * @param raw -> Is raw data or not
+ * @param locked -> Lock sealed_file or not
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_by_type(std::string type)
-{
-    std::string ans;
-    SafeLock sl(this->sealed_file_mutex);
-    sl.lock();
-
-    if (!this->sealed_file.hasKey(type))
-    {
-        return "{}";
-    }
-
-    ans = this->sealed_file[type].dump();
-
-    replace(ans, "\"{", "{");
-    replace(ans, "}\"", "}");
-    remove_char(ans,'\\');
-
-    return ans;
-}
-
-/**
- * @description: Check if file is duplicated
- * @param cid -> IPFS content id
- * @param locked -> Lock sealed_file or not
- * @return: Duplicated or not
- */
-bool EnclaveData::is_sealed_file_dup(std::string cid, bool locked)
+std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked)
 {
     SafeLock sl(this->sealed_file_mutex);
     if (locked)
@@ -270,15 +317,149 @@ bool EnclaveData::is_sealed_file_dup(std::string cid, bool locked)
         sl.lock();
     }
 
-    for (auto files : this->sealed_file.ObjectRange())
+    std::string ans;
+    std::string pad2;
+    if (raw)
     {
-        if (files.second.hasKey(cid))
+        pad2 = pad;
+    }
+    else
+    {
+        ans = pad  + "{";
+        pad2 = pad + "  ";
+    }
+    for (size_t i = 0; i < this->sealed_file[type].size(); i++)
+    {
+        if (!raw || (raw && i != 0))
         {
+            ans += "\n";
+        }
+        ans += pad2 + get_sealed_file_info_item(this->sealed_file[type][i], true);
+        if (i != this->sealed_file[type].size() - 1)
+        {
+            ans += ",";
+        }
+        else if (!raw)
+        {
+            ans += "\n";
+        }
+    }
+    if (!raw)
+    {
+        ans += pad + "}";
+    }
+
+    return ans;
+}
+
+/**
+ * @description: Check if file is duplicated
+ * @param cid -> IPFS content id
+ * @return: Duplicated or not
+ */
+bool EnclaveData::is_sealed_file_dup(std::string cid)
+{
+    size_t pos = 0;
+    std::string type;
+    return is_sealed_file_dup(cid, type, pos);
+}
+
+/**
+ * @description: Check if file is duplicated
+ * @param cid -> IPFS content id
+ * @param type -> Reference to file status type
+ * @return: Duplicated or not
+ */
+bool EnclaveData::is_sealed_file_dup(std::string cid, std::string &type)
+{
+    size_t pos = 0;
+    return is_sealed_file_dup(cid, type, pos);
+}
+
+/**
+ * @description: Check if file is duplicated
+ * @param cid -> IPFS content id
+ * @param type -> Reference to file status type
+ * @param pos -> Reference to file position
+ * @return: Duplicated or not
+ */
+bool EnclaveData::is_sealed_file_dup(std::string cid, std::string &type, size_t &pos)
+{
+    for (auto item : this->sealed_file)
+    {
+        std::string c_type = item.first;
+        size_t c_pos = 0;
+        if (find_sealed_file_pos(cid, c_type, c_pos))
+        {
+            pos = c_pos;
+            type = c_type;
             return true;
         }
     }
 
     return false;
+}
+
+/**
+ * @description: Check if file is duplicated
+ * @param cid -> IPFS content id
+ * @param type -> Reference to file type
+ * @param pos -> Reference to file position
+ * @return: Duplicated or not
+ */
+bool EnclaveData::find_sealed_file_pos(std::string cid, std::string type, size_t &pos)
+{
+    auto files = this->sealed_file[type];
+    long spos = 0;
+    long epos = files.size();
+    while (spos <= epos)
+    {
+        long mpos = (spos + epos) / 2;
+        if (mpos >= (long)files.size())
+        {
+            break;
+        }
+        if (files[mpos].JSONType() != json::JSON::Class::Object)
+        {
+            return false;
+        }
+        int ret = cid.compare(files[mpos].ObjectRange().begin()->first);
+        if (ret > 0)
+        {
+            spos = mpos + 1;
+            pos = std::min(spos, (long)files.size());
+        }
+        else if (ret < 0)
+        {
+            pos = mpos;
+            epos = mpos - 1;
+        }
+        else
+        {
+            pos = mpos;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @description: Delete file info
+ * @param type -> File type
+ * @param pos -> File position in type
+ */
+void EnclaveData::del_sealed_file_info(std::string type, size_t pos)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    if (this->sealed_file.find(type) != this->sealed_file.end())
+    {
+        if (pos < this->sealed_file[type].size())
+        {
+            this->sealed_file[type].erase(this->sealed_file[type].begin() + pos);
+        }
+    }
 }
 
 /**
@@ -289,14 +470,14 @@ void EnclaveData::del_sealed_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    if (this->sealed_file[FILE_TYPE_VALID].hasKey(cid))
+    size_t pos = 0;
+    std::string type;
+    if (!is_sealed_file_dup(cid, type, pos))
     {
-        this->sealed_file[FILE_TYPE_VALID].ObjectRange().object->erase(cid);
+        return;
     }
-    if (this->sealed_file[FILE_TYPE_LOST].hasKey(cid))
-    {
-        this->sealed_file[FILE_TYPE_LOST].ObjectRange().object->erase(cid);
-    }
+
+    this->sealed_file[type].erase(this->sealed_file[type].begin() + pos);
 }
 
 /**
@@ -308,7 +489,14 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
 {
     // Restore file information
     this->sealed_file_mutex.lock();
-    this->sealed_file = json::JSON::Load(data, data_size);
+    json::JSON sealed_files = json::JSON::Load(data, data_size);
+    for (auto it : *(sealed_files.ObjectRange().object))
+    {
+        for (auto f_it : *(it.second.ObjectRange().object))
+        {
+            this->sealed_file[it.first].push_back(f_it.second);
+        }
+    }
     this->sealed_file_mutex.unlock();
 }
 

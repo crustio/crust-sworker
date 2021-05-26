@@ -44,6 +44,7 @@ public:
     std::vector<json::JSON> sealed_files; // Files have been added into checked queue
     std::set<std::string> reported_files_idx; // File indexes reported this turn of workreport
     sgx_ec256_public_t pre_pub_key; // Old version's public key
+    std::unordered_map<std::string, json::JSON> pending_files_um; // Pending files
     
     // Basic
     static Workload *workload;
@@ -170,6 +171,7 @@ public:
     sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Upgrade mutex
     sgx_thread_mutex_t srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     sgx_thread_mutex_t file_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    sgx_thread_mutex_t pending_files_um_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 private:
     Workload();

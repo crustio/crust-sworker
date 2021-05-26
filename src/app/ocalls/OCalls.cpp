@@ -272,7 +272,7 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
  */
 void ocall_store_file_info(const char* cid, const char *data, const char *type)
 {
-    EnclaveData::get_instance()->add_sealed_file_info(cid, data, type);
+    EnclaveData::get_instance()->add_sealed_file_info(cid, type, data);
 }
 
 /**

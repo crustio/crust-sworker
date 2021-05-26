@@ -376,3 +376,61 @@ void read_rand(uint8_t *buf, size_t buf_size)
     }
     shuffle(buf, buf + buf_size, mt);
 }
+
+/**
+ * @description: Get second since epoch
+ * @return: Seconds
+ */
+decltype(seconds_t().count()) get_seconds_since_epoch()
+{
+    // get the current time
+    const auto now     = std::chrono::system_clock::now();
+
+    // transform the time into a duration since the epoch
+    const auto epoch   = now.time_since_epoch();
+
+    // cast the duration into seconds
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(epoch);
+
+    // return the number of seconds
+    return seconds.count();
+}
+
+/**
+ * @description: Get time difference
+ * @param sec -> Seconds
+ * @return: Time in string
+ */
+std::string get_time_diff(long sec)
+{
+    std::string ans;
+    int mit, hor, day;
+    day = mit = hor = 0;
+
+    if (sec >= 60)
+    {
+        mit = sec / 60;
+        sec = sec % 60;
+    }
+    if (mit >= 60)
+    {
+        hor = mit / 60;
+        mit = mit % 60;
+    }
+    if (hor >= 24)
+    {
+        day = hor / 24;
+        hor = hor % 24;
+    }
+
+    if (day > 0)
+        ans += std::to_string(day) + "d";
+    if (hor > 0)
+        ans += std::to_string(hor) + "h";
+    if (mit > 0)
+        ans += std::to_string(mit) + "m";
+    if (sec > 0)
+        ans += std::to_string(sec) + "s";
+
+    return ans;
+}

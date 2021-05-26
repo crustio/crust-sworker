@@ -82,6 +82,10 @@ private:
     std::set<std::string> http_mute_req_s = {
         "/workload",
         "/enclave/id_info",
+        "/storage/seal",
+        "/file/info",
+        "/file/info_all",
+        "/file/info_by_type",
     };
 };
 
@@ -312,7 +316,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             res.result(200);
             json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             std::string type = req_json["type"].ToString();
-            res.body() = EnclaveData::get_instance()->get_sealed_file_info_by_type(type);
+            res.body() = EnclaveData::get_instance()->get_sealed_file_info_by_type(type, "", false);
             goto getcleanup;
         }
 
