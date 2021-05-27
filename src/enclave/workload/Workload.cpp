@@ -1035,7 +1035,7 @@ void Workload::del_sealed_file(size_t pos)
 crust_status_t Workload::restore_file_info()
 {
     // Get file item length
-    size_t file_info_item_len = CID_LENGTH + 8
+    size_t file_info_item_len = CID_LENGTH + 10
             + strlen(FILE_SIZE) + 12 + 10
             + strlen(FILE_SEALED_SIZE) + 12 + 10
             + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;

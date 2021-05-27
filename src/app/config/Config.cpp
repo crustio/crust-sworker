@@ -7,7 +7,6 @@ crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path = CRUST_INST_DIR "/etc/Config.json";
 
 extern bool offline_chain_mode;
-extern bool g_use_sys_disk;
 
 /**
  * @desination: Single instance class function to get instance
@@ -202,7 +201,7 @@ std::string Config::get_config_path()
 bool Config::unique_paths()
 {
     // Get system disk fsid
-    if (!offline_chain_mode && !g_use_sys_disk)
+    if (!offline_chain_mode)
     {
         struct statfs sys_st;
         if (statfs(this->base_path.c_str(), &sys_st) != -1)

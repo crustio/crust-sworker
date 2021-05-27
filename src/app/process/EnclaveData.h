@@ -29,18 +29,14 @@ public:
     void set_upgrade_status(upgrade_status_t status);
     // Sealed information
     void add_sealed_file_info(const std::string &cid, std::string type, std::string info);
-    void set_files_info(const uint8_t *data, size_t data_size, std::string type);
     std::string get_sealed_file_info_item(json::JSON &info, bool raw);
     std::string get_sealed_file_info(std::string cid);
     void change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type);
     std::string get_sealed_file_info_all();
     std::string get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked = true);
     void del_sealed_file_info(std::string cid);
-    void del_sealed_file_info(std::string type, size_t pos);
-    bool is_sealed_file_dup(std::string cid);
-    bool is_sealed_file_dup(std::string cid, std::string &type);
-    bool is_sealed_file_dup(std::string cid, std::string &type, size_t &pos);
-    bool find_sealed_file_pos(std::string cid, std::string type, size_t &pos);
+    bool find_file_type_pos(std::string cid);
+    bool find_file_type_pos(std::string cid, std::string &type);
     void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
     json::JSON get_srd_info();
@@ -74,7 +70,7 @@ private:
     // Upgrade status mutex
     std::mutex upgrade_status_mutex;
     // Sealed file map
-    std::map<std::string, std::vector<json::JSON>> sealed_file;
+    std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
     std::mutex sealed_file_mutex;
     // Srd info
     json::JSON srd_info;
