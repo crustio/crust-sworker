@@ -16,7 +16,6 @@
 class EnclaveData
 {
 public:
-    static EnclaveData *enclavedata;
     static EnclaveData *get_instance();
 
     std::string get_enclave_id_info();
@@ -53,6 +52,7 @@ public:
     bool is_uuid_exist(std::string uuid);
 
 private:
+    static EnclaveData *enclavedata;
     EnclaveData()
         : enclave_id_info("")
         , enclave_workload("")

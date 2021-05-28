@@ -8,6 +8,7 @@ namespace crust
 {
 
 Chain *Chain::chain = NULL;
+std::mutex chain_mutex;
 
 /**
  * @desination: single instance class function to get instance
@@ -17,6 +18,8 @@ Chain *Chain::get_instance()
 {
     if (Chain::chain == NULL)
     {
+        SafeLock sl(chain_mutex);
+        sl.lock();
         Config *p_config = Config::get_instance();
         Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup, offline_chain_mode);
     }
@@ -62,12 +65,14 @@ bool Chain::get_block_header(BlockHeader &block_header)
 {
     if (this->is_offline)
     {
+        offline_block_height_mutex.lock();
         if (this->offline_block_height == 0)
         {
             this->offline_block_height = this->get_offline_block_height();
         }
-        
         block_header.number = this->offline_block_height;
+        offline_block_height_mutex.unlock();
+
         block_header.hash = "1000000000000000000000000000000000000000000000000000000000000001";
         return true;
     }
@@ -410,8 +415,10 @@ size_t Chain::get_offline_block_height(void)
 
 void Chain::add_offline_block_height(size_t h)
 {
+    offline_block_height_mutex.lock();
     crust::DataBase::get_instance()->set("offline_block_height_key", std::to_string(this->offline_block_height + h));
     this->offline_block_height += h;
+    offline_block_height_mutex.unlock();
 }
 
 } // namespace crust

@@ -20,9 +20,9 @@ public:
     crust_status_t del(std::string key);
     crust_status_t set(std::string key, std::string value);
     crust_status_t get(std::string key, std::string &value);
-    static DataBase *database;
 
 private:
+    static DataBase *database;
     DataBase() {}
     DataBase(const DataBase &);
     DataBase& operator = (const DataBase &);

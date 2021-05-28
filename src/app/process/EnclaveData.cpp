@@ -3,6 +3,7 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 EnclaveData *EnclaveData::enclavedata = NULL;
+std::mutex enclavedata_mutex;
 std::mutex enclave_id_info_mutex;
 
 extern sgx_enclave_id_t global_eid;
@@ -15,6 +16,8 @@ EnclaveData *EnclaveData::get_instance()
 {
     if (EnclaveData::enclavedata == NULL)
     {
+        SafeLock sl(enclavedata_mutex);
+        sl.lock();
         EnclaveData::enclavedata = new EnclaveData();
     }
 

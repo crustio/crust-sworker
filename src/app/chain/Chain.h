@@ -25,8 +25,9 @@ private:
     std::string backup;            /* The backup of chain account */
     bool is_offline;               /* Offline mode */
     size_t offline_block_height;     /* Base offline block */
-public:
+    std::mutex offline_block_height_mutex;
     static Chain *chain;
+public:
     static Chain *get_instance();
     bool get_block_header(BlockHeader &block_header);
     std::string get_block_hash(size_t block_number);

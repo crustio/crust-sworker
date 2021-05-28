@@ -3,6 +3,7 @@
 using namespace std;
 
 Config *Config::config = NULL;
+std::mutex config_mutex;
 crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path = CRUST_INST_DIR "/etc/Config.json";
 
@@ -14,6 +15,8 @@ extern bool offline_chain_mode;
  */
 Config *Config::get_instance()
 {
+    SafeLock sl(config_mutex);
+    sl.lock();
     if (Config::config == NULL)
     {
         Config::config = new Config();

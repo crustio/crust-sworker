@@ -3,6 +3,7 @@
 
 extern sgx_enclave_id_t global_eid;
 Validator *Validator::validator = NULL;
+std::mutex validator_mutex;
 
 /**
  * @description: Get validator instance
@@ -12,6 +13,8 @@ Validator *Validator::get_instance()
 {
     if (Validator::validator == NULL)
     {
+        SafeLock sl(validator_mutex);
+        sl.lock();
         Validator::validator = new Validator();
     }
 

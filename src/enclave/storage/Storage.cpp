@@ -279,21 +279,24 @@ crust_status_t storage_seal_file_end(const char *root)
         return crust_status = CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    // Check if seal complete
+    // ----- Check if seal complete ----- //
+    // Check if file exists
     SafeLock sl(wl->pending_files_um_mutex);
     sl.lock();
     if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end())
     {
         return crust_status = CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
-    for (auto m : *(wl->pending_files_um[rcid][FILE_BLOCKS].ObjectRange().object))
+    json::JSON file_json = wl->pending_files_um[rcid];
+    sl.unlock();
+    // Check if getting all blocks
+    for (auto m : *(file_json[FILE_BLOCKS].ObjectRange().object))
     {
         if (m.second.ToInt() != 0)
         {
             return crust_status = CRUST_UNEXPECTED_ERROR;
         }
     }
-    sl.unlock();
 
     std::string cid_str = std::string(root, CID_LENGTH);
 
@@ -322,7 +325,7 @@ crust_status_t storage_seal_file_end(const char *root)
     }
     // Get file entry info
     sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
-    json::JSON file_entry_json = wl->pending_files_um[rcid][FILE_META];
+    json::JSON file_entry_json = file_json[FILE_META];
     sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
     sgx_sha256_hash_t sealed_root;
     sgx_sha256_msg(reinterpret_cast<const uint8_t *>(file_entry_json[FILE_HASH].ToBytes()),
@@ -355,6 +358,10 @@ crust_status_t storage_seal_file_end(const char *root)
             wl->recover_from_deleted_file_buffer(root);
         }
         wl->sealed_files[pos] = file_entry_json;
+    }
+    else
+    {
+        wl->add_sealed_file(file_entry_json, pos);
     }
     // Delete info in workload spec
     wl->set_file_spec(FILE_STATUS_PENDING, -1);

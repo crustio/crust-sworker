@@ -6,6 +6,7 @@ namespace crust
 {
 
 DataBase* DataBase::database = NULL;
+std::mutex database_mutex;
 
 /**
  * @description: Get single class instance
@@ -13,6 +14,8 @@ DataBase* DataBase::database = NULL;
  */
 DataBase *DataBase::get_instance()
 {
+    SafeLock sl(database_mutex);
+    sl.lock();
     if (database == NULL)
     {
         database = new DataBase();

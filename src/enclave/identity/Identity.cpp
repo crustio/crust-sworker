@@ -853,6 +853,12 @@ crust_status_t id_store_metadata()
     offset += file_title.size();
     for (size_t i = 0; i < sealed_files.size(); i++)
     {
+        if (FILE_STATUS_PENDING == sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            json::JSON file;
+            file[FILE_CID] = sealed_files[i][FILE_CID].ToString();
+            sealed_files[i] = file;
+        }
         std::string file_str = sealed_files[i].dump();
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
