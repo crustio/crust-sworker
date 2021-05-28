@@ -4,7 +4,6 @@
 crust::Log *p_log = crust::Log::get_instance();
 EnclaveData *EnclaveData::enclavedata = NULL;
 std::mutex enclavedata_mutex;
-std::mutex enclave_id_info_mutex;
 
 extern sgx_enclave_id_t global_eid;
 
@@ -37,7 +36,7 @@ std::string EnclaveData::get_enclave_id_info()
         return "";
     }
 
-    SafeLock sl(enclave_id_info_mutex);
+    SafeLock sl(this->enclave_id_info_mutex);
     sl.lock();
     return enclave_id_info;
 }
@@ -48,7 +47,7 @@ std::string EnclaveData::get_enclave_id_info()
  */
 void EnclaveData::set_enclave_id_info(std::string id_info)
 {
-    SafeLock sl(enclave_id_info_mutex);
+    SafeLock sl(this->enclave_id_info_mutex);
     sl.lock();
     enclave_id_info = id_info;
 }
@@ -59,6 +58,8 @@ void EnclaveData::set_enclave_id_info(std::string id_info)
  */
 std::string EnclaveData::get_enclave_workload()
 {
+    SafeLock sl(this->enclave_workload_mutex);
+    sl.lock();
     return enclave_workload;
 }
 
@@ -68,6 +69,8 @@ std::string EnclaveData::get_enclave_workload()
  */
 void EnclaveData::set_enclave_workload(std::string workload)
 {
+    SafeLock sl(this->enclave_workload_mutex);
+    sl.lock();
     enclave_workload = workload;
 }
 
@@ -539,8 +542,10 @@ void EnclaveData::construct_uuid_disk_path_map()
  */
 void EnclaveData::set_uuid_disk_path_map(std::string uuid, std::string path)
 {
+    uuid_disk_path_map_mutex.lock();
     this->uuid_to_disk_path[uuid] = path;
     this->disk_path_to_uuid[path] = uuid;
+    uuid_disk_path_map_mutex.unlock();
 }
 
 /**
@@ -550,6 +555,8 @@ void EnclaveData::set_uuid_disk_path_map(std::string uuid, std::string path)
  */
 std::string EnclaveData::get_uuid(std::string path)
 {
+    SafeLock sl(uuid_disk_path_map_mutex);
+    sl.lock();
     return this->disk_path_to_uuid[path];
 }
 
@@ -560,6 +567,8 @@ std::string EnclaveData::get_uuid(std::string path)
  */
 std::string EnclaveData::get_disk_path(std::string uuid)
 {
+    SafeLock sl(uuid_disk_path_map_mutex);
+    sl.lock();
     return this->uuid_to_disk_path[uuid];
 }
 
@@ -570,6 +579,8 @@ std::string EnclaveData::get_disk_path(std::string uuid)
  */
 bool EnclaveData::is_disk_exist(std::string path)
 {
+    SafeLock sl(uuid_disk_path_map_mutex);
+    sl.lock();
     return this->disk_path_to_uuid.find(path) != this->disk_path_to_uuid.end();
 }
 
@@ -580,5 +591,7 @@ bool EnclaveData::is_disk_exist(std::string path)
  */
 bool EnclaveData::is_uuid_exist(std::string uuid)
 {
+    SafeLock sl(uuid_disk_path_map_mutex);
+    sl.lock();
     return this->uuid_to_disk_path.find(uuid) != this->uuid_to_disk_path.end();
 }

@@ -188,8 +188,6 @@ private:
     int validated_file_proof = 0; // Generating workreport will decrease this value, while validating will increase it
     sgx_thread_mutex_t validated_file_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
-    bool is_upgrading = false; // Indicate if upgrade is doing
-
     bool report_files; // True indicates reporting files this turn, false means not report
     json::JSON srd_info_json; // Srd info
     sgx_thread_mutex_t srd_info_mutex = SGX_THREAD_MUTEX_INITIALIZER;

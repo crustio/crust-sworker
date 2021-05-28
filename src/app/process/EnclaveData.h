@@ -61,13 +61,14 @@ private:
 
     // Store enclave identity information
     std::string enclave_id_info;
+    std::mutex enclave_id_info_mutex;
     // Store enclave workload information
     std::string enclave_workload;
+    std::mutex enclave_workload_mutex;
     // Upgrade data
     std::string upgrade_data;
     // Upgrade status
     upgrade_status_t upgrade_status;
-    // Upgrade status mutex
     std::mutex upgrade_status_mutex;
     // Sealed file map
     std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
@@ -78,6 +79,7 @@ private:
     // For uuid and disk path
     std::unordered_map<std::string, std::string> uuid_to_disk_path;
     std::unordered_map<std::string, std::string> disk_path_to_uuid;
+    std::mutex uuid_disk_path_map_mutex;
 };
 
 #endif /* !_APP_ENCLAVE_DATA_H_ */
