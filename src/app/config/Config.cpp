@@ -216,6 +216,7 @@ bool Config::unique_paths()
     std::set<std::string> sids_s;
     std::set<std::string> data_paths(this->data_paths.begin(), this->data_paths.end());
     this->data_paths.clear();
+    std::string sys_disk_path;
     for (auto path : data_paths)
     {
         struct statfs st;
@@ -232,7 +233,17 @@ bool Config::unique_paths()
                     sids_s.insert(fsid);
                 }
             }
+            else
+            {
+                sys_disk_path = path;
+            }
         }
+    }
+
+    // If no valid data path and system disk is configured, choose sys disk
+    if (this->data_paths.size() == 0 && sys_disk_path.size() != 0)
+    {
+        this->data_paths.push_back(sys_disk_path);
     }
     this->sort_data_paths();
 
@@ -318,9 +329,13 @@ bool Config::is_valid_or_normal_disk(const std::string &path)
         return false;
     }
 
+    data_paths_mutex.lock();
+    size_t data_paths_size = this->data_paths.size();
+    data_paths_mutex.unlock();
+
     std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
 
-    return this->sys_fsid.compare(fsid) != 0;
+    return this->sys_fsid.compare(fsid) != 0 || data_paths_size == 1;
 }
 
 /**
