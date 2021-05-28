@@ -55,8 +55,6 @@ public:
     std::string chain_password;     /* The password of crust chain account */
     std::string chain_backup;       /* The backup of crust chain account */
 
-    static Config *config;
-
     void show(void);
     static Config *get_instance();
     std::string get_config_path();
@@ -67,6 +65,7 @@ public:
     bool config_file_add_data_paths(const json::JSON &paths);
 
 private:
+    static Config *config;
     Config() {}
     Config(const Config &);
     bool init(std::string path);

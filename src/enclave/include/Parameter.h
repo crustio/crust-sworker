@@ -1,6 +1,9 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
+// For ocall store
+typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
+
 // For all
 #define SWORKER_VERSION "0.10.0"
 #define LEAF_SEPARATOR  "+leaf+"
@@ -46,8 +49,15 @@
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 400000
 #define FILE_CAL_BUFFER_SIZE 7340032
+#define FILE_TYPE_PENDING "pending"
+#define FILE_TYPE_UNVERIFIED "unverified"
 #define FILE_TYPE_VALID "valid"
 #define FILE_TYPE_LOST "lost"
+#define FILE_TYPE_DELETED "deleted"
+// File limit
+#define FILE_PENDING_LIMIT 500
+#define FILE_PENDING_STIME "start_second"
+#define FILE_PENDING_DOWNLOAD_TIME "used_time"
 
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"
@@ -151,5 +161,9 @@ typedef enum _store_type_t {
     STORE_TYPE_SRD,
     STORE_TYPE_FILE,
 } store_type_t;
+
+typedef enum _ocall_store_type_t {
+    OS_FILE_INFO_ALL,
+} ocall_store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

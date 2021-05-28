@@ -13,6 +13,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <chrono>
 
 #include <boost/algorithm/string.hpp>
 
@@ -21,6 +22,8 @@
 #include "MerkleTree.h"
 #include "Log.h"
 #include "../enclave/utils/Json.h"
+
+using seconds_t = std::chrono::seconds;
 
 #if defined(__cplusplus)
 extern "C"
@@ -48,6 +51,8 @@ extern "C"
     bool sleep_interval(uint32_t time, std::function<bool()> func);
     std::string float_to_string(double num);
     void read_rand(uint8_t *buf, size_t buf_size);
+    decltype(seconds_t().count()) get_seconds_since_epoch();
+    std::string get_time_diff(long time);
 
 #if defined(__cplusplus)
 }

@@ -3,6 +3,7 @@
 crust::Log *p_log = crust::Log::get_instance();
 HttpClient *ipfs_client = NULL;
 Ipfs *Ipfs::ipfs = NULL;
+std::mutex ipfs_mutex;
 
 const std::string block_get_timeout = "1s";
 const std::string cat_timeout = "6s";
@@ -16,6 +17,8 @@ Ipfs *Ipfs::get_instance()
 {
     if (Ipfs::ipfs == NULL)
     {
+        SafeLock sl(ipfs_mutex);
+        sl.lock();
         Ipfs::ipfs = new Ipfs(Config::get_instance()->ipfs_url);
     }
 

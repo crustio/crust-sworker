@@ -27,6 +27,7 @@
 #include "EntryNetwork.h"
 #include "Chain.h"
 #include "Validator.h"
+#include "SafeLock.h"
 
 #if defined(__cplusplus)
 extern "C"
@@ -43,8 +44,8 @@ extern "C"
 
     // For file
     crust_status_t ocall_chain_get_block_info(char *data, size_t data_size);
-    void ocall_store_file_info(const char* cid, const char *data);
-    void ocall_store_file_info_all(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size);
+    void ocall_store_file_info(const char* cid, const char *data, const char *type);
+    void ocall_store_file_info_all(const uint8_t *data, size_t data_size);
     
     void ocall_usleep(int u);
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
@@ -67,6 +68,8 @@ extern "C"
     void ocall_recall_validate_srd();
 
     void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type);
+
+    crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset);
 
 #if defined(__cplusplus)
 }

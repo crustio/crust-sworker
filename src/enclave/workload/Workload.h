@@ -23,17 +23,18 @@
 #define VALIDATE_PROOF_MAX_NUM 2
 
 std::map<char, std::string> file_status_2_name = {
-    {FILE_STATUS_PENDING, "pending"},
-    {FILE_STATUS_UNVERIFIED, "unverified"},
-    {FILE_STATUS_VALID, "valid"},
-    {FILE_STATUS_LOST, "lost"},
-    {FILE_STATUS_DELETED, "deleted"},
+    {FILE_STATUS_PENDING, FILE_TYPE_PENDING},
+    {FILE_STATUS_UNVERIFIED, FILE_TYPE_UNVERIFIED},
+    {FILE_STATUS_VALID, FILE_TYPE_VALID},
+    {FILE_STATUS_LOST, FILE_TYPE_LOST},
+    {FILE_STATUS_DELETED, FILE_TYPE_DELETED},
 };
 
 // Show information
-std::map<char, std::string> g_file_status = {
-    {FILE_STATUS_VALID, "valid"},
-    {FILE_STATUS_LOST, "lost"},
+std::map<char, std::string> g_file_spec_status = {
+    {FILE_STATUS_PENDING, FILE_TYPE_PENDING},
+    {FILE_STATUS_VALID, FILE_TYPE_VALID},
+    {FILE_STATUS_LOST, FILE_TYPE_LOST},
 };
 
 class Workload
@@ -43,6 +44,7 @@ public:
     std::vector<json::JSON> sealed_files; // Files have been added into checked queue
     std::set<std::string> reported_files_idx; // File indexes reported this turn of workreport
     sgx_ec256_public_t pre_pub_key; // Old version's public key
+    std::unordered_map<std::string, json::JSON> pending_files_um; // Pending files
     
     // Basic
     static Workload *workload;
@@ -169,6 +171,7 @@ public:
     sgx_thread_mutex_t ocall_upgrade_mutex = SGX_THREAD_MUTEX_INITIALIZER; // Upgrade mutex
     sgx_thread_mutex_t srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     sgx_thread_mutex_t file_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+    sgx_thread_mutex_t pending_files_um_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
 private:
     Workload();
@@ -184,8 +187,6 @@ private:
     sgx_thread_mutex_t validated_srd_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     int validated_file_proof = 0; // Generating workreport will decrease this value, while validating will increase it
     sgx_thread_mutex_t validated_file_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-
-    bool is_upgrading = false; // Indicate if upgrade is doing
 
     bool report_files; // True indicates reporting files this turn, false means not report
     json::JSON srd_info_json; // Srd info

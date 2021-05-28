@@ -898,3 +898,38 @@ crust_status_t unseal_data_mrsigner(const sgx_sealed_data_t *data,
 
     return CRUST_SUCCESS;
 }
+
+/**
+ * @description: Safe store data outside enclave
+ * @param t -> Ocall function type
+ * @param u -> Pointer to data
+ * @param s -> Data length
+ * @return: Ocall result
+ */
+crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t s)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    crust_status_t crust_status = CRUST_SUCCESS;
+    size_t offset = 0;
+    while (s > offset)
+    {
+        size_t partial_size = std::min(s - offset, (size_t)OCALL_STORE_THRESHOLD);
+        ret = ocall_safe_store2(&crust_status,
+                                t,
+                                u + offset,
+                                s,
+                                partial_size,
+                                offset);
+        if (SGX_SUCCESS != ret)
+        {
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return crust_status;
+        }
+        offset += partial_size;
+    }
+
+    return crust_status;
+}

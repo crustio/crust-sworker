@@ -66,7 +66,6 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
     {
         // Data size larger than default size
         uint32_t part_size = 0;
-        uint32_t index = 0;
         while (sealed_data_size > offset)
         {
             part_size = std::min((uint32_t)(sealed_data_size - offset), (uint32_t)OCALL_STORE_THRESHOLD);
@@ -78,7 +77,6 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
                 goto cleanup;
             }
             offset += part_size;
-            index++;
         }
     }
     else
@@ -115,7 +113,6 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
     {
         // Data size larger than default size
         uint32_t part_size = 0;
-        uint32_t index = 0;
         while (value_len > offset)
         {
             part_size = std::min((uint32_t)(value_len - offset), (uint32_t)OCALL_STORE_THRESHOLD);
@@ -127,7 +124,6 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
                 return crust_status;
             }
             offset += part_size;
-            index++;
         }
     }
     else

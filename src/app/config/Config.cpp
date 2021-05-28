@@ -3,11 +3,9 @@
 using namespace std;
 
 Config *Config::config = NULL;
+std::mutex config_mutex;
 crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path = CRUST_INST_DIR "/etc/Config.json";
-
-extern bool offline_chain_mode;
-extern bool g_use_sys_disk;
 
 /**
  * @desination: Single instance class function to get instance
@@ -15,6 +13,8 @@ extern bool g_use_sys_disk;
  */
 Config *Config::get_instance()
 {
+    SafeLock sl(config_mutex);
+    sl.lock();
     if (Config::config == NULL)
     {
         Config::config = new Config();
@@ -202,18 +202,16 @@ std::string Config::get_config_path()
 bool Config::unique_paths()
 {
     // Get system disk fsid
-    if (!offline_chain_mode && !g_use_sys_disk)
+    struct statfs sys_st;
+    if (statfs(this->base_path.c_str(), &sys_st) != -1)
     {
-        struct statfs sys_st;
-        if (statfs(this->base_path.c_str(), &sys_st) != -1)
-        {
-            this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
-        }
+        this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
     }
 
     std::set<std::string> sids_s;
     std::set<std::string> data_paths(this->data_paths.begin(), this->data_paths.end());
     this->data_paths.clear();
+    std::string sys_disk_path;
     for (auto path : data_paths)
     {
         struct statfs st;
@@ -227,9 +225,20 @@ bool Config::unique_paths()
                 if (sids_s.find(fsid) == sids_s.end())
                 {
                     this->data_paths.push_back(path);
+                    sids_s.insert(fsid);
                 }
             }
+            else
+            {
+                sys_disk_path = path;
+            }
         }
+    }
+
+    // If no valid data path and system disk is configured, choose sys disk
+    if (this->data_paths.size() == 0 && sys_disk_path.size() != 0)
+    {
+        this->data_paths.push_back(sys_disk_path);
     }
     this->sort_data_paths();
 
@@ -315,9 +324,13 @@ bool Config::is_valid_or_normal_disk(const std::string &path)
         return false;
     }
 
+    data_paths_mutex.lock();
+    size_t data_paths_size = this->data_paths.size();
+    data_paths_mutex.unlock();
+
     std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
 
-    return this->sys_fsid.compare(fsid) != 0;
+    return this->sys_fsid.compare(fsid) != 0 || data_paths_size == 1;
 }
 
 /**

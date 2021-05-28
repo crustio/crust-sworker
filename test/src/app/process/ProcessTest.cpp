@@ -104,19 +104,22 @@ entry_network_flag:
 
             
             // Entry network
-            crust_status = entry_network();
-            if (CRUST_SUCCESS != crust_status)
+            if (!offline_chain_mode)
             {
-                if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
+                crust_status = entry_network();
+                if (CRUST_SUCCESS != crust_status)
                 {
-                    entry_tryout--;
-                    sgx_destroy_enclave(global_eid);
-                    global_eid = 0;
-                    sleep(60);
-                    goto entry_network_flag;
+                    if (CRUST_INIT_QUOTE_FAILED == crust_status && entry_tryout > 0)
+                    {
+                        entry_tryout--;
+                        sgx_destroy_enclave(global_eid);
+                        global_eid = 0;
+                        sleep(60);
+                        goto entry_network_flag;
+                    }
+                    goto cleanup;
+                    return_status = -1;
                 }
-                goto cleanup;
-                return_status = -1;
             }
         }
         else

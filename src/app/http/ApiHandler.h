@@ -82,6 +82,9 @@ private:
     std::set<std::string> http_mute_req_s = {
         "/workload",
         "/enclave/id_info",
+        "/storage/seal",
+        "/file/info",
+        "/file/info_by_type",
     };
 };
 
@@ -296,12 +299,60 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
-        // ----- Get all sealed file information ----- //
-        cur_path = urlendpoint.base + "/file/info_all";
+        // ----- Get sealed file information by cid ----- //
+        cur_path = urlendpoint.base + "/file/info";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            int ret_code = 400;
+            std::string ret_info;
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string cid = req_json["cid"].ToString();
+            json::JSON ret_body;
+            if (cid.size() != CID_LENGTH)
+            {
+                ret_info = "Invalid cid";
+                ret_code = 400;
+                ret_body[HTTP_STATUS_CODE] = ret_code;
+                ret_body[HTTP_MESSAGE] = ret_info;
+                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                res.body() = ret_body.dump();
+            }
+            else
+            {
+                std::string file_info = EnclaveData::get_instance()->get_sealed_file_info(cid);
+                if (file_info.compare("") == 0)
+                {
+                    ret_info = "File not found.";
+                    ret_code = 404;
+                    ret_body[HTTP_STATUS_CODE] = ret_code;
+                    ret_body[HTTP_MESSAGE] = ret_info;
+                    res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+                    res.body() = ret_body.dump();
+                }
+                else
+                {
+                    res.result(200);
+                    res.body() = file_info;
+                }
+            }
+            goto getcleanup;
+        }
+
+        // ----- Get sealed file information by type ----- //
+        cur_path = urlendpoint.base + "/file/info_by_type";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            res.body() = EnclaveData::get_instance()->get_sealed_file_info_all();
+            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            std::string type = req_json["type"].ToString();
+            if (type.compare("all") == 0)
+            {
+                res.body() = EnclaveData::get_instance()->get_sealed_file_info_all();
+            }
+            else
+            {
+                res.body() = EnclaveData::get_instance()->get_sealed_file_info_by_type(type, "", false);
+            }
             goto getcleanup;
         }
 
@@ -529,45 +580,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             ret_body[HTTP_MESSAGE] = ret_info;
             res.result(ret_body[HTTP_STATUS_CODE].ToInt());
             res.body() = ret_body.dump();
-            goto postcleanup;
-        }
-
-        // ----- Get sealed file information by cid ----- //
-        cur_path = urlendpoint.base + "/file/info";
-        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
-        {
-            int ret_code = 400;
-            std::string ret_info;
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
-            std::string cid = req_json["cid"].ToString();
-            json::JSON ret_body;
-            if (cid.size() != CID_LENGTH)
-            {
-                ret_info = "Invalid cid";
-                ret_code = 400;
-                ret_body[HTTP_STATUS_CODE] = ret_code;
-                ret_body[HTTP_MESSAGE] = ret_info;
-                res.result(ret_body[HTTP_STATUS_CODE].ToInt());
-                res.body() = ret_body.dump();
-            }
-            else
-            {
-                std::string file_info = EnclaveData::get_instance()->get_sealed_file_info(cid);
-                if (file_info.compare("") == 0)
-                {
-                    ret_info = "File not found.";
-                    ret_code = 404;
-                    ret_body[HTTP_STATUS_CODE] = ret_code;
-                    ret_body[HTTP_MESSAGE] = ret_info;
-                    res.result(ret_body[HTTP_STATUS_CODE].ToInt());
-                    res.body() = ret_body.dump();
-                }
-                else
-                {
-                    res.result(200);
-                    res.body() = file_info;
-                }
-            }
             goto postcleanup;
         }
 

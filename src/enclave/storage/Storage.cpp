@@ -2,9 +2,6 @@
 
 using namespace std;
 
-std::unordered_map<std::string, json::JSON> g_files_info_um;
-sgx_thread_mutex_t g_files_info_um_mutex = SGX_THREAD_MUTEX_INITIALIZER;
-
 crust_status_t check_seal_file_dup(std::string cid);
 
 /**
@@ -36,9 +33,21 @@ crust_status_t storage_seal_file_start(const char *root)
     sl_file.unlock();
 
     // Add file info
-    sgx_thread_mutex_lock(&g_files_info_um_mutex);
-    g_files_info_um[root_cid][FILE_BLOCKS][root_cid].AddNum(1);
-    sgx_thread_mutex_unlock(&g_files_info_um_mutex);
+    SafeLock sl(wl->pending_files_um_mutex);
+    sl.lock();
+    if (wl->pending_files_um.size() > FILE_PENDING_LIMIT)
+    {
+        return CRUST_FILE_NUMBER_EXCEED;
+    }
+    wl->pending_files_um[root_cid][FILE_BLOCKS][root_cid].AddNum(1);
+    sl.unlock();
+
+    // Add info in workload spec
+    wl->set_file_spec(FILE_STATUS_PENDING, 1);
+
+    // Store file information
+    std::string file_info("{}");
+    ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_PENDING);
 
     return CRUST_SUCCESS;
 }
@@ -69,9 +78,9 @@ crust_status_t storage_seal_file(const char *root,
     Defer defer([&seal_ret, &wl, &rcid, &root](){
         if (CRUST_SUCCESS != seal_ret)
         {
-            sgx_thread_mutex_lock(&g_files_info_um_mutex);
-            g_files_info_um.erase(rcid);
-            sgx_thread_mutex_unlock(&g_files_info_um_mutex);
+            sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
+            wl->pending_files_um.erase(rcid);
+            sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
             // Delete file directory
             crust_status_t del_ret = CRUST_SUCCESS;
             ocall_delete_ipfs_file(&del_ret, root);
@@ -84,6 +93,8 @@ crust_status_t storage_seal_file(const char *root,
                 if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
                 {
                     wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                    // Delete info in workload spec
+                    wl->set_file_spec(FILE_STATUS_PENDING, -1);
                 }
             }
             sl_file.unlock();
@@ -102,9 +113,9 @@ crust_status_t storage_seal_file(const char *root,
     }
 
     // ----- Check file status ----- //
-    SafeLock sl_files_info(g_files_info_um_mutex);
+    SafeLock sl_files_info(wl->pending_files_um_mutex);
     sl_files_info.lock();
-    if (g_files_info_um.find(rcid) == g_files_info_um.end()) 
+    if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end()) 
     {
         return CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
@@ -159,7 +170,7 @@ crust_status_t storage_seal_file(const char *root,
     sgx_sha256_msg(p_plain_data, plain_data_sz, &cur_hash);
     std::string cur_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&cur_hash));
     log_info("Dealing with cid '%s'\n", cur_cid.c_str());
-    g_files_info_um[rcid][FILE_BLOCKS][cur_cid].AddNum(-1);
+    wl->pending_files_um[rcid][FILE_BLOCKS][cur_cid].AddNum(-1);
     sl_files_info.unlock();
 
     // Push children to map
@@ -169,14 +180,14 @@ crust_status_t storage_seal_file(const char *root,
     {
         return seal_ret;
     }
-    sgx_thread_mutex_lock(&g_files_info_um_mutex);
+    sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
     for (size_t i = 0; i < children_hashs.size(); i++)
     {
         std::string ccid = hash_to_cid(reinterpret_cast<const uint8_t *>(children_hashs[i]));
-        g_files_info_um[rcid][FILE_BLOCKS][ccid].AddNum(1);
+        wl->pending_files_um[rcid][FILE_BLOCKS][ccid].AddNum(1);
         free(children_hashs[i]);
     }
-    sgx_thread_mutex_unlock(&g_files_info_um_mutex);
+    sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
 
     // ----- Seal data ----- //
     sgx_sealed_data_t *p_sealed_data = NULL;
@@ -215,13 +226,13 @@ crust_status_t storage_seal_file(const char *root,
     memcpy(path, sealed_path.c_str(), sealed_path.size());
 
     // Record file info
-    sgx_thread_mutex_lock(&g_files_info_um_mutex);
-    g_files_info_um[rcid][FILE_META][FILE_HASH].AppendBuffer(uuid_u, UUID_LENGTH);
-    g_files_info_um[rcid][FILE_META][FILE_HASH].AppendBuffer(sealed_hash, HASH_LENGTH);
-    g_files_info_um[rcid][FILE_META][FILE_SIZE].AddNum(plain_data_sz);
-    g_files_info_um[rcid][FILE_META][FILE_SEALED_SIZE].AddNum(sealed_data_sz);
-    g_files_info_um[rcid][FILE_META][FILE_BLOCK_NUM].AddNum(1);
-    sgx_thread_mutex_unlock(&g_files_info_um_mutex);
+    sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
+    wl->pending_files_um[rcid][FILE_META][FILE_HASH].AppendBuffer(uuid_u, UUID_LENGTH);
+    wl->pending_files_um[rcid][FILE_META][FILE_HASH].AppendBuffer(sealed_hash, HASH_LENGTH);
+    wl->pending_files_um[rcid][FILE_META][FILE_SIZE].AddNum(plain_data_sz);
+    wl->pending_files_um[rcid][FILE_META][FILE_SEALED_SIZE].AddNum(sealed_data_sz);
+    wl->pending_files_um[rcid][FILE_META][FILE_BLOCK_NUM].AddNum(1);
+    sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
 
     return CRUST_SUCCESS;
 }
@@ -244,9 +255,9 @@ crust_status_t storage_seal_file_end(const char *root)
             crust_status_t del_ret = CRUST_SUCCESS;
             ocall_delete_ipfs_file(&del_ret, root);
         }
-        sgx_thread_mutex_lock(&g_files_info_um_mutex);
-        g_files_info_um.erase(root);
-        sgx_thread_mutex_unlock(&g_files_info_um_mutex);
+        sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
+        wl->pending_files_um.erase(root);
+        sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
         // Delete PENDING status file entry
         SafeLock sl(wl->file_mutex);
         sl.lock();
@@ -256,6 +267,8 @@ crust_status_t storage_seal_file_end(const char *root)
             if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
             {
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                // Delete info in workload spec
+                wl->set_file_spec(FILE_STATUS_PENDING, -1);
             }
         }
         sl.unlock();
@@ -266,21 +279,24 @@ crust_status_t storage_seal_file_end(const char *root)
         return crust_status = CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    // Check if seal complete
-    SafeLock sl(g_files_info_um_mutex);
+    // ----- Check if seal complete ----- //
+    // Check if file exists
+    SafeLock sl(wl->pending_files_um_mutex);
     sl.lock();
-    if (g_files_info_um.find(rcid) == g_files_info_um.end())
+    if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end())
     {
         return crust_status = CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
-    for (auto m : *(g_files_info_um[rcid][FILE_BLOCKS].ObjectRange().object))
+    json::JSON file_json = wl->pending_files_um[rcid];
+    sl.unlock();
+    // Check if getting all blocks
+    for (auto m : *(file_json[FILE_BLOCKS].ObjectRange().object))
     {
         if (m.second.ToInt() != 0)
         {
             return crust_status = CRUST_UNEXPECTED_ERROR;
         }
     }
-    sl.unlock();
 
     std::string cid_str = std::string(root, CID_LENGTH);
 
@@ -308,9 +324,9 @@ crust_status_t storage_seal_file_end(const char *root)
         log_warn("Cannot get block information for sealed file.\n");
     }
     // Get file entry info
-    sgx_thread_mutex_lock(&g_files_info_um_mutex);
-    json::JSON file_entry_json = g_files_info_um[rcid][FILE_META];
-    sgx_thread_mutex_unlock(&g_files_info_um_mutex);
+    sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
+    json::JSON file_entry_json = file_json[FILE_META];
+    sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
     sgx_sha256_hash_t sealed_root;
     sgx_sha256_msg(reinterpret_cast<const uint8_t *>(file_entry_json[FILE_HASH].ToBytes()),
             file_entry_json[FILE_HASH].size(), &sealed_root);
@@ -347,6 +363,8 @@ crust_status_t storage_seal_file_end(const char *root)
     {
         wl->add_sealed_file(file_entry_json, pos);
     }
+    // Delete info in workload spec
+    wl->set_file_spec(FILE_STATUS_PENDING, -1);
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // Add info in workload spec
@@ -354,10 +372,10 @@ crust_status_t storage_seal_file_end(const char *root)
 
     // Store file information
     std::string file_info;
-    file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SIZE].ToInt())).append(" , ")
-        .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SEALED_SIZE].ToInt())).append(" , ")
-        .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(chain_block_num)).append(" }");
-    ocall_store_file_info(root, file_info.c_str());
+    file_info.append("{ \"" FILE_SIZE "\" : ").append(std::to_string(file_entry_json[FILE_SIZE].ToInt())).append(" , ")
+        .append("\"" FILE_SEALED_SIZE "\" : ").append(std::to_string(file_entry_json[FILE_SEALED_SIZE].ToInt())).append(" , ")
+        .append("\"" FILE_CHAIN_BLOCK_NUM "\" : ").append(std::to_string(chain_block_num)).append(" }");
+    ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_VALID);
 
     return CRUST_SUCCESS;
 }

@@ -16,7 +16,6 @@
 class EnclaveData
 {
 public:
-    static EnclaveData *enclavedata;
     static EnclaveData *get_instance();
 
     std::string get_enclave_id_info();
@@ -28,13 +27,16 @@ public:
     upgrade_status_t get_upgrade_status();
     void set_upgrade_status(upgrade_status_t status);
     // Sealed information
-    void add_sealed_file_info(std::string cid, std::string info);
+    void add_sealed_file_info(const std::string &cid, std::string type, std::string info);
+    std::string get_sealed_file_info_item(json::JSON &info, bool raw);
     std::string get_sealed_file_info(std::string cid);
-    void change_sealed_file_type(const std::string &cid, const std::string &old_type, const std::string &new_type);
+    void change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type);
     std::string get_sealed_file_info_all();
+    std::string get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked = true);
     void del_sealed_file_info(std::string cid);
-    bool is_sealed_file_dup(std::string cid, bool locked = true);
-    void restore_sealed_file_info(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size);
+    bool find_file_type_pos(std::string cid);
+    bool find_file_type_pos(std::string cid, std::string &type);
+    void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
     json::JSON get_srd_info();
     // Get workload
@@ -50,6 +52,7 @@ public:
     bool is_uuid_exist(std::string uuid);
 
 private:
+    static EnclaveData *enclavedata;
     EnclaveData()
         : enclave_id_info("")
         , enclave_workload("")
@@ -58,16 +61,17 @@ private:
 
     // Store enclave identity information
     std::string enclave_id_info;
+    std::mutex enclave_id_info_mutex;
     // Store enclave workload information
     std::string enclave_workload;
+    std::mutex enclave_workload_mutex;
     // Upgrade data
     std::string upgrade_data;
     // Upgrade status
     upgrade_status_t upgrade_status;
-    // Upgrade status mutex
     std::mutex upgrade_status_mutex;
     // Sealed file map
-    json::JSON sealed_file;
+    std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
     std::mutex sealed_file_mutex;
     // Srd info
     json::JSON srd_info;
@@ -75,6 +79,7 @@ private:
     // For uuid and disk path
     std::unordered_map<std::string, std::string> uuid_to_disk_path;
     std::unordered_map<std::string, std::string> disk_path_to_uuid;
+    std::mutex uuid_disk_path_map_mutex;
 };
 
 #endif /* !_APP_ENCLAVE_DATA_H_ */

@@ -1,6 +1,11 @@
 #include "OCalls.h"
 
 crust::Log *p_log = crust::Log::get_instance();
+std::map<std::string, uint8_t *> g_ocall_buffer_pool;
+std::mutex g_ocall_buffer_pool_mutex;
+std::map<ocall_store_type_t, ocall_store2_f> g_ocall_store2_func_m = {
+    {OS_FILE_INFO_ALL, ocall_store_file_info_all},
+};
 
 // Used to store ocall file data
 uint8_t *ocall_file_data = NULL;
@@ -263,22 +268,77 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
  * @description: Store file information
  * @param cid (in) -> File content identity
  * @param data (in) -> File information data
+ * @param type (in) -> File information type
  */
-void ocall_store_file_info(const char* cid, const char *data)
+void ocall_store_file_info(const char* cid, const char *data, const char *type)
 {
-    EnclaveData::get_instance()->add_sealed_file_info(cid, data);
+    EnclaveData::get_instance()->add_sealed_file_info(cid, type, data);
 }
 
 /**
- * @description: Store all file information
- * @param valid_data -> All valid file information
- * @param valid_size -> All valid file information size
- * @param lost_data -> All lost file information
- * @param lost_size -> All lost file information size
+ * @description: Restore sealed file information
+ * @param data -> All file information
+ * @param data_size -> All file information size
  */
-void ocall_store_file_info_all(const uint8_t *valid_data, size_t valid_size, const uint8_t *lost_data, size_t lost_size)
+void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
 {
-    EnclaveData::get_instance()->restore_sealed_file_info(valid_data, valid_size, lost_data, lost_size);
+    EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+}
+
+/**
+ * @description: Ocall save big data
+ * @param t -> Store function type
+ * @param data -> Pointer to data
+ * @param total_size -> Total data size
+ * @param partial_size -> Current store data size
+ * @param offset -> Offset in total data
+ * @return: Store result
+ */
+crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset)
+{
+    SafeLock sl(g_ocall_buffer_pool_mutex);
+    sl.lock();
+    crust_status_t crust_status = CRUST_SUCCESS;
+    bool is_end = true;
+    std::string key(__FUNCTION__);
+    key += "1";
+    if (offset < total_size)
+    {
+        uint8_t *buffer = g_ocall_buffer_pool[key];
+        if (buffer == NULL)
+        {
+            buffer = (uint8_t *)malloc(total_size);
+            if (buffer == NULL)
+            {
+                crust_status = CRUST_MALLOC_FAILED;
+                goto cleanup;
+            }
+            memset(buffer, 0, total_size);
+            g_ocall_buffer_pool[key] = buffer;
+        }
+        memcpy(buffer + offset, data, partial_size);
+        if (offset + partial_size < total_size)
+        {
+            is_end = is_end && false;
+        }
+    }
+
+    if (!is_end)
+    {
+        return CRUST_SUCCESS;
+    }
+
+    (g_ocall_store2_func_m[t])(g_ocall_buffer_pool[key], total_size);
+
+cleanup:
+
+    if (g_ocall_buffer_pool.find(key) != g_ocall_buffer_pool.end())
+    {
+        free(g_ocall_buffer_pool[key]);
+        g_ocall_buffer_pool.erase(key);
+    }
+
+    return crust_status;
 }
 
 /**

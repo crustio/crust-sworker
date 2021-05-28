@@ -1,6 +1,7 @@
 #include "AppTest.h"
 
 bool offline_chain_mode = false;
+bool g_use_sys_disk = false;
 bool g_upgrade_flag = false;
 extern std::string config_file_path;
 crust::Log *p_log = crust::Log::get_instance();
@@ -42,6 +43,10 @@ int SGX_CDECL main(int argc, char *argv[])
             printf("Release version: %s\
                   \nSWorker     version: %s\n", VERSION, SWORKER_VERSION);
             return 0;
+        }
+        else if (strcmp(argv[i], "--use-sysdisk") == 0)
+        {
+            g_use_sys_disk = true;
         }
         else if (strcmp(argv[i], "--offline") == 0)
         {

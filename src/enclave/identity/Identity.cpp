@@ -855,7 +855,9 @@ crust_status_t id_store_metadata()
     {
         if (FILE_STATUS_PENDING == sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
         {
-            continue;
+            json::JSON file;
+            file[FILE_CID] = sealed_files[i][FILE_CID].ToString();
+            sealed_files[i] = file;
         }
         std::string file_str = sealed_files[i].dump();
         remove_char(file_str, '\n');
@@ -1033,7 +1035,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     size_t random_time = 0;
     sgx_read_rand(reinterpret_cast<uint8_t *>(&random_time), sizeof(size_t));
     random_time = ((random_time % (UPGRADE_WAIT_BLOCK_MAX - UPGRADE_WAIT_BLOCK_MIN + 1)) + UPGRADE_WAIT_BLOCK_MIN) * BLOCK_INTERVAL;
-    log_info("Upgrade: Will generate and send work reort after %ld blocks...\n", random_time / BLOCK_INTERVAL);
+    log_info("Upgrade: Will generate and send work report after %ld blocks...\n", random_time / BLOCK_INTERVAL);
     if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report(report_hash, report_height, random_time, false, false)))
     {
         log_err("Fatal error! Send work report failed! Error code:%lx\n", crust_status);
