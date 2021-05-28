@@ -7,8 +7,6 @@ std::mutex config_mutex;
 crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path = CRUST_INST_DIR "/etc/Config.json";
 
-extern bool offline_chain_mode;
-
 /**
  * @desination: Single instance class function to get instance
  * @return: Configure instance
@@ -204,13 +202,10 @@ std::string Config::get_config_path()
 bool Config::unique_paths()
 {
     // Get system disk fsid
-    if (!offline_chain_mode)
+    struct statfs sys_st;
+    if (statfs(this->base_path.c_str(), &sys_st) != -1)
     {
-        struct statfs sys_st;
-        if (statfs(this->base_path.c_str(), &sys_st) != -1)
-        {
-            this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
-        }
+        this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
     }
 
     std::set<std::string> sids_s;
