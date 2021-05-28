@@ -188,13 +188,18 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
     std::string data = info[cid].ToString();
     remove_char(data, '\\');
     json::JSON data_json = json::JSON::Load(data);
+    size_t file_size = get_file_size_by_cid(cid);
 
     if(data_json.hasKey(FILE_PENDING_STIME))
     {
         long stime = data_json[FILE_PENDING_STIME].ToInt();
         long etime = get_seconds_since_epoch();
         long utime = etime - stime;
-        data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" + get_time_diff(utime) + "\" }";
+        data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
+            + get_time_diff_humanreadable(utime) + "\" , "
+            + "\"sealed_size\" : \""
+            + get_file_size_humanreadable(file_size) + "\""
+            + " }";
     }
 
     if (raw)
@@ -238,7 +243,8 @@ void EnclaveData::change_sealed_file_type(const std::string &cid, std::string ol
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    std::string info = this->sealed_file[old_type][cid].ToString();
+    std::string info = this->sealed_file[old_type][cid][cid].ToString();
+    remove_char(info, '\\');
     this->sealed_file[old_type].erase(cid);
     sl.unlock();
     add_sealed_file_info(cid, new_type, info);
@@ -342,7 +348,6 @@ bool EnclaveData::find_file_type_pos(std::string cid)
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
  * @param type -> Reference to file status type
- * @param pos -> Reference to file position
  * @return: Duplicated or not
  */
 bool EnclaveData::find_file_type_pos(std::string cid, std::string &type)

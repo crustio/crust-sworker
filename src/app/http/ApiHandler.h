@@ -378,9 +378,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             sgx_status_t sgx_status = SGX_SUCCESS;
             crust_status_t crust_status = CRUST_SUCCESS;
-#ifdef _CRUST_TEST_FLAG_
-            if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, g_block_height+REPORT_SLOT+REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT)))
-#else
             crust::BlockHeader block_header;
             if (!crust::Chain::get_instance()->get_block_header(block_header))
             {
@@ -389,7 +386,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 p_log->err("%s\n", ret_info.c_str());
             }
             else if (SGX_SUCCESS != (sgx_status = Ecall_enable_upgrade(global_eid, &crust_status, block_header.number)))
-#endif
             {
                 ret_info = "Invoke SGX API failed!";
                 ret_code = 500;
@@ -445,7 +441,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/upgrade/metadata";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            std::string ret_info;
             if (UPGRADE_STATUS_COMPLETE != ed->get_upgrade_status())
             {
                 json::JSON ret_body;
@@ -453,13 +448,14 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 ret_body[HTTP_MESSAGE] = "Metadata is still collecting!";
                 res.result(ret_body[HTTP_STATUS_CODE].ToInt());
                 res.body() = ret_body.dump();
-                goto getcleanup;
             }
-
-            std::string upgrade_data = ed->get_upgrade_data();
-            p_log->info("Generate upgrade data successfully!Data size:%ld.\n", upgrade_data.size());
-            res.result(200);
-            res.body() = upgrade_data;
+            else
+            {
+                std::string upgrade_data = ed->get_upgrade_data();
+                p_log->info("Generate upgrade data successfully!Data size:%ld.\n", upgrade_data.size());
+                res.result(200);
+                res.body() = upgrade_data;
+            }
 
             goto getcleanup;
         }
@@ -469,41 +465,59 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
+            std::string ret_info;
+            json::JSON ret_body;
             json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             bool upgrade_ret = req_json["success"].ToBool();
+            crust_status_t crust_status = CRUST_SUCCESS;
             if (!upgrade_ret)
             {
-                p_log->err("Upgrade failed!Current version will restore work.\n");
+                ret_info = "Upgrade failed! Current version will restore work.";
+                p_log->err("%s\n", ret_info.c_str());
                 ed->set_upgrade_status(UPGRADE_STATUS_NONE);
             }
             else
             {
-                // Store old metadata to ID_METADATA_OLD
-                crust::DataBase *db = crust::DataBase::get_instance();
-                crust_status_t crust_status = CRUST_SUCCESS;
-                std::string metadata_old;
-                if (CRUST_SUCCESS != (crust_status = db->get(ID_METADATA, metadata_old)))
+                if (UPGRADE_STATUS_COMPLETE == ed->get_upgrade_status())
                 {
-                    p_log->warn("Upgrade: get old metadata failed!Status code:%lx\n", crust_status);
-                }
-                else
-                {
-                    if (CRUST_SUCCESS != (crust_status = db->set(ID_METADATA_OLD, metadata_old)))
+                    // Store old metadata to ID_METADATA_OLD
+                    crust::DataBase *db = crust::DataBase::get_instance();
+                    std::string metadata_old;
+                    if (CRUST_SUCCESS != (crust_status = db->get(ID_METADATA, metadata_old)))
                     {
-                        p_log->warn("Upgrade: store old metadata failed!Status code:%lx\n", crust_status);
+                        ret_info = "Upgrade: get old metadata failed!Status code:" + num_to_hexstring(crust_status);
+                        p_log->warn("%s\n", ret_info.c_str());
                     }
-                }
-                if (CRUST_SUCCESS != (crust_status = db->del(ID_METADATA)))
-                {
-                    p_log->warn("Upgrade: delete old metadata failed!Status code:%lx\n", crust_status);
+                    else
+                    {
+                        if (CRUST_SUCCESS != (crust_status = db->set(ID_METADATA_OLD, metadata_old)))
+                        {
+                            ret_info = "Upgrade: store old metadata failed!Status code:" + num_to_hexstring(crust_status);
+                            p_log->warn("%s\n", ret_info.c_str());
+                        }
+                    }
+                    if (CRUST_SUCCESS != (crust_status = db->del(ID_METADATA)))
+                    {
+                        ret_info = "Upgrade: delete old metadata failed!Status code:" + num_to_hexstring(crust_status);
+                        p_log->warn("%s\n", ret_info.c_str());
+                    }
+                    else
+                    {
+                        ret_info = "Upgrade: clean old version's data successfully!";
+                        p_log->info("%s\n", ret_info.c_str());
+                    }
+                    // Set upgrade exit flag
+                    ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
                 }
                 else
                 {
-                    p_log->info("Upgrade: clean old version's data successfully!\n");
+                    ret_info = "Cannot exit upgrade because of unexpected upgrade status!";
+                    p_log->err("%s\n", ret_info.c_str());
                 }
-                // Set upgrade exit flag
-                ed->set_upgrade_status(UPGRADE_STATUS_EXIT);
             }
+            ret_body[HTTP_STATUS_CODE] = std::stoi(num_to_hexstring(crust_status), NULL, 10);
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.body() = ret_body.dump();
 
             goto getcleanup;
         }

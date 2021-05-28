@@ -547,3 +547,64 @@ int mkdir_sync(const char *path, mode_t mode)
     sl.lock();
     return mkdir(path, mode);
 }
+
+/**
+ * @description: Get file or folder size
+ * @param path -> File or folder path
+ * @return: File or folder size
+ */
+size_t get_file_or_folder_size(std::string path)
+{
+    namespace fs = std::experimental::filesystem;
+    size_t file_size = 0;
+    fs::path folder_path(path);
+    if (fs::exists(folder_path))
+    {
+        for (auto p : fs::directory_iterator(path))
+        {
+            std::string file_path = p.path();
+            try
+            {
+                if (!fs::is_directory(p.status()))
+                {
+                    file_size += fs::file_size(file_path);
+                }
+                else
+                {
+                    file_size += get_file_or_folder_size(file_path);
+                }
+            }
+            catch(std::exception& e)
+            {
+                p_log->warn("Get file:%s size failed! Error message:%s\n", file_path.c_str(), e.what());
+            }
+        }
+    }
+
+    return file_size;
+}
+
+/**
+ * @description: Get file size by cid
+ * @param cid -> File content id
+ * @return: File size
+ */
+size_t get_file_size_by_cid(std::string cid)
+{
+    size_t file_size = 0;
+    std::string path_post = std::string(DISK_FILE_DIR) + "/" + cid.substr(2,2) + "/" + cid.substr(4,2) + "/" + cid;
+    json::JSON disk_json = get_disk_info();
+    std::set<size_t> searched_paths;
+    for (size_t i = 2; i < cid.size(); i+=2)
+    {
+        size_t di = (cid[i] + cid[i+1]) % disk_json.size();
+        if (searched_paths.find(di) == searched_paths.end())
+        {
+            std::string file_path = disk_json[di][WL_DISK_PATH].ToString() + path_post;
+            file_size += get_file_or_folder_size(file_path);
+            searched_paths.insert(di);
+        }
+    }
+
+    return file_size;
+}

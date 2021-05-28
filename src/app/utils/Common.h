@@ -52,7 +52,8 @@ extern "C"
     std::string float_to_string(double num);
     void read_rand(uint8_t *buf, size_t buf_size);
     decltype(seconds_t().count()) get_seconds_since_epoch();
-    std::string get_time_diff(long time);
+    std::string get_time_diff_humanreadable(long time);
+    std::string get_file_size_humanreadable(size_t size);
 
 #if defined(__cplusplus)
 }

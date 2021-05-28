@@ -14,6 +14,8 @@
 #include <sys/vfs.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <experimental/filesystem>
+#include <exception>
 
 #include "Config.h"
 #include "DataBase.h"
@@ -38,5 +40,7 @@ size_t get_total_space_under_dir_g(std::string path);
 size_t get_avail_space_under_dir_k(std::string path);
 size_t get_avail_space_under_dir_m(std::string path);
 size_t get_avail_space_under_dir_g(std::string path);
+size_t get_file_or_folder_size(std::string path);
+size_t get_file_size_by_cid(std::string cid);
 
 #endif /* !_CRUST_FILE_UTILS_H_ */
