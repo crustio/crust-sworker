@@ -76,6 +76,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
 
     Defer defer_status([&wl, &block_height](void) {
         wl->set_report_height(block_height);
+        wl->set_report_file_flag(true);
         wl->reduce_restart_flag();
         wl->report_reset_validated_proof();
     });
@@ -85,6 +86,11 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         // The first 4 report after restart will not be processed
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
+    if (!wl->get_report_file_flag())
+    {
+        // Have files and no IPFS
+        return CRUST_SERVICE_UNAVAILABLE;
+    } 
     if (!wl->report_has_validated_proof())
     {
         // Judge whether the current data is validated 

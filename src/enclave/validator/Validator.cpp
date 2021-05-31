@@ -306,6 +306,12 @@ void validate_meaningful_file()
     tmp_validate_files_m.clear();
     g_validate_files_m_iter = g_validate_files_m.begin();
     sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
+    Defer validate_files([](void) {
+        // Clear validate buffer
+        sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
+        g_validate_files_m.clear();
+        sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
+    });
     // Generate validate random flag
     sgx_thread_mutex_lock(&g_validate_random_mutex);
     sgx_read_rand((uint8_t *)&g_validate_random, sizeof(g_validate_random));
@@ -314,6 +320,12 @@ void validate_meaningful_file()
     sgx_thread_mutex_lock(&g_validated_files_num_mutex);
     g_validated_files_num = 0;
     sgx_thread_mutex_unlock(&g_validated_files_num_mutex);
+    bool ipfs_ret = false;
+    if (g_validate_files_m.size() > 0 && !ocall_ipfs_online(&ipfs_ret))
+    {
+        wl->set_report_file_flag(false);
+        return;
+    }
     for (size_t i = 0; i < g_validate_files_m.size(); i++)
     {
         // If ocall failed, add file to deleted buffer
@@ -426,11 +438,6 @@ void validate_meaningful_file()
         }
         sgx_thread_mutex_unlock(&wl->file_mutex);
     }
-
-    // Clear validate buffer
-    sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
-    g_validate_files_m.clear();
-    sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
 }
 
 /**
