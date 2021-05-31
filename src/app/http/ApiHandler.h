@@ -961,25 +961,24 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
 
-            long sealed_data_sz = get_file_size(index_path.c_str());
-
-            if (sealed_data_sz == 0 || sealed_data_sz > OCALL_STORE_THRESHOLD)
+            if (!is_file_exist(index_path.c_str(), STORE_TYPE_FILE))
             {
-                if (sealed_data_sz == 0)
+                std::string cid = index_path.substr(UUID_LENGTH * 2, CID_LENGTH);
+                if (!ed->is_file_exist(cid))
                 {
                     ret_info = "Get empty by path:" + index_path;
                     ret_code = 404;
                 }
                 else
                 {
-                    ret_info = "Unseal data cannot exceed:" + float_to_string((float)(OCALL_STORE_THRESHOLD)/1024/1024) + "MB";
-                    ret_code = 500;
+                    ret_info = "File block:" + index_path + " is lost";
+                    ret_code = 410;
                 }
                 p_log->err("%s\n", ret_info.c_str());
             }
             else
             {
-                size_t decrypted_data_sz = sealed_data_sz;
+                size_t decrypted_data_sz = get_file_size(index_path.c_str(), STORE_TYPE_FILE);
                 uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_sz);
                 size_t decrypted_data_sz_r = 0;
                 memset(p_decrypted_data, 0, decrypted_data_sz);

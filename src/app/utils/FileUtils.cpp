@@ -525,14 +525,32 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
 /**
  * @description: Get file path by given path
  * @param path -> Pointer to file path
+ * @param type -> File type
  * @return: File size
  */
-long get_file_size(const char *path)
+long get_file_size(const char *path, store_type_t type)
 {
-    std::string r_path = get_real_path_by_type(path, STORE_TYPE_FILE);
+    std::string r_path = get_real_path_by_type(path, type);
     struct stat stat_buf;
     int ret = stat(r_path.c_str(), &stat_buf);
     return ret == 0 ? stat_buf.st_size : 0;
+}
+
+/**
+ * @description: Check if file exists by given path
+ * @param path -> Pointer to file path
+ * @param type -> File type
+ * @return: Exists or not
+ */
+bool is_file_exist(const char *path, store_type_t type)
+{
+    std::string r_path = get_real_path_by_type(path, type);
+    if (access(r_path.c_str(), R_OK) != -1)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 /**
