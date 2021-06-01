@@ -87,7 +87,7 @@ endif
 
 App_Cpp_Flags := $(App_C_Flags)
 App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
-	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp -l:libsgx_usgxssl.a \
+	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp -lstdc++fs -l:libsgx_usgxssl.a \
 	-l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs $(App_Include_Paths) \
 	-l:libsgx_tcrypto.a -lsgx_launch
 

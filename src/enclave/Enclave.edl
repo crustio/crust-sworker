@@ -99,6 +99,7 @@ enclave {
         void ocall_recall_validate_srd();
 
         void ocall_change_sealed_file_type([in, string] const char *cid, [in, string] const char *old_type, [in, string] const char *new_type);
+        void ocall_delete_sealed_file_info([in, string] const char *cid, [in, string] const char *type);
 
         crust_status_t ocall_safe_store2(ocall_store_type_t t, [in, size=partial_size] const uint8_t *data, size_t total_size, size_t partial_size, size_t offset);
     };

@@ -34,8 +34,9 @@ public:
     std::string get_sealed_file_info_all();
     std::string get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked = true);
     void del_sealed_file_info(std::string cid);
-    bool find_file_type_pos(std::string cid);
-    bool find_file_type_pos(std::string cid, std::string &type);
+    void del_sealed_file_info(std::string cid, std::string type);
+    bool is_file_exist(std::string cid);
+    bool find_file_type(std::string cid, std::string &type);
     void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
     json::JSON get_srd_info();

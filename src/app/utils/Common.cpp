@@ -401,7 +401,7 @@ decltype(seconds_t().count()) get_seconds_since_epoch()
  * @param sec -> Seconds
  * @return: Time in string
  */
-std::string get_time_diff(long sec)
+std::string get_time_diff_humanreadable(long sec)
 {
     std::string ans;
     int mit, hor, day;
@@ -433,4 +433,37 @@ std::string get_time_diff(long sec)
         ans += std::to_string(sec) + "s";
 
     return ans;
+}
+
+/**
+ * @description: Get file humanreadable size
+ * @param size -> Input size
+ * @return: Humanreadable size
+ */
+std::string get_file_size_humanreadable(size_t size)
+{
+    std::string ans;
+    std::string tag;
+    std::string left;
+    size_t file_size = size;
+    std::vector<std::string> tags = {"K", "M", "G"};
+    for (int i = 0; i < 3; i++)
+    {
+        if (file_size > 1024)
+        {
+            left = float_to_string((double)(file_size % 1024) / (double)1024).substr(1, 2);
+            file_size = file_size / 1024;
+            if (left[left.size() - 1] == '0')
+            {
+                left = "";
+            }
+            tag = tags[i];
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return std::to_string(file_size) + left + tag;
 }
