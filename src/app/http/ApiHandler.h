@@ -971,14 +971,16 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 else
                 {
                     std::string cid = index_path.substr(UUID_LENGTH * 2, CID_LENGTH);
-                    if (!ed->is_file_exist(cid))
+                    std::string type;
+                    bool exist = ed->find_file_type(cid, type);
+                    if (!exist || type.compare(FILE_TYPE_PENDING) == 0)
                     {
                         ret_info = "Requested cid:'" + cid + "' is not existed.";
                         ret_code = 404;
                     }
                     else
                     {
-                        ret_info = "File block:" + index_path + " is lost";
+                        ret_info = "File block:'" + index_path + "' is lost";
                         ret_code = 410;
                     }
                 }
