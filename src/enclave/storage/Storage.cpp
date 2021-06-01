@@ -267,6 +267,8 @@ crust_status_t storage_seal_file_end(const char *root)
             if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
             {
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                // Delete file info
+                ocall_delete_sealed_file_info(root, FILE_TYPE_PENDING);
                 // Delete info in workload spec
                 wl->set_file_spec(FILE_STATUS_PENDING, -1);
             }

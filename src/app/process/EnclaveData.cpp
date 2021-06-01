@@ -188,7 +188,6 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
     std::string data = info[cid].ToString();
     remove_char(data, '\\');
     json::JSON data_json = json::JSON::Load(data);
-    size_t file_size = get_file_size_by_cid(cid);
 
     if(data_json.hasKey(FILE_PENDING_STIME))
     {
@@ -198,7 +197,7 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
         data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
             + get_time_diff_humanreadable(utime) + "\" , "
             + "\"sealed_size\" : \""
-            + get_file_size_humanreadable(file_size) + "\""
+            + get_file_size_humanreadable(get_file_size_by_cid(cid)) + "\""
             + " }";
     }
 
@@ -379,6 +378,18 @@ void EnclaveData::del_sealed_file_info(std::string cid)
     {
         it->second.erase(cid);
     }
+}
+
+/**
+ * @description: Delete sealed file information
+ * @param cid -> IPFS content id
+ * @param type -> File type
+ */
+void EnclaveData::del_sealed_file_info(std::string cid, std::string type)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    this->sealed_file[type].erase(cid);
 }
 
 /**

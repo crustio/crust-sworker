@@ -367,3 +367,13 @@ void ocall_change_sealed_file_type(const char *cid, const char *old_type, const 
 {
     EnclaveData::get_instance()->change_sealed_file_type(cid, old_type, new_type);
 }
+
+/**
+ * @description: Delete cid by type
+ * @param cid -> File root cid
+ * @param type -> File type
+ */
+void ocall_delete_sealed_file_info(const char *cid, const char *type)
+{
+    EnclaveData::get_instance()->del_sealed_file_info(cid, type);
+}

@@ -275,6 +275,11 @@ size_t get_free_space_under_directory(std::string path)
  */
 crust_status_t create_directory(const std::string &path)
 {
+    if (path.size() == 0)
+    {
+        p_log->err("Create diretory path cannot be null!\n");
+        return CRUST_UNEXPECTED_ERROR;
+    }
     std::stack<std::string> sub_paths;
     sub_paths.push(path);
     while (!sub_paths.empty())
@@ -488,17 +493,35 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
     }
     EnclaveData *ed = EnclaveData::get_instance();
     std::string r_path;
+    bool valid_path = true;
+    Defer def_r_path([&valid_path, &path](void) {
+        if (!valid_path && std::strlen(path) != 0)
+        {
+            p_log->warn("Invalid path:'%s', cannot get real path.\n", path);
+        }
+    });
+    if (std::strlen(path) < UUID_LENGTH * 2)
+    {
+        valid_path = false;
+        return "";
+    }
     std::string uuid(path, UUID_LENGTH * 2);
     std::string d_path = ed->get_disk_path(uuid);
     if (d_path.compare("") == 0)
     {
         p_log->warn("Cannot find path for uuid:%s\n", uuid.c_str());
+        valid_path = false;
         return "";
     }
     switch (type)
     {
         case STORE_TYPE_SRD:
             {
+                if (std::strlen(path) < UUID_LENGTH * 2 + 4)
+                {
+                    valid_path = false;
+                    return "";
+                }
                 r_path = d_path
                        + DISK_SRD_DIR
                        + "/" + std::string(path + UUID_LENGTH * 2, 2)
@@ -508,6 +531,11 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
             }
         case STORE_TYPE_FILE:
             {
+                if (std::strlen(path) < UUID_LENGTH * 2 + 4)
+                {
+                    valid_path = false;
+                    return "";
+                }
                 r_path = d_path
                        + DISK_FILE_DIR
                        + "/" + std::string(path + UUID_LENGTH * 2 + 2, 2)
