@@ -963,16 +963,24 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
 
             if (!is_file_exist(index_path.c_str(), STORE_TYPE_FILE))
             {
-                std::string cid = index_path.substr(UUID_LENGTH * 2, CID_LENGTH);
-                if (!ed->is_file_exist(cid))
+                if (index_path.size() < UUID_LENGTH * 2 + CID_LENGTH)
                 {
-                    ret_info = "Get empty by path:" + index_path;
+                    ret_info = "Malwared index path:" + index_path;
                     ret_code = 404;
                 }
                 else
                 {
-                    ret_info = "File block:" + index_path + " is lost";
-                    ret_code = 410;
+                    std::string cid = index_path.substr(UUID_LENGTH * 2, CID_LENGTH);
+                    if (!ed->is_file_exist(cid))
+                    {
+                        ret_info = "Requested cid:'" + cid + "' is not existed.";
+                        ret_code = 404;
+                    }
+                    else
+                    {
+                        ret_info = "File block:" + index_path + " is lost";
+                        ret_code = 410;
+                    }
                 }
                 p_log->err("%s\n", ret_info.c_str());
             }

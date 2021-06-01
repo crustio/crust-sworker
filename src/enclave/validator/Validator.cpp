@@ -328,7 +328,6 @@ void validate_meaningful_file()
         if (!ipfs_ret)
         {
             wl->set_report_file_flag(false);
-            return;
         }
     }
     for (size_t i = 0; i < g_validate_files_m.size(); i++)
