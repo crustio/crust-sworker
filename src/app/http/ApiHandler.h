@@ -700,7 +700,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             // Check cid
             if (cid.size() != CID_LENGTH)
             {
-                ret_info = "Delete file failed! Invalid cid!";
+                ret_info = "Delete file failed! Invalid cid:" + cid;
                 p_log->err("%s\n", ret_info.c_str());
                 ret_code = 400;
             }
@@ -973,7 +973,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     std::string cid = index_path.substr(UUID_LENGTH * 2, CID_LENGTH);
                     std::string type;
                     bool exist = ed->find_file_type(cid, type);
-                    if (!exist || type.compare(FILE_TYPE_PENDING) == 0)
+                    if (!exist || (exist && type.compare(FILE_TYPE_PENDING) == 0))
                     {
                         ret_info = "Requested cid:'" + cid + "' is not existed.";
                         ret_code = 404;

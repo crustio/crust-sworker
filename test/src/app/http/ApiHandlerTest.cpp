@@ -300,7 +300,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             // Check cid
             if (cid.size() != CID_LENGTH)
             {
-                ret_info = "Delete file failed!Invalid cid!";
+                ret_info = "Delete file failed! Invalid cid:" + cid;
                 p_log->err("%s\n", ret_info.c_str());
                 ret_code = 400;
                 res_json[HTTP_STATUS_CODE] = ret_code;

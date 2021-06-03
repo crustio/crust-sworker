@@ -20,7 +20,7 @@ function report_exit()
 {
     rm -rf $tmpdir
 
-    get_file_info_all | jq 'keys|.[]' | sed "s/\"//g" | while read cid_l; do
+    get_file_info_valid | jq -r 'keys|.[]' | while read cid_l; do
         delete_file $cid_l
     done
 }
