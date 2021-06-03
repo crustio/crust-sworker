@@ -58,14 +58,15 @@ trap '_clean' EXIT
 
 . $scriptdir/utils.sh
 
-srd_paths=$(get_config ".srd_path")
 srd_limit=$(get_config '.functionality|.srd_limit')
 file_limit=$(get_config '.functionality|.file_limit')
 
 ### Seal file upper limit
 _test_add_file $file_limit
+svalid_num=$(get_workload | jq '.files|.valid|.num')
 _seal 2>/dev/null
-if [ $? -eq 0 ]; then
+evalid_num=$(get_workload | jq '.files|.valid|.num')
+if [ $evalid_num -gt $svalid_num ]; then
     verbose ERROR "test file upper limit failed!"
     exit 1
 fi

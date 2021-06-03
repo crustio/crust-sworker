@@ -19,9 +19,11 @@
 #include <openssl/x509v3.h>
 
 #include "sgx_thread.h"
+#include "sgx_trts.h"
 
 #include "Parameter.h"
 #include "Enclave_t.h"
+#include "Defer.h"
 
 namespace json
 {
@@ -87,6 +89,7 @@ sgx_status_t Sgx_seal_data_ex(const uint16_t key_policy,
 
 crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
 crust_status_t seal_data_mrsigner(const uint8_t *p_src, size_t src_len, sgx_sealed_data_t **p_sealed_data, size_t *sealed_data_size);
+crust_status_t unseal_data_mrsigner(const sgx_sealed_data_t *data, uint32_t data_size, uint8_t **p_decrypted_data, uint32_t *decrypted_data_len);
 
 crust_status_t validate_merkletree_json(json::JSON tree);
 void *enc_malloc(size_t size);
@@ -98,6 +101,7 @@ void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_fun
 char *base64_decode(const char *msg, size_t *sz);
 std::string base58_encode(const uint8_t *input, size_t len);
 std::string hash_to_cid(const uint8_t *hash);
+crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t s);
 
 #if defined(__cplusplus)
 }

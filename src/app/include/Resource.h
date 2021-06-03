@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "../enclave/include/Parameter.h"
 
-#define VERSION "0.9.0"
+#define VERSION "0.10.0"
 
 #define CRUST_INST_DIR      "/opt/crust/crust-sworker/" VERSION
 #define ENCLAVE_FILE_PATH   CRUST_INST_DIR "/etc/enclave.signed.so"
@@ -17,7 +17,7 @@
 // REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT > 0
 #define REPORT_INTERVAL_BLCOK_NUMBER_LOWER_LIMIT 10
 
-#define HTTP_BODY_LIMIT 314572800 /* 300*1024*1024 */
+#define HTTP_BODY_LIMIT 524288000 /* 500*1024*1024 */
 #define WEB_TIMEOUT 7200
 
 // For upgrade
@@ -42,6 +42,16 @@ const uint32_t UPGRADE_COMPLETE_TRYOUT = BLOCK_INTERVAL * 10;
 #define WL_DISK_AVAILABLE_FOR_SRD "disk_available_for_srd"
 #define WL_DISK_RESERVED "disk_reserved"
 #define WL_DISK_VOLUME "disk_volume"
+#define WL_SYS_DISK_AVAILABLE "sys_disk_available"
+#define WL_DISK_PATH "disk_path"
+#define WL_DISK_USE "disk_use"
+#define WL_DISK_UUID "disk_uuid"
+
+// For srd
+#define DISK_SWORKER_DIR "/sworker"
+#define DISK_SRD_DIR    DISK_SWORKER_DIR "/srd"
+#define DISK_FILE_DIR    DISK_SWORKER_DIR "/files"
+#define DISK_UUID_FILE  DISK_SWORKER_DIR "/uuid"
 
 // For print
 #define PRINT_GAP 20
@@ -74,5 +84,12 @@ const char* UPGRADE_FAILED_LOGO =
 // Webserver return format
 #define HTTP_STATUS_CODE "status_code"
 #define HTTP_MESSAGE "message"
+#define HTTP_IPFS_INDEX_PATH "path"
+
+typedef enum _save_file_type_t
+{
+    SF_NONE,
+    SF_CREATE_DIR,
+} save_file_type_t;
 
 #endif /* !_CRUST_RESOURCE_H_ */

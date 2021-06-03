@@ -152,7 +152,7 @@ sgx_status_t Ecall_test_delete_file_unsafe(sgx_enclave_id_t eid, uint32_t file_n
     return ret;
 }
 
-sgx_status_t Ecall_srd_increase_test(sgx_enclave_id_t eid)
+sgx_status_t Ecall_srd_increase_test(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -160,7 +160,7 @@ sgx_status_t Ecall_srd_increase_test(sgx_enclave_id_t eid)
         return ret;
     }
 
-    ret = ecall_srd_increase_test(eid);
+    ret = ecall_srd_increase_test(eid, status, uuid);
 
     eq->free_enclave(__FUNCTION__);
 

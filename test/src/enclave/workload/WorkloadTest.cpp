@@ -29,16 +29,23 @@ void WorkloadTest::test_add_file(long file_num)
         std::string cid = hexstring_safe(p_cid_buffer, CID_LENGTH / 2);
         file_entry_json[FILE_CID] = cid;
         file_entry_json[FILE_HASH] = reinterpret_cast<uint8_t *>(hash);
-        file_entry_json[FILE_SIZE] = 10000;
-        file_entry_json[FILE_SEALED_SIZE] = 9999;
-        file_entry_json[FILE_BLOCK_NUM] = 1000;
-        file_entry_json[FILE_CHAIN_BLOCK_NUM] = 10000;
+        file_entry_json[FILE_SIZE] = 100000000;
+        file_entry_json[FILE_SEALED_SIZE] = 999900000;
+        file_entry_json[FILE_BLOCK_NUM] = 100000000;
+        file_entry_json[FILE_CHAIN_BLOCK_NUM] = 100000000;
         // Status indicates current new file's status, which must be one of valid, lost and unconfirmed
-        file_entry_json[FILE_STATUS] = "100";
+        file_entry_json[FILE_STATUS] = "100000000000";
         free(p_cid_buffer);
         free(n_u);
         wl->add_sealed_file(file_entry_json);
-        wl->set_wl_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
+        wl->set_file_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
+
+        std::string file_info;
+        file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SIZE].ToInt())).append(" , ")
+            .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SEALED_SIZE].ToInt())).append(" , ")
+            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(1111)).append(" }");
+        ocall_store_file_info(cid.c_str(), file_info.c_str(), FILE_TYPE_VALID);
+
         acc++;
     }
     sgx_thread_mutex_unlock(&wl->file_mutex);
@@ -61,7 +68,7 @@ void WorkloadTest::test_delete_file(uint32_t file_num)
         auto status = &wl->sealed_files[index][FILE_STATUS];
         if (status->get_char(CURRENT_STATUS) != FILE_STATUS_DELETED)
         {
-            wl->set_wl_spec(status->get_char(CURRENT_STATUS), -wl->sealed_files[index][FILE_SEALED_SIZE].ToInt());
+            wl->set_file_spec(status->get_char(CURRENT_STATUS), -wl->sealed_files[index][FILE_SEALED_SIZE].ToInt());
             status->set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
             i++;
             j = 0;
@@ -82,5 +89,5 @@ void WorkloadTest::test_delete_file_unsafe(uint32_t file_num)
     wl->sealed_files.erase(wl->sealed_files.begin(), wl->sealed_files.begin() + file_num);
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
-    wl->clean_wl_spec_info();
+    wl->clean_wl_file_spec();
 }

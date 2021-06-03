@@ -9,41 +9,164 @@ std::mutex g_running_srd_task_mutex;
 extern sgx_enclave_id_t global_eid;
 
 /**
+ * @description: Check or initilize disk
+ * @param path -> Disk path
+ * @return: Check or init result
+ */
+bool check_or_init_disk(std::string path)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    EnclaveData *ed = EnclaveData::get_instance();
+    Config *p_config = Config::get_instance();
+
+    // Check if given path is in the system disk
+    if (!p_config->is_valid_or_normal_disk(path))
+    {
+        return false;
+    }
+
+    // Check if uuid file exists
+    std::string uuid_file = path + DISK_UUID_FILE;
+    if (access(uuid_file.c_str(), R_OK) != -1)
+    {
+        // Check if uuid to disk path mapping existed
+        if (!ed->is_disk_exist(path))
+        {
+            uint8_t *p_data = NULL;
+            size_t data_sz = 0;
+            if (CRUST_SUCCESS != (crust_status = get_file(uuid_file.c_str(), &p_data, &data_sz)))
+            {
+                p_log->err("Get existed path:%s uuid failed! Error code:%lx\n", uuid_file.c_str(), crust_status);
+            }
+            else
+            {
+                ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
+                free(p_data);
+                return true;
+            }
+        }
+        else
+        {
+            return true;
+        }
+    }
+    else
+    {
+        if (ed->is_disk_exist(path))
+        {
+            std::string uuid = ed->get_uuid(path);
+            crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+                return false;
+            }
+        }
+    }
+
+    // Create current disk
+    std::string srd_dir = path + DISK_SRD_DIR;
+    if (CRUST_SUCCESS != create_directory(srd_dir))
+    {
+        p_log->err("Cannot create dir:%s\n", srd_dir.c_str());
+        return false;
+    }
+
+    // Create uuid file
+    uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
+    Defer def_buf([&buf](void) { free(buf); });
+    memset(buf, 0, UUID_LENGTH);
+    read_rand(buf, UUID_LENGTH);
+    std::string uuid = hexstring_safe(buf, UUID_LENGTH);
+    crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+        return false;
+    }
+
+    // Set uuid to data path information
+    ed->set_uuid_disk_path_map(uuid, path);
+
+    return true;
+}
+
+/**
  * @description: Get srd disks info according to configure
+ * @param change -> Reference to changed task, will be modified to left srd task
  * @return: A path to assigned size map
  */
-json::JSON get_increase_srd_info()
+json::JSON get_increase_srd_info_r(long &change)
 {
     size_t true_srd_capacity = 0;
     // Get multi-disk info
     Config *p_config = Config::get_instance();
+    EnclaveData *ed = EnclaveData::get_instance();
     json::JSON disk_info_json;
 
     // Create path
-    if (create_directory(p_config->srd_path))
+    for (auto path : p_config->get_data_paths())
     {
-        // Calculate free disk
-        long srd_reserved_space = get_reserved_space();
-        disk_info_json[WL_DISK_AVAILABLE] = get_avail_space_under_dir_g(p_config->srd_path);
-        disk_info_json[WL_DISK_VOLUME] = get_total_space_under_dir_g(p_config->srd_path);
-        if (disk_info_json[WL_DISK_AVAILABLE].ToInt() <= srd_reserved_space)
+        if (check_or_init_disk(path))
         {
-            disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = 0;
+            std::string uuid = ed->get_uuid(path);
+            // Calculate free disk
+            long srd_reserved_space = get_reserved_space();
+            json::JSON tmp_info_json;
+            tmp_info_json[WL_DISK_AVAILABLE] = get_avail_space_under_dir_g(path);
+            tmp_info_json[WL_DISK_VOLUME] = get_total_space_under_dir_g(path);
+            if (tmp_info_json[WL_DISK_AVAILABLE].ToInt() <= srd_reserved_space)
+            {
+                tmp_info_json[WL_DISK_AVAILABLE_FOR_SRD] = 0;
+            }
+            else
+            {
+                tmp_info_json[WL_DISK_AVAILABLE_FOR_SRD] = tmp_info_json[WL_DISK_AVAILABLE].ToInt() - srd_reserved_space;
+            }
+            tmp_info_json[WL_DISK_UUID] = uuid;
+            tmp_info_json[WL_DISK_PATH] = path;
+            true_srd_capacity += tmp_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt();
+            disk_info_json.append(tmp_info_json);
         }
-        else
-        {
-            disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = disk_info_json[WL_DISK_AVAILABLE].ToInt() - srd_reserved_space;
-        }
-        true_srd_capacity = disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt();
-    }
-    else
-    {
-        true_srd_capacity = 0;
     }
 
-    disk_info_json[WL_DISK_AVAILABLE_FOR_SRD] = true_srd_capacity;
+    // Get to be used info
+    bool avail = true;
+    while (change > 0 && avail)
+    {
+        avail = false;
+        for (int i = 0; i < disk_info_json.size() && change > 0; i++)
+        {
+            if (disk_info_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt() - disk_info_json[i][WL_DISK_USE].ToInt() > 0)
+            {
+                disk_info_json[i][WL_DISK_USE].AddNum(1);
+                change--;
+                avail = true;
+            }
+        }
+    }
 
     return disk_info_json;
+}
+
+/**
+ * @description: Wrapper for get_increase_srd_info_r
+ * @param change -> Reference to srd task, will be changed and modified to left srd task
+ * @return: Srd info in json format
+ */
+json::JSON get_increase_srd_info(long &change)
+{
+    return get_increase_srd_info_r(change);
+}
+
+/**
+ * @description: Wrapper for get_increase_srd_info_r
+ * @return: Srd info in json format
+ */
+json::JSON get_disk_info()
+{
+    long c = 0;
+    return get_increase_srd_info_r(c);
 }
 
 /**
@@ -58,25 +181,34 @@ crust_status_t srd_change(long change)
 
     if (change > 0)
     {
-        json::JSON disk_info_json = get_increase_srd_info();
-        size_t true_increase = std::min(disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(), change);
+        long left_task = change;
+        json::JSON disk_info_json = get_increase_srd_info(left_task);
+        long true_increase = change - left_task;
         // Add left change to next srd, if have
-        if (change > (long)true_increase)
+        if (left_task > 0)
         {
             p_log->warn("No enough space for %ldG srd, can only do %ldG srd.\n", change, true_increase);
             crust_status = CRUST_SRD_NUMBER_EXCEED;
         }
-        if (true_increase == 0)
+        if (true_increase <= 0)
         {
             //p_log->warn("No available space for srd!\n");
             return CRUST_SRD_NUMBER_EXCEED;
         }
         set_running_srd_task(true_increase);
         // Print disk info
-        p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
-                disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
-                p_config->srd_path.c_str(),
-                true_increase);
+        json::JSON disk_use_json;
+        for (auto info : disk_info_json.ArrayRange())
+        {
+            if (info[WL_DISK_USE].ToInt() > 0)
+            {
+                p_log->info("Available space is %ldG in '%s', this turn will use %ldG space\n", 
+                        info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
+                        info[WL_DISK_PATH].ToString().c_str(),
+                        info[WL_DISK_USE].ToInt());
+                disk_use_json.append(info);
+            }
+        }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
 
@@ -84,27 +216,36 @@ crust_status_t srd_change(long change)
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
         ctpl::thread_pool pool(p_config->srd_thread_num);
         std::vector<std::shared_ptr<std::future<crust_status_t>>> tasks_v;
-        for (size_t i = 0; i < true_increase; i++)
+        long task = true_increase;
+        while (task > 0)
         {
-            sgx_enclave_id_t eid = global_eid;
-            tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid](int /*id*/){
-                sgx_status_t sgx_ret = SGX_SUCCESS;
-                crust_status_t crust_ret = CRUST_SUCCESS;
-                if (SGX_SUCCESS != (sgx_ret = Ecall_srd_increase(eid, &crust_ret))
-                        || CRUST_SUCCESS != crust_ret)
-                {
-                    // If failed, add current task to next turn
-                    crust_status_t ret = CRUST_SUCCESS;
-                    long real_change = 0;
-                    Ecall_change_srd_task(global_eid, &ret, 1, &real_change);
-                }
-                decrease_running_srd_task();
-                if (SGX_SUCCESS != sgx_ret)
-                {
-                    crust_ret = CRUST_UNEXPECTED_ERROR;
-                }
-                return crust_ret;
-            })));
+            for (int i = 0; i < disk_use_json.size() && task > 0; i++, task--)
+            {
+                sgx_enclave_id_t eid = global_eid;
+                std::string uuid = disk_use_json[i][WL_DISK_UUID].ToString();
+                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
+                    sgx_status_t sgx_status = SGX_SUCCESS;
+                    crust_status_t increase_ret = CRUST_SUCCESS;
+                    if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &increase_ret, uuid.c_str()))
+                            || CRUST_SUCCESS != increase_ret)
+                    {
+                        // If failed, add current task to next turn
+                        long real_change = 0;
+                        crust_status_t change_ret = CRUST_SUCCESS;
+                        Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
+                    }
+                    if (SGX_SUCCESS != sgx_status)
+                    {
+                        p_log->err("Increase srd failed! Error code:%lx\n", sgx_status);
+                        if (CRUST_SUCCESS == increase_ret)
+                        {
+                            increase_ret = CRUST_UNEXPECTED_ERROR;
+                        }
+                    }
+                    decrease_running_srd_task();
+                    return increase_ret;
+                })));
+            }
         }
         // Wait for srd task
         size_t srd_success_num = 0;
@@ -125,7 +266,7 @@ crust_status_t srd_change(long change)
         }
         set_running_srd_task(0);
 
-        if (srd_success_num < true_increase)
+        if (srd_success_num < (size_t)true_increase)
         {
             p_log->info("Srd task: %dG, success: %dG, left: %dG.\n", 
                     true_increase, srd_success_num, true_increase - srd_success_num);
@@ -153,8 +294,7 @@ crust_status_t srd_change(long change)
  */
 void srd_check_reserved(void)
 {
-    crust::DataBase *db = crust::DataBase::get_instance();
-    crust_status_t crust_status = CRUST_SUCCESS;
+    Config *p_config = Config::get_instance();
     sgx_status_t sgx_status = SGX_SUCCESS;
     size_t check_interval = 10;
 
@@ -166,28 +306,31 @@ void srd_check_reserved(void)
             return;
         }
 
-        std::string srd_info_str;
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
-        crust_status = db->get(DB_SRD_INFO, srd_info_str);
-        if (CRUST_SUCCESS != crust_status)
+        EnclaveData *ed = EnclaveData::get_instance();
+        json::JSON srd_del_json;
+        json::JSON srd_info_json = ed->get_srd_info();
+        for (auto path : p_config->get_data_paths())
         {
-            //p_log->debug("Srd info not found!Check srd reserved failed!\n");
-            sleep(10);
-            continue;
-        }
-        json::JSON srd_info_json = json::JSON::Load(srd_info_str);
-        size_t avail_space = get_avail_space_under_dir_g(Config::get_instance()->srd_path);
-        long del_space = 0;
-        if ((long)avail_space < srd_reserved_space)
-        {
-            del_space = std::min((long)(srd_reserved_space - avail_space), (long)srd_info_json[WL_SRD_COMPLETE].ToInt());
+            size_t avail_space = get_avail_space_under_dir_g(path);
+            long del_space = 0;
+            if ((long)avail_space < srd_reserved_space)
+            {
+                std::string uuid = ed->get_uuid(path);
+                del_space = std::min((long)(srd_reserved_space - avail_space), (long)srd_info_json[WL_SRD_DETAIL][uuid].ToInt());
+                srd_del_json[uuid].AddNum(del_space);
+            }
         }
 
         // Do remove
-        if (del_space > 0)
+        if (srd_del_json.size() > 0)
         {
-            if (SGX_SUCCESS != Ecall_srd_remove_space(global_eid, (size_t)del_space))
+            std::string srd_del_str = srd_del_json.dump();
+            remove_char(srd_del_str, ' ');
+            remove_char(srd_del_str, '\\');
+            remove_char(srd_del_str, '\n');
+            if (SGX_SUCCESS != Ecall_srd_remove_space(global_eid, srd_del_str.c_str(), srd_del_str.size()))
             {
                 p_log->err("Invoke srd metadata failed! Error code:%lx\n", sgx_status);
             }
@@ -212,8 +355,7 @@ void srd_check_reserved(void)
  */
 size_t get_reserved_space()
 {
-    Config *p_config = Config::get_instance();
-    return std::max((size_t)DEFAULT_SRD_RESERVED, (size_t)(get_total_space_under_dir_g(p_config->srd_path) * (1 - p_config->get_srd_ratio())));
+    return DEFAULT_SRD_RESERVED;
 }
 
 /**

@@ -14,7 +14,7 @@ sgx_status_t Ecall_validate_srd_bench(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_file_test(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_file_bench(sgx_enclave_id_t eid);
 sgx_status_t Ecall_store_metadata(sgx_enclave_id_t eid);
-sgx_status_t Ecall_srd_increase_test(sgx_enclave_id_t eid);
+sgx_status_t Ecall_srd_increase_test(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid);
 sgx_status_t Ecall_srd_decrease_test(sgx_enclave_id_t eid, size_t *size, size_t change);
 sgx_status_t Ecall_handle_report_result(sgx_enclave_id_t eid);
 sgx_status_t Ecall_test_add_file(sgx_enclave_id_t eid, long file_num);

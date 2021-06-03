@@ -12,9 +12,8 @@ sgx_thread_mutex_t g_validate_srd_m_iter_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 uint32_t g_validated_srd_num = 0;
 sgx_thread_mutex_t g_validated_srd_num_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 // File related method and variables
-crust_status_t validate_real_file(uint8_t *p_sealed_data, size_t sealed_data_size);
-std::unordered_set<std::string> g_del_files_cid_us;
-sgx_thread_mutex_t g_del_files_idx_us_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+std::vector<json::JSON *> g_changed_files_v;
+sgx_thread_mutex_t g_changed_files_v_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 std::map<std::string, json::JSON> g_validate_files_m;
 std::map<std::string, json::JSON>::const_iterator g_validate_files_m_iter;
 sgx_thread_mutex_t g_validate_files_m_iter_mutex = SGX_THREAD_MUTEX_INITIALIZER;
@@ -270,33 +269,9 @@ void validate_meaningful_file_bench()
         return;
     }
 
-    crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
 
     // Lock wl->sealed_files
-    std::map<std::string, json::JSON> tmp_validate_files_m;
-    sgx_thread_mutex_lock(&wl->file_mutex);
-    // Get to be checked files indexes
-    size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
-    check_file_num = std::min(check_file_num, wl->sealed_files.size());
-    uint32_t rand_val;
-    size_t rand_index = 0;
-    if (check_file_num >= wl->sealed_files.size())
-    {
-        for (size_t i = 0; i < wl->sealed_files.size(); i++)
-        {
-            tmp_validate_files_m[wl->sealed_files[i][FILE_CID].ToString()] = wl->sealed_files[i];
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < check_file_num; i++)
-        {
-            sgx_read_rand((uint8_t *)&rand_val, 4);
-            rand_index = rand_val % wl->sealed_files.size();
-            tmp_validate_files_m[wl->sealed_files[rand_index][FILE_CID].ToString()] = wl->sealed_files[rand_index];
-        }
-    }
     if (oneg_cid.compare("") == 0)
     {
         long target_size_min = 1024 * 1024 * 1024;
@@ -313,6 +288,29 @@ void validate_meaningful_file_bench()
     size_t file_idx = 0;
     wl->is_file_dup(oneg_cid, file_idx);
     oneg_file = wl->sealed_files[file_idx];
+    std::map<std::string, json::JSON> tmp_validate_files_m;
+    sgx_thread_mutex_lock(&wl->file_mutex);
+    // Get to be checked files indexes
+    size_t check_file_num = std::max((size_t)(wl->sealed_files.size() * MEANINGFUL_VALIDATE_RATE), (size_t)MEANINGFUL_VALIDATE_MIN_NUM);
+    check_file_num = std::min(check_file_num, wl->sealed_files.size());
+    uint32_t rand_val;
+    size_t rand_index = 0;
+    if (check_file_num >= wl->sealed_files.size())
+    {
+        for (size_t i = 0; i < wl->sealed_files.size(); i++)
+        {
+            tmp_validate_files_m[oneg_file[FILE_CID].ToString()] = wl->sealed_files[i];
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < check_file_num; i++)
+        {
+            sgx_read_rand((uint8_t *)&rand_val, 4);
+            rand_index = rand_val % wl->sealed_files.size();
+            tmp_validate_files_m[oneg_file[FILE_CID].ToString()] = wl->sealed_files[rand_index];
+        }
+    }
     sgx_thread_mutex_unlock(&wl->file_mutex);
 
     // ----- Validate file ----- //
@@ -340,7 +338,7 @@ void validate_meaningful_file_bench()
             log_err("Invoke validate file task failed! Error code:%lx\n", sgx_status);
             // Get current file info
             sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
-            std::string cid = g_validate_files_m_iter->first;
+            json::JSON *file = const_cast<json::JSON *>(&g_validate_files_m_iter->second);
             g_validate_files_m_iter++;
             sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
             // Increase validated files number
@@ -348,9 +346,9 @@ void validate_meaningful_file_bench()
             g_validated_files_num++;
             sgx_thread_mutex_unlock(&g_validated_files_num_mutex);
             // Add file to deleted buffer
-            sgx_thread_mutex_lock(&g_del_files_idx_us_mutex);
-            g_del_files_cid_us.insert(cid);
-            sgx_thread_mutex_unlock(&g_del_files_idx_us_mutex);
+            sgx_thread_mutex_lock(&g_changed_files_v_mutex);
+            g_changed_files_v.push_back(file);
+            sgx_thread_mutex_unlock(&g_changed_files_v_mutex);
         }
     }
 
@@ -378,16 +376,17 @@ void validate_meaningful_file_bench()
     }
 
     // Change file status
-    sgx_thread_mutex_lock(&g_del_files_idx_us_mutex);
-    std::unordered_set<std::string> tmp_del_files_cid_us;
-    tmp_del_files_cid_us.insert(g_del_files_cid_us.begin(), g_del_files_cid_us.end());
-    g_del_files_cid_us.clear();
-    sgx_thread_mutex_unlock(&g_del_files_idx_us_mutex);
-    if (tmp_del_files_cid_us.size() > 0)
+    sgx_thread_mutex_lock(&g_changed_files_v_mutex);
+    std::vector<json::JSON *> tmp_changed_files_v;
+    tmp_changed_files_v.insert(tmp_changed_files_v.begin(), g_changed_files_v.begin(), g_changed_files_v.end());
+    g_changed_files_v.clear();
+    sgx_thread_mutex_unlock(&g_changed_files_v_mutex);
+    if (tmp_changed_files_v.size() > 0)
     {
         sgx_thread_mutex_lock(&wl->file_mutex);
-        for (auto cid : tmp_del_files_cid_us)
+        for (auto file : tmp_changed_files_v)
         {
+            std::string cid = (*file)[FILE_CID].ToString();
             size_t index = 0;
             if(wl->is_file_dup(cid, index))
             {
@@ -397,13 +396,43 @@ void validate_meaningful_file_bench()
                 // If these two files are not the same one, cannot delete the file
                 if (cur_block_num == val_block_num)
                 {
-                    log_info("File status changed, hash: %s status: valid -> lost, will be deleted\n", cid.c_str());
+                    char old_status = (*file)[FILE_STATUS].get_char(CURRENT_STATUS);
+                    char new_status = old_status;
+                    const char *old_status_ptr = NULL;
+                    const char *new_status_ptr = NULL;
+                    if (FILE_STATUS_VALID == old_status)
+                    {
+                        new_status = FILE_STATUS_LOST;
+                        new_status_ptr = FILE_TYPE_LOST;
+                        old_status_ptr = FILE_TYPE_VALID;
+                    }
+                    else if (FILE_STATUS_LOST == old_status)
+                    {
+                        new_status = FILE_STATUS_VALID;
+                        new_status_ptr = FILE_TYPE_VALID;
+                        old_status_ptr = FILE_TYPE_LOST;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                    log_info("File status changed, hash: %s status: %s -> %s\n",
+                            cid.c_str(), file_status_2_name[old_status].c_str(), file_status_2_name[new_status].c_str());
                     // Change file status
-                    wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, FILE_STATUS_DELETED);
-                    // Delete real file
-                    ocall_ipfs_del_all(&crust_status, cid.c_str());
+                    wl->sealed_files[index][FILE_STATUS].set_char(CURRENT_STATUS, new_status);
+                    if (FILE_STATUS_LOST == new_status)
+                    {
+                        wl->sealed_files[index][FILE_LOST_INDEX] = (*file)[FILE_LOST_INDEX];
+                    }
+                    else
+                    {
+                        wl->sealed_files[index][FILE_LOST_INDEX] = -1;
+                    }
                     // Reduce valid file
-                    wl->set_wl_spec(FILE_STATUS_VALID, -g_validate_files_m[cid][FILE_SIZE].ToInt());
+                    wl->set_file_spec(new_status, g_validate_files_m[cid][FILE_SIZE].ToInt());
+                    wl->set_file_spec(old_status, -g_validate_files_m[cid][FILE_SIZE].ToInt());
+                    // Sync with APP sealed file info
+                    ocall_change_sealed_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
                 }
             }
             else
@@ -439,15 +468,16 @@ void validate_meaningful_file_bench_real()
     {
         return;
     }
-    json::JSON file = oneg_file;
-    std::string cid = oneg_file[FILE_CID].ToString();
+    std::string cid = g_validate_files_m_iter->first;
+    json::JSON *file = const_cast<json::JSON *>(&g_validate_files_m_iter->second);
     g_validate_files_m_iter++;
     sl_iter.unlock();
 
-    bool deleted = false;
+    bool changed = false;
+    bool lost = false;
     bool service_unavailable = false;
 
-    Defer finish_defer([&cur_validate_random, &deleted, &service_unavailable, &cid, &wl](void) {
+    Defer finish_defer([&cur_validate_random, &changed, &service_unavailable, &file, &wl](void) {
         // Get current validate random
         sgx_thread_mutex_lock(&g_validate_random_mutex);
         uint32_t now_validate_random = g_validate_random;
@@ -457,15 +487,15 @@ void validate_meaningful_file_bench_real()
         {
             // Get current validate files size
             sgx_thread_mutex_lock(&g_validate_files_m_iter_mutex);
-            size_t tmp_validate_files_m = g_validate_files_m.size();
+            size_t tmp_validate_files_m_num = g_validate_files_m.size();
             sgx_thread_mutex_unlock(&g_validate_files_m_iter_mutex);
             // Increase validated files number
             sgx_thread_mutex_lock(&g_validated_files_num_mutex);
             if (service_unavailable)
             {
-                if (g_validated_files_num < tmp_validate_files_m)
+                if (g_validated_files_num < tmp_validate_files_m_num)
                 {
-                    g_validated_files_num = tmp_validate_files_m;
+                    g_validated_files_num = tmp_validate_files_m_num;
                     wl->set_report_file_flag(false);
                     log_err("IPFS is offline! Please start it.\n");
                 }
@@ -476,77 +506,58 @@ void validate_meaningful_file_bench_real()
             }
             sgx_thread_mutex_unlock(&g_validated_files_num_mutex);
             // Deal with result
-            if (deleted)
+            if (changed)
             {
-                sgx_thread_mutex_lock(&g_del_files_idx_us_mutex);
-                g_del_files_cid_us.insert(cid);
-                sgx_thread_mutex_unlock(&g_del_files_idx_us_mutex);
+                sgx_thread_mutex_lock(&g_changed_files_v_mutex);
+                g_changed_files_v.push_back(file);
+                sgx_thread_mutex_unlock(&g_changed_files_v_mutex);
             }
         }
     });
 
     // If file status is not FILE_STATUS_VALID, return
-    auto status = file[FILE_STATUS];
+    auto status = (*file)[FILE_STATUS];
     if (status.get_char(CURRENT_STATUS) == FILE_STATUS_PENDING
             || status.get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
     {
         return;
     }
 
-    std::string root_cid = file[FILE_CID].ToString();
-    std::string root_hash = file[FILE_HASH].ToString();
-    size_t file_block_num = file[FILE_BLOCK_NUM].ToInt();
+    std::string root_cid = (*file)[FILE_CID].ToString();
+    std::string root_hash = (*file)[FILE_HASH].ToString();
+    size_t file_block_num = (*file)[FILE_BLOCK_NUM].ToInt();
     // Get tree string
-    uint8_t *p_data = NULL;
-    size_t data_len = 0;
-    crust_status_t crust_status = persist_get_unsafe(root_cid, &p_data, &data_len);
+    uint8_t *p_tree = NULL;
+    size_t tree_sz = 0;
+    crust_status_t crust_status = persist_get_unsafe(root_cid, &p_tree, &tree_sz);
     if (CRUST_SUCCESS != crust_status)
     {
         if (wl->is_in_deleted_file_buffer(root_cid))
         {
             return;
         }
-        log_err("Validate meaningful data failed! Get tree:%s failed!\n", root_cid.c_str());
+        log_err("Validate meaningful data failed! Get tree:%s failed! Error code:%lx\n", root_cid.c_str(), crust_status);
         if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
-            deleted = true;
-        }
-        if (p_data != NULL)
-        {
-            free(p_data);
-            p_data = NULL;
+            lost = true;
         }
         return;
     }
+    Defer defer_tree([&p_tree](void) { free(p_tree); });
     // Validate merkle tree
-    std::string tree_str(reinterpret_cast<const char *>(p_data), data_len);
-    if (p_data != NULL)
+    sgx_sha256_hash_t tree_hash;
+    sgx_sha256_msg(p_tree, tree_sz, &tree_hash);
+    if (memcmp((*file)[FILE_HASH].ToBytes(), &tree_hash, HASH_LENGTH) != 0)
     {
-        free(p_data);
-        p_data = NULL;
-    }
-    json::JSON tree_json = json::JSON::Load(tree_str);
-    bool valid_tree = true;
-    if (root_hash.compare(tree_json[MT_HASH].ToString()) != 0)
-    {
-        log_err("File:%s merkle tree is not valid!Root hash doesn't equal!\n", root_cid.c_str());
-        valid_tree = false;
-    }
-    if (CRUST_SUCCESS != (crust_status = validate_merkletree_json(tree_json)))
-    {
-        log_err("File:%s merkle tree is not valid!Invalid merkle tree,error code:%lx\n", root_cid.c_str(), crust_status);
-        valid_tree = false;
-    }
-    if (!valid_tree)
-    {
+        log_err("File:%s merkle tree is not valid! Root hash doesn't equal!\n", root_cid.c_str());
         if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
         {
-            deleted = true;
+            lost = true;
         }
         return;
     }
 
-    // ----- Validate MerkleTree ----- //
+    // ----- Validate file block ----- //
     // Get to be checked block index
     std::set<size_t> block_idx_s;
     size_t tmp_idx = 0;
@@ -560,97 +571,58 @@ void validate_meaningful_file_bench_real()
             block_idx_s.insert(tmp_idx);
         }
     }
+    // Validate lost data if have
+    if (status.get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
+    {
+        block_idx_s.insert((*file)[FILE_LOST_INDEX].ToInt());
+    }
     // Do check
-    // Note: should store serialized tree structure as "cid":x,"hash":"xxxxx"
-    // be careful to keep "cid", "hash" sequence
-    size_t pos = 0;
-    std::string dhash_tag(MT_DATA_HASH "\":\"");
-    size_t cur_block_idx = 0;
     for (auto check_block_idx : block_idx_s)
     {
-        // Get leaf node position
-        do
-        {
-            pos = tree_str.find(dhash_tag, pos);
-            if (pos == tree_str.npos)
-            {
-                break;
-            }
-            pos += dhash_tag.size();
-        } while (cur_block_idx++ < check_block_idx);
-        if (pos == tree_str.npos)
-        {
-            log_err("Find file(%s) leaf node cid failed!node index:%ld\n", root_cid.c_str(), check_block_idx);
-            if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
-            {
-                deleted = true;
-            }
-            break;
-        }
         // Get current node hash
-        std::string leaf_hash = tree_str.substr(pos, HASH_LENGTH * 2);
+        uint8_t *p_leaf = p_tree + check_block_idx * FILE_ITEM_LENGTH;
+        std::string file_item = hexstring_safe(p_leaf, FILE_ITEM_LENGTH);
+        std::string uuid = file_item.substr(0, UUID_LENGTH * 2);
+        std::string leaf_hash = file_item.substr(UUID_LENGTH * 2, HASH_LENGTH * 2);
         // Compute current node hash by data
         uint8_t *p_sealed_data = NULL;
-        size_t sealed_data_size = 0;
-        std::string leaf_path = root_cid + "/" + leaf_hash;
-        crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_size);
+        size_t sealed_data_sz = 0;
+        std::string leaf_path = uuid + root_cid + "/" + leaf_hash;
+        crust_status = storage_get_file(leaf_path.c_str(), &p_sealed_data, &sealed_data_sz);
         if (CRUST_SUCCESS != crust_status)
         {
-            if (p_sealed_data != NULL)
-            {
-                free(p_sealed_data);
-            }
             if (wl->is_in_deleted_file_buffer(root_cid))
             {
-                break;
+                continue;
             }
             if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
-                deleted = true;
+                log_err("Get file(%s) block:%ld failed!\n", leaf_path.c_str(), check_block_idx);
+                (*file)[FILE_LOST_INDEX] = check_block_idx;
             }
-            log_err("Get file(%s) block:%ld failed!\n", root_cid.c_str(), check_block_idx);
-            break;
-        }
-        // Validate sealed hash
-        sgx_sha256_hash_t got_hash;
-        sgx_sha256_msg(p_sealed_data, sealed_data_size, &got_hash);
-        uint8_t *leaf_hash_u = hex_string_to_bytes(leaf_hash.c_str(), leaf_hash.size());
-        if (leaf_hash_u == NULL)
-        {
-            log_warn("Validate: Hexstring to bytes failed!Skip block:%ld check.\n", check_block_idx);
-            free(p_sealed_data);
+            lost = true;
             continue;
         }
-        int memret = memcmp(leaf_hash_u, got_hash, HASH_LENGTH);
-        free(leaf_hash_u);
-        if (memret != 0)
+        Defer def_sealed_data([&p_sealed_data](void) { free(p_sealed_data); });
+        // Validate sealed hash
+        sgx_sha256_hash_t got_hash;
+        sgx_sha256_msg(p_sealed_data, sealed_data_sz, &got_hash);
+        if (memcmp(p_leaf + UUID_LENGTH, got_hash, HASH_LENGTH) != 0)
         {
             if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
             {
                 log_err("File(%s) Index:%ld block hash is not expected!\n", root_cid.c_str(), check_block_idx);
                 log_err("Get hash : %s\n", hexstring(got_hash, HASH_LENGTH));
                 log_err("Org hash : %s\n", leaf_hash.c_str());
-                deleted = true;
+                (*file)[FILE_LOST_INDEX] = check_block_idx;
             }
-            free(p_sealed_data);
-            break;
+            lost = true;
+            continue;
         }
-        // Validate real file piece
-        crust_status = validate_real_file(p_sealed_data, sealed_data_size);
-        free(p_sealed_data);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            if (CRUST_SERVICE_UNAVAILABLE == crust_status)
-            {
-                service_unavailable = true;
-                return;
-            }
-            else
-            {
-                log_err("Get file(%s) block failed! Error code:%lx\n", root_cid.c_str(), crust_status);
-                deleted = true;
-            }
-            break;
-        }
+    }
+    if ((!lost && status.get_char(CURRENT_STATUS) == FILE_STATUS_LOST) 
+            || (lost && status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID))
+    {
+        changed = true;
     }
 }

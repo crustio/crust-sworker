@@ -19,7 +19,7 @@ crust_status_t save_file(const char *g_path, size_t index, sgx_sha256_hash_t has
 {
     std::string file_path = get_leaf_path(g_path, index, hash);
     crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD_TEMP);
+    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD);
     return crust_status;
 }
 
@@ -34,7 +34,7 @@ crust_status_t save_m_hashs_file(const char *g_path, const unsigned char *data, 
 {
     std::string file_path = get_m_hashs_file_path(g_path);
     crust_status_t crust_status = CRUST_SUCCESS;
-    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD_TEMP);
+    ocall_save_file(&crust_status, file_path.c_str(), data, data_size, STORE_TYPE_SRD);
     return crust_status;
 }
 
@@ -91,22 +91,27 @@ void srd_change()
 
     // Update srd info
     std::string srd_info_str = wl->get_srd_info().dump();
-    if (CRUST_SUCCESS != (crust_status = persist_set_unsafe(DB_SRD_INFO, reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size())))
-    {
-        log_warn("Set srd info failed! Error code:%lx\n", crust_status);
-    }
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
  * @description: seal one G srd files under directory, can be called from multiple threads
+ * @param uuid -> Disk path uuid
  * @return: Srd increase result
  */
-crust_status_t srd_increase()
+crust_status_t srd_increase(const char *uuid)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
-    sgx_sealed_data_t *p_sealed_data = NULL;
-    size_t sealed_data_size = 0;
     Workload *wl = Workload::get_instance();
+
+    // Get uuid bytes
+    uint8_t *p_uuid_u = hex_string_to_bytes(uuid, UUID_LENGTH * 2);
+    if (p_uuid_u == NULL)
+    {
+        log_err("Get uuid bytes failed! Invalid uuid:%s\n", uuid);
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    Defer def_uuid([&p_uuid_u](void) { free(p_uuid_u); });
 
     // Check if validation has been applied or not
     if (!wl->report_has_validated_proof())
@@ -137,119 +142,110 @@ crust_status_t srd_increase()
     } while (0);
 
     // Generate current G hash index
-    char tmp_val[16];
-    sgx_read_rand((unsigned char *)&tmp_val, 16);
-    std::string tmp_dir = hexstring_safe(tmp_val, 16);
+    size_t tmp_val_len = 18;
+    char tmp_val[tmp_val_len];
+    sgx_read_rand((unsigned char *)&tmp_val, tmp_val_len);
+    std::string tmp_val_str = hexstring_safe(tmp_val, tmp_val_len);
+    char *p_mid_dir = tmp_val;
+    std::string mid_dir = tmp_val_str.substr(0, LAYER_LENGTH * 2);
+    std::string tmp_dir = uuid + tmp_val_str;
 
     // ----- Generate srd file ----- //
     // Create directory
-    ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
+    ocall_create_dir(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD);
     if (CRUST_SUCCESS != crust_status)
     {
+        log_err("Create tmp directory failed! Error code:%lx\n", crust_status);
         return crust_status;
     }
+    // Delete tmp directory if failed
+    Defer def_del_dir([&crust_status, &tmp_dir](void) {
+        if (CRUST_SUCCESS != crust_status)
+        {
+            crust_status_t del_ret = CRUST_SUCCESS;
+            ocall_delete_folder_or_file(&del_ret, tmp_dir.c_str(), STORE_TYPE_SRD);
+            if (CRUST_SUCCESS != del_ret)
+            {
+                log_warn("Delete temp directory %s failed! Error code:%lx\n", tmp_dir.c_str(), del_ret);
+            }
+        }
+    });
 
     // Generate all M hashs and store file to disk
-    uint8_t *hashs = (uint8_t *)enc_malloc(SRD_RAND_DATA_NUM * HASH_LENGTH);
-    if (hashs == NULL)
+    uint8_t *m_hashs = (uint8_t *)enc_malloc(SRD_RAND_DATA_NUM * HASH_LENGTH);
+    if (m_hashs == NULL)
     {
         log_err("Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
+        return crust_status = CRUST_MALLOC_FAILED;
     }
-    Defer defer_hashs([&hashs](void) {
-        free(hashs);
-    });
+    Defer defer_hashs([&m_hashs](void) { free(m_hashs); });
     for (size_t i = 0; i < SRD_RAND_DATA_NUM; i++)
     {
+        sgx_sealed_data_t *p_sealed_data = NULL;
+        size_t sealed_data_size = 0;
         crust_status = seal_data_mrenclave(g_base_rand_buffer, SRD_RAND_DATA_LENGTH, &p_sealed_data, &sealed_data_size);
         if (CRUST_SUCCESS != crust_status)
         {
+            log_err("Seal random data failed! Error code:%lx\n", crust_status);
             return crust_status;
         }
-        Defer defer_sealed_data([&p_sealed_data](void) {
-            free(p_sealed_data);
-            p_sealed_data = NULL;
-        });
+        Defer defer_sealed_data([&p_sealed_data](void) { free(p_sealed_data); });
 
-        sgx_sha256_hash_t out_hash256;
-        sgx_sha256_msg((uint8_t *)p_sealed_data, SRD_RAND_DATA_LENGTH, &out_hash256);
+        sgx_sha256_hash_t m_hash;
+        sgx_sha256_msg((uint8_t *)p_sealed_data, SRD_RAND_DATA_LENGTH, &m_hash);
+        memcpy(m_hashs + i * HASH_LENGTH, m_hash, HASH_LENGTH);
 
-        for (size_t j = 0; j < HASH_LENGTH; j++)
-        {
-            hashs[i * HASH_LENGTH + j] = out_hash256[j];
-        }
-
-        crust_status = save_file(tmp_dir.c_str(), i, out_hash256, (unsigned char *)p_sealed_data, SRD_RAND_DATA_LENGTH);
+        std::string m_data_path = get_leaf_path(tmp_dir.c_str(), i, m_hash);
+        ocall_save_file(&crust_status, m_data_path.c_str(), reinterpret_cast<const uint8_t *>(p_sealed_data), SRD_RAND_DATA_LENGTH, STORE_TYPE_SRD);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_err("Save srd file(%s) failed!\n", tmp_dir.c_str());
-            ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
-            if (CRUST_SUCCESS != crust_status)
-            {
-                log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
-            }
+            log_err("Save srd file(%s) failed! Error code:%lx\n", tmp_dir.c_str(), crust_status);
             return crust_status;
         }
     }
 
     // Generate G hashs
-    sgx_sha256_hash_t g_out_hash256;
-    sgx_sha256_msg(hashs, SRD_RAND_DATA_NUM * HASH_LENGTH, &g_out_hash256);
+    sgx_sha256_hash_t g_hash;
+    sgx_sha256_msg(m_hashs, SRD_RAND_DATA_NUM * HASH_LENGTH, &g_hash);
 
-    crust_status = save_m_hashs_file(tmp_dir.c_str(), hashs, SRD_RAND_DATA_NUM * HASH_LENGTH);
+    crust_status = save_m_hashs_file(tmp_dir.c_str(), m_hashs, SRD_RAND_DATA_NUM * HASH_LENGTH);
     if (CRUST_SUCCESS != crust_status)
     {
         log_err("Save srd(%s) metadata failed!\n", tmp_dir.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
-        }
         return crust_status;
     }
 
     // Change G path name
-    std::string new_g_path = hexstring_safe(&g_out_hash256, HASH_LENGTH);
-    ocall_rename_dir(&crust_status, tmp_dir.c_str(), new_g_path.c_str(), STORE_TYPE_SRD_TEMP, STORE_TYPE_SRD);
+    std::string g_hash_hex = hexstring_safe(&g_hash, HASH_LENGTH);
+    std::string g_hash_path = uuid + mid_dir + g_hash_hex;
+    ocall_rename_dir(&crust_status, tmp_dir.c_str(), g_hash_path.c_str(), STORE_TYPE_SRD);
     if (CRUST_SUCCESS != crust_status)
     {
-        log_err("Move directory %s to %s failed!\n", tmp_dir.c_str(), new_g_path.c_str());
-        ocall_delete_folder_or_file(&crust_status, tmp_dir.c_str(), STORE_TYPE_SRD_TEMP);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            log_warn("Delete temp directory %s failed!\n", tmp_dir.c_str());
-        }
+        log_err("Rename directory %s to %s failed!\n", tmp_dir.c_str(), g_hash_path.c_str());
         return crust_status;
     }
-
-    // Get g hash
-    uint8_t *p_hash_u = (uint8_t *)enc_malloc(HASH_LENGTH);
-    if (p_hash_u == NULL)
-    {
-        log_info("Seal random data failed! Malloc memory failed!\n");
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(p_hash_u, 0, HASH_LENGTH);
-    memcpy(p_hash_u, g_out_hash256, HASH_LENGTH);
-
     // ----- Update srd_hashs ----- //
-    std::string hex_g_hash = hexstring_safe(p_hash_u, HASH_LENGTH);
-    if (hex_g_hash.compare("") == 0)
-    {
-        log_err("Hexstring failed!\n");
-        return CRUST_UNEXPECTED_ERROR;
-    }
     // Add new g_hash to srd_hashs
     // Because add this p_hash_u to the srd_hashs, so we cannot free p_hash_u
+    uint8_t *srd_item = (uint8_t *)enc_malloc(SRD_LENGTH);
+    if (srd_item == NULL)
+    {
+        log_err("Malloc for srd item failed!\n");
+        return crust_status = CRUST_MALLOC_FAILED;
+    }
+    memset(srd_item, 0, SRD_LENGTH);
+    memcpy(srd_item, p_uuid_u, UUID_LENGTH);
+    memcpy(srd_item + UUID_LENGTH, p_mid_dir, LAYER_LENGTH);
+    memcpy(srd_item + UUID_LENGTH + LAYER_LENGTH, g_hash, HASH_LENGTH);
     sgx_thread_mutex_lock(&wl->srd_mutex);
-    wl->srd_hashs.push_back(p_hash_u);
-    log_info("Seal random data -> %s, %luG success\n", hex_g_hash.c_str(), wl->srd_hashs.size());
+    wl->srd_hashs.push_back(srd_item);
+    log_info("Seal random data -> %s, %luG success\n", g_hash_hex.c_str(), wl->srd_hashs.size());
     sgx_thread_mutex_unlock(&wl->srd_mutex);
 
     // ----- Update srd info ----- //
-    wl->set_srd_info(1);
+    wl->set_srd_info(uuid, 1);
 
-    return crust_status;
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -273,27 +269,27 @@ size_t srd_decrease(size_t change)
         return 0;
     }
     // Get change hashs
-    std::vector<std::string> srd_del_hashs;
-    std::vector<size_t> srd_del_indexes;
+    // Note: Cannot push srd hash pointer to vector because it will be deleted later
+    std::vector<std::string> del_srds;
+    std::vector<size_t> del_indexes;
     for (size_t i = 1; i <= change; i++)
     {
         size_t index = wl->srd_hashs.size() - i;
-        srd_del_hashs.push_back(hexstring_safe(wl->srd_hashs[index], HASH_LENGTH));
-        srd_del_indexes.push_back(index);
+        del_srds.push_back(hexstring_safe(wl->srd_hashs[index], SRD_LENGTH));
+        del_indexes.push_back(index);
     }
-    std::reverse(srd_del_indexes.begin(), srd_del_indexes.end());
-    long r_change = -(long)change;
-    wl->set_srd_info(r_change);
-    wl->delete_srd_meta(srd_del_indexes);
+    std::reverse(del_indexes.begin(), del_indexes.end());
+    wl->delete_srd_meta(del_indexes);
     sl.unlock();
 
     // Delete srd files
-    for (auto hash : srd_del_hashs)
+    for (auto srd : del_srds)
     {
-        ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);
+        // Delete srd data
+        ocall_delete_folder_or_file(&crust_status, srd.c_str(), STORE_TYPE_SRD);
         if (CRUST_SUCCESS != crust_status)
         {
-            log_warn("Delete path:%s failed! Error code:%lx\n", hash.c_str(), crust_status);
+            log_warn("Delete path:%s failed! Error code:%lx\n", srd.c_str(), crust_status);
         }
     }
 
@@ -302,41 +298,49 @@ size_t srd_decrease(size_t change)
 
 /**
  * @description: Remove space outside main loop
- * @param change -> remove size
+ * @param data -> Pointer to deleted srd info
+ * @param data_size -> Data size
  */
-void srd_remove_space(size_t change)
+void srd_remove_space(const char *data, size_t data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
+    json::JSON del_json = json::JSON::Load(reinterpret_cast<const uint8_t *>(data), data_size);
+    long change = 0;
+
+    for (auto item : del_json.ObjectRange())
+    {
+        change += item.second.ToInt();
+    }
 
     // ----- Choose to be deleted hash ----- //
     SafeLock sl(wl->srd_mutex);
     sl.lock();
-    // Get real change
-    change = std::min(change, wl->srd_hashs.size());
-    if (change <= 0)
-    {
-        return;
-    }
     // Get change hashs
-    std::vector<std::string> srd_del_hashs;
-    for (size_t i = 1; i <= change; i++)
+    // Note: Cannot push srd hash pointer to vector because it will be deleted later
+    std::vector<std::string> del_srds;
+    for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
     {
-        size_t index = wl->srd_hashs.size() - i;
-        srd_del_hashs.push_back(hexstring_safe(wl->srd_hashs[index], HASH_LENGTH));
-        wl->add_srd_to_deleted_buffer(index);
+        std::string uuid = hexstring_safe(wl->srd_hashs[i], UUID_LENGTH);
+        if (del_json[uuid].ToInt() > 0)
+        {
+            del_srds.push_back(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH));
+            wl->add_srd_to_deleted_buffer(i);
+            del_json[uuid].AddNum(-1);
+            change--;
+        }
     }
     sl.unlock();
 
     // Delete srd files
-    if (srd_del_hashs.size() > 0)
+    if (del_srds.size() > 0)
     {
-        for (auto hash : srd_del_hashs)
+        for (auto srd : del_srds)
         {
-            ocall_delete_folder_or_file(&crust_status, hash.c_str(), STORE_TYPE_SRD);
+            ocall_delete_folder_or_file(&crust_status, srd.c_str(), STORE_TYPE_SRD);
             if (CRUST_SUCCESS != crust_status)
             {
-                log_warn("Delete path:%s failed! Error code:%lx\n", hash.c_str(), crust_status);
+                log_warn("Delete path:%s failed! Error code:%lx\n", srd.c_str(), crust_status);
             }
         }
     }

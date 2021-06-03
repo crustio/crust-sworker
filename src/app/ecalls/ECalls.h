@@ -8,9 +8,9 @@ extern "C"
 {
 #endif
 
-sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status);
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid);
 sgx_status_t Ecall_srd_decrease(sgx_enclave_id_t eid, size_t *size, size_t change);
-sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change);
+sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, const char *data, size_t data_size);
 sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status, long change, long *real_change);
 
 sgx_status_t Ecall_main_loop(sgx_enclave_id_t eid);
@@ -25,9 +25,13 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
 
 sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
 
-sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid);
+sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status, const char *cid);
 
-sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *data, size_t data_size);
+sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid, const uint8_t *data, size_t data_size, bool is_link, char *path, size_t path_size);
+
+sgx_status_t Ecall_seal_file_end(sgx_enclave_id_t eid, crust_status_t *status, const char *cid);
+
+sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size);
 
 sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash);
 

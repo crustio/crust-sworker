@@ -14,6 +14,8 @@
 #include "Persistence.h"
 #include "Identity.h"
 
+#define FILE_DELETE_TIMEOUT 50
+
 using namespace std;
 
 
@@ -22,9 +24,13 @@ extern "C"
 {
 #endif
 
-crust_status_t storage_seal_file(const char *cid);
+crust_status_t storage_seal_file_start(const char *root);
 
-crust_status_t storage_unseal_file(const char *data, size_t data_size);
+crust_status_t storage_seal_file_end(const char *root);
+
+crust_status_t storage_seal_file(const char *root, const uint8_t *data, size_t data_size, bool is_link, char *path, size_t path_size);
+
+crust_status_t storage_unseal_file(const char *path, uint8_t *p_unsealed_data, size_t unseal_data_size, size_t *p_decrypted_data_size);
 
 crust_status_t storage_delete_file(const char *hash);
 

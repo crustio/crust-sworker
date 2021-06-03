@@ -102,10 +102,10 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            // Send identity to chain and send work report
+            
+            // Entry network
             if (!offline_chain_mode)
             {
-                // Entry network
                 crust_status = entry_network();
                 if (CRUST_SUCCESS != crust_status)
                 {
@@ -135,7 +135,7 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            p_log->info("Workload information:\n%s\n", ed->gen_workload().c_str());
+            p_log->info("Workload information:\n%s\n", ed->gen_workload_str().c_str());
             p_log->info("Restore enclave data successfully, sworker is running now.\n");
         }
     }
@@ -174,8 +174,8 @@ entry_network_flag:
         }
     }
 
-    // Restore sealed file information
-    ed->restore_sealed_file_info();
+    // Construct uuid to disk path map
+    ed->construct_uuid_disk_path_map();
 
     // Check block height and post report to chain
     //start_task(work_report_loop);

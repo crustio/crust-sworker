@@ -6,6 +6,7 @@ namespace crust
 {
 
 DataBase* DataBase::database = NULL;
+std::mutex database_mutex;
 
 /**
  * @description: Get single class instance
@@ -13,13 +14,15 @@ DataBase* DataBase::database = NULL;
  */
 DataBase *DataBase::get_instance()
 {
+    SafeLock sl(database_mutex);
+    sl.lock();
     if (database == NULL)
     {
         database = new DataBase();
 
         leveldb::Options options;
         options.create_if_missing = true;
-        if (!create_directory(Config::get_instance()->db_path))
+        if (CRUST_SUCCESS != create_directory(Config::get_instance()->db_path))
         {
             return NULL;
         }

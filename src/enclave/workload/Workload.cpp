@@ -31,9 +31,11 @@ Workload *Workload::get_instance()
 Workload::Workload()
 {
     this->report_files = true;
-    this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["num"] = 0;
-    this->wl_spec_info[g_file_status[FILE_STATUS_VALID]]["size"] = 0;
-    this->file_sealing_count = 0;
+    for (auto item : g_file_spec_status)
+    {
+        this->wl_file_spec[item.second]["num"] = 0;
+        this->wl_file_spec[item.second]["size"] = 0;
+    }
 }
 
 /**
@@ -58,12 +60,12 @@ std::string Workload::get_workload(void)
     json::JSON wl_json;
 
     // File info
-    sgx_thread_mutex_lock(&wl_spec_info_mutex);
-    wl_json[WL_FILES] = this->wl_spec_info;
-    sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+    wl_json[WL_FILES] = this->get_file_spec();
     // Srd info
-    wl_json[WL_SRD][WL_SRD_COMPLETE] = this->get_srd_info()[WL_SRD_COMPLETE].ToInt();
+    json::JSON srd_info = this->get_srd_info();
+    wl_json[WL_SRD][WL_SRD_COMPLETE] = srd_info[WL_SRD_COMPLETE].ToInt();
     wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_task();
+    wl_json[WL_SRD][WL_SRD_DETAIL] = srd_info[WL_SRD_DETAIL];
 
     std::string wl_str = wl_json.dump();
     remove_char(wl_str, '\n');
@@ -77,7 +79,7 @@ std::string Workload::get_workload(void)
 /**
  * @description: Clean up work report data
  */
-void Workload::clean_srd_buffer()
+void Workload::clean_srd()
 {
     for (auto g_hash : this->srd_hashs)
     {
@@ -85,6 +87,11 @@ void Workload::clean_srd_buffer()
             free(g_hash);
     }
     this->srd_hashs.clear();
+
+    // Clean srd info json
+    this->srd_info_json = json::Object();
+    std::string srd_info_str = this->srd_info_json.dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
@@ -103,21 +110,21 @@ json::JSON Workload::gen_workload_info()
     }
     else
     {
-        size_t g_hashs_len = this->srd_hashs.size() * HASH_LENGTH;
-        uint8_t *g_hashs = (uint8_t *)enc_malloc(g_hashs_len);
-        if (g_hashs == NULL)
+        size_t srds_data_sz = this->srd_hashs.size() * SRD_LENGTH;
+        uint8_t *srds_data = (uint8_t *)enc_malloc(srds_data_sz);
+        if (srds_data == NULL)
         {
             log_err("Generate srd info failed due to malloc failed!\n");
             return ans;
         }
-        memset(g_hashs, 0, g_hashs_len);
+        Defer Def_srds_data([&srds_data](void) { free(srds_data); });
+        memset(srds_data, 0, srds_data_sz);
         for (size_t i = 0; i < this->srd_hashs.size(); i++)
         {
-            memcpy(g_hashs + i * HASH_LENGTH, this->srd_hashs[i], HASH_LENGTH);
+            memcpy(srds_data + i * SRD_LENGTH, this->srd_hashs[i], SRD_LENGTH);
         }
         ans[WL_SRD_SPACE] = this->srd_hashs.size() * 1024 * 1024 * 1024;
-        sgx_sha256_msg(g_hashs, (uint32_t)g_hashs_len, &srd_root);
-        free(g_hashs);
+        sgx_sha256_msg(srds_data, (uint32_t)srds_data_sz, &srd_root);
         ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
     }
 
@@ -137,13 +144,13 @@ json::JSON Workload::gen_workload_info()
             log_err("Generate sealed files info failed due to malloc failed!\n");
             return ans;
         }
+        Defer def_f_hashs([&f_hashs](void) { free(f_hashs); });
         memset(f_hashs, 0, f_hashs_len);
         for (size_t i = 0; i < this->sealed_files.size(); i++)
         {
             memcpy(f_hashs + i * HASH_LENGTH, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
         }
         sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
-        free(f_hashs);
         ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
     }
 
@@ -176,7 +183,7 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
     srd_offset += 1;
     for (size_t i = 0; i < this->srd_hashs.size(); i++)
     {
-        std::string tmp = "\"" + hexstring_safe(this->srd_hashs[i], HASH_LENGTH) + "\"";
+        std::string tmp = "\"" + hexstring_safe(this->srd_hashs[i], SRD_LENGTH) + "\"";
         if (i != this->srd_hashs.size() - 1)
         {
             tmp.append(",");
@@ -201,7 +208,8 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
  */
 crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 {
-    sgx_thread_mutex_lock(&this->file_mutex);
+    SafeLock sl(this->file_mutex);
+    sl.lock();
 
     size_t buffer_size = id_get_file_buffer_size(this->sealed_files);
     *p_data = (uint8_t *)enc_malloc(buffer_size);
@@ -232,8 +240,6 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
 
     *data_size = offset;
 
-    sgx_thread_mutex_unlock(&this->file_mutex);
-
     return CRUST_SUCCESS;
 }
 
@@ -242,10 +248,20 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
  * @param g_hashs -> G hashs json data
  * @return: Restore status
  */
-crust_status_t Workload::restore_srd(json::JSON g_hashs)
+crust_status_t Workload::restore_srd(json::JSON &g_hashs)
 {
+    if (g_hashs.JSONType() != json::JSON::Class::Array)
+    {
+        return CRUST_BAD_SEAL_DATA;
+    }
+
+    if (g_hashs.size() == 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
     crust_status_t crust_status = CRUST_SUCCESS;
-    this->clean_srd_buffer();
+    this->clean_srd();
     
     // Restore srd_hashs
     for (auto it : g_hashs.ArrayRange())
@@ -254,31 +270,83 @@ crust_status_t Workload::restore_srd(json::JSON g_hashs)
         uint8_t *g_hash = hex_string_to_bytes(hex_g_hash.c_str(), hex_g_hash.size());
         if (g_hash == NULL)
         {
-            this->clean_srd_buffer();
+            this->clean_srd();
             return CRUST_UNEXPECTED_ERROR;
         }
         this->srd_hashs.push_back(g_hash);
+
+        // Restore srd detail
+        std::string uuid = hex_g_hash.substr(0, UUID_LENGTH * 2);
+        this->srd_info_json[WL_SRD_DETAIL][uuid].AddNum(1);
     }
 
     // Restore srd info
     this->srd_info_json[WL_SRD_COMPLETE] = this->srd_hashs.size();
 
+    // Restore srd info
+    std::string srd_info_str = this->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
+
     return crust_status;
+}
+
+/**
+ * @description: Clean file related data
+ */
+void Workload::clean_file()
+{
+    // Clean sealed files
+    this->sealed_files.clear();
+
+    // Clean workload spec info
+    this->wl_file_spec = json::JSON();
+
+    // Clean file info
+    safe_ocall_store2(OS_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>("{}"), 2);
 }
 
 /**
  * @description: Restore file from json
  * @param file_json -> File json
+ * @return: Restore file result
  */
-void Workload::restore_file(json::JSON file_json)
+crust_status_t Workload::restore_file(json::JSON &file_json)
 {
+    if (file_json.JSONType() != json::JSON::Class::Array)
+    {
+        return CRUST_BAD_SEAL_DATA;
+    }
+
+    if (file_json.size() == 0)
+    {
+        return CRUST_SUCCESS;
+    }
+
     this->sealed_files.clear();
     for (int i = 0; i < file_json.size(); i++)
     {
-        this->sealed_files.push_back(file_json[i]);
-        // Restore workload spec info
-        set_wl_spec(file_json[i][FILE_STATUS].get_char(CURRENT_STATUS), file_json[i][FILE_SIZE].ToInt());
+        char s = file_json[i][FILE_STATUS].get_char(CURRENT_STATUS);
+        if (FILE_STATUS_PENDING == s)
+        {
+            crust_status_t del_ret = CRUST_SUCCESS;
+            std::string cid = file_json[i][FILE_CID].ToString();
+            // Delete file directory
+            ocall_delete_ipfs_file(&del_ret, cid.c_str());
+            // Delete file tree structure
+            persist_del(cid);
+        }
+        else
+        {
+            this->sealed_files.push_back(file_json[i]);
+            // Restore workload spec info
+            this->set_file_spec(s, file_json[i][FILE_SIZE].ToInt());
+        }
     }
+
+    // Restore file information
+    this->restore_file_info();
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -306,16 +374,19 @@ bool Workload::get_report_file_flag()
 
 /**
  * @description: Set srd info
+ * @param uuid -> Disk path uuid
  * @param change -> Change number
  */
-void Workload::set_srd_info(long change)
+void Workload::set_srd_info(const char *uuid, long change)
 {
+    std::string uuid_str(uuid);
     sgx_thread_mutex_lock(&this->srd_info_mutex);
-    this->srd_info_json[WL_SRD_COMPLETE] = this->srd_info_json[WL_SRD_COMPLETE].ToInt() + change;
+    this->srd_info_json[WL_SRD_COMPLETE].AddNum(change);
     if (this->srd_info_json[WL_SRD_COMPLETE].ToInt() <= 0)
     {
         this->srd_info_json[WL_SRD_COMPLETE] = 0;
     }
+    this->srd_info_json[WL_SRD_DETAIL][uuid_str].AddNum(change);
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
 }
 
@@ -328,7 +399,7 @@ json::JSON Workload::get_srd_info()
     sgx_thread_mutex_lock(&this->srd_info_mutex);
     if (this->srd_info_json.size() <= 0)
     {
-        this->srd_info_json = json::JSON();
+        this->srd_info_json = json::Object();
     }
     json::JSON srd_info = this->srd_info_json;
     sgx_thread_mutex_unlock(&this->srd_info_mutex);
@@ -344,6 +415,40 @@ void Workload::set_upgrade(sgx_ec256_public_t pub_key)
 {
     this->upgrade = true;
     memcpy(&this->pre_pub_key, &pub_key, sizeof(sgx_ec256_public_t));
+}
+
+/**
+ * @description: Unset upgrade
+ */
+void Workload::unset_upgrade()
+{
+    this->upgrade = false;
+}
+
+/**
+ * @description: Restore previous public key
+ * @param meta -> Reference to metadata
+ * @return: Restore result
+ */
+crust_status_t Workload::restore_pre_pub_key(json::JSON &meta)
+{
+    if (!meta.hasKey(ID_PRE_PUB_KEY))
+    {
+        return CRUST_SUCCESS;
+    }
+
+    sgx_ec256_public_t pre_pub_key;
+    std::string pre_pub_key_str = meta[ID_PRE_PUB_KEY].ToString();
+    uint8_t *pre_pub_key_u = hex_string_to_bytes(pre_pub_key_str.c_str(), pre_pub_key_str.size());
+    if (pre_pub_key_u == NULL)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    memcpy(&pre_pub_key, pre_pub_key_u, sizeof(sgx_ec256_public_t));
+    free(pre_pub_key_u);
+    this->set_upgrade(pre_pub_key);
+
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -443,11 +548,6 @@ crust_status_t Workload::can_report_work(size_t block_height)
         return CRUST_UPGRADE_RESTART;
     }
 
-    if (!this->get_report_file_flag())
-    {
-        return CRUST_UPGRADE_NO_FILE;
-    }
-
     return CRUST_SUCCESS;
 }
 
@@ -456,34 +556,27 @@ crust_status_t Workload::can_report_work(size_t block_height)
  * @param file_status -> Workload spec
  * @param change -> Spec information change
  */
-void Workload::set_wl_spec(char file_status, long long change)
+void Workload::set_file_spec(char file_status, long long change)
 {
-    if (g_file_status.find(file_status) != g_file_status.end())
+    if (g_file_spec_status.find(file_status) != g_file_spec_status.end())
     {
-        sgx_thread_mutex_lock(&wl_spec_info_mutex);
-        std::string ws_name = g_file_status[file_status];
-        this->wl_spec_info[ws_name]["num"] = this->wl_spec_info[ws_name]["num"].ToInt() + (change > 0 ? 1 : -1);
-        this->wl_spec_info[ws_name]["size"] = this->wl_spec_info[ws_name]["size"].ToInt() + change;
-        sgx_thread_mutex_unlock(&wl_spec_info_mutex);
+        sgx_thread_mutex_lock(&wl_file_spec_mutex);
+        std::string ws_name = g_file_spec_status[file_status];
+        this->wl_file_spec[ws_name]["num"].AddNum(change > 0 ? 1 : -1);
+        this->wl_file_spec[ws_name]["size"].AddNum(change);
+        sgx_thread_mutex_unlock(&wl_file_spec_mutex);
     }
 }
 
 /**
  * @description: Get workload spec info reference
- * @return: Const reference to wl_spec_infop
+ * @return: Const reference to wl_file_spec
  */
-const json::JSON &Workload::get_wl_spec()
+const json::JSON &Workload::get_file_spec()
 {
-    return this->wl_spec_info;
-}
-
-/*
- * @description: Restore workload spec information from data
- * @param data -> Workload spec information
- */
-void Workload::restore_wl_spec_info(std::string data)
-{
-    this->wl_spec_info = json::JSON::Load(data);
+    SafeLock sl(wl_file_spec_mutex);
+    sl.lock();
+    return this->wl_file_spec;
 }
 
 /**
@@ -543,6 +636,14 @@ void Workload::set_key_pair(ecc_key_pair id_key_pair)
 }
 
 /**
+ * @description: Unset id key pair
+ */
+void Workload::unset_key_pair()
+{
+    this->is_set_key_pair = false;
+}
+
+/**
  * @description: Get identity key pair
  * @return: Const reference to identity key pair
  */
@@ -585,6 +686,24 @@ void Workload::set_report_height(size_t height)
 size_t Workload::get_report_height()
 {
     return this->report_height;
+}
+
+/**
+ * @description: Clean all workload information
+ */
+void Workload::clean_all()
+{
+    // Clean srd
+    this->clean_srd();
+
+    // Clean file
+    this->clean_file();
+
+    // Clean id key pair
+    this->unset_key_pair();
+
+    // Clean upgrade related
+    this->unset_upgrade();
 }
 
 /**
@@ -729,8 +848,7 @@ void Workload::deal_deleted_srd(bool locked)
     sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
 
     // Delete hashs
-    long del_num = this->delete_srd_meta(tmp_del_idx_s);
-    this->set_srd_info(-del_num);
+    this->delete_srd_meta(tmp_del_idx_s);
 
     if (locked)
     {
@@ -784,30 +902,32 @@ void Workload::deal_deleted_file()
 {
     // Clear file deleted buffer
     sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    std::set<std::string> tmp_del_cid_s = this->file_del_cid_s;
     this->file_del_cid_s.clear();
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     // Deleted invalid file item
     SafeLock sealed_files_sl(this->file_mutex);
     sealed_files_sl.lock();
-    for (auto it = this->sealed_files.begin(); it != this->sealed_files.end();)
+    for (auto cid : tmp_del_cid_s)
     {
-        std::string status = (*it)[FILE_STATUS].ToString();
-        if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
-                || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED))
+        size_t pos = 0;
+        if (this->is_file_dup(cid, pos))
         {
-            it = this->sealed_files.erase(it);
-        }
-        else
-        {
-            it++;
+            std::string status = this->sealed_files[pos][FILE_STATUS].ToString();
+            if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
+                    || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED)
+                    || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
+            {
+                this->sealed_files.erase(this->sealed_files.begin() + pos);
+            }
         }
     }
     sealed_files_sl.unlock();
 }
 
 /**
- * @description: Is file duplicated
+ * @description: Is file duplicated, must hold file_mutex before invoked
  * @param cid -> File's content id
  * @return: File duplicated or not
  */
@@ -818,7 +938,7 @@ bool Workload::is_file_dup(std::string cid)
 }
 
 /**
- * @description: Is file duplicated
+ * @description: Is file duplicated, must hold file_mutex before invoked
  * @param cid -> File's content id
  * @param pos -> Duplicated file's position
  * @return: Duplicated or not
@@ -856,7 +976,7 @@ bool Workload::is_file_dup(std::string cid, size_t &pos)
 }
 
 /**
- * @description: Add sealed file
+ * @description: Add sealed file, must hold file_mutex before invoked
  * @param file -> File content
  * @param pos -> Inserted position
  */
@@ -869,7 +989,7 @@ void Workload::add_sealed_file(json::JSON file, size_t pos)
 }
 
 /**
- * @description: Add sealed file
+ * @description: Add sealed file, must hold file_mutex before invoked
  * @param file -> File content
  */
 void Workload::add_sealed_file(json::JSON file)
@@ -884,7 +1004,7 @@ void Workload::add_sealed_file(json::JSON file)
 }
 
 /**
- * @description: Delete sealed file
+ * @description: Delete sealed file, must hold file_mutex before invoked
  * @param cid -> File content id
  */
 void Workload::del_sealed_file(std::string cid)
@@ -897,7 +1017,7 @@ void Workload::del_sealed_file(std::string cid)
 }
 
 /**
- * @description: Delete sealed file
+ * @description: Delete sealed file, must hold file_mutex before invoked
  * @param pos -> Deleted file position
  */
 void Workload::del_sealed_file(size_t pos)
@@ -909,61 +1029,105 @@ void Workload::del_sealed_file(size_t pos)
 }
 
 /**
- * @description: Get file sealing count
- * @return file sealing count
- */
-size_t Workload::get_file_sealing_count()
-{
-    sgx_thread_mutex_lock(&this->file_sealing_count_mutex);
-    size_t res = this->file_sealing_count;
-    sgx_thread_mutex_unlock(&this->file_sealing_count_mutex);
-    return res;
-}
-
-/**
  * @description: Restore file informatione
+ * @return: Restore file information result
  */
-void Workload::restore_file_info()
+crust_status_t Workload::restore_file_info()
 {
-    sgx_thread_mutex_lock(&this->file_mutex);
-    std::vector<json::JSON> tmp_sealed_files;
-    tmp_sealed_files.insert(tmp_sealed_files.end(), this->sealed_files.begin(), this->sealed_files.end());
-    sgx_thread_mutex_unlock(&this->file_mutex);
+    // Get file item length
+    size_t file_info_item_len = CID_LENGTH + 10
+            + strlen(FILE_SIZE) + 12 + 10
+            + strlen(FILE_SEALED_SIZE) + 12 + 10
+            + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;
 
-    // Retore file info
-    size_t file_info_len = (CID_LENGTH + 8
-            + strlen(FILE_SIZE) + 12 + 9
-            + strlen(FILE_SEALED_SIZE) + 12 + 9
-            + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 9) * tmp_sealed_files.size() + 32;
-    uint8_t *file_info_buf = (uint8_t *)enc_malloc(file_info_len);
+    const std::string START_TMP("start");
+    const std::string OFFSET_TMP("offset");
+    const std::string LENGTH_TMP("length");
+    const std::string HASPRE_TMP("has_pre");
+
+    // Get file total size
+    size_t file_info_len = 0;
+    json::JSON file_info;
+    for (size_t i = 0; i < this->sealed_files.size(); i++)
+    {
+        char s = this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS);
+        if (g_file_spec_status.find(s) != g_file_spec_status.end())
+        {
+            file_info[g_file_spec_status[s]][LENGTH_TMP].AddNum(file_info_item_len);
+        }
+    }
+    for (auto s : g_file_spec_status)
+    {
+        file_info[s.second][LENGTH_TMP].AddNum(32);
+        file_info_len += file_info[s.second][LENGTH_TMP].ToInt();
+    }
+    char *file_info_buf = (char *)enc_malloc(file_info_len);
     if (file_info_buf == NULL)
     {
-        log_warn("Generate file information failed! No memory can be allocated!\n");
-        return;
+        return CRUST_MALLOC_FAILED;
     }
-    Defer defer_file_info_buf([&file_info_buf](void) {
-        free(file_info_buf);
-    });
-    size_t file_info_offset = 0;
+    Defer def_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
     memset(file_info_buf, 0, file_info_len);
-    memcpy(file_info_buf, "{", 1);
-    file_info_offset += 1;
-    for (size_t i = 0; i < tmp_sealed_files.size(); i++)
+
+    // ----- Construct file information json string ----- //
+    // Init file_info json
+    size_t buf_offset = 0;
+    for (auto info : file_info.ObjectRange())
     {
-        json::JSON file = tmp_sealed_files[i];
+        std::string s(info.first);
+        std::string title;
+        if (buf_offset == 0)
+        {
+            title.append("{");
+        }
+        else
+        {
+            title.append(",");
+        }
+        title.append("\"").append(s).append("\":[");
+        memcpy(file_info_buf + buf_offset, title.c_str(), title.size());
+        file_info[s][START_TMP] = buf_offset;
+        file_info[s][OFFSET_TMP].AddNum(title.size());
+        buf_offset += file_info[s][LENGTH_TMP].ToInt();
+    }
+    // Copy data to related buffer
+    for (size_t i = 0; i < this->sealed_files.size(); i++)
+    {
+        json::JSON file = this->sealed_files[i];
+        std::string s = g_file_spec_status[file[FILE_STATUS].get_char(CURRENT_STATUS)];
         std::string info;
-        info.append("\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
+        info.append("{\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
             .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
             .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"");
-        if (i != tmp_sealed_files.size() - 1)
+            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"}");
+        if (file_info[s][HASPRE_TMP].ToBool())
         {
-            info.append(",");
+            info = "," + info;
         }
-        memcpy(file_info_buf + file_info_offset, info.c_str(), info.size());
-        file_info_offset += info.size();
+        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), info.c_str(), info.size());
+        file_info[s][OFFSET_TMP].AddNum(info.size());
+        file_info[s][HASPRE_TMP] = true;
     }
-    memcpy(file_info_buf + file_info_offset, "}", 1);
-    file_info_offset += 1;
-    ocall_store_file_info_all(file_info_buf, file_info_offset);
+
+    // Adjust json format
+    size_t file_info_len_r = 0;
+    for (auto info : file_info.ObjectRange())
+    {
+        std::string s(info.first);
+        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), "]", 1);
+        file_info[s][OFFSET_TMP].AddNum(1);
+        for (long i = file_info_len_r, j = file_info[s][START_TMP].ToInt(); 
+                j < file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(); i++, j++)
+        {
+            file_info_buf[i] = file_info_buf[j];
+        }
+        file_info_len_r += file_info[s][OFFSET_TMP].ToInt();
+    }
+    memcpy(file_info_buf + file_info_len_r, "}", 1);
+    file_info_len_r += 1;
+
+    // Store file information to app
+    safe_ocall_store2(OS_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>(file_info_buf), file_info_len_r);
+
+    return CRUST_SUCCESS;
 }

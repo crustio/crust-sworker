@@ -26,13 +26,9 @@ void ecall_main_loop()
 
         // ----- File validate ----- //
         validate_meaningful_file();
-        // Clean deleted file
-        wl->deal_deleted_file();
 
         // ----- SRD validate ----- //
         validate_srd();
-        // Clean deleted srd
-        wl->deal_deleted_srd();
 
         // ----- SRD ----- //
         srd_change();
@@ -54,16 +50,17 @@ void ecall_main_loop()
 
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
- * @return: Src increase result
+ * @param uuid -> Disk path uuid
+ * @return: Srd increase result
  */
-crust_status_t ecall_srd_increase()
+crust_status_t ecall_srd_increase(const char *uuid)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    return srd_increase();
+    return srd_increase(uuid);
 }
 
 /**
@@ -101,16 +98,17 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 
 /**
  * @description: Update srd_metadata
- * @param change -> To be removed srd space
+ * @param data -> Pointer to deleted srd info
+ * @param data_size -> Data size
  */
-void ecall_srd_remove_space(size_t change)
+void ecall_srd_remove_space(const char *data, size_t data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return;
     }
 
-    srd_remove_space(change);
+    srd_remove_space(data, data_size);
 }
 
 /************************************System****************************************/
@@ -208,36 +206,63 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 /************************************Files****************************************/
 
 /**
- * @description: Seal file according to given path and return new MerkleTree
- * @param cid (in) -> Pointer to ipfs content id
- * @return: Seal status
+ * @description: IPFS informs sWorker to prepare for seal
+ * @param root -> File root cid
+ * @return: Inform result
  */
-crust_status_t ecall_seal_file(const char *cid)
+crust_status_t ecall_seal_file_start(const char *root)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_seal_file(cid);
+    crust_status_t ret = storage_seal_file_start(root);
 
     return ret;
 }
 
 /**
+ * @description: Seal file according to given path and return new MerkleTree
+ * @param root (in) -> Pointer to file root cid
+ * @param data (in) -> Pointer to raw data or link
+ * @param data_size -> Raw data size or link size
+ * @param is_link -> Indicate data is raw data or a link
+ * @param path (in, out) -> Index path used to get file block
+ * @param path_size -> Index path size
+ * @return: Seal status
+ */
+crust_status_t ecall_seal_file(const char *root,
+                               const uint8_t *data,
+                               size_t data_size,
+                               bool is_link,
+                               char *path,
+                               size_t path_size)
+{
+    return storage_seal_file(root, data, data_size, is_link, path, path_size);
+}
+
+/**
+ * @description: IPFS informs sWorker seal end
+ * @param root -> File root cid
+ * @return: Inform result
+ */
+crust_status_t ecall_seal_file_end(const char *root)
+{
+    return storage_seal_file_end(root);
+}
+
+/**
  * @description: Unseal file according to given path
- * @param data (in) -> Pointer to sealed data
- * @param data_size -> Unsealed data size
+ * @param path (in) -> Pointer to file block stored path
+ * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param decrypted_data_size -> Decrypted data buffer size
+ * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Unseal status
  */
-crust_status_t ecall_unseal_file(const char *data, size_t data_size)
+crust_status_t ecall_unseal_file(const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size)
 {
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return CRUST_UPGRADE_IS_UPGRADING;
-    }
-
-    crust_status_t ret = storage_unseal_file(data, data_size);
+    crust_status_t ret = storage_unseal_file(path, p_decrypted_data, decrypted_data_size, p_decrypted_data_size);
 
     return ret;
 }

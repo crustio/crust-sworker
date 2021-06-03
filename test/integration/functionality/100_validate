@@ -29,6 +29,9 @@ function validate_exit()
 {
     rm -rf $tmpdir
 
+    # Delete test srd
+    srd_real_sync -$srd_num &>/dev/null
+
     # Delete test files
     for cid in ${cid_arry[@]}; do
         delete_file $cid &>/dev/null
@@ -55,8 +58,8 @@ trap 'validate_exit' EXIT
 . $scriptdir/utils.sh
 
 
+data_path=($(get_config_array ".data_path"))
 srd_num=$(get_config ".functionality|.validate|.srd_num")
-srd_path=$(get_config ".srd_path")
 deleted_srd=$(get_config ".functionality|.validate|.deleted_srd")
 file_num=$(get_config ".functionality|.validate|.file_num")
 deleted_file=$(get_config ".functionality|.validate|.deleted_file")
@@ -64,12 +67,24 @@ deleted_file=$(get_config ".functionality|.validate|.deleted_file")
 ### Srd some space
 srd_real_sync $srd_num &>/dev/null
 i=0
+srd_path_arry=()
 # Delete some srd
-for sf in $(ls $srd_path); do
-    if [ $((i++)) -ge $deleted_srd ]; then
-        break
-    fi
-    rm -rf $srd_path/$sf
+for d_path in ${data_path[@]}; do
+    s_path=$d_path/sworker/srd
+    cd $s_path
+    for sf in $(find . -maxdepth 3 -mindepth 3 -name "*"); do
+        srd_path_arry[$i]=$s_path/$sf
+        ((i++))
+    done
+    cd - &>/dev/null
+done
+i=0
+while [ $i -lt $deleted_srd ]; do
+    index=$((RANDOM % ${#srd_path_arry[@]}))
+    sf=${srd_path_arry[$index]}
+    rm -rf $sf
+    srd_path_arry=( "${srd_path_arry[@]/$sf}" )
+    ((i++))
 done
 
 ### Seal some file
@@ -82,23 +97,38 @@ while [ $((i++)) -lt $file_num ]; do
 done
 # Delete some file
 deleted_cid_arry=()
+declare -A del_cid_map
+for d_path in ${data_path[@]}; do
+    s_path=$d_path/sworker/files
+    cd $s_path
+    for sf in $(find . -maxdepth 3 -mindepth 3 -name "*"); do
+        cid=$(basename $sf)
+        del_cid_map[$cid]="${del_cid_map[$cid]} $s_path/$sf"
+    done
+    cd - &>/dev/null
+done
 i=0
 for cid in ${cid_arry[@]}; do
-    if [ $i -ge $deleted_file ]; then
+    sf=${del_cid_map[$cid]}
+    rm -rf $sf
+    deleted_cid_arry[$i]=$cid
+    if [ $((++i)) -ge $deleted_file ]; then
         break
     fi
-    rm -r $testfiledir/$cid
-    deleted_cid_arry[$i]=$cid
-    ((i++))
 done
 
 ### Validate
 _validate
 
 ### Check validate result
+get_workload &>$TMPFILE2
+if [ $? -ne 0 ]; then
+    verbose ERROR "get workload failed!" n
+    ret=1
+fi
 # Check srd
 ret=0
-punish_srd=$(ls $srd_path | wc -l)
+punish_srd=$(cat $TMPFILE2 | jq '.srd|.srd_complete')
 ((punish_srd=srd_num-punish_srd))
 if [ $punish_srd -ne $((deleted_srd)) ]; then
     verbose ERROR "srd validate for punishment failed!real punished num:$punish_srd" n
@@ -106,11 +136,6 @@ if [ $punish_srd -ne $((deleted_srd)) ]; then
 fi
 # Check file
 get_file_info_all &>$TMPFILE
-if [ $? -ne 0 ]; then
-    verbose ERROR "get workload failed!" n
-    ret=1
-fi
-get_workload &>$TMPFILE2
 if [ $? -ne 0 ]; then
     verbose ERROR "get workload failed!" n
     ret=1
@@ -124,7 +149,6 @@ fi
 for cid in ${deleted_cid_arry[@]}; do
     if grep $cid $TMPFILE &>/dev/null; then
         verbose ERROR "delete file($cid) failed!" n
-        ret=1
     fi
 done
 

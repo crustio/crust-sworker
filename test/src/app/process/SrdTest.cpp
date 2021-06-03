@@ -14,33 +14,54 @@ bool srd_change_test(long change)
 
     if (change > 0)
     {
-        json::JSON disk_info_json = get_increase_srd_info();
+        long left_task = change;
+        json::JSON disk_info_json = get_increase_srd_info(left_task);
+        long true_increase = change - left_task;
         // Print disk info
-        p_log->info("Available space is %ldG in '%s' folder, this turn will use %ldG space\n", 
-                disk_info_json[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
-                p_config->srd_path.c_str(),
-                change);
+        for (auto info : disk_info_json.ArrayRange())
+        {
+            if (info[WL_DISK_USE].ToInt() > 0)
+            {
+                p_log->info("Available space is %ldG in '%s', this turn will use %ldG space\n", 
+                        info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
+                        info[WL_DISK_PATH].ToString().c_str(),
+                        info[WL_DISK_USE].ToInt());
+            }
+        }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
-                change, p_config->srd_thread_num);
+                true_increase, p_config->srd_thread_num);
 
         // ----- Do srd ----- //
         // Use omp parallel to seal srd disk, the number of threads is equal to the number of CPU cores
         ctpl::thread_pool pool(p_config->srd_thread_num);
-        std::vector<std::shared_ptr<std::future<sgx_status_t>>> tasks_v;
-        for (long i = 0; i < change; i++)
+        std::vector<std::shared_ptr<std::future<crust_status_t>>> tasks_v;
+        long task = true_increase;
+        while (task > 0)
         {
-            sgx_enclave_id_t eid = global_eid;
-            tasks_v.push_back(std::make_shared<std::future<sgx_status_t>>(pool.push([eid](int /*id*/){
-                if (SGX_SUCCESS != Ecall_srd_increase_test(eid))
-                {
-                    // If failed, add current task to next turn
-                    crust_status_t crust_status = CRUST_SUCCESS;
-                    long real_change = 0;
-                    Ecall_change_srd_task(global_eid, &crust_status, 1, &real_change);
-                    return SGX_ERROR_UNEXPECTED;
-                }
-                return SGX_SUCCESS;
-            })));
+            for (int i = 0; i < disk_info_json.size() && task > 0; i++, task--)
+            {
+                sgx_enclave_id_t eid = global_eid;
+                std::string uuid = disk_info_json[i][WL_DISK_UUID].ToString();
+                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
+                    sgx_status_t sgx_status = SGX_SUCCESS;
+                    crust_status_t increase_ret = CRUST_SUCCESS;
+                    if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase_test(eid, &increase_ret, uuid.c_str()))
+                            || CRUST_SUCCESS != increase_ret)
+                    {
+                        // If failed, add current task to next turn
+                        long real_change = 0;
+                        crust_status_t change_ret = CRUST_SUCCESS;
+                        Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
+                        sgx_status = SGX_ERROR_UNEXPECTED;
+                    }
+                    if (SGX_SUCCESS != sgx_status)
+                    {
+                        increase_ret = CRUST_UNEXPECTED_ERROR;
+                    }
+                    decrease_running_srd_task();
+                    return increase_ret;
+                })));
+            }
         }
         // Wait for srd task
         long srd_success_num = 0;
@@ -48,7 +69,7 @@ bool srd_change_test(long change)
         {
             try 
             {
-                if (SGX_SUCCESS == it->get())
+                if (CRUST_SUCCESS == it->get())
                 {
                     srd_success_num++;
                 }

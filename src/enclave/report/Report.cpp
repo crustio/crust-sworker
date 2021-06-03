@@ -69,15 +69,15 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     // Judge whether block height is expired
-    if (block_height == 0 || block_height - wl->get_report_height() < REPORT_SLOT)
+    if (block_height == 0 || wl->get_report_height() + REPORT_SLOT > block_height)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
 
     Defer defer_status([&wl, &block_height](void) {
         wl->set_report_height(block_height);
-        wl->reduce_restart_flag();
         wl->set_report_file_flag(true);
+        wl->reduce_restart_flag();
         wl->report_reset_validated_proof();
     });
 
@@ -86,15 +86,15 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         // The first 4 report after restart will not be processed
         return CRUST_FIRST_WORK_REPORT_AFTER_REPORT;
     }
+    if (!wl->get_report_file_flag())
+    {
+        // Have files and no IPFS
+        return CRUST_SERVICE_UNAVAILABLE;
+    } 
     if (!wl->report_has_validated_proof())
     {
         // Judge whether the current data is validated 
         return CRUST_WORK_REPORT_NOT_VALIDATED;
-    }
-    if (!wl->get_report_file_flag())
-    {
-        // Have files and no karst
-        return CRUST_SERVICE_UNAVAILABLE;
     }
 
     ecc_key_pair id_key_pair = wl->get_key_pair();
@@ -109,8 +109,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     size_t g_hashs_num = wl->srd_hashs.size();
     if (g_hashs_num > 0)
     {
-        uint8_t *hashs = (uint8_t *)enc_malloc(g_hashs_num * HASH_LENGTH);
-        if (hashs == NULL)
+        uint8_t *srd_data = (uint8_t *)enc_malloc(g_hashs_num * SRD_LENGTH);
+        if (srd_data == NULL)
         {
             log_err("Malloc memory failed!\n");
             return CRUST_MALLOC_FAILED;
@@ -118,13 +118,13 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         size_t hashs_offset = 0;
         for (auto g_hash : wl->srd_hashs)
         {
-            memcpy(hashs + hashs_offset, g_hash, HASH_LENGTH);
-            hashs_offset += HASH_LENGTH;
+            memcpy(srd_data + hashs_offset, g_hash, SRD_LENGTH);
+            hashs_offset += SRD_LENGTH;
         }
         // Generate srd information
         srd_workload = g_hashs_num * 1024 * 1024 * 1024;
-        sgx_sha256_msg(hashs, (uint32_t)(g_hashs_num * HASH_LENGTH), &srd_root);
-        free(hashs);
+        sgx_sha256_msg(srd_data, (uint32_t)(g_hashs_num * SRD_LENGTH), &srd_root);
+        free(srd_data);
     }
     else
     {
@@ -172,6 +172,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
             if (reported_files_acc < WORKREPORT_FILE_LIMIT)
             {
                 if ((status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_UNVERIFIED)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID)
+                        || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
                     std::string file_str;
@@ -181,7 +183,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
                         .append(std::to_string(wl->sealed_files[i][FILE_SIZE].ToInt())).append(",");
                     file_str.append("\"").append(FILE_CHAIN_BLOCK_NUM).append("\":")
                         .append(std::to_string(wl->sealed_files[i][FILE_CHAIN_BLOCK_NUM].ToInt())).append("}");
-                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
+                    if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED
+                            || status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
                     {
                         if (deleted_files.size() != 1)
                         {
@@ -212,10 +215,9 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     // Generate files information
     size_t files_root_buffer_len = report_valid_idx_v.size() * HASH_LENGTH;
     sgx_sha256_hash_t files_root;
-    uint8_t *files_root_buffer = NULL;
     if (files_root_buffer_len > 0)
     {
-        files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
+        uint8_t *files_root_buffer = (uint8_t *)enc_malloc(files_root_buffer_len);
         if (files_root_buffer == NULL)
         {
             return CRUST_MALLOC_FAILED;

@@ -191,7 +191,7 @@ static inline int htoi(char *s)
 std::string flat_urlformat(std::string &url)
 {
     int len = url.size();
-    char *dest = (char*)malloc(url.size());
+    char *dest = (char *)malloc(url.size());
     memset(dest, 0, url.size());
     char *org = dest;
 
@@ -219,7 +219,10 @@ std::string flat_urlformat(std::string &url)
     }
     *dest = '\0';
 
-    return std::string(org, dest - org);
+    std::string ret = std::string(org, dest - org);
+    free(dest);
+
+    return ret;
 }
 
 /**
@@ -355,4 +358,112 @@ std::string float_to_string(double num)
     }
 
     return ans;
+}
+
+/**
+ * @description: Fill given buffer random bytes
+ * @param buf -> Pointer to given buffer
+ * @param buf_size -> Buffer size
+ */
+void read_rand(uint8_t *buf, size_t buf_size)
+{
+    std::random_device rd;  // Will be used to obtain a seed for the random number engine
+    std::mt19937 mt(rd()); // Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<uint8_t> dist(0, 255); // Same distribution as before, but explicit and without bias
+    for (size_t i = 0; i < buf_size; i++)
+    {
+        buf[i] = dist(mt);
+    }
+    shuffle(buf, buf + buf_size, mt);
+}
+
+/**
+ * @description: Get second since epoch
+ * @return: Seconds
+ */
+decltype(seconds_t().count()) get_seconds_since_epoch()
+{
+    // get the current time
+    const auto now     = std::chrono::system_clock::now();
+
+    // transform the time into a duration since the epoch
+    const auto epoch   = now.time_since_epoch();
+
+    // cast the duration into seconds
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(epoch);
+
+    // return the number of seconds
+    return seconds.count();
+}
+
+/**
+ * @description: Get time difference
+ * @param sec -> Seconds
+ * @return: Time in string
+ */
+std::string get_time_diff_humanreadable(long sec)
+{
+    std::string ans;
+    int mit, hor, day;
+    day = mit = hor = 0;
+
+    if (sec >= 60)
+    {
+        mit = sec / 60;
+        sec = sec % 60;
+    }
+    if (mit >= 60)
+    {
+        hor = mit / 60;
+        mit = mit % 60;
+    }
+    if (hor >= 24)
+    {
+        day = hor / 24;
+        hor = hor % 24;
+    }
+
+    if (day > 0)
+        ans += std::to_string(day) + "d";
+    if (hor > 0)
+        ans += std::to_string(hor) + "h";
+    if (mit > 0)
+        ans += std::to_string(mit) + "m";
+    if (sec > 0)
+        ans += std::to_string(sec) + "s";
+
+    return ans;
+}
+
+/**
+ * @description: Get file humanreadable size
+ * @param size -> Input size
+ * @return: Humanreadable size
+ */
+std::string get_file_size_humanreadable(size_t size)
+{
+    std::string ans;
+    std::string tag;
+    std::string left;
+    size_t file_size = size;
+    std::vector<std::string> tags = {"K", "M", "G"};
+    for (int i = 0; i < 3; i++)
+    {
+        if (file_size > 1024)
+        {
+            left = float_to_string((double)(file_size % 1024) / (double)1024).substr(1, 2);
+            file_size = file_size / 1024;
+            if (left[left.size() - 1] == '0')
+            {
+                left = "";
+            }
+            tag = tags[i];
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return std::to_string(file_size) + left + tag;
 }

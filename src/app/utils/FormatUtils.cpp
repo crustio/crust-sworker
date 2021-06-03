@@ -152,7 +152,10 @@ std::string hexstring_safe(const void *vsrc, size_t len)
         ++bp;
     }
 
-    return std::string(hex_buffer, len * 2);
+    std::string ret = std::string(hex_buffer, len * 2);
+    free(hex_buffer);
+
+    return ret;
 }
 
 /**

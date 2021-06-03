@@ -5,11 +5,13 @@
 #include <string>
 #include <fstream>
 #include <omp.h>
+#include <set>
 
 #include <sgx_urts.h>
 
 #include "Resource.h"
 #include "../enclave/utils/Json.h"
+#include "../enclave/utils/Defer.h"
 #include "Common.h"
 #include "Srd.h"
 
@@ -37,10 +39,6 @@ class Config
 public:
     // base information
     std::string base_path;              /* sworker base path */
-    std::string srd_path;               /* srd validation files base path */
-    std::string file_path;              /* meaningful validation files base path */
-    std::string temp_srd_path;          /* temp path for srd */
-    std::string temp_file_path;         /* temp path for meaningful files */
     std::string db_path;                /* DB path */
     std::string base_url;               /* External API base url */
     
@@ -57,22 +55,25 @@ public:
     std::string chain_password;     /* The password of crust chain account */
     std::string chain_backup;       /* The backup of crust chain account */
 
-    static Config *config;
-
     void show(void);
     static Config *get_instance();
     std::string get_config_path();
-
-    void set_srd_ratio(double ratio);
-    double get_srd_ratio();
+    bool unique_paths();
+    bool is_valid_or_normal_disk(const std::string &path);
+    bool is_valid_data_path(const std::string &path, bool lock = true);
+    std::vector<std::string> get_data_paths();
+    bool config_file_add_data_paths(const json::JSON &paths);
 
 private:
+    static Config *config;
     Config() {}
     Config(const Config &);
     bool init(std::string path);
+    void sort_data_paths();
     Config& operator = (const Config &);
-    double srd_ratio;
-    std::mutex srd_ratio_mutex;
+    std::string sys_fsid;
+    std::vector<std::string> data_paths;   /* data path */
+    std::mutex data_paths_mutex;
 };
 
 #endif /* !_CRUST_CONFIG_H_ */

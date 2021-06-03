@@ -6,9 +6,10 @@ EnclaveQueue *eq = EnclaveQueue::get_instance();
  * @description: A wrapper function, seal one G srd files under directory, can be called from multiple threads
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to restore result status
+ * @param uuid (in) -》 Pointer to disk uuid
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status)
+sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -16,7 +17,7 @@ sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status)
         return ret;
     }
 
-    ret = ecall_srd_increase(eid, status);
+    ret = ecall_srd_increase(eid, status, uuid);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -244,13 +245,13 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
 }
 
 /**
- * @description: A wrapper function, Seal file according to given path and return new MerkleTree
+ * @description: A wrapper function, seal file start
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to seal result status
- * @param cid (in) -> Ipfs content id
+ * @param cid (in) -> Pointer to file root cid
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -258,7 +259,63 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
         return ret;
     }
 
-    ret = ecall_seal_file(eid, status, cid);
+    ret = ecall_seal_file_start(eid, status, cid);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: A wrapper function, Seal file according to given path and return new MerkleTree
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to seal result status
+ * @param cid (in) -> Ipfs content id
+ * @param data (in) -> Pointer to raw data or link
+ * @param data_size -> Raw data size or link size
+ * @param is_link -> Indicate data is raw data or a link
+ * @param path (in, out) -> Index path used to get file block
+ * @param path_size -> Index path size
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid,
+                             crust_status_t *status,
+                             const char *cid,
+                             const uint8_t *data,
+                             size_t data_size,
+                             bool is_link,
+                             char *path,
+                             size_t path_size)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_seal_file(eid, status, cid, data, data_size, is_link, path, path_size);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: A wrapper function, seal file end
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to seal result status
+ * @param cid (in) -> Pointer to file root cid
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_seal_file_end(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_seal_file_end(eid, status, cid);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -269,11 +326,13 @@ sgx_status_t Ecall_seal_file(sgx_enclave_id_t eid, crust_status_t *status, const
  * @description: A wrapper function, Unseal file according to given path
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to unseal result status
- * @param data (in) -> Pointer to sealed data
- * @param data_size -> Sealed data size
+ * @param path (in) -> Pointer to file block stored path
+ * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param decrypted_data_size -> Decrypted data buffer size
+ * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *data, size_t data_size)
+sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, const char *path, uint8_t *p_decrypted_data, size_t decrypted_data_size, size_t *p_decrypted_data_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -281,7 +340,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, con
         return ret;
     }
 
-    ret = ecall_unseal_file(eid, status, data, data_size);
+    ret = ecall_unseal_file(eid, status, path, p_decrypted_data, decrypted_data_size, p_decrypted_data_size);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -314,10 +373,11 @@ sgx_status_t Ecall_change_srd_task(sgx_enclave_id_t eid, crust_status_t *status,
 /**
  * @description: Update srd_g_hashs
  * @param eid -> Enclave id
- * @param change -> To be deleted srd size
+ * @param data -> Pointer to deleted srd info
+ * @param data_size -> Data size
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change)
+sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, const char *data, size_t data_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -325,7 +385,7 @@ sgx_status_t Ecall_srd_remove_space(sgx_enclave_id_t eid, size_t change)
         return ret;
     }
 
-    ret = ecall_srd_remove_space(eid, change);
+    ret = ecall_srd_remove_space(eid, data, data_size);
 
     eq->free_enclave(__FUNCTION__);
 

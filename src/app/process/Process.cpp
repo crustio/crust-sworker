@@ -16,9 +16,9 @@ Config *p_config = NULL;
 std::map<task_func_t, std::shared_ptr<std::future<void>>> g_tasks_m;
 
 crust::Log *p_log = crust::Log::get_instance();
-extern bool offline_chain_mode;
 extern int g_start_server_success;
 extern bool g_upgrade_flag;
+extern bool offline_chain_mode;
 
 /**
  * @description: Init configuration
@@ -68,8 +68,8 @@ bool initialize_enclave()
         }
         else if (!(sgx_support & SGX_SUPPORT_ENABLED))
         {
-            p_log->err("Intel SGX is supported on this sytem but not available for use. \
-                    The system may lock BIOS support, or the Platform Software is not available\n");
+            p_log->err("Intel SGX is supported on this sytem but not available for use. "
+                    "The system may lock BIOS support, or the Platform Software is not available\n");
             return false;
         }
     }
@@ -124,7 +124,7 @@ bool initialize_enclave()
 bool initialize_components(void)
 {
     // Create path
-    if (!create_directory(p_config->base_path))
+    if (CRUST_SUCCESS != create_directory(p_config->base_path))
     {
         p_log->err("Create base path failed!!\n");
         return false;
@@ -296,6 +296,7 @@ restore_try_again:
 
 /**
  * @description: Inform old version upgrade result
+ * @param success -> Upgrade result
  */
 void upgrade_try_complete(bool success)
 {
@@ -449,13 +450,9 @@ int process_run()
     size_t srd_task = 0;
     long srd_real_change = 0;
     std::string srd_task_str;
-    std::string srd_ratio_str;
     EnclaveData *ed = EnclaveData::get_instance();
     crust::DataBase *db = NULL;
     bool is_restart = false;
-    bool has_recover_option = false;
-    json::JSON wl_json;
-    std::string wl_str;
     p_log->info("WorkerPID = %d\n", worker_pid);
 
     // Init conifigure
@@ -502,7 +499,7 @@ entry_network_flag:
         {
             // ----- Normal startup ----- //
             // Restore data failed
-            p_log->info("Starting a new enclave...(code:%lx)\n", crust_status);
+            p_log->info("Starting a new enclave...(restore code:%lx)\n", crust_status);
 
             // Generate ecc key pair
             if (SGX_SUCCESS != Ecall_gen_key_pair(global_eid, &sgx_status, p_config->chain_account_id.c_str(), p_config->chain_account_id.size())
@@ -522,10 +519,9 @@ entry_network_flag:
                 goto cleanup;
             }
 
-            // Send identity to chain and send work report
+            // Entry network
             if (!offline_chain_mode)
             {
-                // Entry network
                 crust_status = entry_network();
                 if (CRUST_SUCCESS != crust_status)
                 {
@@ -540,6 +536,10 @@ entry_network_flag:
                     goto cleanup;
                     return_status = -1;
                 }
+            }
+            else
+            {
+                p_log->info("Enclave id info:\n%s\n", ed->get_enclave_id_info().c_str());
             }
 
             // Set init srd capacity
@@ -559,69 +559,25 @@ entry_network_flag:
             }
 
             is_restart = true;
-            wl_str = ed->gen_workload();
-
-            if (!offline_chain_mode)
-            {
-                // Wait chain
-                crust::Chain::get_instance()->wait_for_running();
-
-                // Get local mrenclave
-                json::JSON id_info;
-                std::string id_info_str = EnclaveData::get_instance()->get_enclave_id_info();
-                if (id_info_str == "")
-                {
-                    p_log->err("Cannot get id info");
-                    return_status = -1;
-                    goto cleanup;
-                }
-                id_info = json::JSON::Load(id_info_str);
-                if (!id_info.hasKey("mrenclave"))
-                {
-                    p_log->err("Get sWorker identity information failed!\n");
-                    return_status = -1;
-                    goto cleanup;
-                }
-                p_log->info("Mrenclave is '%s'\n", id_info["mrenclave"].ToString().c_str());
-            }
         }
     }
     db = crust::DataBase::get_instance();
 
-    // Get srd ratio
-    if (CRUST_SUCCESS == db->get(WL_SRD_RATIO, srd_ratio_str))
+    // Do restart related
+    if (is_restart)
     {
-        std::stringstream sstream(srd_ratio_str);
-        double srd_ratio = 0.0;
-        sstream >> srd_ratio;
-        p_config->set_srd_ratio(srd_ratio);
-        if (is_restart)
+        // Get srd remaining task
+        if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
         {
-            if (wl_json.size() <= 0)
-            {
-                wl_json = json::JSON::Load(wl_str);
-            }
-            wl_json[WL_SRD][WL_SRD_RATIO] = srd_ratio;
+            std::stringstream sstream(srd_task_str);
+            size_t srd_task_remain = 0;
+            sstream >> srd_task_remain;
+            srd_task = std::max(srd_task, srd_task_remain);
         }
-        has_recover_option = true;
-    }
-
-    // Get srd remaining task
-    if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
-    {
-        std::stringstream sstream(srd_task_str);
-        size_t srd_task_remain = 0;
-        sstream >> srd_task_remain;
-        srd_task = std::max(srd_task, srd_task_remain);
-        if (is_restart)
-        {
-            if (wl_json.size() <= 0)
-            {
-                wl_json = json::JSON::Load(wl_str);
-            }
-            wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = srd_task;
-        }
-        has_recover_option = true;
+        // Print recovered workload
+        std::string wl_info = ed->gen_workload_str(srd_task);
+        p_log->info("Workload information:\n%s\n", wl_info.c_str());
+        p_log->info("Restore enclave data successfully, sworker is running now.\n");
     }
 
     // Restore or add srd task
@@ -648,51 +604,8 @@ entry_network_flag:
         }
     }
 
-    // Print recovered workload
-    if (is_restart)
-    {
-        if (has_recover_option)
-        {
-            std::string srd_info;
-            srd_info.append("{\n")
-                    .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
-                    .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt())).append(",\n")
-                    .append("\"" WL_SRD_RATIO "\" : ").append(float_to_string(wl_json[WL_SRD][WL_SRD_RATIO].ToFloat())).append(",\n")
-                    .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_AVAILABLE_FOR_SRD].ToInt())).append(",\n")
-                    .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_AVAILABLE].ToInt())).append(",\n")
-                    .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(wl_json[WL_SRD][WL_DISK_VOLUME].ToInt())).append("\n")
-                    .append("}");
-            // Get file info
-            json::JSON file_info = wl_json[WL_FILES];
-            json::JSON n_file_info;
-            char buf[128];
-            int space_num = 0;
-            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
-            {
-                space_num = std::max(space_num, (int)it->first.size());
-            }
-            for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
-            {
-                memset(buf, 0, sizeof(buf));
-                sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
-                        std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
-                n_file_info[it->first] = std::string(buf);
-            }
-            wl_json[WL_SRD] = srd_info;
-            wl_json[WL_FILES] = n_file_info;
-            wl_str = wl_json.dump();
-            replace(wl_str, "\"{", "{");
-            replace(wl_str, ": \" ", ":  ");
-            replace(wl_str, "}\"", "}");
-            replace(wl_str, "\\n", "\n");
-            remove_char(wl_str, '\\');
-        }
-        p_log->info("Workload information:\n%s\n", wl_str.c_str());
-        p_log->info("Restore enclave data successfully, sworker is running now.\n");
-
-        // Restore sealed file information
-        ed->restore_sealed_file_info();
-    }
+    // Construct uuid to disk path map
+    ed->construct_uuid_disk_path_map();
 
     // Check block height and post report to chain
     start_task(work_report_loop);

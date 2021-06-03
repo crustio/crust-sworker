@@ -1,8 +1,11 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
+// For ocall store
+typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
+
 // For all
-#define SWORKER_VERSION "0.9.0"
+#define SWORKER_VERSION "0.10.0"
 #define LEAF_SEPARATOR  "+leaf+"
 
 // For persistence
@@ -18,17 +21,26 @@
 #define ID_CHAIN_ACCOUNT_ID "chain_account_id"
 
 // For meaningful file
+// File meta info
+#define FILE_META "f_meta"
 #define FILE_CID "cid"
 #define FILE_HASH "hash"
 #define FILE_SIZE "size"
 #define FILE_SEALED_SIZE "s_size"
 #define FILE_BLOCK_NUM "block_num"
 #define FILE_CHAIN_BLOCK_NUM "c_block_num"
+#define FILE_LOST_INDEX "l_idx"
 #define FILE_STATUS "status"
 #define FILE_STATUS_UNVERIFIED '0'
 #define FILE_STATUS_VALID '1'
-#define FILE_STATUS_DELETED '2'
-#define FILE_STATUS_PENDING '3'
+#define FILE_STATUS_LOST '2'
+#define FILE_STATUS_DELETED '3'
+#define FILE_STATUS_PENDING '4'
+// File seal info
+#define FILE_BLOCKS "blocks"
+// IPFS file
+#define IPFS_META "sbs"
+#define IPFS_META_PATH "path"
 // Current status
 #define CURRENT_STATUS 0
 // Wait to sync status
@@ -37,11 +49,15 @@
 #define ORIGIN_STATUS 2
 #define FILE_NUMBER_UPPER_LIMIT 400000
 #define FILE_CAL_BUFFER_SIZE 7340032
-
-// For DB data
-#define DB_SRD_INFO "srd_info"
-#define DB_FILE_INFO "file_info"
-#define DB_WL_SPEC_INFO "wl_spec_info"
+#define FILE_TYPE_PENDING "pending"
+#define FILE_TYPE_UNVERIFIED "unverified"
+#define FILE_TYPE_VALID "valid"
+#define FILE_TYPE_LOST "lost"
+#define FILE_TYPE_DELETED "deleted"
+// File limit
+#define FILE_PENDING_LIMIT 500
+#define FILE_PENDING_STIME "start_second"
+#define FILE_PENDING_DOWNLOAD_TIME "used_time"
 
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"
@@ -85,7 +101,7 @@
 #define WL_SRD_ROOT_HASH "root_hash"
 #define WL_SRD_SPACE "space"
 #define WL_SRD_REMAINING_TASK "srd_remaining_task"
-#define WL_SRD_RATIO "srd_ratio"
+#define WL_SRD_DETAIL "srd_detail"
 #define WL_FILES "files"
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
@@ -113,8 +129,13 @@
 // Basic parameters
 #define HASH_LENGTH 32
 #define CID_LENGTH 46
+#define UUID_LENGTH 8
+#define FILE_DISK_LIMIT 8
+#define LAYER_LENGTH 2
 #define ENC_MAX_THREAD_NUM  30
 #define ENCLAVE_MALLOC_TRYOUT 3
+const int SRD_LENGTH = UUID_LENGTH + LAYER_LENGTH + HASH_LENGTH;
+const int FILE_ITEM_LENGTH = UUID_LENGTH + HASH_LENGTH;
 
 // For upgrade
 #define UPGRADE_PUBLIC_KEY "pub_key"
@@ -136,11 +157,13 @@ typedef enum _enc_upgrade_status_t {
 } enc_upgrade_status_t;
 
 typedef enum _store_type_t {
-    STORE_TYPE_REGULAR,
+    STORE_TYPE_REG,
     STORE_TYPE_SRD,
     STORE_TYPE_FILE,
-    STORE_TYPE_SRD_TEMP,
-    STORE_TYPE_FILE_TEMP,
 } store_type_t;
+
+typedef enum _ocall_store_type_t {
+    OS_FILE_INFO_ALL,
+} ocall_store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */
