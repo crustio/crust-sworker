@@ -70,7 +70,7 @@ while [ $(cat $syncfile | wc -l) -lt ${data_size} ] && [ $timeout -gt 0 ]; do
 done
 
 ### Check seal result
-get_file_info_all &>$TMPFILE
+get_file_info_valid &>$TMPFILE
 for cid in $(cat $syncfile); do
     if ! grep $cid $TMPFILE &>/dev/null; then
         verbose ERROR "Seal file failed!Cannot find sealed hash." n
