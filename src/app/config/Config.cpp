@@ -230,7 +230,10 @@ bool Config::unique_paths()
             }
             else
             {
-                sys_disk_path = path;
+                if (sys_disk_path.size() == 0)
+                {
+                    sys_disk_path = path;
+                }
             }
         }
     }

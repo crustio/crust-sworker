@@ -2,7 +2,7 @@
 #define _CRUST_RESOURCE_H_
 
 #include <stdint.h>
-#include "../enclave/include/Parameter.h"
+#include "Parameter.h"
 
 #define VERSION "0.10.0"
 
