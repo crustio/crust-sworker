@@ -303,7 +303,11 @@ crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size
     bool is_end = true;
     if (offset < total_size)
     {
-        uint8_t *buffer = g_ocall_buffer_pool[buffer_key];
+        uint8_t *buffer = NULL;
+        if (g_ocall_buffer_pool.find(buffer_key) != g_ocall_buffer_pool.end())
+        {
+            buffer = g_ocall_buffer_pool[buffer_key];
+        }
         if (buffer == NULL)
         {
             buffer = (uint8_t *)malloc(total_size);
@@ -318,7 +322,7 @@ crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size
         memcpy(buffer + offset, data, partial_size);
         if (offset + partial_size < total_size)
         {
-            is_end = is_end && false;
+            is_end = false;
         }
     }
 
