@@ -292,6 +292,7 @@ void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
  * @param total_size -> Total data size
  * @param partial_size -> Current store data size
  * @param offset -> Offset in total data
+ * @param buffer_key -> Session key for this time enclave data store
  * @return: Store result
  */
 crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key)
