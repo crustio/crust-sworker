@@ -448,7 +448,7 @@ crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_s
 
     std::ofstream out;
     out.open(path, std::ios::out | std::ios::binary);
-    if (! out)
+    if (! out.is_open())
     {
         return CRUST_OPEN_FILE_FAILED;
     }

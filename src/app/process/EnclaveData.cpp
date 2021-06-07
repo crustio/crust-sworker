@@ -561,6 +561,10 @@ void EnclaveData::construct_uuid_disk_path_map()
  */
 void EnclaveData::set_uuid_disk_path_map(std::string uuid, std::string path)
 {
+    if (uuid.size() > UUID_LENGTH * 2)
+    {
+        uuid = uuid.substr(0, UUID_LENGTH * 2);
+    }
     uuid_disk_path_map_mutex.lock();
     this->uuid_to_disk_path[uuid] = path;
     this->disk_path_to_uuid[path] = uuid;

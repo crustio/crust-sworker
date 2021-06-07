@@ -37,13 +37,10 @@ bool check_or_init_disk(std::string path)
             if (CRUST_SUCCESS != (crust_status = get_file(uuid_file.c_str(), &p_data, &data_sz)))
             {
                 p_log->err("Get existed path:%s uuid failed! Error code:%lx\n", uuid_file.c_str(), crust_status);
+                return false;
             }
-            else
-            {
-                ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
-                free(p_data);
-                return true;
-            }
+            ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
+            free(p_data);
         }
         else
         {
@@ -52,8 +49,26 @@ bool check_or_init_disk(std::string path)
     }
     else
     {
-        if (ed->is_disk_exist(path))
+        if (!ed->is_disk_exist(path))
         {
+            // Create uuid file
+            uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
+            Defer def_buf([&buf](void) { free(buf); });
+            memset(buf, 0, UUID_LENGTH);
+            read_rand(buf, UUID_LENGTH);
+            std::string uuid = hexstring_safe(buf, UUID_LENGTH);
+            crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+                return false;
+            }
+            // Set uuid to data path information
+            ed->set_uuid_disk_path_map(uuid, path);
+        }
+        else
+        {
+            // uuid file is deleted in runtime, create it again with the existed one
             std::string uuid = ed->get_uuid(path);
             crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
             if (CRUST_SUCCESS != crust_status)
@@ -71,22 +86,6 @@ bool check_or_init_disk(std::string path)
         p_log->err("Cannot create dir:%s\n", srd_dir.c_str());
         return false;
     }
-
-    // Create uuid file
-    uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
-    Defer def_buf([&buf](void) { free(buf); });
-    memset(buf, 0, UUID_LENGTH);
-    read_rand(buf, UUID_LENGTH);
-    std::string uuid = hexstring_safe(buf, UUID_LENGTH);
-    crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
-        return false;
-    }
-
-    // Set uuid to data path information
-    ed->set_uuid_disk_path_map(uuid, path);
 
     return true;
 }
