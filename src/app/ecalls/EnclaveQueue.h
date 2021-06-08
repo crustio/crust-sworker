@@ -45,7 +45,7 @@ public:
     int get_running_ecalls_sum();
     int get_running_ecalls_num(std::string name);
     std::string get_running_ecalls_info();
-    int get_higher_prio_waiting_task_num(int priority);
+    int get_higher_prio_waiting_task_num(std::string name);
     void task_sleep(int priority);
     sgx_status_t try_get_enclave(const char *name);
     void free_enclave(const char *name);
@@ -93,9 +93,17 @@ private:
                 "Ecall_seal_file_start", 
                 "Ecall_seal_file", 
                 "Ecall_seal_file_end", 
-                "Ecall_unseal_file", 
             }
         },
+    };
+    // Lower priority ignore higher priority task
+    std::unordered_map<std::string, std::unordered_set<std::string>> low_ignore_high_um = {
+        {
+            "Ecall_srd_increase",
+            {
+                "Ecall_unseal_file",
+            }
+        }
     };
     // Upgrade blocks task set1
     std::unordered_set<std::string> upgrade_blocked_task_us = {
@@ -116,9 +124,14 @@ private:
     // Record running task number
     int running_task_num;
     std::mutex running_task_num_mutex;
-    // Indicate number of each priority task, higher index represents lower priority
-    std::vector<int> waiting_priority_sum_v{std::vector<int>(4, 0)};
-    std::mutex waiting_priority_sum_mutex;
+    // Waiting queue item structure
+    struct waiting_priority_item {
+        int num;
+        std::unordered_map<std::string, int> task_num_um;
+    };
+    // Waiting task name to number map
+    std::unordered_map<int, waiting_priority_item> waiting_task_um;
+    std::mutex waiting_task_um_mutex;
     // Ecall function name to running number mapping
     std::unordered_map<std::string, int> running_ecalls_um;
     std::mutex running_ecalls_mutex;
