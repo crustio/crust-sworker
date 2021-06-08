@@ -58,6 +58,7 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define FILE_PENDING_LIMIT 500
 #define FILE_PENDING_STIME "start_second"
 #define FILE_PENDING_DOWNLOAD_TIME "used_time"
+#define FILE_PENDING_SIZE "sealed_size"
 
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"

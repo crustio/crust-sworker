@@ -196,7 +196,7 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
         long utime = etime - stime;
         data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
             + get_time_diff_humanreadable(utime) + "\" , "
-            + "\"sealed_size\" : \""
+            + "\"" FILE_PENDING_SIZE "\" : \""
             + get_file_size_humanreadable(get_file_size_by_cid(cid)) + "\""
             + " }";
     }
@@ -207,6 +207,27 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
     }
 
     return "{ \""+cid+"\" : " + data + " }";
+}
+
+/**
+ * @description: Get pending files' size
+ * @param type -> File type
+ * @return: Pending files' size
+ */
+size_t EnclaveData::get_files_size_by_type(const char *type)
+{
+    this->sealed_file_mutex.lock();
+    std::map<std::string, json::JSON> tmp_files = this->sealed_file[type];
+    this->sealed_file_mutex.unlock();
+
+    size_t ans = 0;
+
+    for (auto it : tmp_files)
+    {
+        ans += get_file_size_by_cid(it.first);
+    }
+
+    return ans;
 }
 
 /**
@@ -517,6 +538,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
+    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_files_size_by_type(FILE_TYPE_PENDING));
     for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
     {
         space_num = std::max(space_num, (int)it->first.size());

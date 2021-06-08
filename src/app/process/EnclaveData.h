@@ -33,6 +33,7 @@ public:
     void change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type);
     std::string get_sealed_file_info_all();
     std::string get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked = true);
+    size_t get_files_size_by_type(const char *type);
     void del_sealed_file_info(std::string cid);
     void del_sealed_file_info(std::string cid, std::string type);
     bool is_file_exist(std::string cid);
