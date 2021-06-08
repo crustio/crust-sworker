@@ -91,7 +91,29 @@ bool Config::init(std::string path)
     }
   
     // Set srd related
-    this->srd_thread_num = std::min(omp_get_num_procs() * 2, SRD_THREAD_MAX_NUM);
+    int srd_thread_num = 0;
+    int two_times_core_num = omp_get_num_procs() * 2;
+    if (!config_value.hasKey("srd_thread_num") || config_value["srd_thread_num"].JSONType() != json::JSON::Class::Integral)
+    {
+        p_log->warn("'srd_thread_num' is not correctly configured! Will set it to default valud:%d.\n", SRD_THREAD_DEFAULT_NUM);
+        srd_thread_num = SRD_THREAD_DEFAULT_NUM;
+    }
+    else
+    {
+        srd_thread_num = config_value["srd_thread_num"].ToInt();
+    }
+    this->srd_thread_num = std::min(srd_thread_num, std::min(SRD_THREAD_MAX_NUM, two_times_core_num));
+    if (this->srd_thread_num == 0)
+    {
+        this->srd_thread_num = std::min(SRD_THREAD_DEFAULT_NUM, two_times_core_num);
+        p_log->warn("'srd_thread_num' cannot be 0! Will set it to the smaller one of srd thread default value:'%d' and 2 times of core num:'%d'.\n",
+                SRD_THREAD_DEFAULT_NUM, two_times_core_num);
+    }
+    if (this->srd_thread_num != srd_thread_num)
+    {
+        p_log->warn("'srd_thread_num' max value would be the smaller one of enclave srd thread threshold:'%d' and 2 times of core num:'%d' while its min value should be larger than 0.\n",
+                SRD_THREAD_MAX_NUM, two_times_core_num);
+    }
 
     // Set storage configure related
     this->ipfs_url = config_value["ipfs_url"].ToString();
@@ -162,6 +184,7 @@ void Config::show(void)
         ++it == data_paths.end() ? printf("\n") : printf(",\n");
     }
     printf("    ],\n");
+    printf("    'srd thread num' : %d,\n", this->srd_thread_num);
     printf("    'base url' : '%s',\n", this->base_url.c_str());
     printf("    'ipfs url' : '%s',\n", this->ipfs_url.c_str());
 

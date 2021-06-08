@@ -52,6 +52,8 @@ const uint32_t UPGRADE_COMPLETE_TRYOUT = BLOCK_INTERVAL * 10;
 #define DISK_SRD_DIR    DISK_SWORKER_DIR "/srd"
 #define DISK_FILE_DIR    DISK_SWORKER_DIR "/files"
 #define DISK_UUID_FILE  DISK_SWORKER_DIR "/uuid"
+#define SRD_THREAD_DEFAULT_NUM 8
+#define SRD_THREAD_MAX_NUM 16
 
 // For print
 #define PRINT_GAP 20
