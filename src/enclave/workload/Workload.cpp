@@ -1056,10 +1056,15 @@ crust_status_t Workload::restore_file_info()
             file_info[g_file_spec_status[s]][LENGTH_TMP].AddNum(file_info_item_len);
         }
     }
-    for (auto s : g_file_spec_status)
+    if (file_info.size() <= 0)
     {
-        file_info[s.second][LENGTH_TMP].AddNum(32);
-        file_info_len += file_info[s.second][LENGTH_TMP].ToInt();
+        return CRUST_SUCCESS;
+    }
+    auto p_obj = file_info.ObjectRange().object;
+    for (auto it = p_obj->begin(); it != p_obj->end(); it++)
+    {
+        it->second[LENGTH_TMP].AddNum(32);
+        file_info_len += it->second[LENGTH_TMP].ToInt();
     }
     char *file_info_buf = (char *)enc_malloc(file_info_len);
     if (file_info_buf == NULL)
@@ -1095,6 +1100,10 @@ crust_status_t Workload::restore_file_info()
     {
         json::JSON file = this->sealed_files[i];
         std::string s = g_file_spec_status[file[FILE_STATUS].get_char(CURRENT_STATUS)];
+        if (!file_info.hasKey(s))
+        {
+            continue;
+        }
         std::string info;
         info.append("{\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
             .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")

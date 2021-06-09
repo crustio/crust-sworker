@@ -421,8 +421,13 @@ void EnclaveData::del_sealed_file_info(std::string cid, std::string type)
 void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
 {
     // Restore file information
-    this->sealed_file_mutex.lock();
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
     json::JSON sealed_files = json::JSON::Load(data, data_size);
+    if (sealed_files.size() <= 0)
+    {
+        return;
+    }
     for (auto it : *(sealed_files.ObjectRange().object))
     {
         for (auto f_it : *(it.second.ArrayRange().object))
@@ -430,7 +435,6 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
             this->sealed_file[it.first][f_it.ObjectRange().begin()->first] = f_it;
         }
     }
-    this->sealed_file_mutex.unlock();
 }
 
 /**
