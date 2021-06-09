@@ -83,6 +83,7 @@ private:
         "/workload",
         "/enclave/id_info",
         "/storage/seal",
+        "/storage/unseal",
         "/file/info",
         "/file/info_by_type",
     };
@@ -1037,7 +1038,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             std::string ret_info;
             int ret_code = 400;
-            p_log->info("Dealing with unseal request...\n");
+            //p_log->info("Dealing with unseal request...\n");
             // Parse parameters
             json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "path";
@@ -1096,7 +1097,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         {
                             ret_info = "Unseal data successfully!";
                             ret_code = 200;
-                            p_log->info("%s\n", ret_info.c_str());
+                            //p_log->info("%s\n", ret_info.c_str());
                             res.body().clear();
                             res.body().append(reinterpret_cast<char *>(p_decrypted_data), decrypted_data_sz_r);
                             res.result(ret_code);
