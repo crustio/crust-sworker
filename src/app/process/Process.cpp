@@ -557,7 +557,7 @@ entry_network_flag:
     db = crust::DataBase::get_instance();
 
     // Do restart related
-    if (is_restart)
+    if (is_restart || g_upgrade_flag)
     {
         // Get srd remaining task
         if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
