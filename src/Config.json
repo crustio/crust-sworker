@@ -1,7 +1,6 @@
 {
     "base_path" : "/opt/crust/crust-sworker/<VERSION>/sworker_base_path",
     "base_url" : "http://0.0.0.0:12222/api/v0",
-    "srd_thread_num" : 8,
     "chain" : {
         "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
         "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",
