@@ -91,7 +91,7 @@ bool Config::init(std::string path)
     }
   
     // Set srd related
-    this->srd_thread_num = std::min(omp_get_num_procs() * 2, SRD_THREAD_MAX_NUM);
+    this->srd_thread_num = std::min(omp_get_num_procs() * 2, SRD_THREAD_NUM);
 
     // Set storage configure related
     this->ipfs_url = config_value["ipfs_url"].ToString();
