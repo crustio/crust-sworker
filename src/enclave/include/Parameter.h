@@ -109,7 +109,8 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define WL_FILE_ROOT_HASH "file_root_hash"
 
 // For srd
-#define SRD_MAX_PER_TURN 64
+#define SRD_MAX_INC_PER_TURN 64
+#define SRD_MAX_DEC_PER_TURN 5000
 #define SRD_NUMBER_UPPER_LIMIT 512000 /* 500x1024G */
 
 // For validator
