@@ -4,6 +4,7 @@
 extern bool initialize_config(void);
 extern bool initialize_enclave();
 extern bool initialize_components(void);
+extern bool start_task(task_func_t func);
 extern bool do_upgrade();
 
 extern sgx_enclave_id_t global_eid;
@@ -176,6 +177,13 @@ entry_network_flag:
 
     // Construct uuid to disk path map
     ed->construct_uuid_disk_path_map();
+
+    // Start http service
+    if (!start_task(start_webservice))
+    {
+        p_log->err("Start web service failed!\n");
+        goto cleanup;
+    }
 
     // Check block height and post report to chain
     //start_task(work_report_loop);

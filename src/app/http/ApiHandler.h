@@ -859,7 +859,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             break;
                         case CRUST_UPGRADE_IS_UPGRADING:
                             ret_info = "Seal file '" + cid + "' stopped due to upgrading or exiting";
-                            p_log->err("%s\n", ret_info.c_str());
+                            p_log->info("%s\n", ret_info.c_str());
                             ret_code = 503;
                             break;
                         case CRUST_STORAGE_FILE_DUP:
@@ -1007,7 +1007,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         {
                         case CRUST_UPGRADE_IS_UPGRADING:
                             ret_info = "Seal file '" + cid + "' stopped due to upgrading or exiting";
-                            p_log->err("%s\n", ret_info.c_str());
+                            p_log->info("%s\n", ret_info.c_str());
                             ret_code = 503;
                             break;
                         default:
@@ -1107,18 +1107,20 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             switch (crust_status)
                             {
                             case CRUST_UNSEAL_DATA_FAILED:
-                                ret_info = "Unseal data failed";
+                                ret_info = "Unseal data failed! SGX unseal data failed!";
+                                p_log->err("%s\n", ret_info.c_str());
                                 ret_code = 400;
                                 break;
                             case CRUST_UPGRADE_IS_UPGRADING:
                                 ret_info = "Unseal file stoped due to upgrading or exiting";
+                                p_log->info("%s\n", ret_info.c_str());
                                 ret_code = 503;
                                 break;
                             default:
-                                ret_info = "File not found";
+                                ret_info = "Unseal data failed! Error code:" + num_to_hexstring(crust_status);
+                                p_log->err("%s\n", ret_info.c_str());
                                 ret_code = 404;
                             }
-                            p_log->err("Unseal data:'%s' failed. %s. Error code:%lx\n", index_path.c_str(), ret_info.c_str(), crust_status);
                         }
                     }
                 }

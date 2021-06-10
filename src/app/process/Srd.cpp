@@ -223,26 +223,26 @@ crust_status_t srd_change(long change)
                 sgx_enclave_id_t eid = global_eid;
                 std::string uuid = disk_use_json[i][WL_DISK_UUID].ToString();
                 tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
-                    sgx_status_t sgx_status = SGX_SUCCESS;
-                    crust_status_t increase_ret = CRUST_SUCCESS;
-                    if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &increase_ret, uuid.c_str()))
-                            || CRUST_SUCCESS != increase_ret)
+                    crust_status_t inc_crust_ret = CRUST_SUCCESS;
+                    sgx_status_t inc_sgx_ret = Ecall_srd_increase(eid, &inc_crust_ret, uuid.c_str());
+                    if (SGX_SUCCESS != inc_sgx_ret)
                     {
-                        // If failed, add current task to next turn
-                        long real_change = 0;
-                        crust_status_t change_ret = CRUST_SUCCESS;
-                        Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
-                    }
-                    if (SGX_SUCCESS != sgx_status)
-                    {
-                        p_log->err("Increase srd failed! Error code:%lx\n", sgx_status);
-                        if (CRUST_SUCCESS == increase_ret)
+                        switch (inc_sgx_ret)
                         {
-                            increase_ret = CRUST_UNEXPECTED_ERROR;
+                            case SGX_ERROR_SERVICE_TIMEOUT:
+                                p_log->warn("Srd task release resource for higher priority task.\n");
+                                break;
+                            default:
+                                p_log->err("Increase srd failed! Error code:%lx\n", inc_sgx_ret);
+                                break;
+                        }
+                        if (CRUST_SUCCESS == inc_crust_ret)
+                        {
+                            inc_crust_ret = CRUST_UNEXPECTED_ERROR;
                         }
                     }
                     decrease_running_srd_task();
-                    return increase_ret;
+                    return inc_crust_ret;
                 })));
             }
         }
@@ -267,8 +267,21 @@ crust_status_t srd_change(long change)
 
         if (srd_success_num < (size_t)true_increase)
         {
+            long left = true_increase - srd_success_num;
             p_log->info("Srd task: %dG, success: %dG, left: %dG.\n", 
-                    true_increase, srd_success_num, true_increase - srd_success_num);
+                    true_increase, srd_success_num, left);
+            // Add left srd task to next turn
+            crust_status_t change_crust_ret = CRUST_SUCCESS;
+            long real_change = 0;
+            sgx_status_t change_sgx_ret = Ecall_change_srd_task(global_eid, &change_crust_ret, left, &real_change);
+            if(SGX_SUCCESS != change_sgx_ret)
+            {
+                p_log->err("Add left srd task:%dG failed! Invoke Ecall_change_srd_task SGX API failed! Error code:%lx\n", left, change_sgx_ret);
+            }
+            else if (CRUST_SUCCESS != change_crust_ret)
+            {
+                p_log->err("Add left srd task failed! Error code:%lx, real add task:%dG\n", change_crust_ret, real_change);
+            }
         }
         else
         {

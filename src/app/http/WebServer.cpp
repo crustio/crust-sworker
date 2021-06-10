@@ -685,7 +685,10 @@ public:
     void on_detect(beast::error_code ec, boost::tribool result)
     {
         if(ec)
-            return fail(ec, "detect");
+        {
+            //return fail(ec, "detect");
+            return;
+        }
 
         if(result)
         {
