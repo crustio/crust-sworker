@@ -326,9 +326,7 @@ crust_status_t storage_seal_file_end(const char *root)
         log_warn("Cannot get block information for sealed file.\n");
     }
     // Get file entry info
-    sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
     json::JSON file_entry_json = file_json[FILE_META];
-    sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
     sgx_sha256_hash_t sealed_root;
     sgx_sha256_msg(reinterpret_cast<const uint8_t *>(file_entry_json[FILE_HASH].ToBytes()),
             file_entry_json[FILE_HASH].size(), &sealed_root);
