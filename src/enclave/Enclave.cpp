@@ -19,18 +19,22 @@ void ecall_main_loop()
         }
 
         // Store metadata periodically
+        log_debug("Start storing metadata\n");
         if (CRUST_SUCCESS != (crust_status = id_store_metadata()))
         {
             log_err("Store enclave data failed! Error code:%lx\n", crust_status);
         }
 
         // ----- File validate ----- //
+        log_debug("Start validating meaningful file\n");
         validate_meaningful_file();
 
         // ----- SRD validate ----- //
+        log_debug("Start validating srd\n");
         validate_srd();
 
         // ----- SRD ----- //
+        log_debug("Start srd task\n");
         srd_change();
 
         // Wait
