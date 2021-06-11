@@ -155,7 +155,17 @@ json::JSON get_increase_srd_info_r(long &change)
  */
 json::JSON get_increase_srd_info(long &change)
 {
-    return get_increase_srd_info_r(change);
+    json::JSON disk_json = get_increase_srd_info_r(change);
+    json::JSON srd_inc_json;
+    for (auto info : disk_json.ArrayRange())
+    {
+        if (info[WL_DISK_USE].ToInt() > 0)
+        {
+            srd_inc_json.append(info);
+        }
+    }
+
+    return srd_inc_json;
 }
 
 /**
@@ -181,7 +191,7 @@ crust_status_t srd_change(long change)
     if (change > 0)
     {
         long left_task = change;
-        json::JSON disk_info_json = get_increase_srd_info(left_task);
+        json::JSON inc_srd_json = get_increase_srd_info(left_task);
         long true_increase = change - left_task;
         // Add left change to next srd, if have
         if (left_task > 0)
@@ -196,17 +206,12 @@ crust_status_t srd_change(long change)
         }
         set_running_srd_task(true_increase);
         // Print disk info
-        json::JSON disk_use_json;
-        for (auto info : disk_info_json.ArrayRange())
+        for (auto info : inc_srd_json.ArrayRange())
         {
-            if (info[WL_DISK_USE].ToInt() > 0)
-            {
-                p_log->info("Available space is %ldG in '%s', this turn will use %ldG space\n", 
-                        info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
-                        info[WL_DISK_PATH].ToString().c_str(),
-                        info[WL_DISK_USE].ToInt());
-                disk_use_json.append(info);
-            }
+            p_log->info("Available space is %ldG in '%s', this turn will use %ldG space\n", 
+                    info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
+                    info[WL_DISK_PATH].ToString().c_str(),
+                    info[WL_DISK_USE].ToInt());
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
@@ -218,10 +223,10 @@ crust_status_t srd_change(long change)
         long task = true_increase;
         while (task > 0)
         {
-            for (int i = 0; i < disk_use_json.size() && task > 0; i++, task--)
+            for (int i = 0; i < inc_srd_json.size() && task > 0; i++, task--)
             {
                 sgx_enclave_id_t eid = global_eid;
-                std::string uuid = disk_use_json[i][WL_DISK_UUID].ToString();
+                std::string uuid = inc_srd_json[i][WL_DISK_UUID].ToString();
                 tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
                     crust_status_t inc_crust_ret = CRUST_SUCCESS;
                     sgx_status_t inc_sgx_ret = Ecall_srd_increase(eid, &inc_crust_ret, uuid.c_str());
@@ -347,7 +352,7 @@ void srd_check_reserved(void)
                 p_log->err("Invoke srd metadata failed! Error code:%lx\n", sgx_status);
             }
         }
-        
+
         // Wait
         for (size_t i = 0; i < check_interval; i++)
         {
