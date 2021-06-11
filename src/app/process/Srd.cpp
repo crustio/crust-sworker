@@ -37,13 +37,10 @@ bool check_or_init_disk(std::string path)
             if (CRUST_SUCCESS != (crust_status = get_file(uuid_file.c_str(), &p_data, &data_sz)))
             {
                 p_log->err("Get existed path:%s uuid failed! Error code:%lx\n", uuid_file.c_str(), crust_status);
+                return false;
             }
-            else
-            {
-                ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
-                free(p_data);
-                return true;
-            }
+            ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
+            free(p_data);
         }
         else
         {
@@ -52,8 +49,26 @@ bool check_or_init_disk(std::string path)
     }
     else
     {
-        if (ed->is_disk_exist(path))
+        if (!ed->is_disk_exist(path))
         {
+            // Create uuid file
+            uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
+            Defer def_buf([&buf](void) { free(buf); });
+            memset(buf, 0, UUID_LENGTH);
+            read_rand(buf, UUID_LENGTH);
+            std::string uuid = hexstring_safe(buf, UUID_LENGTH);
+            crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+                return false;
+            }
+            // Set uuid to data path information
+            ed->set_uuid_disk_path_map(uuid, path);
+        }
+        else
+        {
+            // uuid file is deleted in runtime, create it again with the existed one
             std::string uuid = ed->get_uuid(path);
             crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
             if (CRUST_SUCCESS != crust_status)
@@ -71,22 +86,6 @@ bool check_or_init_disk(std::string path)
         p_log->err("Cannot create dir:%s\n", srd_dir.c_str());
         return false;
     }
-
-    // Create uuid file
-    uint8_t *buf = (uint8_t *)malloc(UUID_LENGTH);
-    Defer def_buf([&buf](void) { free(buf); });
-    memset(buf, 0, UUID_LENGTH);
-    read_rand(buf, UUID_LENGTH);
-    std::string uuid = hexstring_safe(buf, UUID_LENGTH);
-    crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
-        return false;
-    }
-
-    // Set uuid to data path information
-    ed->set_uuid_disk_path_map(uuid, path);
 
     return true;
 }
@@ -156,7 +155,17 @@ json::JSON get_increase_srd_info_r(long &change)
  */
 json::JSON get_increase_srd_info(long &change)
 {
-    return get_increase_srd_info_r(change);
+    json::JSON disk_json = get_increase_srd_info_r(change);
+    json::JSON srd_inc_json;
+    for (auto info : disk_json.ArrayRange())
+    {
+        if (info[WL_DISK_USE].ToInt() > 0)
+        {
+            srd_inc_json.append(info);
+        }
+    }
+
+    return srd_inc_json;
 }
 
 /**
@@ -182,7 +191,7 @@ crust_status_t srd_change(long change)
     if (change > 0)
     {
         long left_task = change;
-        json::JSON disk_info_json = get_increase_srd_info(left_task);
+        json::JSON inc_srd_json = get_increase_srd_info(left_task);
         long true_increase = change - left_task;
         // Add left change to next srd, if have
         if (left_task > 0)
@@ -197,17 +206,12 @@ crust_status_t srd_change(long change)
         }
         set_running_srd_task(true_increase);
         // Print disk info
-        json::JSON disk_use_json;
-        for (auto info : disk_info_json.ArrayRange())
+        for (auto info : inc_srd_json.ArrayRange())
         {
-            if (info[WL_DISK_USE].ToInt() > 0)
-            {
-                p_log->info("Available space is %ldG in '%s', this turn will use %ldG space\n", 
-                        info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
-                        info[WL_DISK_PATH].ToString().c_str(),
-                        info[WL_DISK_USE].ToInt());
-                disk_use_json.append(info);
-            }
+            p_log->info("Available space is %ldG in '%s', this turn will use %ldG space\n", 
+                    info[WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
+                    info[WL_DISK_PATH].ToString().c_str(),
+                    info[WL_DISK_USE].ToInt());
         }
         p_log->info("Start sealing %luG srd files (thread number: %d) ...\n", 
                 true_increase, p_config->srd_thread_num);
@@ -219,31 +223,31 @@ crust_status_t srd_change(long change)
         long task = true_increase;
         while (task > 0)
         {
-            for (int i = 0; i < disk_use_json.size() && task > 0; i++, task--)
+            for (int i = 0; i < inc_srd_json.size() && task > 0; i++, task--)
             {
                 sgx_enclave_id_t eid = global_eid;
-                std::string uuid = disk_use_json[i][WL_DISK_UUID].ToString();
+                std::string uuid = inc_srd_json[i][WL_DISK_UUID].ToString();
                 tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
-                    sgx_status_t sgx_status = SGX_SUCCESS;
-                    crust_status_t increase_ret = CRUST_SUCCESS;
-                    if (SGX_SUCCESS != (sgx_status = Ecall_srd_increase(eid, &increase_ret, uuid.c_str()))
-                            || CRUST_SUCCESS != increase_ret)
+                    crust_status_t inc_crust_ret = CRUST_SUCCESS;
+                    sgx_status_t inc_sgx_ret = Ecall_srd_increase(eid, &inc_crust_ret, uuid.c_str());
+                    if (SGX_SUCCESS != inc_sgx_ret)
                     {
-                        // If failed, add current task to next turn
-                        long real_change = 0;
-                        crust_status_t change_ret = CRUST_SUCCESS;
-                        Ecall_change_srd_task(eid, &change_ret, 1, &real_change);
-                    }
-                    if (SGX_SUCCESS != sgx_status)
-                    {
-                        p_log->err("Increase srd failed! Error code:%lx\n", sgx_status);
-                        if (CRUST_SUCCESS == increase_ret)
+                        switch (inc_sgx_ret)
                         {
-                            increase_ret = CRUST_UNEXPECTED_ERROR;
+                            case SGX_ERROR_SERVICE_TIMEOUT:
+                                p_log->warn("Srd task release resource for higher priority task.\n");
+                                break;
+                            default:
+                                p_log->err("Increase srd failed! Error code:%lx\n", inc_sgx_ret);
+                                break;
+                        }
+                        if (CRUST_SUCCESS == inc_crust_ret)
+                        {
+                            inc_crust_ret = CRUST_UNEXPECTED_ERROR;
                         }
                     }
                     decrease_running_srd_task();
-                    return increase_ret;
+                    return inc_crust_ret;
                 })));
             }
         }
@@ -268,8 +272,21 @@ crust_status_t srd_change(long change)
 
         if (srd_success_num < (size_t)true_increase)
         {
+            long left = true_increase - srd_success_num;
             p_log->info("Srd task: %dG, success: %dG, left: %dG.\n", 
-                    true_increase, srd_success_num, true_increase - srd_success_num);
+                    true_increase, srd_success_num, left);
+            // Add left srd task to next turn
+            crust_status_t change_crust_ret = CRUST_SUCCESS;
+            long real_change = 0;
+            sgx_status_t change_sgx_ret = Ecall_change_srd_task(global_eid, &change_crust_ret, left, &real_change);
+            if(SGX_SUCCESS != change_sgx_ret)
+            {
+                p_log->err("Add left srd task:%dG failed! Invoke Ecall_change_srd_task SGX API failed! Error code:%lx\n", left, change_sgx_ret);
+            }
+            else if (CRUST_SUCCESS != change_crust_ret)
+            {
+                p_log->err("Add left srd task failed! Error code:%lx, real add task:%dG\n", change_crust_ret, real_change);
+            }
         }
         else
         {
@@ -335,7 +352,7 @@ void srd_check_reserved(void)
                 p_log->err("Invoke srd metadata failed! Error code:%lx\n", sgx_status);
             }
         }
-        
+
         // Wait
         for (size_t i = 0; i < check_interval; i++)
         {

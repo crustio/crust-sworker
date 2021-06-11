@@ -1,7 +1,7 @@
 #include "OCalls.h"
 
 crust::Log *p_log = crust::Log::get_instance();
-std::map<std::string, uint8_t *> g_ocall_buffer_pool;
+std::map<uint32_t, uint8_t *> g_ocall_buffer_pool;
 std::mutex g_ocall_buffer_pool_mutex;
 std::map<ocall_store_type_t, ocall_store2_f> g_ocall_store2_func_m = {
     {OS_FILE_INFO_ALL, ocall_store_file_info_all},
@@ -292,19 +292,22 @@ void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
  * @param total_size -> Total data size
  * @param partial_size -> Current store data size
  * @param offset -> Offset in total data
+ * @param buffer_key -> Session key for this time enclave data store
  * @return: Store result
  */
-crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset)
+crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key)
 {
     SafeLock sl(g_ocall_buffer_pool_mutex);
     sl.lock();
     crust_status_t crust_status = CRUST_SUCCESS;
     bool is_end = true;
-    std::string key(__FUNCTION__);
-    key += "1";
     if (offset < total_size)
     {
-        uint8_t *buffer = g_ocall_buffer_pool[key];
+        uint8_t *buffer = NULL;
+        if (g_ocall_buffer_pool.find(buffer_key) != g_ocall_buffer_pool.end())
+        {
+            buffer = g_ocall_buffer_pool[buffer_key];
+        }
         if (buffer == NULL)
         {
             buffer = (uint8_t *)malloc(total_size);
@@ -314,12 +317,12 @@ crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size
                 goto cleanup;
             }
             memset(buffer, 0, total_size);
-            g_ocall_buffer_pool[key] = buffer;
+            g_ocall_buffer_pool[buffer_key] = buffer;
         }
         memcpy(buffer + offset, data, partial_size);
         if (offset + partial_size < total_size)
         {
-            is_end = is_end && false;
+            is_end = false;
         }
     }
 
@@ -328,14 +331,14 @@ crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size
         return CRUST_SUCCESS;
     }
 
-    (g_ocall_store2_func_m[t])(g_ocall_buffer_pool[key], total_size);
+    (g_ocall_store2_func_m[t])(g_ocall_buffer_pool[buffer_key], total_size);
 
 cleanup:
 
-    if (g_ocall_buffer_pool.find(key) != g_ocall_buffer_pool.end())
+    if (g_ocall_buffer_pool.find(buffer_key) != g_ocall_buffer_pool.end())
     {
-        free(g_ocall_buffer_pool[key]);
-        g_ocall_buffer_pool.erase(key);
+        free(g_ocall_buffer_pool[buffer_key]);
+        g_ocall_buffer_pool.erase(buffer_key);
     }
 
     return crust_status;

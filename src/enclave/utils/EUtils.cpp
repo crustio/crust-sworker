@@ -911,6 +911,8 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
     sgx_status_t ret = SGX_SUCCESS;
     crust_status_t crust_status = CRUST_SUCCESS;
     size_t offset = 0;
+    uint32_t buffer_key = 0;
+    sgx_read_rand(reinterpret_cast<uint8_t *>(&buffer_key), sizeof(buffer_key));
     while (s > offset)
     {
         size_t partial_size = std::min(s - offset, (size_t)OCALL_STORE_THRESHOLD);
@@ -919,7 +921,8 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
                                 u + offset,
                                 s,
                                 partial_size,
-                                offset);
+                                offset,
+                                buffer_key);
         if (SGX_SUCCESS != ret)
         {
             return CRUST_UNEXPECTED_ERROR;

@@ -234,7 +234,7 @@ Output (500, failed):
 Output (503, failed):
 ```
 {
-  "message" : "Only xxxG srd will be added. Rest srd task exceeds upper limit.",  
+  "message" : "Change srd interface is stopped due to upgrading or exiting",  
   "status_code" : 503
 }
 ```

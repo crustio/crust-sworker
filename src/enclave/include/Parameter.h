@@ -58,6 +58,7 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define FILE_PENDING_LIMIT 500
 #define FILE_PENDING_STIME "start_second"
 #define FILE_PENDING_DOWNLOAD_TIME "used_time"
+#define FILE_PENDING_SIZE "sealed_size"
 
 // For chain data
 #define CHAIN_BLOCK_NUMBER "c_block_num"
@@ -108,7 +109,8 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define WL_FILE_ROOT_HASH "file_root_hash"
 
 // For srd
-#define SRD_MAX_PER_TURN 64
+#define SRD_MAX_INC_PER_TURN 64
+#define SRD_MAX_DEC_PER_TURN 5000
 #define SRD_NUMBER_UPPER_LIMIT 512000 /* 500x1024G */
 
 // For validator
@@ -132,7 +134,6 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define UUID_LENGTH 8
 #define FILE_DISK_LIMIT 8
 #define LAYER_LENGTH 2
-#define ENC_MAX_THREAD_NUM  30
 #define ENCLAVE_MALLOC_TRYOUT 3
 const int SRD_LENGTH = UUID_LENGTH + LAYER_LENGTH + HASH_LENGTH;
 const int FILE_ITEM_LENGTH = UUID_LENGTH + HASH_LENGTH;

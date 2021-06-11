@@ -470,8 +470,9 @@ void validate_meaningful_file_real()
 
     bool changed = false;
     bool lost = false;
+    bool deleted = false;
 
-    Defer finish_defer([&cur_validate_random, &changed, &file, &wl](void) {
+    Defer finish_defer([&cur_validate_random, cid, &deleted, &changed, &file, &wl](void) {
         // Get current validate random
         sgx_thread_mutex_lock(&g_validate_random_mutex);
         uint32_t now_validate_random = g_validate_random;
@@ -489,6 +490,10 @@ void validate_meaningful_file_real()
                 sgx_thread_mutex_lock(&g_changed_files_v_mutex);
                 g_changed_files_v.push_back(file);
                 sgx_thread_mutex_unlock(&g_changed_files_v_mutex);
+            }
+            if (deleted)
+            {
+                storage_delete_file(cid.c_str());
             }
         }
     });
@@ -514,11 +519,8 @@ void validate_meaningful_file_real()
         {
             return;
         }
-        log_err("Validate meaningful data failed! Get tree:%s failed! Error code:%lx\n", root_cid.c_str(), crust_status);
-        if (status.get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
-        {
-            lost = true;
-        }
+        log_err("Validate meaningful data failed! Get tree:%s failed! Error code:%lx, will delete file.\n", root_cid.c_str(), crust_status);
+        deleted = true;
         return;
     }
     Defer defer_tree([&p_tree](void) { free(p_tree); });

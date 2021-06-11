@@ -70,7 +70,7 @@ extern "C"
     void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type);
     void ocall_delete_sealed_file_info(const char *cid, const char *type);
 
-    crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset);
+    crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
 
 #if defined(__cplusplus)
 }

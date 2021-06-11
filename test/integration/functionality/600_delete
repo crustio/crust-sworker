@@ -90,7 +90,7 @@ for cid in ${!cid_2_use_m[@]}; do
         exit 1
     fi
     cid_2_use_m[$cid]=1
-    if get_file_info_all | grep "$cid" &>/dev/null; then
+    if get_file_info_valid | grep "$cid" &>/dev/null; then
         verbose ERROR "delete file:$cid failed!Find cid in workload" n
         exit 1
     fi
@@ -114,7 +114,7 @@ while [ $(cat $concurrent_del_acc_file) -lt $((total_num - seq_del_num)) ]; do
     sleep 1
 done
 
-get_file_info_all > $TMPFILE
+get_file_info_valid > $TMPFILE
 for cid in ${delete_arry[@]}; do
     if grep "$cid" $TMPFILE &>/dev/null; then
         verbose ERROR "delete file concurrently failed!" n
