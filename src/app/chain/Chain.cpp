@@ -18,10 +18,13 @@ Chain *Chain::get_instance()
 {
     if (Chain::chain == NULL)
     {
-        SafeLock sl(chain_mutex);
-        sl.lock();
         Config *p_config = Config::get_instance();
-        Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup, offline_chain_mode);
+        chain_mutex.lock();
+        if (Chain::chain == NULL)
+        {
+            Chain::chain = new Chain(p_config->chain_api_base_url, p_config->chain_password, p_config->chain_backup, offline_chain_mode);
+        }
+        chain_mutex.unlock();
     }
 
     return Chain::chain;

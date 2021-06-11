@@ -3,6 +3,7 @@
 crust::Log *p_log = crust::Log::get_instance();
 
 EnclaveQueue *EnclaveQueue::enclaveQueue = NULL;
+std::mutex enclaveQueue_mutex;
 
 /**
  * @description: Get EnclaveQueue instance
@@ -12,7 +13,12 @@ EnclaveQueue *EnclaveQueue::get_instance()
 {
     if (EnclaveQueue::enclaveQueue == NULL)
     {
-        EnclaveQueue::enclaveQueue = new EnclaveQueue();
+        enclaveQueue_mutex.lock();
+        if (EnclaveQueue::enclaveQueue == NULL)
+        {
+            EnclaveQueue::enclaveQueue = new EnclaveQueue();
+        }
+        enclaveQueue_mutex.unlock();
     }
 
     return EnclaveQueue::enclaveQueue;

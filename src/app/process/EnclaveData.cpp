@@ -15,9 +15,12 @@ EnclaveData *EnclaveData::get_instance()
 {
     if (EnclaveData::enclavedata == NULL)
     {
-        SafeLock sl(enclavedata_mutex);
-        sl.lock();
-        EnclaveData::enclavedata = new EnclaveData();
+        enclavedata_mutex.lock();
+        if (EnclaveData::enclavedata == NULL)
+        {
+            EnclaveData::enclavedata = new EnclaveData();
+        }
+        enclavedata_mutex.unlock();
     }
 
     return EnclaveData::enclavedata;
