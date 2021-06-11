@@ -20,9 +20,8 @@ function report_exit()
 {
     rm -rf $tmpdir
 
-    get_file_info_all | jq 'keys|.[]' | sed "s/\"//g" | while read cid_l; do
-        delete_file $cid_l
-    done
+    ### Delete file
+    test_delete_file_unsafe $(get_workload | jq '.files|.[]|.num' | awk '{sum+=$1} END{print sum}')
 }
 
 ########## MAIN BODY ##########

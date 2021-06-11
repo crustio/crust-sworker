@@ -34,6 +34,7 @@ function seal()
         verbose ERROR "add file to IPFS failed!"
         return 1
     fi
+    ipfs pin rm $cid &>/dev/null
     ipfs pin add $cid &>/dev/null
     local ret=$?
     if [ $ret -eq 0 ]; then
@@ -69,7 +70,7 @@ function unseal()
 
 function delete_file()
 {
-    local hash=$1
+    local cid=$1
 
     local ret_code=$(curl -s -XPOST $baseurl/storage/delete_sync --data-raw "{\"cid\":\"$cid\"}" -o /dev/null -w "%{http_code}")
     if [ ${ret_code} -eq 200 ]; then
@@ -111,9 +112,9 @@ function get_file_info()
     curl -s -XPOST $baseurl/file/info --data-raw "{\"cid\":\"$1\"}"
 }
 
-function get_file_info_all()
+function get_file_info_valid()
 {
-    curl -s -XGET $baseurl/file/info_all --data-raw '{"type":"valid"}'
+    curl -s -XGET $baseurl/file/info_by_type --data-raw '{"type":"valid"}'
 }
 
 function srd_real_async()

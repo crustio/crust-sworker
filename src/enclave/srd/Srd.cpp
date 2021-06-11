@@ -58,15 +58,20 @@ void srd_change()
     sgx_thread_mutex_lock(&g_srd_task_mutex);
     // Get real srd space
     long srd_change_num = 0;
-    if (g_srd_task > SRD_MAX_PER_TURN)
+    if (g_srd_task > SRD_MAX_INC_PER_TURN)
     {
-        srd_change_num = SRD_MAX_PER_TURN;
-        g_srd_task -= SRD_MAX_PER_TURN;
+        srd_change_num = SRD_MAX_INC_PER_TURN;
+        g_srd_task -= SRD_MAX_INC_PER_TURN;
     }
-    else
+    else if (g_srd_task > 0)
     {
         srd_change_num = g_srd_task;
         g_srd_task = 0;
+    }
+    else if (g_srd_task < 0)
+    {
+        srd_change_num = std::max(g_srd_task, (long)-SRD_MAX_DEC_PER_TURN);
+        g_srd_task -= srd_change_num;
     }
     // Store remaining task
     std::string srd_task_str = std::to_string(g_srd_task);

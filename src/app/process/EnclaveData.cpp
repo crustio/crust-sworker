@@ -196,7 +196,7 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
         long utime = etime - stime;
         data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
             + get_time_diff_humanreadable(utime) + "\" , "
-            + "\"sealed_size\" : \""
+            + "\"" FILE_PENDING_SIZE "\" : \""
             + get_file_size_humanreadable(get_file_size_by_cid(cid)) + "\""
             + " }";
     }
@@ -207,6 +207,27 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
     }
 
     return "{ \""+cid+"\" : " + data + " }";
+}
+
+/**
+ * @description: Get pending files' size
+ * @param type -> File type
+ * @return: Pending files' size
+ */
+size_t EnclaveData::get_files_size_by_type(const char *type)
+{
+    this->sealed_file_mutex.lock();
+    std::map<std::string, json::JSON> tmp_files = this->sealed_file[type];
+    this->sealed_file_mutex.unlock();
+
+    size_t ans = 0;
+
+    for (auto it : tmp_files)
+    {
+        ans += get_file_size_by_cid(it.first);
+    }
+
+    return ans;
 }
 
 /**
@@ -400,8 +421,13 @@ void EnclaveData::del_sealed_file_info(std::string cid, std::string type)
 void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
 {
     // Restore file information
-    this->sealed_file_mutex.lock();
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
     json::JSON sealed_files = json::JSON::Load(data, data_size);
+    if (sealed_files.size() <= 0)
+    {
+        return;
+    }
     for (auto it : *(sealed_files.ObjectRange().object))
     {
         for (auto f_it : *(it.second.ArrayRange().object))
@@ -409,7 +435,6 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
             this->sealed_file[it.first][f_it.ObjectRange().begin()->first] = f_it;
         }
     }
-    this->sealed_file_mutex.unlock();
 }
 
 /**
@@ -517,6 +542,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
+    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_files_size_by_type(FILE_TYPE_PENDING));
     for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
     {
         space_num = std::max(space_num, (int)it->first.size());
@@ -561,6 +587,10 @@ void EnclaveData::construct_uuid_disk_path_map()
  */
 void EnclaveData::set_uuid_disk_path_map(std::string uuid, std::string path)
 {
+    if (uuid.size() > UUID_LENGTH * 2)
+    {
+        uuid = uuid.substr(0, UUID_LENGTH * 2);
+    }
     uuid_disk_path_map_mutex.lock();
     this->uuid_to_disk_path[uuid] = path;
     this->disk_path_to_uuid[path] = uuid;

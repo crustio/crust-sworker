@@ -7,6 +7,9 @@ function kill_current()
 
 function success_exit()
 {
+    ### Delete file
+    test_delete_file_unsafe $(get_workload | jq '.files|.[]|.num' | awk '{sum+=$1} END{print sum}')
+
     ### Delete srd
     srd -$(get_workload | jq '.srd|.srd_complete')
 }
@@ -17,6 +20,8 @@ basedir=$(cd `dirname $0`;pwd)
 instdir=$(cd $basedir/..;pwd)
 scriptdir=$instdir/scripts
 sworkerlog=$instdir/sworker.log
+srd_num=51200
+file_num=40000
 
 . $scriptdir/utils.sh
 
@@ -25,8 +30,8 @@ trap 'success_exit' EXIT
 
 
 cd $testdir
-srd 51200 &
-test_add_file 40000 &>/dev/null &
+srd $srd_num &
+test_add_file $file_num &>/dev/null &
 validate_add_proof &>/dev/null
 sleep 10
 wl_info=$(get_workload)

@@ -448,7 +448,7 @@ crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_s
 
     std::ofstream out;
     out.open(path, std::ios::out | std::ios::binary);
-    if (! out)
+    if (! out.is_open())
     {
         return CRUST_OPEN_FILE_FAILED;
     }
@@ -591,7 +591,12 @@ int mkdir_sync(const char *path, mode_t mode)
 {
     SafeLock sl(g_mkdir_mutex);
     sl.lock();
-    return mkdir(path, mode);
+    if (access(path, R_OK) == -1)
+    {
+        return mkdir(path, mode);
+    }
+
+    return 0;
 }
 
 /**

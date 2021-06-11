@@ -901,6 +901,7 @@ crust_status_t id_restore_metadata()
         log_warn("No metadata, this may be the first start\n");
         return CRUST_UNEXPECTED_ERROR;
     }
+    log_debug("Get metadata successfully!\n");
     meta_json = json::JSON::Load(p_data + strlen(SWORKER_PRIVATE_TAG), data_len);
     free(p_data);
     if (meta_json.size() == 0)
@@ -908,6 +909,7 @@ crust_status_t id_restore_metadata()
         log_warn("Invalid metadata!\n");
         return CRUST_INVALID_META_DATA;
     }
+    log_debug("Load metadata successfully!\n");
     // Verify meta data
     std::string id_key_pair_str = meta_json[ID_KEY_PAIR].ToString();
     uint8_t *p_id_key = hex_string_to_bytes(id_key_pair_str.c_str(), id_key_pair_str.size());
@@ -916,12 +918,14 @@ crust_status_t id_restore_metadata()
         log_err("Identity: Get id key pair failed!\n");
         return CRUST_INVALID_META_DATA;
     }
+    log_debug("Load id key pair successfully!\n");
     Defer def_id_key([&p_id_key](void) { free(p_id_key); });
     if (wl->try_get_key_pair() && memcmp(p_id_key, &wl->get_key_pair(), sizeof(ecc_key_pair)) != 0)
     {
         log_err("Identity: Get wrong id key pair!\n");
         return CRUST_INVALID_META_DATA;
     }
+    log_debug("Verify metadata successfully!\n");
 
     // ----- Restore metadata ----- //
     Defer def_clean_all([&crust_status, &wl](void) { 
@@ -935,15 +939,18 @@ crust_status_t id_restore_metadata()
     {
         return crust_status;
     }
+    log_debug("Restore srd successfully!\n");
     // Restore file
     if (CRUST_SUCCESS != (crust_status = wl->restore_file(meta_json[ID_FILE])))
     {
         return crust_status;
     }
+    log_debug("Restore file successfully!\n");
     // Restore id key pair
     ecc_key_pair tmp_key_pair;
     memcpy(&tmp_key_pair, p_id_key, sizeof(ecc_key_pair));
     wl->set_key_pair(tmp_key_pair);
+    log_debug("Restore id key pair successfully!\n");
     // Restore report height
     wl->set_report_height(meta_json[ID_REPORT_HEIGHT].ToInt());
     // Restore previous public key

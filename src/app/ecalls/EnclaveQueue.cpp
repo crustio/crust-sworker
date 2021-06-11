@@ -24,9 +24,11 @@ EnclaveQueue *EnclaveQueue::get_instance()
  */
 void EnclaveQueue::increase_waiting_queue(std::string name)
 {
-    waiting_priority_sum_mutex.lock();
-    waiting_priority_sum_v[task_priority_um[name]]++;
-    waiting_priority_sum_mutex.unlock();
+    waiting_task_um_mutex.lock();
+    int priority = task_priority_um[name];
+    waiting_task_um[priority].num++;
+    waiting_task_um[priority].task_num_um[name]++;
+    waiting_task_um_mutex.unlock();
 }
 
 /**
@@ -35,15 +37,16 @@ void EnclaveQueue::increase_waiting_queue(std::string name)
  */
 void EnclaveQueue::decrease_waiting_queue(std::string name)
 {
-    SafeLock sl(waiting_priority_sum_mutex);
+    SafeLock sl(waiting_task_um_mutex);
     sl.lock();
     int priority = task_priority_um[name];
-    if (waiting_priority_sum_v[priority] == 0)
+    if (waiting_task_um[priority].num == 0)
     {
         p_log->warn("Priority:%d task sum is 0.\n", priority);
         return;
     }
-    waiting_priority_sum_v[priority]--;
+    waiting_task_um[priority].num--;
+    waiting_task_um[priority].task_num_um[name]--;
 }
 
 /**
@@ -127,18 +130,23 @@ std::string EnclaveQueue::get_running_ecalls_info()
 
 /**
  * @description: Get higher priority task number
- * @param priority -> current priority
+ * @param name -> Current task name
  * @return: The higher task number
  */
-int EnclaveQueue::get_higher_prio_waiting_task_num(int priority)
+int EnclaveQueue::get_higher_prio_waiting_task_num(std::string name)
 {
-    waiting_priority_sum_mutex.lock();
+    waiting_task_um_mutex.lock();
     int ret = 0;
+    int priority = task_priority_um[name];
     while (--priority >= 0)
     {
-        ret += waiting_priority_sum_v[priority];
+        ret += waiting_task_um[priority].num;
+        for (auto tname : low_ignore_high_um[name])
+        {
+            ret -= waiting_task_um[priority].task_num_um[tname];
+        }
     }
-    waiting_priority_sum_mutex.unlock();
+    waiting_task_um_mutex.unlock();
 
     return ret;
 }
@@ -194,7 +202,7 @@ sgx_status_t EnclaveQueue::try_get_enclave(const char *name)
         running_task_num_mutex.lock();
         if (running_task_num >= ENC_MAX_THREAD_NUM 
                 || (cur_task_prio > ENC_HIGHEST_PRIORITY && ENC_MAX_THREAD_NUM - running_task_num <= ENC_RESERVED_THREAD_NUM)
-                || get_higher_prio_waiting_task_num(cur_task_prio) - ENC_PERMANENT_TASK_NUM > 0)
+                || get_higher_prio_waiting_task_num(tname) - ENC_PERMANENT_TASK_NUM > 0)
         {
             running_task_num_mutex.unlock();
             goto loop;

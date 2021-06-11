@@ -137,13 +137,6 @@ bool initialize_components(void)
         return false;
     }
 
-    // Start http service
-    if (!start_task(start_webservice))
-    {
-        p_log->err("Start web service failed!\n");
-        return false;
-    }
-
     // Initialize DataBase
     if (crust::DataBase::get_instance() == NULL)
     {
@@ -564,7 +557,7 @@ entry_network_flag:
     db = crust::DataBase::get_instance();
 
     // Do restart related
-    if (is_restart)
+    if (is_restart || g_upgrade_flag)
     {
         // Get srd remaining task
         if (CRUST_SUCCESS == db->get(WL_SRD_REMAINING_TASK, srd_task_str))
@@ -606,6 +599,13 @@ entry_network_flag:
 
     // Construct uuid to disk path map
     ed->construct_uuid_disk_path_map();
+
+    // Start http service
+    if (!start_task(start_webservice))
+    {
+        p_log->err("Start web service failed!\n");
+        goto cleanup;
+    }
 
     // Check block height and post report to chain
     start_task(work_report_loop);

@@ -18,7 +18,7 @@ function _seal()
 
 function _validate()
 {
-    local i=20
+    local i=50
     while [ $((i--)) -gt 0 ]; do
         validate_srd &>/dev/null
         validate_file &>/dev/null
@@ -131,11 +131,11 @@ ret=0
 punish_srd=$(cat $TMPFILE2 | jq '.srd|.srd_complete')
 ((punish_srd=srd_num-punish_srd))
 if [ $punish_srd -ne $((deleted_srd)) ]; then
-    verbose ERROR "srd validate for punishment failed!real punished num:$punish_srd" n
+    verbose ERROR "srd validate for punishment failed!should punish num:$deleted_srd, real punished num:$punish_srd" n
     ret=1
 fi
 # Check file
-get_file_info_all &>$TMPFILE
+get_file_info_valid &>$TMPFILE
 if [ $? -ne 0 ]; then
     verbose ERROR "get workload failed!" n
     ret=1

@@ -247,6 +247,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             json::JSON req_json = json::JSON::Load(req_body);
             uint32_t file_num = req_json["file_num"].ToInt();
             Ecall_test_delete_file_unsafe(global_eid, file_num);
+            EnclaveData::get_instance()->restore_sealed_file_info(reinterpret_cast<const uint8_t *>("{}"), 2);
             res_json[HTTP_MESSAGE] = "Delete file successfully!";
             res_json[HTTP_STATUS_CODE] = 200;
             goto getcleanup;
@@ -300,7 +301,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             // Check cid
             if (cid.size() != CID_LENGTH)
             {
-                ret_info = "Delete file failed!Invalid cid!";
+                ret_info = "Delete file failed! Invalid cid:" + cid;
                 p_log->err("%s\n", ret_info.c_str());
                 ret_code = 400;
                 res_json[HTTP_STATUS_CODE] = ret_code;
