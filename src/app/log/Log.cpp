@@ -39,7 +39,9 @@ Log::Log()
  */
 void Log::set_debug(bool flag)
 {
+    this->debug_flag_mutex.lock();
     this->debug_flag = flag;
+    this->debug_flag_mutex.unlock();
 }
 
 /**

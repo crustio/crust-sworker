@@ -49,7 +49,7 @@ int SGX_CDECL main(int argc, char *argv[])
         else if (strcmp(argv[i], "--debug") == 0)
         {
             p_log->set_debug(true);
-            p_log->debug("Debug log is opened.\n");
+            p_log->info("Debug log is opened.\n");
         }
         else
         {

@@ -125,7 +125,7 @@ std::string Chain::get_block_hash(size_t block_number)
 
     if (res_body.size() != 0)
     {
-        p_log->debug("%s\n", res_body.c_str());
+        p_log->info("%s\n", res_body.c_str());
     }
     else
     {
@@ -160,7 +160,7 @@ std::string Chain::get_swork_code()
 
     if (res_body.size() != 0)
     {
-        p_log->debug("%s\n", res_body.c_str());
+        p_log->info("%s\n", res_body.c_str());
     }
     else
     {

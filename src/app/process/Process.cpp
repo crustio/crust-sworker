@@ -82,7 +82,7 @@ bool initialize_enclave()
         sgx_status_t reg_ret = sgx_register_wl_cert_chain(p_wl_data, wl_data_size);
         if (SGX_SUCCESS != reg_ret)
         {
-            p_log->debug("Encounter problem when registering local white list cert, code:%lx.\n", reg_ret);
+            p_log->warn("Encounter problem when registering local white list cert, code:%lx.\n", reg_ret);
         }
         free(p_wl_data);
     }

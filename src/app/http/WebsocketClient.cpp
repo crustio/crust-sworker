@@ -90,7 +90,7 @@ bool WebsocketClient::websocket_request(std::string content, std::string &res)
 {
     if (this->_ws == NULL)
     {
-        p_log->debug("Websocket request failed! Please initialize websocket first!\n");
+        p_log->info("Websocket request failed! Please initialize websocket first!\n");
         return false;
     }
 
@@ -109,7 +109,7 @@ bool WebsocketClient::websocket_request(std::string content, std::string &res)
     }
     catch(std::exception const& e)
     {
-        p_log->debug("Send websocket request failed! Error: %s\n", e.what());
+        p_log->err("Send websocket request failed! Error: %s\n", e.what());
         return false;
     }
 

@@ -155,7 +155,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
     std::string route_tag = req_route.substr(req_route.find(urlendpoint.base) + urlendpoint.base.size(), req_route.size());
     if (http_mute_req_s.find(route_tag) == http_mute_req_s.end())
     {
-        p_log->debug("Http request:%s\n", req_route.c_str());
+        p_log->info("Http request:%s\n", req_route.c_str());
     }
 
     // Choose service according to upgrade status
@@ -943,6 +943,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         p_log->err("%s\n", ret_info.c_str());
                         ret_code = 500;
                         break;
+                    case CRUST_UPGRADE_IS_UPGRADING:
+                        ret_info = "Seal file '" + cid + "' stopped due to upgrading or exiting";
+                        p_log->info("%s\n", ret_info.c_str());
+                        ret_code = 503;
+                        break;
                     default:
                         ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
                         p_log->err("%s\n", ret_info.c_str());
@@ -1076,7 +1081,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             ret_code = 410;
                         }
                     }
-                    p_log->err("%s\n", ret_info.c_str());
+                    p_log->debug("%s\n", ret_info.c_str());
                 }
                 else
                 {
