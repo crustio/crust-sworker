@@ -35,6 +35,7 @@ public:
 private:
     void base_log(std::string log_data, std::string tag);
     bool debug_flag;
+    std::mutex debug_flag_mutex;
     char log_buf[CRUST_LOG_BUF_SIZE];
     Log(void);
 };

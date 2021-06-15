@@ -15,9 +15,12 @@ EnclaveData *EnclaveData::get_instance()
 {
     if (EnclaveData::enclavedata == NULL)
     {
-        SafeLock sl(enclavedata_mutex);
-        sl.lock();
-        EnclaveData::enclavedata = new EnclaveData();
+        enclavedata_mutex.lock();
+        if (EnclaveData::enclavedata == NULL)
+        {
+            EnclaveData::enclavedata = new EnclaveData();
+        }
+        enclavedata_mutex.unlock();
     }
 
     return EnclaveData::enclavedata;
@@ -121,22 +124,22 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
     switch(upgrade_status)
     {
         case UPGRADE_STATUS_NONE:
-            p_log->debug("Set upgrade status to: UPGRADE_STATUS_NONE\n");
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_NONE\n");
             break;
         case UPGRADE_STATUS_STOP_WORKREPORT:
-            p_log->debug("Set upgrade status to: UPGRADE_STATUS_STOP_WORKREPORT\n");
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_STOP_WORKREPORT\n");
             break;
         case UPGRADE_STATUS_PROCESS:
-            p_log->debug("Set upgrade status to: UPGRADE_STATUS_PROCESS\n");
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_PROCESS\n");
             break;
         case UPGRADE_STATUS_END:
-            p_log->debug("Set upgrade status to: UPGRADE_STATUS_END\n");
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_END\n");
             break;
         case UPGRADE_STATUS_COMPLETE:
-            p_log->debug("Set upgrade status to: UPGRADE_STATUS_COMPLETE\n");
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_COMPLETE\n");
             break;
         case UPGRADE_STATUS_EXIT:
-            p_log->debug("Set upgrade status to: UPGRADE_STATUS_EXIT\n");
+            p_log->info("Set upgrade status to: UPGRADE_STATUS_EXIT\n");
             break;
         default:
             p_log->warn("Unknown upgrade status!\n");

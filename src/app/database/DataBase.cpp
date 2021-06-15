@@ -14,6 +14,7 @@ std::mutex database_mutex;
  */
 DataBase *DataBase::get_instance()
 {
+    Config *p_config = Config::get_instance();
     SafeLock sl(database_mutex);
     sl.lock();
     if (database == NULL)
@@ -22,14 +23,14 @@ DataBase *DataBase::get_instance()
 
         leveldb::Options options;
         options.create_if_missing = true;
-        if (CRUST_SUCCESS != create_directory(Config::get_instance()->db_path))
+        if (CRUST_SUCCESS != create_directory(p_config->db_path))
         {
             return NULL;
         }
-        leveldb::Status s = leveldb::DB::Open(options, Config::get_instance()->db_path.c_str(), &database->db);
+        leveldb::Status s = leveldb::DB::Open(options, p_config->db_path.c_str(), &database->db);
         if (!s.ok())
         {
-            p_log->err("Initialize database failed!Database path:%s\n", Config::get_instance()->db_path.c_str());
+            p_log->err("Initialize database failed!Database path:%s\n", p_config->db_path.c_str());
             return NULL;
         }
         database->write_opt.sync = true;
@@ -64,7 +65,7 @@ crust_status_t DataBase::add(std::string key, std::string value)
     s = this->db->Put(this->write_opt, key, value);
     if (!s.ok())
     {
-        p_log->debug("Insert record to DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->err("Insert record to DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_ADD_FAILED;
     }
 
@@ -83,7 +84,7 @@ crust_status_t DataBase::del(std::string key)
     leveldb::Status s = this->db->Write(this->write_opt, &batch);
     if (!s.ok())
     {
-        p_log->debug("Delete record from DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->err("Delete record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_DEL_FAILED;
     }
 
@@ -101,7 +102,7 @@ crust_status_t DataBase::set(std::string key, std::string value)
     leveldb::Status s = this->db->Put(this->write_opt, key, value);
     if (!s.ok())
     {
-        p_log->debug("Update record from DB failed!Error: %s\n", s.ToString().c_str());
+        p_log->err("Update record from DB failed!Error: %s\n", s.ToString().c_str());
         return CRUST_PERSIST_SET_FAILED;
     }
 

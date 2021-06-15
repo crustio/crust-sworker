@@ -39,7 +39,9 @@ Log::Log()
  */
 void Log::set_debug(bool flag)
 {
+    this->debug_flag_mutex.lock();
     this->debug_flag = flag;
+    this->debug_flag_mutex.unlock();
 }
 
 /**
@@ -96,7 +98,11 @@ void Log::err(const char *format, ...)
  */
 void Log::debug(const char *format, ...)
 {
-    if (this->debug_flag)
+    this->debug_flag_mutex.lock();
+    bool debug_flag = this->debug_flag;
+    this->debug_flag_mutex.unlock();
+
+    if (debug_flag)
     {
         log_mutex.lock();
         va_list va;

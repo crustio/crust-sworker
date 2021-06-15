@@ -13,9 +13,12 @@ Validator *Validator::get_instance()
 {
     if (Validator::validator == NULL)
     {
-        SafeLock sl(validator_mutex);
-        sl.lock();
-        Validator::validator = new Validator();
+        validator_mutex.lock();
+        if (Validator::validator == NULL)
+        {
+            Validator::validator = new Validator();
+        }
+        validator_mutex.unlock();
     }
 
     return Validator::validator;

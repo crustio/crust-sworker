@@ -403,6 +403,9 @@ decltype(seconds_t().count()) get_seconds_since_epoch()
  */
 std::string get_time_diff_humanreadable(long sec)
 {
+    if (sec == 0)
+        return "0s";
+
     std::string ans;
     int mit, hor, day;
     day = mit = hor = 0;
@@ -442,6 +445,9 @@ std::string get_time_diff_humanreadable(long sec)
  */
 std::string get_file_size_humanreadable(size_t size)
 {
+    if (size == 0)
+        return "0K";
+
     std::string ans;
     std::string tag;
     std::string left;

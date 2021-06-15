@@ -17,9 +17,13 @@ Ipfs *Ipfs::get_instance()
 {
     if (Ipfs::ipfs == NULL)
     {
-        SafeLock sl(ipfs_mutex);
-        sl.lock();
-        Ipfs::ipfs = new Ipfs(Config::get_instance()->ipfs_url);
+        Config *p_config = Config::get_instance();
+        ipfs_mutex.lock();
+        if (Ipfs::ipfs == NULL)
+        {
+            Ipfs::ipfs = new Ipfs(p_config->ipfs_url);
+        }
+        ipfs_mutex.unlock();
     }
 
     return Ipfs::ipfs;
