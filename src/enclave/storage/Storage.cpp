@@ -15,6 +15,11 @@ crust_status_t storage_seal_file_start(const char *root)
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string root_cid(root);
 
+    if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
+    {
+        return CRUST_UPGRADE_IS_UPGRADING;
+    }
+
     // Check if file number exceeds upper limit
     size_t file_num = 0;
     SafeLock sl_file(wl->file_mutex);
