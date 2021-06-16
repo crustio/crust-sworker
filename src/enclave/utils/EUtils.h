@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <exception>
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -22,6 +23,7 @@
 #include "sgx_trts.h"
 
 #include "Parameter.h"
+#include "CrustStatus.h"
 #include "Enclave_t.h"
 #include "Defer.h"
 
@@ -106,5 +108,48 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
 #if defined(__cplusplus)
 }
 #endif
+
+template <class T>
+/**
+ * @description: Insert data to vector end
+ * @param v -> Reference to vector
+ * @param data -> Pointer to data
+ * @param data_size -> Data size
+ * @return: Insert result
+ */
+crust_status_t vector_end_insert(std::vector<T> &v, const T *data, size_t data_size)
+{
+    try
+    {
+        v.insert(v.end(), data, data + data_size);
+    }
+    catch (std::exception &e)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+template <class T>
+/**
+ * @description: Insert data to vector end
+ * @param v -> Reference to vector
+ * @param str -> String data
+ * @return: Insert result
+ */
+crust_status_t vector_end_insert(std::vector<T> &v, std::string str)
+{
+    try
+    {
+        v.insert(v.end(), str.c_str(), str.c_str() + str.size());
+    }
+    catch (std::exception &e)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
 
 #endif /* !_CRUST_E_UTILS_H_ */

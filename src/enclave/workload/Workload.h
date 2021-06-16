@@ -58,8 +58,8 @@ public:
     void clean_all();
 
     // For persistence
-    crust_status_t serialize_srd(uint8_t **p_data, size_t *data_size);
-    crust_status_t serialize_file(uint8_t **p_data, size_t *data_size);
+    std::vector<uint8_t> serialize_srd(crust_status_t *status, uint8_t **p_root);
+    std::vector<uint8_t> serialize_file(crust_status_t *status, uint8_t **p_root);
     crust_status_t restore_srd(json::JSON &g_hashs);
     crust_status_t restore_file(json::JSON &file_json);
     crust_status_t restore_file_info();
@@ -83,6 +83,7 @@ public:
     bool is_upgrade();
     void set_upgrade_status(enc_upgrade_status_t status);
     enc_upgrade_status_t get_upgrade_status();
+    void clean_pending_file();
 
     // For workload spec
     void set_file_spec(char file_status, long long change);

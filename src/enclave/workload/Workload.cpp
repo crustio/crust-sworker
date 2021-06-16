@@ -103,6 +103,8 @@ json::JSON Workload::gen_workload_info()
     // Generate srd information
     sgx_sha256_hash_t srd_root;
     json::JSON ans;
+    SafeLock sl_srd(this->srd_mutex);
+    sl_srd.lock();
     if (this->srd_hashs.size() == 0)
     {
         memset(&srd_root, 0, sizeof(sgx_sha256_hash_t));
@@ -127,9 +129,12 @@ json::JSON Workload::gen_workload_info()
         sgx_sha256_msg(srds_data, (uint32_t)srds_data_sz, &srd_root);
         ans[WL_SRD_ROOT_HASH] = reinterpret_cast<uint8_t *>(&srd_root);
     }
+    sl_srd.unlock();
 
     // Generate file information
     sgx_sha256_hash_t file_root;
+    SafeLock sl_file(this->file_mutex);
+    sl_file.lock();
     if (this->sealed_files.size() == 0)
     {
         memset(&file_root, 0, sizeof(sgx_sha256_hash_t));
@@ -153,34 +158,67 @@ json::JSON Workload::gen_workload_info()
         sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
         ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
     }
+    sl_file.unlock();
 
     return ans;
 }
 
 /**
  * @description: Serialize workload for sealing
- * @param p_data -> Reference to serialized srd
- * @param data_size -> Pointer to data size
+ * @param status -> Pointer to result status
+ * @param p_root -> Srd root hash
  * @return: Serialized workload
  */
-crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
+std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status, uint8_t **p_root)
 {
     SafeLock sl(this->srd_mutex);
     sl.lock();
-    
-    // Calculate srd space
-    size_t srd_size = id_get_srd_buffer_size(this->srd_hashs);
-    uint8_t *srd_buffer = (uint8_t *)enc_malloc(srd_size);
-    if (srd_buffer == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-    memset(srd_buffer, 0, srd_size);
+    std::vector<uint8_t> srd_buffer;
 
-    // Copy srd information to buffer
-    size_t srd_offset = 0;
-    memcpy(srd_buffer, "[", 1);
-    srd_offset += 1;
+    // Get srd root hash
+    sgx_sha256_hash_t srd_root;
+    *p_root = (uint8_t *)enc_malloc(HASH_LENGTH);
+    if (*p_root == NULL)
+    {
+        *status = CRUST_MALLOC_FAILED;
+        return srd_buffer;
+    }
+    Defer def_root([&status, &p_root](void) {
+        if (CRUST_SUCCESS != *status)
+        {
+            free(*p_root);
+        }
+    });
+    memset(*p_root, 0, HASH_LENGTH);
+    if (this->srd_hashs.size() == 0)
+    {
+        memset(&srd_root, 0, sizeof(sgx_sha256_hash_t));
+        memcpy(*p_root, &srd_root, HASH_LENGTH);
+    }
+    else
+    {
+        size_t srds_data_sz = this->srd_hashs.size() * SRD_LENGTH;
+        uint8_t *srds_data = (uint8_t *)enc_malloc(srds_data_sz);
+        if (srds_data == NULL)
+        {
+            log_err("Generate srd info failed due to malloc failed!\n");
+            *status = CRUST_MALLOC_FAILED;
+            return srd_buffer;
+        }
+        Defer Def_srds_data([&srds_data](void) { free(srds_data); });
+        memset(srds_data, 0, srds_data_sz);
+        for (size_t i = 0; i < this->srd_hashs.size(); i++)
+        {
+            memcpy(srds_data + i * SRD_LENGTH, this->srd_hashs[i], SRD_LENGTH);
+        }
+        sgx_sha256_msg(srds_data, (uint32_t)srds_data_sz, &srd_root);
+        memcpy(*p_root, &srd_root, HASH_LENGTH);
+    }
+    log_debug("Generate srd root hash successfully!\n");
+
+    // Get srd buffer
+    crust_status_t crust_status = CRUST_SUCCESS;
+    srd_buffer.push_back('[');
     for (size_t i = 0; i < this->srd_hashs.size(); i++)
     {
         std::string tmp = "\"" + hexstring_safe(this->srd_hashs[i], SRD_LENGTH) + "\"";
@@ -188,42 +226,79 @@ crust_status_t Workload::serialize_srd(uint8_t **p_data, size_t *data_size)
         {
             tmp.append(",");
         }
-        memcpy(srd_buffer + srd_offset, tmp.c_str(), tmp.size());
-        srd_offset += tmp.size();
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(srd_buffer, tmp)))
+        {
+            *status = crust_status;
+            return srd_buffer;
+        }
     }
-    memcpy(srd_buffer + srd_offset, "]", 1);
-    srd_offset += 1;
+    srd_buffer.push_back(']');
     
-    *p_data = srd_buffer;
-    *data_size = srd_offset;
-
-    return CRUST_SUCCESS;
+    return srd_buffer;
 }
 
 /**
  * @description: Serialize file for sealing
- * @param p_data -> Pointer to point to data
- * @param data_size -> Serialized data size
+ * @param status -> Pointer to result status
+ * @param p_root -> File root hash
  * @return: Serialized result
  */
-crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
+std::vector<uint8_t> Workload::serialize_file(crust_status_t *status, uint8_t **p_root)
 {
     SafeLock sl(this->file_mutex);
     sl.lock();
+    std::vector<uint8_t> file_buffer;
 
-    size_t buffer_size = id_get_file_buffer_size(this->sealed_files);
-    *p_data = (uint8_t *)enc_malloc(buffer_size);
-    if (*p_data == NULL)
+    // Generate file information
+    sgx_sha256_hash_t file_root;
+    *p_root = (uint8_t *)enc_malloc(HASH_LENGTH);
+    if (*p_root == NULL)
     {
-        return CRUST_MALLOC_FAILED;
+        *status = CRUST_MALLOC_FAILED;
+        return file_buffer;
     }
-    memset(*p_data, 0, buffer_size);
-    size_t offset = 0;
+    Defer def_root([&status, &p_root](void) {
+        if (CRUST_SUCCESS != *status)
+        {
+            free(*p_root);
+        }
+    });
+    memset(*p_root, 0, HASH_LENGTH);
+    if (this->sealed_files.size() == 0)
+    {
+        memset(&file_root, 0, sizeof(sgx_sha256_hash_t));
+        memcpy(*p_root, &file_root, HASH_LENGTH);
+    }
+    else
+    {
+        size_t f_hashs_len = this->sealed_files.size() * HASH_LENGTH;
+        uint8_t *f_hashs = (uint8_t *)enc_malloc(f_hashs_len);
+        if (f_hashs == NULL)
+        {
+            log_err("Generate sealed files info failed due to malloc failed!\n");
+            *status = CRUST_MALLOC_FAILED;
+            return file_buffer;
+        }
+        Defer def_f_hashs([&f_hashs](void) { free(f_hashs); });
+        memset(f_hashs, 0, f_hashs_len);
+        for (size_t i = 0; i < this->sealed_files.size(); i++)
+        {
+            memcpy(f_hashs + i * HASH_LENGTH, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
+        }
+        sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
+        memcpy(*p_root, &file_root, HASH_LENGTH);
+    }
+    log_debug("Generate file root hash successfully!\n");
 
-    memcpy(*p_data + offset, "[", 1);
-    offset += 1;
+    // Get file buffer
+    crust_status_t crust_status = CRUST_SUCCESS;
+    file_buffer.push_back('[');
     for (size_t i = 0; i < this->sealed_files.size(); i++)
     {
+        if (FILE_STATUS_PENDING == this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            continue;
+        }
         std::string file_str = this->sealed_files[i].dump();
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
@@ -232,15 +307,15 @@ crust_status_t Workload::serialize_file(uint8_t **p_data, size_t *data_size)
         {
             file_str.append(",");
         }
-        memcpy(*p_data + offset, file_str.c_str(), file_str.size());
-        offset += file_str.size();
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_buffer, file_str)))
+        {
+            *status = crust_status;
+            return file_buffer;
+        }
     }
-    memcpy(*p_data + offset, "]", 1);
-    offset += 1;
+    file_buffer.push_back(']');
 
-    *data_size = offset;
-
-    return CRUST_SUCCESS;
+    return file_buffer;
 }
 
 /**
@@ -496,6 +571,26 @@ enc_upgrade_status_t Workload::get_upgrade_status()
     status = this->upgrade_status;
     sgx_thread_mutex_unlock(&g_upgrade_status_mutex);
     return status;
+}
+
+/**
+ * @description: This function is for upgrading
+ */
+void Workload::clean_pending_file()
+{
+    SafeLock sl(this->file_mutex);
+    sl.lock();
+    for (auto it = this->sealed_files.begin(); it != this->sealed_files.end(); )
+    {
+        if (FILE_STATUS_PENDING == (*it)[FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            it = this->sealed_files.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+    }
 }
 
 /**
