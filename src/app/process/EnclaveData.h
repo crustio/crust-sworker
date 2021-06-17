@@ -38,8 +38,7 @@ public:
     size_t get_files_size_by_type(const char *type);
     void del_sealed_file_info(std::string cid);
     void del_sealed_file_info(std::string cid, std::string type);
-    bool is_file_exist(std::string cid);
-    bool find_file_type(std::string cid, std::string &type);
+    bool find_file_type(std::string cid, std::string &type, bool lock = true);
     void restore_sealed_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
     json::JSON get_srd_info();

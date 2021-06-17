@@ -266,7 +266,7 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
     std::string type;
-    if (!find_file_type(cid, type))
+    if (!find_file_type(cid, type, false))
     {
         return "";
     }
@@ -385,22 +385,15 @@ std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::str
 /**
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
- * @return: Duplicated or not
- */
-bool EnclaveData::is_file_exist(std::string cid)
-{
-    std::string type;
-    return find_file_type(cid, type);
-}
-
-/**
- * @description: Check if file is duplicated
- * @param cid -> IPFS content id
  * @param type -> Reference to file status type
  * @return: Duplicated or not
  */
-bool EnclaveData::find_file_type(std::string cid, std::string &type)
+bool EnclaveData::find_file_type(std::string cid, std::string &type, bool lock)
 {
+    SafeLock sl(this->sealed_file_mutex);
+    if (lock)
+        sl.lock();
+
     for (auto item : this->sealed_file)
     {
         if (item.second.find(cid) != item.second.end())

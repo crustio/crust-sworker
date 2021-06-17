@@ -234,12 +234,11 @@ crust_status_t srd_change(long change)
                     {
                         switch (inc_sgx_ret)
                         {
-                            case SGX_ERROR_SERVICE_TIMEOUT:
-                                p_log->warn("Srd task release resource for higher priority task.\n");
-                                break;
-                            default:
-                                p_log->err("Increase srd failed! Error code:%lx\n", inc_sgx_ret);
-                                break;
+                        case SGX_ERROR_SERVICE_TIMEOUT:
+                            p_log->warn("Srd task release resource for higher priority task.\n");
+                            break;
+                        default:
+                            p_log->err("Increase srd failed! Error code:%lx\n", inc_sgx_ret);
                         }
                         if (CRUST_SUCCESS == inc_crust_ret)
                         {
@@ -285,7 +284,14 @@ crust_status_t srd_change(long change)
             }
             else if (CRUST_SUCCESS != change_crust_ret)
             {
-                p_log->err("Add left srd task failed! Error code:%lx, real add task:%dG\n", change_crust_ret, real_change);
+                switch (change_crust_ret)
+                {
+                case CRUST_UPGRADE_IS_UPGRADING:
+                    p_log->info("Add left srd task failed due to upgrade.\n");
+                    break;
+                default:
+                    p_log->err("Add left srd task failed, real add task:%dG! Error code:%lx\n", real_change, change_crust_ret);
+                }
             }
         }
         else
