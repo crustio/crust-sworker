@@ -247,8 +247,9 @@ std::vector<uint8_t> Workload::serialize_file(crust_status_t *status, uint8_t **
 {
     SafeLock sl(this->file_mutex);
     sl.lock();
-    std::vector<uint8_t> file_buffer;
 
+    crust_status_t crust_status = CRUST_SUCCESS;
+    std::vector<uint8_t> file_buffer;
     // Generate file information
     sgx_sha256_hash_t file_root;
     *p_root = (uint8_t *)enc_malloc(HASH_LENGTH);
@@ -290,7 +291,6 @@ std::vector<uint8_t> Workload::serialize_file(crust_status_t *status, uint8_t **
     log_debug("Generate file root hash successfully!\n");
 
     // Get file buffer
-    crust_status_t crust_status = CRUST_SUCCESS;
     file_buffer.push_back('[');
     for (size_t i = 0; i < this->sealed_files.size(); i++)
     {
