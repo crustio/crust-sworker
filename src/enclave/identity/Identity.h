@@ -60,8 +60,5 @@ crust_status_t id_store_metadata();
 crust_status_t id_restore_metadata();
 crust_status_t id_gen_upgrade_data(size_t block_height);
 crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end);
-size_t id_get_metadata_title_size();
-size_t id_get_srd_buffer_size(std::vector<uint8_t *> &srd_hashs);
-size_t id_get_file_buffer_size(std::vector<json::JSON> &sealed_files);
 
 #endif

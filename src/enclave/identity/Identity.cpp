@@ -293,36 +293,14 @@ X509_STORE *cert_init_ca(X509 *cert)
  */
 crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
 {
-    string certchain;
     string certchain_1;
     size_t cstart, cend, count, i;
-    X509 **certar;
-    STACK_OF(X509) * stack;
     vector<X509 *> certvec;
-    vector<string> messages;
-    int rv;
-    string ias_sig, header;
     size_t sigsz;
-    X509 *sign_cert;
-    EVP_PKEY *pkey = NULL;
     crust_status_t status = CRUST_SUCCESS;
-    uint8_t *sig = NULL;
-    string isv_body;
-    int quoteSPos = 0;
-    int quoteEPos = 0;
-    size_t spos = 0;
-    size_t epos = 0;
-    string ias_quote_body;
-    sgx_quote_t *iasQuote = NULL;
-    sgx_report_body_t *iasReportBody;
-    char *p_decode_quote_body = NULL;
     size_t qbsz;
-    sgx_status_t sgx_status;
     sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_ec256_signature_t ecc_signature;
-
-    json::JSON id_json;
-    std::string id_str;
 
     BIO *bio_mem = BIO_new(BIO_s_mem());
     BIO_puts(bio_mem, INTELSGXATTROOTCA);
@@ -330,11 +308,6 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
     vector<string> response(IASReport, IASReport + size);
 
     Workload *wl = Workload::get_instance();
-    string chain_account_id = wl->get_account_id();
-    uint8_t *p_account_id_u = hex_string_to_bytes(chain_account_id.c_str(), chain_account_id.size());
-    size_t account_id_u_len = chain_account_id.size() / 2;
-    uint8_t *org_data, *p_org_data = NULL;
-    uint32_t org_data_len = 0;
 
 
     // ----- Verify IAS signature ----- //
@@ -353,7 +326,7 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
 
     // Get the certificate chain from the headers
 
-    certchain = response[0];
+    std::string certchain = response[0];
     if (certchain == "")
     {
         return CRUST_IAS_BAD_CERTIFICATE;
@@ -394,54 +367,64 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
         certvec.push_back(cert);
         cstart = cend;
     }
-
     count = certvec.size();
+    Defer def_certvec([&certvec, &count](void) {
+        for (size_t i = 0; i < count; ++i)
+        {
+            X509_free(certvec[i]);
+        }
+    });
 
-    certar = (X509 **)enc_malloc(sizeof(X509 *) * (count + 1));
+    X509 **certar = (X509 **)enc_malloc(sizeof(X509 *) * (count + 1));
     if (certar == NULL)
     {
         return CRUST_IAS_INTERNAL_ERROR;
     }
+    Defer def_certar([&certar](void) {
+        free(certar);
+    });
     for (i = 0; i < count; ++i)
         certar[i] = certvec[i];
     certar[count] = NULL;
 
     // Create a STACK_OF(X509) stack from our certs
 
-    stack = cert_stack_build(certar);
+    STACK_OF(X509) *stack = cert_stack_build(certar);
     if (stack == NULL)
     {
-        status = CRUST_IAS_INTERNAL_ERROR;
-        goto cleanup;
+        return CRUST_IAS_INTERNAL_ERROR;
     }
+    Defer def_stack([&stack](void) {
+        cert_stack_free(stack);
+    });
 
     // Now verify the signing certificate
 
-    rv = cert_verify(cert_init_ca(intelRootPemX509), stack);
+    int rv = cert_verify(cert_init_ca(intelRootPemX509), stack);
 
     if (!rv)
     {
-        status = CRUST_IAS_BAD_CERTIFICATE;
-        goto cleanup;
+        return CRUST_IAS_BAD_CERTIFICATE;
     }
 
     // The signing cert is valid, so extract and verify the signature
 
-    ias_sig = response[1];
+    std::string ias_sig = response[1];
     if (ias_sig == "")
     {
-        status = CRUST_IAS_BAD_SIGNATURE;
-        goto cleanup;
+        return CRUST_IAS_BAD_SIGNATURE;
     }
 
-    sig = (uint8_t *)base64_decode(ias_sig.c_str(), &sigsz);
+    uint8_t *sig = (uint8_t *)base64_decode(ias_sig.c_str(), &sigsz);
     if (sig == NULL)
     {
-        status = CRUST_IAS_BAD_SIGNATURE;
-        goto cleanup;
+        return CRUST_IAS_BAD_SIGNATURE;
     }
+    Defer def_sig([&sig](void) {
+        free(sig);
+    });
 
-    sign_cert = certvec[0]; /* The first cert in the list */
+    X509 *sign_cert = certvec[0]; /* The first cert in the list */
 
     /*
      * The report body is SHA256 signed with the private key of the
@@ -449,20 +432,21 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
      * verify the signature.
      */
 
-    pkey = X509_get_pubkey(sign_cert);
+    EVP_PKEY *pkey = X509_get_pubkey(sign_cert);
     if (pkey == NULL)
     {
-        status = CRUST_IAS_GETPUBKEY_FAILED;
-        goto cleanup;
+        return CRUST_IAS_GETPUBKEY_FAILED;
     }
+    Defer def_pkey([&pkey](void) {
+        EVP_PKEY_free(pkey);
+    });
 
-    isv_body = response[2];
+    std::string isv_body = response[2];
 
     // verify IAS signature
     if (!sha256_verify((const uint8_t *)isv_body.c_str(), isv_body.length(), sig, sigsz, pkey))
     {
-        status = CRUST_IAS_BAD_SIGNATURE;
-        goto cleanup;
+        return CRUST_IAS_BAD_SIGNATURE;
     }
     else
     {
@@ -470,128 +454,97 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
     }
 
     // Verify quote
-    quoteSPos = (int)isv_body.find("\"" IAS_ISV_BODY_TAG "\":\"");
+    int quoteSPos = (int)isv_body.find("\"" IAS_ISV_BODY_TAG "\":\"");
     quoteSPos = (int)isv_body.find("\":\"", quoteSPos) + 3;
-    quoteEPos = (int)isv_body.size() - 2;
-    ias_quote_body = isv_body.substr(quoteSPos, quoteEPos - quoteSPos);
+    int quoteEPos = (int)isv_body.size() - 2;
+    std::string ias_quote_body = isv_body.substr(quoteSPos, quoteEPos - quoteSPos);
 
-    p_decode_quote_body = base64_decode(ias_quote_body.c_str(), &qbsz);
+    char *p_decode_quote_body = base64_decode(ias_quote_body.c_str(), &qbsz);
     if (p_decode_quote_body == NULL)
     {
-        status = CRUST_IAS_BAD_BODY;
-        goto cleanup;
+        return CRUST_IAS_BAD_BODY;
     }
+    Defer def_decode_quote_body([&p_decode_quote_body](void) {
+        free(p_decode_quote_body);
+    });
 
-    iasQuote = (sgx_quote_t *)enc_malloc(sizeof(sgx_quote_t));
+    sgx_quote_t *iasQuote = (sgx_quote_t *)enc_malloc(sizeof(sgx_quote_t));
     if (iasQuote == NULL)
     {
         log_err("Malloc memory failed!\n");
-        goto cleanup;
+        return CRUST_MALLOC_FAILED;
     }
+    Defer def_iasQuote([&iasQuote](void) {
+        free(iasQuote);
+    });
     memset(iasQuote, 0, sizeof(sgx_quote_t));
     memcpy(iasQuote, p_decode_quote_body, qbsz);
-    iasReportBody = &iasQuote->report_body;
+    sgx_report_body_t *iasReportBody = &iasQuote->report_body;
 
     // This report data is our ecc public key
     // should be equal to the one contained in IAS report
     if (memcmp(iasReportBody->report_data.d, &wl->get_pub_key(), sizeof(sgx_ec256_public_t)) != 0)
     {
-        status = CRUST_IAS_REPORTDATA_NE;
-        goto cleanup;
+        return CRUST_IAS_REPORTDATA_NE;
     }
 
     // The mr_enclave should be equal to the one contained in IAS report
     if (memcmp(&iasReportBody->mr_enclave, &wl->get_mr_enclave(), sizeof(sgx_measurement_t)) != 0)
     {
-        status = CRUST_IAS_BADMEASUREMENT;
-        goto cleanup;
+        return CRUST_IAS_BADMEASUREMENT;
     }
 
     // ----- Sign IAS report with current private key ----- //
-    sgx_status = sgx_ecc256_open_context(&ecc_state);
+    sgx_status_t sgx_status = sgx_ecc256_open_context(&ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
-        status = CRUST_SIGN_PUBKEY_FAILED;
-        goto cleanup;
+        return CRUST_SIGN_PUBKEY_FAILED;
     }
+    Defer def_ecc_state([&ecc_state](void) {
+        sgx_ecc256_close_context(ecc_state);
+    });
 
     // Generate identity data for sig
-    spos = certchain_1.find("-----BEGIN CERTIFICATE-----\n") + strlen("-----BEGIN CERTIFICATE-----\n");
-    epos = certchain_1.find("\n-----END CERTIFICATE-----");
+    size_t spos = certchain_1.find("-----BEGIN CERTIFICATE-----\n") + strlen("-----BEGIN CERTIFICATE-----\n");
+    size_t epos = certchain_1.find("\n-----END CERTIFICATE-----");
     certchain_1 = certchain_1.substr(spos, epos - spos);
     replace(certchain_1, "\n", "");
-    org_data_len = certchain_1.size() 
-        + ias_sig.size() 
-        + isv_body.size() 
-        + account_id_u_len;
-    org_data = (uint8_t *)malloc(org_data_len);
-    if (org_data == NULL)
+
+    string chain_account_id = wl->get_account_id();
+    uint8_t *p_account_id_u = hex_string_to_bytes(chain_account_id.c_str(), chain_account_id.size());
+    if (p_account_id_u == NULL)
     {
-        log_err("Malloc memory failed!\n");
-        goto cleanup;
+        return CRUST_UNEXPECTED_ERROR;
     }
-    memset(org_data, 0, org_data_len);
-    p_org_data = org_data;
+    Defer def_account_id_u([&p_account_id_u](void) {
+        free(p_account_id_u);
+    });
+    size_t account_id_u_len = chain_account_id.size() / 2;
 
-    memcpy(org_data, certchain_1.c_str(), certchain_1.size());
-    org_data += certchain_1.size();
-    memcpy(org_data, ias_sig.c_str(), ias_sig.size());
-    org_data += ias_sig.size();
-    memcpy(org_data, isv_body.c_str(), isv_body.size());
-    org_data += isv_body.size();
-    memcpy(org_data, p_account_id_u, account_id_u_len);
+    std::vector<uint8_t> sig_buffer;
+    vector_end_insert(sig_buffer, certchain_1);
+    vector_end_insert(sig_buffer, ias_sig);
+    vector_end_insert(sig_buffer, isv_body);
+    vector_end_insert(sig_buffer, p_account_id_u, account_id_u_len);
 
-    sgx_status = sgx_ecdsa_sign(p_org_data, (uint32_t)org_data_len,
+    sgx_status = sgx_ecdsa_sign(sig_buffer.data(), sig_buffer.size(),
             const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &ecc_signature, ecc_state);
     if (SGX_SUCCESS != sgx_status)
     {
-        status = CRUST_SIGN_PUBKEY_FAILED;
-        goto cleanup;
+        return CRUST_SIGN_PUBKEY_FAILED;
     }
     
     // Get sworker identity and store it outside of sworker
+    json::JSON id_json;
     id_json[IAS_CERT] = certchain_1;
     id_json[IAS_SIG] = ias_sig;
     id_json[IAS_ISV_BODY] = isv_body;
     id_json[IAS_CHAIN_ACCOUNT_ID] = chain_account_id;
     id_json[IAS_REPORT_SIG] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
-    id_str = id_json.dump();
+    std::string id_str = id_json.dump();
 
     // Upload identity to chain
     ocall_upload_identity(&status, id_str.c_str());
-
-
-cleanup:
-    if (pkey != NULL)
-        EVP_PKEY_free(pkey);
-
-    cert_stack_free(stack);
-
-    if (certar != NULL)
-        free(certar);
-
-    for (i = 0; i < count; ++i)
-    {
-        X509_free(certvec[i]);
-    }
-
-    if (sig != NULL)
-        free(sig);
-
-    if (iasQuote != NULL)
-        free(iasQuote);
-
-    if (ecc_state != NULL)
-        sgx_ecc256_close_context(ecc_state);
-
-    if (p_org_data != NULL)
-        free(p_org_data);
-
-    if (p_decode_quote_body != NULL)
-        free(p_decode_quote_body);
-
-    if (p_account_id_u != NULL)
-        free(p_account_id_u);
 
     return status;
 }
@@ -700,54 +653,6 @@ sgx_status_t id_gen_sgx_measurement()
 }
 
 /**
- * @description: For store metadata, get metadata title buffer size
- * @return: Buffer size
- */
-size_t id_get_metadata_title_size()
-{
-    Workload *wl = Workload::get_instance();
-    return strlen(SWORKER_PRIVATE_TAG) + 5
-           + strlen(ID_SRD) + 5
-           + strlen(ID_KEY_PAIR) + 3 + 256 + 3
-           + strlen(ID_REPORT_HEIGHT) + 3 + 20 + 1
-           + strlen(ID_CHAIN_ACCOUNT_ID) + 3 + 64 + 3
-           + (wl->is_upgrade() ? strlen(ID_PRE_PUB_KEY) + 3 + sizeof(wl->pre_pub_key) * 2 + 3 : 0)
-           + strlen(ID_FILE) + 3;
-}
-
-/**
- * @description: Get srd buffer size
- * @param srd_hashs -> Reference to srd metedata
- * @return: Buffer size
- */
-size_t id_get_srd_buffer_size(std::vector<uint8_t *> &srd_hashs)
-{
-    return srd_hashs.size() * (SRD_LENGTH * 2 + 3) + 10;
-}
-
-/**
- * @description: Get file buffer size
- * @param sealed_files -> Reference to file metedata
- * @return: Buffer size
- */
-size_t id_get_file_buffer_size(std::vector<json::JSON> &sealed_files)
-{
-    size_t ret = strlen(FILE_CID) + 3 + CID_LENGTH + 3
-               + strlen(FILE_HASH) + 3 + strlen(HASH_TAG) + HASH_LENGTH * 2 + 3
-               + strlen(FILE_SIZE) + 3 + 12 + 1
-               + strlen(FILE_SEALED_SIZE) + 3 + 12 + 1
-               + strlen(FILE_BLOCK_NUM) + 3 + 6 + 1
-               + strlen(FILE_LOST_INDEX) + 3 + 6 + 1
-               + strlen(FILE_CHAIN_BLOCK_NUM) + 3 + 32 + 1
-               + strlen(FILE_STATUS) + 3 + 3 + 3
-               + 2;
-
-    ret = sealed_files.size() * ret;
-
-    return ret;
-}
-
-/**
  * @description: Store metadata periodically
  * Just store all metadata except meaningful files.
  * @return: Store status
@@ -780,77 +685,42 @@ crust_status_t id_store_metadata()
     sealed_files.insert(sealed_files.end(), wl->sealed_files.begin(), wl->sealed_files.end());
     sgx_thread_mutex_unlock(&wl->file_mutex);
     
-    // Get meta buffer
-    size_t meta_len = id_get_srd_buffer_size(srd_hashs)
-                    + id_get_file_buffer_size(sealed_files)
-                    + id_get_metadata_title_size();
-    uint8_t *meta_buf = (uint8_t *)enc_malloc(meta_len);
-    if (meta_buf == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-    Defer def_meta_buf([&meta_buf](void) { free(meta_buf); });
-    memset(meta_buf, 0, meta_len);
-    size_t offset = 0;
-
     // ----- Store metadata ----- //
+    std::vector<uint8_t> meta_buffer;
     // Append private data tag
-    memcpy(meta_buf, SWORKER_PRIVATE_TAG, strlen(SWORKER_PRIVATE_TAG));
-    offset += strlen(SWORKER_PRIVATE_TAG);
-    memcpy(meta_buf + offset, "{", 1);
-    offset += 1;
+    vector_end_insert(meta_buffer, reinterpret_cast<const uint8_t *>(SWORKER_PRIVATE_TAG), strlen(SWORKER_PRIVATE_TAG));
+    meta_buffer.push_back('{');
 
     // Append srd
-    std::string wl_title;
-    wl_title.append("\"").append(ID_SRD).append("\":[");
-    memcpy(meta_buf + offset, wl_title.c_str(), wl_title.size());
-    offset += wl_title.size();
+    std::string wl_title("\"" ID_SRD "\":[");
+    vector_end_insert(meta_buffer, wl_title);
     for (size_t i = 0; i < wl->srd_hashs.size(); i++)
     {
-        std::string srd_hex;
-        srd_hex.append("\"").append(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH)).append("\"");
-        memcpy(meta_buf + offset, srd_hex.c_str(), srd_hex.size());
-        offset += srd_hex.size();
+        std::string srd_hex = "\"" + hexstring_safe(wl->srd_hashs[i], SRD_LENGTH) + "\"";
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, srd_hex)))
+        {
+            return CRUST_MALLOC_FAILED;
+        }
         if (i != wl->srd_hashs.size() - 1)
         {
-            memcpy(meta_buf + offset, ",", 1);
-            offset += 1;
+            meta_buffer.push_back(',');
         }
     }
-    memcpy(meta_buf + offset, "],", 2);
-    offset += 2;
+    meta_buffer.push_back(']');
+    meta_buffer.push_back(',');
     // Append id key pair
-    std::string key_pair_str;
-    key_pair_str.append("\"").append(ID_KEY_PAIR).append("\":")
-        .append("\"").append(hex_id_key_str).append("\",");
-    memcpy(meta_buf + offset, key_pair_str.c_str(), key_pair_str.size());
-    offset += key_pair_str.size();
+    vector_end_insert(meta_buffer, "\"" ID_KEY_PAIR "\":\"" + hex_id_key_str);
     // Append report height
-    std::string report_height_str;
-    report_height_str.append("\"").append(ID_REPORT_HEIGHT).append("\":")
-        .append(std::to_string(wl->get_report_height())).append(",");
-    memcpy(meta_buf + offset, report_height_str.c_str(), report_height_str.size());
-    offset += report_height_str.size();
+    vector_end_insert(meta_buffer, "\",\"" ID_REPORT_HEIGHT "\":" + std::to_string(wl->get_report_height()));
     // Append chain account id
-    std::string account_id_str;
-    account_id_str.append("\"").append(ID_CHAIN_ACCOUNT_ID).append("\":")
-        .append("\"").append(wl->get_account_id()).append("\",");
-    memcpy(meta_buf + offset, account_id_str.c_str(), account_id_str.size());
-    offset += account_id_str.size();
+    vector_end_insert(meta_buffer, ",\"" ID_CHAIN_ACCOUNT_ID "\":\"" + wl->get_account_id());
     // Append previous public key
     if (wl->is_upgrade())
     {
-        std::string pre_pub_key_str;
-        pre_pub_key_str.append("\"").append(ID_PRE_PUB_KEY).append("\":")
-            .append("\"").append(hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key))).append("\",");
-        memcpy(meta_buf + offset, pre_pub_key_str.c_str(), pre_pub_key_str.size());
-        offset += pre_pub_key_str.size();
+        vector_end_insert(meta_buffer, "\",\"" ID_PRE_PUB_KEY "\":\"" + hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key)));
     }
     // Append files
-    std::string file_title;
-    file_title.append("\"").append(ID_FILE).append("\":[");
-    memcpy(meta_buf + offset, file_title.c_str(), file_title.size());
-    offset += file_title.size();
+    vector_end_insert(meta_buffer, std::string("\",\"" ID_FILE "\":["));
     for (size_t i = 0; i < sealed_files.size(); i++)
     {
         if (FILE_STATUS_PENDING == sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
@@ -864,18 +734,19 @@ crust_status_t id_store_metadata()
         remove_char(file_str, '\n');
         remove_char(file_str, '\\');
         remove_char(file_str, ' ');
-        memcpy(meta_buf + offset, file_str.c_str(), file_str.size());
-        offset += file_str.size();
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, file_str)))
+        {
+            return crust_status;
+        }
         if (i != sealed_files.size() - 1)
         {
-            memcpy(meta_buf + offset, ",", 1);
-            offset += 1;
+            meta_buffer.push_back(',');
         }
     }
-    memcpy(meta_buf + offset, "]}", 2);
-    offset += 2;
+    meta_buffer.push_back(']');
+    meta_buffer.push_back('}');
 
-    crust_status = persist_set(ID_METADATA, meta_buf, offset);
+    crust_status = persist_set(ID_METADATA, meta_buffer.data(), meta_buffer.size());
 
     sl.unlock();
 

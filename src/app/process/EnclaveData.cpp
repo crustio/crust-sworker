@@ -153,6 +153,29 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
 }
 
 /**
+ * @description: Store workreport
+ * @param data -> Pointer to workreport data
+ * @param data_size -> Workreport data size
+ */
+void EnclaveData::set_workreport(const uint8_t *data, size_t data_size)
+{
+    workreport_mutex.lock();
+    this->workreport = std::string(reinterpret_cast<const char *>(data), data_size);
+    workreport_mutex.unlock();
+}
+
+/**
+ * @description: Get workreport
+ * @return: Workreport
+ */
+std::string EnclaveData::get_workreport()
+{
+    SafeLock sl(workreport_mutex);
+    sl.lock();
+    return this->workreport;
+}
+
+/**
  * @description: Add sealed file info
  * @param cid -> IPFS content id
  * @param type -> File type

@@ -5,6 +5,7 @@ std::map<uint32_t, uint8_t *> g_ocall_buffer_pool;
 std::mutex g_ocall_buffer_pool_mutex;
 std::map<ocall_store_type_t, ocall_store2_f> g_ocall_store2_func_m = {
     {OS_FILE_INFO_ALL, ocall_store_file_info_all},
+    {OS_STORE_WORKREPORT, ocall_store_workreport},
 };
 
 // Used to store ocall file data
@@ -118,12 +119,11 @@ crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_
 
 /**
  * @description: For upgrade, send work report
- * @param work_report (in) -> Work report
  * @return: Send result
  */
-crust_status_t ocall_upload_workreport(const char *work_report)
+crust_status_t ocall_upload_workreport()
 {
-    std::string work_str(work_report);
+    std::string work_str = EnclaveData::get_instance()->get_workreport();
     remove_char(work_str, '\\');
     remove_char(work_str, '\n');
     remove_char(work_str, ' ');
@@ -283,6 +283,16 @@ void ocall_store_file_info(const char* cid, const char *data, const char *type)
 void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
 {
     EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+}
+
+/**
+ * @description: Store workreport
+ * @param data -> Pointer to workreport data
+ * @param data_size -> Workreport data size
+ */
+void ocall_store_workreport(const uint8_t *data, size_t data_size)
+{
+    EnclaveData::get_instance()->set_workreport(data, data_size);
 }
 
 /**

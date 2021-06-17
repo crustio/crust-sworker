@@ -165,6 +165,7 @@ typedef enum _store_type_t {
 
 typedef enum _ocall_store_type_t {
     OS_FILE_INFO_ALL,
+    OS_STORE_WORKREPORT,
 } ocall_store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

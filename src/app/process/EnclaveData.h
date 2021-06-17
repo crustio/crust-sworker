@@ -26,6 +26,8 @@ public:
     void set_upgrade_data(std::string data);
     upgrade_status_t get_upgrade_status();
     void set_upgrade_status(upgrade_status_t status);
+    void set_workreport(const uint8_t *data, size_t data_size);
+    std::string get_workreport();
     // Sealed information
     void add_sealed_file_info(const std::string &cid, std::string type, std::string info);
     std::string get_sealed_file_info_item(json::JSON &info, bool raw);
@@ -82,6 +84,9 @@ private:
     std::unordered_map<std::string, std::string> uuid_to_disk_path;
     std::unordered_map<std::string, std::string> disk_path_to_uuid;
     std::mutex uuid_disk_path_map_mutex;
+    // For workreport
+    std::string workreport;
+    std::mutex workreport_mutex;
 };
 
 #endif /* !_APP_ENCLAVE_DATA_H_ */

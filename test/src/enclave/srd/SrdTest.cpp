@@ -24,10 +24,10 @@ void srd_change_test(long change, bool real)
     {
         // Get real srd space
         long srd_change_num = 0;
-        if (tmp_g_srd_task > SRD_MAX_PER_TURN)
+        if (tmp_g_srd_task > SRD_MAX_INC_PER_TURN)
         {
-            srd_change_num = SRD_MAX_PER_TURN;
-            tmp_g_srd_task -= SRD_MAX_PER_TURN;
+            srd_change_num = SRD_MAX_INC_PER_TURN;
+            tmp_g_srd_task -= SRD_MAX_INC_PER_TURN;
         }
         else
         {

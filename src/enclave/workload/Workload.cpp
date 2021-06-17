@@ -271,21 +271,20 @@ std::vector<uint8_t> Workload::serialize_file(crust_status_t *status, uint8_t **
     }
     else
     {
-        size_t f_hashs_len = this->sealed_files.size() * HASH_LENGTH;
-        uint8_t *f_hashs = (uint8_t *)enc_malloc(f_hashs_len);
-        if (f_hashs == NULL)
-        {
-            log_err("Generate sealed files info failed due to malloc failed!\n");
-            *status = CRUST_MALLOC_FAILED;
-            return file_buffer;
-        }
-        Defer def_f_hashs([&f_hashs](void) { free(f_hashs); });
-        memset(f_hashs, 0, f_hashs_len);
+        std::vector<uint8_t> file_hashs;
         for (size_t i = 0; i < this->sealed_files.size(); i++)
         {
-            memcpy(f_hashs + i * HASH_LENGTH, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
+            if (FILE_STATUS_PENDING == this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
+            {
+                continue;
+            }
+            if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_hashs, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH)))
+            {
+                *status = crust_status;
+                return file_buffer;
+            }
         }
-        sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
+        sgx_sha256_msg(file_hashs.data(), file_hashs.size(), &file_root);
         memcpy(*p_root, &file_root, HASH_LENGTH);
     }
     log_debug("Generate file root hash successfully!\n");
@@ -1129,109 +1128,44 @@ void Workload::del_sealed_file(size_t pos)
  */
 crust_status_t Workload::restore_file_info()
 {
-    // Get file item length
-    size_t file_info_item_len = CID_LENGTH + 10
-            + strlen(FILE_SIZE) + 12 + 10
-            + strlen(FILE_SEALED_SIZE) + 12 + 10
-            + strlen(FILE_CHAIN_BLOCK_NUM) + 12 + 10;
-
-    const std::string START_TMP("start");
-    const std::string OFFSET_TMP("offset");
-    const std::string LENGTH_TMP("length");
-    const std::string HASPRE_TMP("has_pre");
-
-    // Get file total size
-    size_t file_info_len = 0;
-    json::JSON file_info;
-    for (size_t i = 0; i < this->sealed_files.size(); i++)
-    {
-        char s = this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS);
-        if (g_file_spec_status.find(s) != g_file_spec_status.end())
-        {
-            file_info[g_file_spec_status[s]][LENGTH_TMP].AddNum(file_info_item_len);
-        }
-    }
-    if (file_info.size() <= 0)
-    {
-        return CRUST_SUCCESS;
-    }
-    auto p_obj = file_info.ObjectRange().object;
-    for (auto it = p_obj->begin(); it != p_obj->end(); it++)
-    {
-        it->second[LENGTH_TMP].AddNum(32);
-        file_info_len += it->second[LENGTH_TMP].ToInt();
-    }
-    char *file_info_buf = (char *)enc_malloc(file_info_len);
-    if (file_info_buf == NULL)
-    {
-        return CRUST_MALLOC_FAILED;
-    }
-    Defer def_file_info_buf([&file_info_buf](void) { free(file_info_buf); });
-    memset(file_info_buf, 0, file_info_len);
-
     // ----- Construct file information json string ----- //
-    // Init file_info json
-    size_t buf_offset = 0;
-    for (auto info : file_info.ObjectRange())
+    crust_status_t crust_status = CRUST_SUCCESS;
+    std::vector<uint8_t> file_buffer;
+    file_buffer.push_back('{');
+    for (auto it = g_file_spec_status.begin(); it != g_file_spec_status.end(); )
     {
-        std::string s(info.first);
-        std::string title;
-        if (buf_offset == 0)
+        vector_end_insert(file_buffer, std::string("\"" + it->second + "\":["));
+        char s = it->first;
+        bool has_pre = false;
+        for (auto file : this->sealed_files)
         {
-            title.append("{");
-        }
-        else
-        {
-            title.append(",");
-        }
-        title.append("\"").append(s).append("\":[");
-        memcpy(file_info_buf + buf_offset, title.c_str(), title.size());
-        file_info[s][START_TMP] = buf_offset;
-        file_info[s][OFFSET_TMP].AddNum(title.size());
-        buf_offset += file_info[s][LENGTH_TMP].ToInt();
-    }
-    // Copy data to related buffer
-    for (size_t i = 0; i < this->sealed_files.size(); i++)
-    {
-        json::JSON file = this->sealed_files[i];
-        std::string s = g_file_spec_status[file[FILE_STATUS].get_char(CURRENT_STATUS)];
-        if (!file_info.hasKey(s))
-        {
-            continue;
-        }
-        std::string info;
-        info.append("{\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
-            .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"}");
-        if (file_info[s][HASPRE_TMP].ToBool())
-        {
-            info = "," + info;
-        }
-        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), info.c_str(), info.size());
-        file_info[s][OFFSET_TMP].AddNum(info.size());
-        file_info[s][HASPRE_TMP] = true;
-    }
+            if (s != file[FILE_STATUS].get_char(CURRENT_STATUS))
+                continue;
 
-    // Adjust json format
-    size_t file_info_len_r = 0;
-    for (auto info : file_info.ObjectRange())
-    {
-        std::string s(info.first);
-        memcpy(file_info_buf + file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(), "]", 1);
-        file_info[s][OFFSET_TMP].AddNum(1);
-        for (long i = file_info_len_r, j = file_info[s][START_TMP].ToInt(); 
-                j < file_info[s][START_TMP].ToInt() + file_info[s][OFFSET_TMP].ToInt(); i++, j++)
-        {
-            file_info_buf[i] = file_info_buf[j];
+            std::string info;
+            info.append("{\"").append(file[FILE_CID].ToString()).append("\":\"{ ")
+                .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
+                .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
+                .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"}");
+
+            if (has_pre)
+                file_buffer.push_back(',');
+
+            if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_buffer, info)))
+                return crust_status;
+
+            has_pre = true;
         }
-        file_info_len_r += file_info[s][OFFSET_TMP].ToInt();
+        file_buffer.push_back(']');
+        if (++it != g_file_spec_status.end())
+        {
+            file_buffer.push_back(',');
+        }
     }
-    memcpy(file_info_buf + file_info_len_r, "}", 1);
-    file_info_len_r += 1;
+    file_buffer.push_back('}');
 
     // Store file information to app
-    safe_ocall_store2(OS_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>(file_info_buf), file_info_len_r);
+    safe_ocall_store2(OS_FILE_INFO_ALL, file_buffer.data(), file_buffer.size());
 
     return CRUST_SUCCESS;
 }

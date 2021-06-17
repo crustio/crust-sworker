@@ -71,13 +71,13 @@ echo $sworkerpid > $sworkerpidfile
 sleep 10
 while true; do
     curl -s $baseurl/workload 2>$errfile 1>$TMPFILE
-    if [ $? -ne 0 ] ; then
+    if [ $? -eq 0 ] ; then
+        break
+    elif ! ps -ef | grep -v grep | grep $sworkerpid &>/dev/null; then
         verbose ERROR "failed" t
         verbose ERROR "start crust sworker failed! Please check $errfile for details."
         kill -9 $sworkerpid
         exit 1
-    elif [ x"$(cat $TMPFILE | jq '.srd' 2>/dev/null)" != x"" ]; then
-        break
     fi
     sleep 1
 done
