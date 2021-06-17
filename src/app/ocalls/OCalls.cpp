@@ -6,6 +6,7 @@ std::mutex g_ocall_buffer_pool_mutex;
 std::map<ocall_store_type_t, ocall_store2_f> g_ocall_store2_func_m = {
     {OS_FILE_INFO_ALL, ocall_store_file_info_all},
     {OS_STORE_WORKREPORT, ocall_store_workreport},
+    {OS_STORE_UPGRADE_DATA, ocall_store_upgrade_data},
 };
 
 // Used to store ocall file data
@@ -200,40 +201,20 @@ void ocall_store_enclave_id_info(const char *info)
  * @description: Store enclave workload
  * @param data (in) -> Workload information
  * @param data_size -> Workload size
- * @param cover -> Cover old data or not
  */
-void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true*/)
+void ocall_store_workload(const char *data, size_t data_size)
 {
-    if (cover)
-    {
-        EnclaveData::get_instance()->set_enclave_workload(std::string(data, data_size));
-    }
-    else
-    {
-        std::string str = EnclaveData::get_instance()->get_enclave_workload();
-        str.append(data, data_size);
-        EnclaveData::get_instance()->set_enclave_workload(str);
-    }
+    EnclaveData::get_instance()->set_enclave_workload(std::string(data, data_size));
 }
 
 /**
  * @description: Store upgrade data
  * @param data (in) -> Upgrade data
  * @param data_size -> Upgrade data size
- * @param cover -> Cover old upgrade data or not
  */
-void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
+void ocall_store_upgrade_data(const uint8_t *data, size_t data_size)
 {
-    if (cover)
-    {
-        EnclaveData::get_instance()->set_upgrade_data(std::string(data, data_size));
-    }
-    else
-    {
-        std::string str = EnclaveData::get_instance()->get_upgrade_data();
-        str.append(data, data_size);
-        EnclaveData::get_instance()->set_upgrade_data(str);
-    }
+    EnclaveData::get_instance()->set_upgrade_data(std::string(reinterpret_cast<const char *>(data), data_size));
 }
 
 /**

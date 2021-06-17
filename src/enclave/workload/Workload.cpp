@@ -71,7 +71,7 @@ std::string Workload::get_workload(void)
     remove_char(wl_str, '\n');
     remove_char(wl_str, '\\');
     remove_char(wl_str, ' ');
-    ocall_store_workload(wl_str.c_str(), wl_str.size(), true);
+    ocall_store_workload(wl_str.c_str(), wl_str.size());
 
     return wl_str;
 }

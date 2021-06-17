@@ -83,6 +83,8 @@ void EnclaveData::set_enclave_workload(std::string workload)
  */
 std::string EnclaveData::get_upgrade_data()
 {
+    SafeLock sl(this->upgrade_data_mutex);
+    sl.lock();
     return upgrade_data;
 }
 
@@ -92,7 +94,9 @@ std::string EnclaveData::get_upgrade_data()
  */
 void EnclaveData::set_upgrade_data(std::string data)
 {
-    upgrade_data = data;
+    this->upgrade_data_mutex.lock();
+    this->upgrade_data = data;
+    this->upgrade_data_mutex.unlock();
 }
 
 /**

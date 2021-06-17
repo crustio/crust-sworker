@@ -70,6 +70,7 @@ private:
     std::mutex enclave_workload_mutex;
     // Upgrade data
     std::string upgrade_data;
+    std::mutex upgrade_data_mutex;
     // Upgrade status
     upgrade_status_t upgrade_status;
     std::mutex upgrade_status_mutex;

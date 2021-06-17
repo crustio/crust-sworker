@@ -99,7 +99,6 @@ void *enc_realloc(void *p, size_t size);
 void *enc_crealloc(void *p, size_t old_size, size_t new_size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
-void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex);
 char *base64_decode(const char *msg, size_t *sz);
 std::string base58_encode(const uint8_t *input, size_t len);
 std::string hash_to_cid(const uint8_t *hash);
