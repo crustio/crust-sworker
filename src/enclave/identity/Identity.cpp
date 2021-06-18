@@ -704,9 +704,8 @@ crust_status_t id_store_metadata()
         }
     }
     meta_buffer.push_back(']');
-    meta_buffer.push_back(',');
     // Append id key pair
-    vector_end_insert(meta_buffer, "\"" ID_KEY_PAIR "\":\"" + hex_id_key_str);
+    vector_end_insert(meta_buffer, ",\"" ID_KEY_PAIR "\":\"" + hex_id_key_str);
     // Append report height
     vector_end_insert(meta_buffer, "\",\"" ID_REPORT_HEIGHT "\":" + std::to_string(wl->get_report_height()));
     // Append chain account id

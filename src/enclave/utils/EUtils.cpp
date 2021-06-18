@@ -906,3 +906,50 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
 
     return crust_status;
 }
+
+/**
+ * @description: Get data from outside using enclave buffer
+ * @param f -> Getting data ocall function
+ * @param u -> Pointer to allocated buffer
+ * @param s -> Pointer to allocated buffer size
+ * @return: Get result
+ */
+crust_status_t safe_ocall_get2(ocall_get2_f f, uint8_t *u, size_t *s)
+{
+    if (u == NULL || *s == 0)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    size_t os = *s;
+    crust_status_t c_ret = CRUST_SUCCESS;
+    sgx_status_t s_ret = f(&c_ret, u, os, s);
+    if (SGX_SUCCESS != s_ret)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    if (CRUST_SUCCESS != c_ret)
+    {
+        if (CRUST_GET_DATA_NO_ENOUGH_BUFFER == c_ret)
+        {
+            free (u);
+            if (os == *s)
+            {
+                *s = *s * 2;
+            }
+            u = (uint8_t *)enc_malloc(*s);
+            if (u == NULL)
+            {
+                return CRUST_MALLOC_FAILED;
+            }
+            s_ret = f(&c_ret, u, *s, s);
+            if (SGX_SUCCESS != s_ret)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+        }
+    }
+
+    return c_ret;
+}

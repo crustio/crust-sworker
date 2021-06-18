@@ -225,7 +225,7 @@ crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size)
  * @param data_size -> Pointer to file block data size
  * @return: Get result
  */
-crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
+crust_status_t ocall_chain_get_block_info(uint8_t *data, size_t data_size, size_t *real_size)
 {
     crust::BlockHeader block_header;
     if (!crust::Chain::get_instance()->get_block_header(block_header))
@@ -241,6 +241,12 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
     remove_char(bh_str, '\n');
     remove_char(bh_str, '\\');
     remove_char(bh_str, ' ');
+
+    *real_size = bh_str.size();
+    if (*real_size > data_size)
+    {
+        return CRUST_GET_DATA_NO_ENOUGH_BUFFER;
+    }
 
     memcpy(data, bh_str.c_str(), bh_str.size());
 

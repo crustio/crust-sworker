@@ -51,8 +51,7 @@ crust_status_t storage_seal_file_start(const char *root)
     wl->set_file_spec(FILE_STATUS_PENDING, 1);
 
     // Store file information
-    std::string file_info("{}");
-    ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_PENDING);
+    ocall_store_file_info(root, "{}", FILE_TYPE_PENDING);
 
     return CRUST_SUCCESS;
 }
@@ -313,17 +312,17 @@ crust_status_t storage_seal_file_end(const char *root)
     size_t info_buf_sz = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
                        + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
                        + HASH_LENGTH * 2;
-    char *block_info_buf = (char *)enc_malloc(info_buf_sz);
+    uint8_t *block_info_buf = (uint8_t *)enc_malloc(info_buf_sz);
     if (block_info_buf == NULL)
     {
         return crust_status = CRUST_MALLOC_FAILED;
     }
     Defer def_blk_info([&block_info_buf](void) { free(block_info_buf); });
     memset(block_info_buf, 0, info_buf_sz);
-    ocall_chain_get_block_info(&crust_status, block_info_buf, info_buf_sz);
+    crust_status = safe_ocall_get2(ocall_chain_get_block_info, block_info_buf, &info_buf_sz);
     if (CRUST_SUCCESS == crust_status)
     {
-        json::JSON binfo_json = json::JSON::Load(std::string(block_info_buf));
+        json::JSON binfo_json = json::JSON::Load(block_info_buf, info_buf_sz);
         chain_block_num = binfo_json[CHAIN_BLOCK_NUMBER].ToInt();
     }
     else

@@ -48,7 +48,7 @@ crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_h
 /**
  * @description: Get signed validation report
  * @param block_hash (in) -> block hash
- * @param block_height (in) -> block height
+ * @param block_height -> block height
  * @param is_upgrading -> Check if this turn is uprade
  * @return: sign status
  */
@@ -291,8 +291,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
 
     // Store workreport
     std::vector<uint8_t> wr_buffer;
-    wr_buffer.push_back('{');
-    vector_end_insert(wr_buffer, "\"" WORKREPORT_PUB_KEY "\":\"" + hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key)));
+    vector_end_insert(wr_buffer, "{\"" WORKREPORT_PUB_KEY "\":\"" + hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key)));
     vector_end_insert(wr_buffer, "\",\"" WORKREPORT_PRE_PUB_KEY "\":\"" + pre_pub_key);
     vector_end_insert(wr_buffer, "\",\"" WORKREPORT_BLOCK_HEIGHT "\":\"" + block_height_str);
     vector_end_insert(wr_buffer, "\",\"" WORKREPORT_BLOCK_HASH "\":\"" + std::string(block_hash, HASH_LENGTH * 2));
@@ -304,9 +303,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     vector_end_insert(wr_buffer, added_files.data(), added_files.size());
     vector_end_insert(wr_buffer, ",\"" WORKREPORT_FILES_DELETED "\":");
     vector_end_insert(wr_buffer, deleted_files.data(), deleted_files.size());
-    vector_end_insert(wr_buffer, ",\"" WORKREPORT_SIG "\":\"" + hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)).append("\""));
-    wr_buffer.push_back('}');
-    safe_ocall_store2(OCALL_STORE_WORKREPORT, wr_buffer.data(), wr_buffer.size());
+    vector_end_insert(wr_buffer, ",\"" WORKREPORT_SIG "\":\"" + hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)).append("\"}"));
+    crust_status = safe_ocall_store2(OCALL_STORE_WORKREPORT, wr_buffer.data(), wr_buffer.size());
 
     return crust_status;
 }

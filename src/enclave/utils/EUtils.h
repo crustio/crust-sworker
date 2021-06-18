@@ -103,6 +103,7 @@ char *base64_decode(const char *msg, size_t *sz);
 std::string base58_encode(const uint8_t *input, size_t len);
 std::string hash_to_cid(const uint8_t *hash);
 crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t s);
+crust_status_t safe_ocall_get2(ocall_get2_f f, uint8_t *u, size_t *s);
 
 #if defined(__cplusplus)
 }

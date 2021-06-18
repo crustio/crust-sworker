@@ -566,7 +566,6 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
-    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_files_size_by_type(FILE_TYPE_PENDING));
     for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
     {
         space_num = std::max(space_num, (int)it->first.size());

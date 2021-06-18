@@ -2,10 +2,12 @@
 #define _ENCLAVE_RESOURCE_H_
 
 #include "CrustStatus.h"
+#include "sgx_error.h"
 
 // For ocall store
 typedef crust_status_t (*ocall_store2_f)(const uint8_t *u, size_t s);
 typedef crust_status_t (*ecall_store2_f)(const uint8_t *u, size_t s);
+typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t s, size_t *rs);
 
 // For all
 #define SWORKER_VERSION "0.10.0"
