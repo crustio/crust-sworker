@@ -1007,31 +1007,25 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         return crust_status;
     }
     // Srd
-    do
+    std::string srd_title(",\"" UPGRADE_SRD "\":");
+    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_title)))
     {
-        std::string srd_title(",\"" UPGRADE_SRD "\":");
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_title)))
-        {
-            return crust_status;
-        }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_data.data(), srd_data.size())))
-        {
-            return crust_status;
-        }
-    } while (0);
+        return crust_status;
+    }
+    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_data.data(), srd_data.size())))
+    {
+        return crust_status;
+    }
     // Files
-    do
+    std::string files_title(",\"" UPGRADE_FILE "\":");
+    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, files_title)))
     {
-        std::string files_title(",\"" UPGRADE_FILE "\":");
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, files_title)))
-        {
-            return crust_status;
-        }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, file_data.data(), file_data.size())))
-        {
-            return crust_status;
-        }
-    } while (0);
+        return crust_status;
+    }
+    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, file_data.data(), file_data.size())))
+    {
+        return crust_status;
+    }
     // Srd root
     std::string srd_root_data = ",\"" UPGRADE_SRD_ROOT "\":\"" + hexstring_safe(p_srd_root, HASH_LENGTH) + "\"";
     if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_root_data)))
