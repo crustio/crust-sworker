@@ -166,13 +166,49 @@ json::JSON Workload::gen_workload_info()
 /**
  * @description: Serialize workload for sealing
  * @param status -> Pointer to result status
+ * @return: Serialized workload
+ */
+std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status)
+{
+    sgx_thread_mutex_lock(&this->srd_mutex);
+    std::vector<uint8_t *> srd_hashs;
+    srd_hashs.insert(srd_hashs.end(), this->srd_hashs.begin(), this->srd_hashs.end());
+    sgx_thread_mutex_unlock(&this->srd_mutex);
+
+    // Get srd buffer
+    crust_status_t crust_status = CRUST_SUCCESS;
+    std::vector<uint8_t> srd_buffer;
+    srd_buffer.push_back('[');
+    for (size_t i = 0; i < srd_hashs.size(); i++)
+    {
+        std::string tmp = "\"" + hexstring_safe(srd_hashs[i], SRD_LENGTH) + "\"";
+        if (i != srd_hashs.size() - 1)
+        {
+            tmp.append(",");
+        }
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(srd_buffer, tmp)))
+        {
+            *status = crust_status;
+            return srd_buffer;
+        }
+    }
+    srd_buffer.push_back(']');
+
+    return srd_buffer;
+}
+
+/**
+ * @description: Serialize workload for sealing
+ * @param status -> Pointer to result status
  * @param p_root -> Srd root hash
  * @return: Serialized workload
  */
-std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status, uint8_t **p_root)
+std::vector<uint8_t> Workload::get_upgrade_srd_info(crust_status_t *status, uint8_t **p_root)
 {
     SafeLock sl(this->srd_mutex);
     sl.lock();
+
+    crust_status_t crust_status = CRUST_SUCCESS;
     std::vector<uint8_t> srd_buffer;
 
     // Get srd root hash
@@ -217,7 +253,6 @@ std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status, uint8_t **p
     log_debug("Generate srd root hash successfully!\n");
 
     // Get srd buffer
-    crust_status_t crust_status = CRUST_SUCCESS;
     srd_buffer.push_back('[');
     for (size_t i = 0; i < this->srd_hashs.size(); i++)
     {
@@ -240,10 +275,54 @@ std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status, uint8_t **p
 /**
  * @description: Serialize file for sealing
  * @param status -> Pointer to result status
+ * @return: Serialized result
+ */
+std::vector<uint8_t> Workload::serialize_file(crust_status_t *status)
+{
+    sgx_thread_mutex_lock(&this->file_mutex);
+    std::vector<json::JSON> sealed_files;
+    sealed_files.insert(sealed_files.end(), this->sealed_files.begin(), this->sealed_files.end());
+    sgx_thread_mutex_unlock(&this->file_mutex);
+
+    // Get file buffer
+    crust_status_t crust_status = CRUST_SUCCESS;
+    std::vector<uint8_t> file_buffer;
+    file_buffer.push_back('[');
+    for (size_t i = 0; i < sealed_files.size(); i++)
+    {
+        if (FILE_STATUS_PENDING == sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            json::JSON file;
+            file[FILE_CID] = sealed_files[i][FILE_CID].ToString();
+            file[FILE_STATUS] = sealed_files[i][FILE_STATUS].ToString();
+            sealed_files[i] = file;
+        }
+        std::string file_str = sealed_files[i].dump();
+        remove_char(file_str, '\n');
+        remove_char(file_str, '\\');
+        remove_char(file_str, ' ');
+        if (i != sealed_files.size() - 1)
+        {
+            file_str.append(",");
+        }
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_buffer, file_str)))
+        {
+            *status = crust_status;
+            return file_buffer;
+        }
+    }
+    file_buffer.push_back(']');
+
+    return file_buffer;
+}
+
+/**
+ * @description: Serialize file for sealing
+ * @param status -> Pointer to result status
  * @param p_root -> File root hash
  * @return: Serialized result
  */
-std::vector<uint8_t> Workload::serialize_file(crust_status_t *status, uint8_t **p_root)
+std::vector<uint8_t> Workload::get_upgrade_file_info(crust_status_t *status, uint8_t **p_root)
 {
     SafeLock sl(this->file_mutex);
     sl.lock();
@@ -570,26 +649,6 @@ enc_upgrade_status_t Workload::get_upgrade_status()
     status = this->upgrade_status;
     sgx_thread_mutex_unlock(&g_upgrade_status_mutex);
     return status;
-}
-
-/**
- * @description: This function is for upgrading
- */
-void Workload::clean_pending_file()
-{
-    SafeLock sl(this->file_mutex);
-    sl.lock();
-    for (auto it = this->sealed_files.begin(); it != this->sealed_files.end(); )
-    {
-        if (FILE_STATUS_PENDING == (*it)[FILE_STATUS].get_char(CURRENT_STATUS))
-        {
-            it = this->sealed_files.erase(it);
-        }
-        else
-        {
-            it++;
-        }
-    }
 }
 
 /**

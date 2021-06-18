@@ -669,19 +669,6 @@ crust_status_t id_store_metadata()
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string hex_id_key_str = hexstring_safe(&wl->get_key_pair(), sizeof(ecc_key_pair));
 
-    // ----- Calculate metadata volumn ----- //
-    // Get srd data copy
-    sgx_thread_mutex_lock(&wl->srd_mutex);
-    std::vector<uint8_t *> srd_hashs;
-    srd_hashs.insert(srd_hashs.end(), wl->srd_hashs.begin(), wl->srd_hashs.end());
-    sgx_thread_mutex_unlock(&wl->srd_mutex);
-
-    // Get file data copy
-    sgx_thread_mutex_lock(&wl->file_mutex);
-    std::vector<json::JSON> sealed_files;
-    sealed_files.insert(sealed_files.end(), wl->sealed_files.begin(), wl->sealed_files.end());
-    sgx_thread_mutex_unlock(&wl->file_mutex);
-    
     // ----- Store metadata ----- //
     std::vector<uint8_t> meta_buffer;
     // Append private data tag
@@ -689,21 +676,20 @@ crust_status_t id_store_metadata()
     meta_buffer.push_back('{');
 
     // Append srd
-    std::string wl_title("\"" ID_SRD "\":[");
+    std::string wl_title("\"" ID_SRD "\":");
     vector_end_insert(meta_buffer, wl_title);
-    for (size_t i = 0; i < wl->srd_hashs.size(); i++)
+    do
     {
-        std::string srd_hex = "\"" + hexstring_safe(wl->srd_hashs[i], SRD_LENGTH) + "\"";
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, srd_hex)))
+        std::vector<uint8_t> srd_buffer = wl->serialize_srd(&crust_status);
+        if (CRUST_SUCCESS != crust_status)
         {
-            return CRUST_MALLOC_FAILED;
+            return crust_status;
         }
-        if (i != wl->srd_hashs.size() - 1)
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, srd_buffer.data(), srd_buffer.size())))
         {
-            meta_buffer.push_back(',');
+            return crust_status;
         }
-    }
-    meta_buffer.push_back(']');
+    } while (0);
     // Append id key pair
     vector_end_insert(meta_buffer, ",\"" ID_KEY_PAIR "\":\"" + hex_id_key_str);
     // Append report height
@@ -716,30 +702,19 @@ crust_status_t id_store_metadata()
         vector_end_insert(meta_buffer, "\",\"" ID_PRE_PUB_KEY "\":\"" + hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key)));
     }
     // Append files
-    vector_end_insert(meta_buffer, std::string("\",\"" ID_FILE "\":["));
-    for (size_t i = 0; i < sealed_files.size(); i++)
+    vector_end_insert(meta_buffer, std::string("\",\"" ID_FILE "\":"));
+    do
     {
-        if (FILE_STATUS_PENDING == sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
-        {
-            json::JSON file;
-            file[FILE_CID] = sealed_files[i][FILE_CID].ToString();
-            file[FILE_STATUS] = sealed_files[i][FILE_STATUS].ToString();
-            sealed_files[i] = file;
-        }
-        std::string file_str = sealed_files[i].dump();
-        remove_char(file_str, '\n');
-        remove_char(file_str, '\\');
-        remove_char(file_str, ' ');
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, file_str)))
+        std::vector<uint8_t> file_buffer = wl->serialize_file(&crust_status);
+        if (CRUST_SUCCESS != crust_status)
         {
             return crust_status;
         }
-        if (i != sealed_files.size() - 1)
+        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, file_buffer.data(), file_buffer.size())))
         {
-            meta_buffer.push_back(',');
+            return crust_status;
         }
-    }
-    meta_buffer.push_back(']');
+    } while (0);
     meta_buffer.push_back('}');
 
     crust_status = persist_set(ID_METADATA, meta_buffer.data(), meta_buffer.size());
@@ -919,8 +894,6 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     log_debug("Upgrade: generate and send work report successfully!\n");
 
     // ----- Generate upgrade data ----- //
-    // Clean pending status file
-    wl->clean_pending_file();
     // Sign upgrade data
     std::string report_height_str = std::to_string(report_height);
     sgx_ecc_state_handle_t ecc_state = NULL;
@@ -936,14 +909,14 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
         }
     });
     uint8_t *p_srd_root = NULL;
-    std::vector<uint8_t> srd_data = wl->serialize_srd(&crust_status, &p_srd_root);
+    std::vector<uint8_t> srd_data = wl->get_upgrade_srd_info(&crust_status, &p_srd_root);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
     }
     log_debug("Serialize srd data successfully!\n");
     uint8_t *p_file_root = NULL;
-    std::vector<uint8_t> file_data = wl->serialize_file(&crust_status, &p_file_root);
+    std::vector<uint8_t> file_data = wl->get_upgrade_file_info(&crust_status, &p_file_root);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
