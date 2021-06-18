@@ -42,10 +42,12 @@ sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid);
 sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
 sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid);
 sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
-sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
+sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const uint8_t *data, size_t data_size);
 
 sgx_status_t Ecall_validate_file(sgx_enclave_id_t eid);
 sgx_status_t Ecall_validate_srd(sgx_enclave_id_t eid);
+
+sgx_status_t Ecall_safe_store2(sgx_enclave_id_t eid, crust_status_t *status, ecall_store_type_t f, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
 
 #if defined(__cplusplus)
 }

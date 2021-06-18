@@ -2,6 +2,12 @@
 
 using namespace std;
 
+std::map<uint32_t, uint8_t *> g_ecall_buffer_pool;
+sgx_thread_mutex_t g_ecall_buffer_pool_mutex = SGX_THREAD_MUTEX_INITIALIZER;
+std::map<ecall_store_type_t, ecall_store2_f> g_ecall_store2_func_m = {
+    {ECALL_RESTORE_FROM_UPGRADE, ecall_restore_from_upgrade},
+};
+
 /**
  * @description: Ecall main loop
  */
@@ -54,7 +60,7 @@ void ecall_main_loop()
 
 /**
  * @description: Seal one G srd files under directory, can be called from multiple threads
- * @param uuid -> Disk path uuid
+ * @param uuid (in) -> Disk path uuid
  * @return: Srd increase result
  */
 crust_status_t ecall_srd_increase(const char *uuid)
@@ -102,7 +108,7 @@ crust_status_t ecall_change_srd_task(long change, long *real_change)
 
 /**
  * @description: Update srd_metadata
- * @param data -> Pointer to deleted srd info
+ * @param data (in) -> Pointer to deleted srd info
  * @param data_size -> Data size
  */
 void ecall_srd_remove_space(const char *data, size_t data_size)
@@ -211,7 +217,7 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 
 /**
  * @description: IPFS informs sWorker to prepare for seal
- * @param root -> File root cid
+ * @param root (in) -> File root cid
  * @return: Inform result
  */
 crust_status_t ecall_seal_file_start(const char *root)
@@ -248,7 +254,7 @@ crust_status_t ecall_seal_file(const char *root,
 
 /**
  * @description: IPFS informs sWorker seal end
- * @param root -> File root cid
+ * @param root (in) -> File root cid
  * @return: Inform result
  */
 crust_status_t ecall_seal_file_end(const char *root)
@@ -259,7 +265,7 @@ crust_status_t ecall_seal_file_end(const char *root)
 /**
  * @description: Unseal file according to given path
  * @param path (in) -> Pointer to file block stored path
- * @param p_decrypted_data -> Pointer to decrypted data buffer
+ * @param p_decrypted_data (in) -> Pointer to decrypted data buffer
  * @param decrypted_data_size -> Decrypted data buffer size
  * @param p_decrypted_data_size -> Pointer to decrypted data real size
  * @return: Unseal status
@@ -344,20 +350,18 @@ crust_status_t ecall_gen_upgrade_data(size_t block_height)
 
 /**
  * @description: Restore from upgrade data
- * @param meta (in) -> Metadata from old version
- * @param meta_len -> Metadata length
- * @param total_size -> Total size of metadata data
- * @param transfer_end -> Indicate whether transfer is end
+ * @param data (in) -> Metadata from old version
+ * @param data_size -> Metadata length
  * @return: Restore result
  */
-crust_status_t ecall_restore_from_upgrade(const char *meta, size_t meta_len, size_t total_size, bool transfer_end)
+crust_status_t ecall_restore_from_upgrade(const uint8_t *data, size_t data_size)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    return id_restore_from_upgrade(meta, meta_len, total_size, transfer_end);
+    return id_restore_from_upgrade(data, data_size);
 }
 
 /************************************Tools****************************************/
@@ -381,4 +385,68 @@ void ecall_get_workload()
     }
 
     Workload::get_instance()->get_workload();
+}
+
+/**
+ * @description: Ecall save big data
+ * @param t -> Store function type
+ * @param data (in) -> Pointer to data
+ * @param total_size -> Total data size
+ * @param partial_size -> Current store data size
+ * @param offset -> Offset in total data
+ * @param buffer_key -> Session key for this time enclave data store
+ * @return: Store result
+ */
+crust_status_t ecall_safe_store2(ecall_store_type_t t,
+                                 const uint8_t *data,
+                                 size_t total_size,
+                                 size_t partial_size,
+                                 size_t offset,
+                                 uint32_t buffer_key)
+{
+    SafeLock sl(g_ecall_buffer_pool_mutex);
+    sl.lock();
+    crust_status_t crust_status = CRUST_SUCCESS;
+    bool is_end = true;
+    if (offset < total_size)
+    {
+        uint8_t *buffer = NULL;
+        if (g_ecall_buffer_pool.find(buffer_key) != g_ecall_buffer_pool.end())
+        {
+            buffer = g_ecall_buffer_pool[buffer_key];
+        }
+        if (buffer == NULL)
+        {
+            buffer = (uint8_t *)malloc(total_size);
+            if (buffer == NULL)
+            {
+                crust_status = CRUST_MALLOC_FAILED;
+                goto cleanup;
+            }
+            memset(buffer, 0, total_size);
+            g_ecall_buffer_pool[buffer_key] = buffer;
+        }
+        memcpy(buffer + offset, data, partial_size);
+        if (offset + partial_size < total_size)
+        {
+            is_end = false;
+        }
+    }
+
+    if (!is_end)
+    {
+        return CRUST_SUCCESS;
+    }
+
+    (g_ecall_store2_func_m[t])(g_ecall_buffer_pool[buffer_key], total_size);
+
+cleanup:
+
+    if (g_ecall_buffer_pool.find(buffer_key) != g_ecall_buffer_pool.end())
+    {
+        free(g_ecall_buffer_pool[buffer_key]);
+        g_ecall_buffer_pool.erase(buffer_key);
+    }
+
+    return crust_status;
 }

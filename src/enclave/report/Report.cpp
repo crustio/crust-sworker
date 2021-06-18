@@ -306,7 +306,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     vector_end_insert(wr_buffer, deleted_files.data(), deleted_files.size());
     vector_end_insert(wr_buffer, ",\"" WORKREPORT_SIG "\":\"" + hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)).append("\""));
     wr_buffer.push_back('}');
-    safe_ocall_store2(OS_STORE_WORKREPORT, wr_buffer.data(), wr_buffer.size());
+    safe_ocall_store2(OCALL_STORE_WORKREPORT, wr_buffer.data(), wr_buffer.size());
 
     return crust_status;
 }

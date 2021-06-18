@@ -59,6 +59,6 @@ void id_get_info();
 crust_status_t id_store_metadata();
 crust_status_t id_restore_metadata();
 crust_status_t id_gen_upgrade_data(size_t block_height);
-crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end);
+crust_status_t id_restore_from_upgrade(const uint8_t *data, size_t data_size);
 
 #endif

@@ -45,7 +45,7 @@ extern "C"
     // For file
     crust_status_t ocall_chain_get_block_info(char *data, size_t data_size);
     void ocall_store_file_info(const char* cid, const char *data, const char *type);
-    void ocall_store_file_info_all(const uint8_t *data, size_t data_size);
+    crust_status_t ocall_store_file_info_all(const uint8_t *data, size_t data_size);
     
     void ocall_usleep(int u);
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
@@ -55,9 +55,9 @@ extern "C"
 
     // For enclave data to app
     void ocall_store_enclave_id_info(const char *info);
-    void ocall_store_workreport(const uint8_t *data, size_t data_size);
     void ocall_store_workload(const char *data, size_t data_size);
-    void ocall_store_upgrade_data(const uint8_t *data, size_t data_size);
+    crust_status_t ocall_store_workreport(const uint8_t *data, size_t data_size);
+    crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size);
 
     // For upgrade
     crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size);

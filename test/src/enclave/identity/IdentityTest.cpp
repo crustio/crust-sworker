@@ -183,7 +183,7 @@ crust_status_t id_gen_upgrade_data_test(size_t block_height)
     }
 
     // Store upgrade data
-    store_large_data(upgrade_buffer.data(), upgrade_buffer.size(), ocall_store_upgrade_data, wl->ocall_upgrade_mutex);
+    safe_ocall_store2(OS_STORE_UPGRADE_DATA, upgrade_buffer.data(), upgrade_buffer.size());
     log_debug("Store upgrade data successfully!\n");
 
     wl->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);

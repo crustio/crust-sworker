@@ -34,10 +34,10 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
 
 /**
  * @description: Save IPFS file block
- * @param path -> Pointer to block path
- * @param data -> Pointer to block data
+ * @param path (in) -> Pointer to block path
+ * @param data (in) -> Pointer to block data
  * @param data_size -> Block data size
- * @param uuid -> Buffer used to store uuid
+ * @param uuid (in) -> Buffer used to store uuid
  * @param uuid_len -> UUID length
  * @return: Save result
  */
@@ -135,7 +135,7 @@ crust_status_t ocall_ipfs_add(uint8_t *p_data, size_t len, char *cid, size_t /*c
 
 /**
  * @description: Delete ipfs block file by cid
- * @param cid -> File root cid
+ * @param cid (in) -> File root cid
  * @return: Delete result
  */
 crust_status_t ocall_delete_ipfs_file(const char *cid)

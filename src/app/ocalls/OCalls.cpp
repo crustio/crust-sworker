@@ -4,9 +4,9 @@ crust::Log *p_log = crust::Log::get_instance();
 std::map<uint32_t, uint8_t *> g_ocall_buffer_pool;
 std::mutex g_ocall_buffer_pool_mutex;
 std::map<ocall_store_type_t, ocall_store2_f> g_ocall_store2_func_m = {
-    {OS_FILE_INFO_ALL, ocall_store_file_info_all},
-    {OS_STORE_WORKREPORT, ocall_store_workreport},
-    {OS_STORE_UPGRADE_DATA, ocall_store_upgrade_data},
+    {OCALL_FILE_INFO_ALL, ocall_store_file_info_all},
+    {OCALL_STORE_WORKREPORT, ocall_store_workreport},
+    {OCALL_STORE_UPGRADE_DATA, ocall_store_upgrade_data},
 };
 
 // Used to store ocall file data
@@ -211,10 +211,12 @@ void ocall_store_workload(const char *data, size_t data_size)
  * @description: Store upgrade data
  * @param data (in) -> Upgrade data
  * @param data_size -> Upgrade data size
+ * @return: Store status 
  */
-void ocall_store_upgrade_data(const uint8_t *data, size_t data_size)
+crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size)
 {
     EnclaveData::get_instance()->set_upgrade_data(std::string(reinterpret_cast<const char *>(data), data_size));
+    return CRUST_SUCCESS;
 }
 
 /**
@@ -258,28 +260,32 @@ void ocall_store_file_info(const char* cid, const char *data, const char *type)
 
 /**
  * @description: Restore sealed file information
- * @param data -> All file information
+ * @param data (in) -> All file information
  * @param data_size -> All file information size
+ * @return: Store status
  */
-void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
+crust_status_t ocall_store_file_info_all(const uint8_t *data, size_t data_size)
 {
     EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+    return CRUST_SUCCESS;
 }
 
 /**
  * @description: Store workreport
- * @param data -> Pointer to workreport data
+ * @param data (in) -> Pointer to workreport data
  * @param data_size -> Workreport data size
+ * @return: Store status
  */
-void ocall_store_workreport(const uint8_t *data, size_t data_size)
+crust_status_t ocall_store_workreport(const uint8_t *data, size_t data_size)
 {
     EnclaveData::get_instance()->set_workreport(data, data_size);
+    return CRUST_SUCCESS;
 }
 
 /**
  * @description: Ocall save big data
  * @param t -> Store function type
- * @param data -> Pointer to data
+ * @param data (in) -> Pointer to data
  * @param total_size -> Total data size
  * @param partial_size -> Current store data size
  * @param offset -> Offset in total data
@@ -353,9 +359,9 @@ void ocall_recall_validate_srd()
 
 /**
  * @description: Change sealed file info from old type to new type
- * @param cid -> File root cid
- * @param old_type -> Old file type
- * @param new_type -> New file type
+ * @param cid (in) -> File root cid
+ * @param old_type (in) -> Old file type
+ * @param new_type (in) -> New file type
  */
 void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type)
 {
@@ -364,8 +370,8 @@ void ocall_change_sealed_file_type(const char *cid, const char *old_type, const 
 
 /**
  * @description: Delete cid by type
- * @param cid -> File root cid
- * @param type -> File type
+ * @param cid (in) -> File root cid
+ * @param type (in) -> File type
  */
 void ocall_delete_sealed_file_info(const char *cid, const char *type)
 {

@@ -376,7 +376,7 @@ void Workload::clean_file()
     this->wl_file_spec = json::JSON();
 
     // Clean file info
-    safe_ocall_store2(OS_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>("{}"), 2);
+    safe_ocall_store2(OCALL_FILE_INFO_ALL, reinterpret_cast<const uint8_t *>("{}"), 2);
 }
 
 /**
@@ -1165,7 +1165,7 @@ crust_status_t Workload::restore_file_info()
     file_buffer.push_back('}');
 
     // Store file information to app
-    safe_ocall_store2(OS_FILE_INFO_ALL, file_buffer.data(), file_buffer.size());
+    safe_ocall_store2(OCALL_FILE_INFO_ALL, file_buffer.data(), file_buffer.size());
 
     return CRUST_SUCCESS;
 }

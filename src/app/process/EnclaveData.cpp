@@ -390,6 +390,7 @@ std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::str
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
  * @param type -> Reference to file status type
+ * @param lock -> Lock or not
  * @return: Duplicated or not
  */
 bool EnclaveData::find_file_type(std::string cid, std::string &type, bool lock)

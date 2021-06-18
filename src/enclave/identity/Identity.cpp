@@ -6,9 +6,6 @@ using namespace std;
 sgx_thread_mutex_t g_metadata_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 // Upgrade generate metadata 
 sgx_thread_mutex_t g_gen_work_report = SGX_THREAD_MUTEX_INITIALIZER;
-// Upgrade buffer
-uint8_t *g_upgrade_buffer = NULL;
-size_t g_upgrade_buffer_offset = 0;
 
 // Intel SGX root certificate
 static const char INTELSGXATTROOTCA[] = "-----BEGIN CERTIFICATE-----" "\n"
@@ -1055,7 +1052,7 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     }
 
     // Store upgrade data
-    safe_ocall_store2(OS_STORE_UPGRADE_DATA, upgrade_buffer.data(), upgrade_buffer.size());
+    safe_ocall_store2(OCALL_STORE_UPGRADE_DATA, upgrade_buffer.data(), upgrade_buffer.size());
     log_debug("Store upgrade data successfully!\n");
 
     wl->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
@@ -1067,31 +1064,11 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
  * @description: Restore workload from upgrade data
  * @param data -> Upgrade data per transfer
  * @param data_size -> Upgrade data size per transfer
- * @param total_size -> Upgrade data total size
- * @param transfer_end -> Indicate whether upgrade data transfer is end
  * @return: Restore status
  */
-crust_status_t id_restore_from_upgrade(const char *data, size_t data_size, size_t total_size, bool transfer_end)
+crust_status_t id_restore_from_upgrade(const uint8_t *data, size_t data_size)
 {
-    if (g_upgrade_buffer_offset == 0)
-    {
-        g_upgrade_buffer = (uint8_t *)enc_malloc(total_size);
-        if (g_upgrade_buffer == NULL)
-        {
-            return CRUST_MALLOC_FAILED;
-        }
-        memset(g_upgrade_buffer, 0, total_size);
-    }
-    memcpy(g_upgrade_buffer + g_upgrade_buffer_offset, data, data_size);
-    g_upgrade_buffer_offset += data_size;
-    if (!transfer_end)
-    {
-        return CRUST_UPGRADE_NEED_LEFT_DATA;
-    }
-    json::JSON upgrade_json = json::JSON::Load(reinterpret_cast<const uint8_t *>(g_upgrade_buffer), g_upgrade_buffer_offset);
-    free(g_upgrade_buffer);
-    g_upgrade_buffer = NULL;
-    g_upgrade_buffer_offset = 0;
+    json::JSON upgrade_json = json::JSON::Load(data, data_size);
 
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;

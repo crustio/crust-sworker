@@ -40,12 +40,14 @@ enclave {
         public void ecall_validate_srd();
 
         public crust_status_t ecall_gen_upgrade_data(size_t block_height);
-        public crust_status_t ecall_restore_from_upgrade([in, size=meta_len] const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
+        public crust_status_t ecall_restore_from_upgrade([in, size=data_size] const uint8_t *data, size_t data_size);
         public crust_status_t ecall_enable_upgrade(size_t block_height);
         public void ecall_disable_upgrade();
 
         public void ecall_id_get_info();
         public void ecall_get_workload();
+
+        public crust_status_t ecall_safe_store2(ecall_store_type_t t, [in, size=partial_size] const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
     };
 
     untrusted {
@@ -90,9 +92,9 @@ enclave {
 
         void ocall_store_enclave_id_info([in, string] const char *info);
         void ocall_store_workload([in, size=data_size] const char *data, size_t data_size);
-        void ocall_store_upgrade_data([in, size=data_size] const uint8_t *data, size_t data_size);
+        crust_status_t ocall_store_upgrade_data([in, size=data_size] const uint8_t *data, size_t data_size);
+        crust_status_t ocall_store_file_info_all([in, size=data_size] const uint8_t *data, size_t data_size);
         void ocall_store_file_info([in, string] const char* cid, [in, string] const char *data, [in, string] const char *type);
-        void ocall_store_file_info_all([in, size=data_size] const uint8_t *data, size_t data_size);
         void ocall_set_srd_info([in, size=data_size] const uint8_t *data, size_t data_size);
 
         void ocall_recall_validate_file();

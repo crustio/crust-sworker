@@ -885,7 +885,7 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
     sgx_read_rand(reinterpret_cast<uint8_t *>(&buffer_key), sizeof(buffer_key));
     while (s > offset)
     {
-        size_t partial_size = std::min(s - offset, (size_t)OCALL_STORE_THRESHOLD);
+        size_t partial_size = std::min(s - offset, (size_t)BOUNDARY_SIZE_THRESHOLD);
         ret = ocall_safe_store2(&crust_status,
                                 t,
                                 u + offset,
