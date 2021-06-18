@@ -242,7 +242,7 @@ crust_status_t srd_change(long change)
                         }
                         if (CRUST_SUCCESS == inc_crust_ret)
                         {
-                            inc_crust_ret = CRUST_UNEXPECTED_ERROR;
+                            inc_crust_ret = CRUST_SGX_FAILED;
                         }
                     }
                     decrease_running_srd_task();

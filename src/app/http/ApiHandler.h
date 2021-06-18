@@ -838,7 +838,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     ret_info = "Invalid cid!";
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 400;
-                    crust_status = CRUST_INVALID_HTTP_INPUT;
+                    crust_status = CRUST_HTTP_INVALID_INPUT;
                 }
                 else
                 {
@@ -920,7 +920,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             {
                 ret_info = "Invalid cid!";
                 p_log->err("%s\n", ret_info.c_str());
-                crust_status = CRUST_INVALID_HTTP_INPUT;
+                crust_status = CRUST_HTTP_INVALID_INPUT;
                 ret_code = 400;
             }
             else
@@ -996,7 +996,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     ret_info = "Invalid cid!";
                     p_log->err("%s\n", ret_info.c_str());
                     ret_code = 400;
-                    crust_status = CRUST_INVALID_HTTP_INPUT;
+                    crust_status = CRUST_HTTP_INVALID_INPUT;
                 }
                 else
                 {

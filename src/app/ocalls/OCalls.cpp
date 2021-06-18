@@ -245,7 +245,7 @@ crust_status_t ocall_chain_get_block_info(uint8_t *data, size_t data_size, size_
     *real_size = bh_str.size();
     if (*real_size > data_size)
     {
-        return CRUST_GET_DATA_NO_ENOUGH_BUFFER;
+        return CRUST_OCALL_NO_ENOUGH_BUFFER;
     }
 
     memcpy(data, bh_str.c_str(), bh_str.size());

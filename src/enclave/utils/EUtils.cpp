@@ -895,7 +895,7 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
                                 buffer_key);
         if (SGX_SUCCESS != ret)
         {
-            return CRUST_UNEXPECTED_ERROR;
+            return CRUST_SGX_FAILED;
         }
         if (CRUST_SUCCESS != crust_status)
         {
@@ -926,12 +926,12 @@ crust_status_t safe_ocall_get2(ocall_get2_f f, uint8_t *u, size_t *s)
     sgx_status_t s_ret = f(&c_ret, u, os, s);
     if (SGX_SUCCESS != s_ret)
     {
-        return CRUST_UNEXPECTED_ERROR;
+        return CRUST_SGX_FAILED;
     }
 
     if (CRUST_SUCCESS != c_ret)
     {
-        if (CRUST_GET_DATA_NO_ENOUGH_BUFFER == c_ret)
+        if (CRUST_OCALL_NO_ENOUGH_BUFFER == c_ret)
         {
             free (u);
             if (os == *s)
@@ -946,7 +946,7 @@ crust_status_t safe_ocall_get2(ocall_get2_f f, uint8_t *u, size_t *s)
             s_ret = f(&c_ret, u, *s, s);
             if (SGX_SUCCESS != s_ret)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                return CRUST_SGX_FAILED;
             }
         }
     }
