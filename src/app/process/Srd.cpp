@@ -359,6 +359,9 @@ void srd_check_reserved(void)
             }
         }
 
+        // Refresh data paths
+        p_config->refresh_data_paths();
+
         // Wait
         for (size_t i = 0; i < check_interval; i++)
         {

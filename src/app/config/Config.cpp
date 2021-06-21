@@ -59,7 +59,7 @@ bool Config::init(std::string path)
         return false;
     }
 
-    // Set file path
+    // Set data path
     json::JSON data_paths = config_value["data_path"];
     if (data_paths.JSONType() != json::JSON::Class::Array
             || data_paths.size() < 0)
@@ -70,7 +70,7 @@ bool Config::init(std::string path)
     for (int i = 0; i < data_paths.size(); i++)
     {
         std::string d_path = data_paths[i].ToString();
-        this->data_paths.push_back(d_path);
+        this->org_data_paths.push_back(d_path);
         if (CRUST_SUCCESS != (crust_status = create_directory(d_path)))
         {
             p_log->err("Create path:'%s' failed! Error code:%lx\n", d_path.c_str(), crust_status);
@@ -156,10 +156,11 @@ void Config::show(void)
     printf("    'base path' : '%s',\n", this->base_path.c_str());
     printf("    'db path' : '%s',\n", this->db_path.c_str());
     printf("    'data path' : [\n");
-    for (auto it = this->data_paths.begin(); it != this->data_paths.end(); )
+    std::vector<std::string> d_paths = this->get_data_paths();
+    for (auto it = d_paths.begin(); it != d_paths.end(); )
     {
         printf("        \"%s\"", (*it).c_str());
-        ++it == data_paths.end() ? printf("\n") : printf(",\n");
+        ++it == d_paths.end() ? printf("\n") : printf(",\n");
     }
     printf("    ],\n");
     printf("    'base url' : '%s',\n", this->base_url.c_str());
@@ -208,42 +209,7 @@ bool Config::unique_paths()
         this->sys_fsid = hexstring_safe(&sys_st.f_fsid, sizeof(sys_st.f_fsid));
     }
 
-    std::set<std::string> sids_s;
-    std::set<std::string> data_paths(this->data_paths.begin(), this->data_paths.end());
-    this->data_paths.clear();
-    std::string sys_disk_path;
-    for (auto path : data_paths)
-    {
-        struct statfs st;
-        if (statfs(path.c_str(), &st) != -1)
-        {
-            std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
-            // Compare to check if current disk is system disk
-            if (this->sys_fsid.compare(fsid) != 0)
-            {
-                // Remove duplicated disk
-                if (sids_s.find(fsid) == sids_s.end())
-                {
-                    this->data_paths.push_back(path);
-                    sids_s.insert(fsid);
-                }
-            }
-            else
-            {
-                if (sys_disk_path.size() == 0)
-                {
-                    sys_disk_path = path;
-                }
-            }
-        }
-    }
-
-    // If no valid data path and system disk is configured, choose sys disk
-    if (this->data_paths.size() == 0 && sys_disk_path.size() != 0)
-    {
-        this->data_paths.push_back(sys_disk_path);
-    }
-    this->sort_data_paths();
+    this->refresh_data_paths();
 
     return 0 != this->data_paths.size();
 }
@@ -262,6 +228,91 @@ void Config::sort_data_paths()
         return s1.compare(s2) < 0;
     });
     this->data_paths_mutex.unlock();
+}
+
+/**
+ * @description: Check if given path is in the system disk
+ * @param path -> Const reference to given path
+ * @return: System disk or not
+ */
+bool Config::is_valid_or_normal_disk(const std::string &path)
+{
+    struct statfs st;
+    if (statfs(path.c_str(), &st) == -1)
+    {
+        return false;
+    }
+
+    data_paths_mutex.lock();
+    size_t data_paths_size = this->data_paths.size();
+    data_paths_mutex.unlock();
+
+    std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+
+    return this->sys_fsid.compare(fsid) != 0 || data_paths_size == 1;
+}
+
+/**
+ * @description: Refresh data paths
+ */
+void Config::refresh_data_paths()
+{
+    this->org_data_paths_mutex.lock();
+    std::set<std::string> org_data_paths(this->org_data_paths.begin(), this->org_data_paths.end());
+    this->org_data_paths_mutex.unlock();
+
+    std::vector<std::string> data_paths;
+    std::set<std::string> sids_s;
+    std::string sys_disk_path;
+    for (auto path : org_data_paths)
+    {
+        struct statfs st;
+        if (statfs(path.c_str(), &st) != -1)
+        {
+            std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
+            // Compare to check if current disk is system disk
+            if (this->sys_fsid.compare(fsid) != 0)
+            {
+                // Remove duplicated disk
+                if (sids_s.find(fsid) == sids_s.end())
+                {
+                    data_paths.push_back(path);
+                    sids_s.insert(fsid);
+                }
+            }
+            else
+            {
+                if (sys_disk_path.size() == 0)
+                {
+                    sys_disk_path = path;
+                }
+            }
+        }
+    }
+
+    // If no valid data path and system disk is configured, choose sys disk
+    if (data_paths.size() == 0 && sys_disk_path.size() != 0)
+    {
+        data_paths.push_back(sys_disk_path);
+    }
+    this->data_paths_mutex.lock();
+    this->data_paths = data_paths;
+    this->data_paths_mutex.unlock();
+
+
+    // Sort data paths
+    this->sort_data_paths();
+}
+
+/**
+ * @description: Get data paths
+ * @return: Data paths
+ */
+std::vector<std::string> Config::get_data_paths()
+{
+    SafeLock sl(this->data_paths_mutex);
+    sl.lock();
+    return this->data_paths;
 }
 
 /**
@@ -315,39 +366,6 @@ bool Config::is_valid_data_path(const std::string &path, bool lock)
 }
 
 /**
- * @description: Check if given path is in the system disk
- * @param path -> Const reference to given path
- * @return: System disk or not
- */
-bool Config::is_valid_or_normal_disk(const std::string &path)
-{
-    struct statfs st;
-    if (statfs(path.c_str(), &st) == -1)
-    {
-        return false;
-    }
-
-    data_paths_mutex.lock();
-    size_t data_paths_size = this->data_paths.size();
-    data_paths_mutex.unlock();
-
-    std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
-
-    return this->sys_fsid.compare(fsid) != 0 || data_paths_size == 1;
-}
-
-/**
- * @description: Get data paths
- * @return: Data paths
- */
-std::vector<std::string> Config::get_data_paths()
-{
-    SafeLock sl(this->data_paths_mutex);
-    sl.lock();
-    return this->data_paths;
-}
-
-/**
  * @description: Add data paths to config file
  * @param paths -> Const reference to paths
  * @return: Add success or not
@@ -381,6 +399,7 @@ bool Config::config_file_add_data_paths(const json::JSON &paths)
             SafeLock sl(this->data_paths_mutex);
             sl.lock();
             std::set<std::string> paths_s(this->data_paths.begin(), this->data_paths.end());
+            std::vector<std::string> valid_paths;
             bool is_valid = false;
             for (auto path : paths.ArrayRange())
             {
@@ -390,13 +409,18 @@ bool Config::config_file_add_data_paths(const json::JSON &paths)
                     config_json["data_path"].append(path);
                     if (paths_s.find(pstr) == paths_s.end())
                     {
-                        this->data_paths.push_back(pstr);
+                        valid_paths.push_back(pstr);
                         paths_s.insert(pstr);
                         is_valid = true;
                     }
                 }
             }
+            this->data_paths.insert(this->data_paths.end(), valid_paths.begin(), valid_paths.end());
             sl.unlock();
+            // Insert valid paths to org data paths
+            this->org_data_paths_mutex.lock();
+            this->org_data_paths.insert(this->org_data_paths.end(), valid_paths.begin(), valid_paths.end());
+            this->org_data_paths_mutex.unlock();
             if (! is_valid)
             {
                 return false;
