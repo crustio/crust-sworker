@@ -1158,7 +1158,7 @@ crust_status_t id_restore_from_upgrade(const uint8_t *data, size_t data_size)
     // ----- Send current version's work report ----- //
     wl->report_add_validated_srd_proof();
     wl->report_add_validated_file_proof();
-    if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()), 0, true)))
+    if (CRUST_SUCCESS != (crust_status = gen_and_upload_work_report(report_hash_str.c_str(), std::atoi(report_height_str.c_str()), 0, true, true)))
     {
         return crust_status;
     }

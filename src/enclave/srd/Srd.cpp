@@ -266,7 +266,7 @@ size_t srd_decrease(size_t change)
     // ----- Choose to be deleted hash ----- //
     SafeLock sl(wl->srd_mutex);
     sl.lock();
-    wl->deal_deleted_srd(false);
+    wl->deal_deleted_srd_nolock();
     // Get real change
     change = std::min(change, wl->srd_hashs.size());
     if (change <= 0)

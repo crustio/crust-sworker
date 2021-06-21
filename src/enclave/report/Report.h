@@ -17,7 +17,7 @@
 #include "Identity.h"
 #include "EUtils.h"
 
-crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked =true);
+crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked);
 crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool is_upgrading);
 
 #endif /* !_CRUST_REPORT_H_ */

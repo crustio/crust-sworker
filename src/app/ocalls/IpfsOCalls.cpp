@@ -190,7 +190,7 @@ crust_status_t ocall_ipfs_del_all(const char *cid)
     crust::DataBase::get_instance()->del(cid);
 
     // Delete statistics information
-    EnclaveData::get_instance()->del_sealed_file_info(cid);
+    EnclaveData::get_instance()->del_file_info(cid);
 
     return CRUST_SUCCESS;
 }

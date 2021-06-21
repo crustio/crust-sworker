@@ -274,7 +274,7 @@ crust_status_t storage_seal_file_end(const char *root)
             {
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
                 // Delete file info
-                ocall_delete_sealed_file_info(root, FILE_TYPE_PENDING);
+                ocall_delete_file_info(root, FILE_TYPE_PENDING);
                 // Delete info in workload spec
                 wl->set_file_spec(FILE_STATUS_PENDING, -1);
             }
@@ -367,7 +367,7 @@ crust_status_t storage_seal_file_end(const char *root)
     }
     else
     {
-        wl->add_sealed_file_nolock(file_entry_json, pos);
+        wl->add_file_info_nolock(file_entry_json, pos);
     }
     // Delete info in workload spec
     wl->set_file_spec(FILE_STATUS_PENDING, -1);
@@ -524,7 +524,7 @@ crust_status_t check_seal_file_dup(std::string cid)
         file_entry_json[FILE_CID] = cid;
         // Set file status to 'FILE_STATUS_PENDING,FILE_STATUS_UNVERIFIED,FILE_STATUS_UNVERIFIED'
         file_entry_json[FILE_STATUS].AppendChar(FILE_STATUS_PENDING).AppendChar(FILE_STATUS_UNVERIFIED).AppendChar(FILE_STATUS_UNVERIFIED);
-        wl->add_sealed_file_nolock(file_entry_json, pos);
+        wl->add_file_info_nolock(file_entry_json, pos);
     }
 
     return crust_status;

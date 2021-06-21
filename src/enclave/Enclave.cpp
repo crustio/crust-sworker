@@ -165,7 +165,7 @@ crust_status_t ecall_gen_and_upload_work_report(const char *block_hash, size_t b
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = gen_and_upload_work_report(block_hash, block_height, 0, false);
+    crust_status_t ret = gen_and_upload_work_report(block_hash, block_height, 0, false, true);
 
     return ret;
 }

@@ -331,7 +331,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 }
                 else
                 {
-                    std::string file_info = EnclaveData::get_instance()->get_sealed_file_info(cid);
+                    std::string file_info = EnclaveData::get_instance()->get_file_info(cid);
                     if (file_info.compare("") == 0)
                     {
                         ret_info = "File not found.";
@@ -375,11 +375,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 {
                     if (type.compare("all") == 0)
                     {
-                        res.body() = EnclaveData::get_instance()->get_sealed_file_info_all();
+                        res.body() = EnclaveData::get_instance()->get_file_info_all();
                     }
                     else
                     {
-                        res.body() = EnclaveData::get_instance()->get_sealed_file_info_by_type(type, "", false);
+                        res.body() = EnclaveData::get_instance()->get_file_info_by_type(type);
                     }
                 }
             }
@@ -783,7 +783,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     }
                     else if (CRUST_SUCCESS == crust_status)
                     {
-                        EnclaveData::get_instance()->del_sealed_file_info(cid);
+                        EnclaveData::get_instance()->del_file_info(cid);
                         ret_info = "Deleting file '" + cid + "' successfully";
                         ret_code = 200;
                     }

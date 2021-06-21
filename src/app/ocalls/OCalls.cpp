@@ -261,7 +261,7 @@ crust_status_t ocall_chain_get_block_info(uint8_t *data, size_t data_size, size_
  */
 void ocall_store_file_info(const char* cid, const char *data, const char *type)
 {
-    EnclaveData::get_instance()->add_sealed_file_info(cid, type, data);
+    EnclaveData::get_instance()->add_file_info(cid, type, data);
 }
 
 /**
@@ -272,7 +272,7 @@ void ocall_store_file_info(const char* cid, const char *data, const char *type)
  */
 crust_status_t ocall_store_file_info_all(const uint8_t *data, size_t data_size)
 {
-    EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+    EnclaveData::get_instance()->restore_file_info(data, data_size);
     return CRUST_SUCCESS;
 }
 
@@ -369,9 +369,9 @@ void ocall_recall_validate_srd()
  * @param old_type (in) -> Old file type
  * @param new_type (in) -> New file type
  */
-void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type)
+void ocall_change_file_type(const char *cid, const char *old_type, const char *new_type)
 {
-    EnclaveData::get_instance()->change_sealed_file_type(cid, old_type, new_type);
+    EnclaveData::get_instance()->change_file_type(cid, old_type, new_type);
 }
 
 /**
@@ -379,7 +379,7 @@ void ocall_change_sealed_file_type(const char *cid, const char *old_type, const 
  * @param cid (in) -> File root cid
  * @param type (in) -> File type
  */
-void ocall_delete_sealed_file_info(const char *cid, const char *type)
+void ocall_delete_file_info(const char *cid, const char *type)
 {
-    EnclaveData::get_instance()->del_sealed_file_info(cid, type);
+    EnclaveData::get_instance()->del_file_info(cid, type);
 }

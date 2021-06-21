@@ -318,16 +318,11 @@ std::vector<std::string> Config::get_data_paths()
 /**
  * @description: Check if given data path is valid
  * @param path -> Reference to given data path
- * @param lock -> Get data paths lock or not
  * @return: Valid or not
  */
-bool Config::is_valid_data_path(const std::string &path, bool lock)
+bool Config::is_valid_data_path(const std::string &path)
 {
     std::map<std::string, std::string> sid_2_path;
-    if (lock)
-    {
-        this->data_paths_mutex.lock();
-    }
     for (auto p : this->data_paths)
     {
         struct statfs st;
@@ -336,10 +331,6 @@ bool Config::is_valid_data_path(const std::string &path, bool lock)
             std::string fsid = hexstring_safe(&st.f_fsid, sizeof(st.f_fsid));
             sid_2_path[fsid] = p;
         }
-    }
-    if (lock)
-    {
-        this->data_paths_mutex.unlock();
     }
 
     struct statfs st;
@@ -404,7 +395,7 @@ bool Config::config_file_add_data_paths(const json::JSON &paths)
             for (auto path : paths.ArrayRange())
             {
                 std::string pstr = path.ToString();
-                if (this->is_valid_data_path(pstr, false))
+                if (this->is_valid_data_path(pstr))
                 {
                     config_json["data_path"].append(path);
                     if (paths_s.find(pstr) == paths_s.end())

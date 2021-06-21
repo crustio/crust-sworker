@@ -29,16 +29,18 @@ public:
     void set_workreport(const uint8_t *data, size_t data_size);
     std::string get_workreport();
     // Sealed information
-    void add_sealed_file_info(const std::string &cid, std::string type, std::string info);
-    std::string get_sealed_file_info(std::string cid);
-    void change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type);
-    std::string get_sealed_file_info_all();
-    std::string get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked = true);
+    void add_file_info(const std::string &cid, std::string type, std::string info);
+    std::string get_file_info(std::string cid);
+    void change_file_type(const std::string &cid, std::string old_type, std::string new_type);
+    std::string get_file_info_all();
+    std::string get_file_info_by_type(std::string type);
+    std::string _get_file_info_by_type(std::string type, std::string pad, bool raw);
     size_t get_files_size_by_type(const char *type);
-    void del_sealed_file_info(std::string cid);
-    void del_sealed_file_info(std::string cid, std::string type);
-    bool find_file_type(std::string cid, std::string &type, bool lock = true);
-    void restore_sealed_file_info(const uint8_t *data, size_t data_size);
+    void del_file_info(std::string cid);
+    void del_file_info(std::string cid, std::string type);
+    bool find_file_type(std::string cid, std::string &type);
+    bool find_file_type_nolock(std::string cid, std::string &type);
+    void restore_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
     json::JSON get_srd_info();
     // Get workload
@@ -61,7 +63,7 @@ private:
         , upgrade_data("")
         , upgrade_status(UPGRADE_STATUS_NONE) {}
 
-    std::string get_sealed_file_info_item(json::JSON &info, bool raw);
+    std::string get_file_info_item(json::JSON &info, bool raw);
 
     // Store enclave identity information
     std::string enclave_id_info;

@@ -11,7 +11,7 @@ extern sgx_thread_mutex_t g_gen_work_report;
  * @param locked -> Lock this upload or not
  * @return: sign status
  */
-crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked /*=true*/)
+crust_status_t gen_and_upload_work_report(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked)
 {
     SafeLock gen_sl(g_gen_work_report);
     if (locked)

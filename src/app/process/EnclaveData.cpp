@@ -206,7 +206,7 @@ upgrade_status_t EnclaveData::get_upgrade_status()
  * @param type -> File type
  * @param info -> Related file info
  */
-void EnclaveData::add_sealed_file_info(const std::string &cid, std::string type, std::string info)
+void EnclaveData::add_file_info(const std::string &cid, std::string type, std::string info)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -232,7 +232,7 @@ void EnclaveData::add_sealed_file_info(const std::string &cid, std::string type,
  * @param raw -> Return raw data or a json
  * @return: File data
  */
-std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
+std::string EnclaveData::get_file_info_item(json::JSON &info, bool raw)
 {
     std::string cid = info.ObjectRange().begin()->first;
     std::string ans;
@@ -286,17 +286,17 @@ size_t EnclaveData::get_files_size_by_type(const char *type)
  * @param cid -> IPFS content id
  * @return: Sealed file information
  */
-std::string EnclaveData::get_sealed_file_info(std::string cid)
+std::string EnclaveData::get_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
     std::string type;
-    if (!find_file_type(cid, type, false))
+    if (!find_file_type_nolock(cid, type))
     {
         return "";
     }
 
-    json::JSON file = json::JSON::Load(get_sealed_file_info_item(this->sealed_file[type][cid], false));
+    json::JSON file = json::JSON::Load(get_file_info_item(this->sealed_file[type][cid], false));
     file[cid]["type"] = type;
     std::string file_str = file.dump();
     remove_char(file_str, '\\');
@@ -310,7 +310,7 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
  * @param old_type -> Old file type
  * @param new_type -> New file type
  */
-void EnclaveData::change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type)
+void EnclaveData::change_file_type(const std::string &cid, std::string old_type, std::string new_type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -323,7 +323,7 @@ void EnclaveData::change_sealed_file_type(const std::string &cid, std::string ol
  * @description: Get all sealed file information
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_all()
+std::string EnclaveData::get_file_info_all()
 {
     this->sealed_file_mutex.lock();
     std::map<std::string, std::map<std::string, json::JSON>> tmp_sealed_file = this->sealed_file;
@@ -334,7 +334,7 @@ std::string EnclaveData::get_sealed_file_info_all()
     std::string tag;
     for (auto it = tmp_sealed_file.begin(); it != tmp_sealed_file.end(); it++)
     {
-        std::string info = get_sealed_file_info_by_type(it->first, pad + "  ", true, false);
+        std::string info = _get_file_info_by_type(it->first, pad + "  ", true);
         if (info.size() != 0)
         {
             ans += tag + "\n" + pad + "\"" + it->first + "\" : {\n" + info + "\n" + pad + "}";
@@ -351,24 +351,27 @@ std::string EnclaveData::get_sealed_file_info_all()
 }
 
 /**
+ * @description: Get file info by type
+ * @param type -> File type
+ * @return: Result
+ */
+std::string EnclaveData::get_file_info_by_type(std::string type)
+{
+    return _get_file_info_by_type(type, "", false);
+}
+
+/**
  * @description: Get sealed file information by type
  * @param type -> File type
  * @param pad -> Space pad
  * @param raw -> Is raw data or not
- * @param locked -> Lock sealed_file or not
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked)
+std::string EnclaveData::_get_file_info_by_type(std::string type, std::string pad, bool raw)
 {
-    if (locked)
-    {
-        this->sealed_file_mutex.lock();
-    }
+    this->sealed_file_mutex.lock();
     std::map<std::string, std::map<std::string, json::JSON>> tmp_sealed_file = this->sealed_file;
-    if (locked)
-    {
-        this->sealed_file_mutex.unlock();
-    }
+    this->sealed_file_mutex.unlock();
 
     std::string ans;
     std::string pad2;
@@ -387,7 +390,7 @@ std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::str
         {
             ans += "\n";
         }
-        ans += pad2 + get_sealed_file_info_item(it->second, true);
+        ans += pad2 + get_file_info_item(it->second, true);
         auto iit = it;
         iit++;
         if (iit != tmp_sealed_file[type].end())
@@ -411,14 +414,32 @@ std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::str
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
  * @param type -> Reference to file status type
- * @param lock -> Lock or not
  * @return: Duplicated or not
  */
-bool EnclaveData::find_file_type(std::string cid, std::string &type, bool lock)
+bool EnclaveData::find_file_type_nolock(std::string cid, std::string &type)
+{
+    for (auto item : this->sealed_file)
+    {
+        if (item.second.find(cid) != item.second.end())
+        {
+            type = item.first;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @description: Check if file is duplicated
+ * @param cid -> IPFS content id
+ * @param type -> Reference to file status type
+ * @return: Duplicated or not
+ */
+bool EnclaveData::find_file_type(std::string cid, std::string &type)
 {
     SafeLock sl(this->sealed_file_mutex);
-    if (lock)
-        sl.lock();
+    sl.lock();
 
     for (auto item : this->sealed_file)
     {
@@ -436,7 +457,7 @@ bool EnclaveData::find_file_type(std::string cid, std::string &type, bool lock)
  * @description: Delete sealed file information
  * @param cid -> IPFS content id
  */
-void EnclaveData::del_sealed_file_info(std::string cid)
+void EnclaveData::del_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -451,7 +472,7 @@ void EnclaveData::del_sealed_file_info(std::string cid)
  * @param cid -> IPFS content id
  * @param type -> File type
  */
-void EnclaveData::del_sealed_file_info(std::string cid, std::string type)
+void EnclaveData::del_file_info(std::string cid, std::string type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -463,7 +484,7 @@ void EnclaveData::del_sealed_file_info(std::string cid, std::string type)
  * @param data -> All file information
  * @param data_size -> All file information size
  */
-void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
+void EnclaveData::restore_file_info(const uint8_t *data, size_t data_size)
 {
     // Restore file information
     SafeLock sl(this->sealed_file_mutex);

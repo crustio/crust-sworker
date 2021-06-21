@@ -433,7 +433,7 @@ void validate_meaningful_file()
                     wl->set_file_spec(new_status, g_validate_files_m[cid][FILE_SIZE].ToInt());
                     wl->set_file_spec(old_status, -g_validate_files_m[cid][FILE_SIZE].ToInt());
                     // Sync with APP sealed file info
-                    ocall_change_sealed_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
+                    ocall_change_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
                 }
             }
             else

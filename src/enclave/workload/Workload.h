@@ -145,7 +145,9 @@ public:
         return del_num;
     }
     bool is_srd_in_deleted_buffer(uint32_t index);
-    void deal_deleted_srd(bool locked = true);
+    void deal_deleted_srd();
+    void deal_deleted_srd_nolock();
+    void _deal_deleted_srd(bool locked);
     // File related
     void clean_file();
     bool add_to_deleted_file_buffer(std::string cid);
@@ -154,10 +156,10 @@ public:
     void deal_deleted_file();
     bool is_file_dup_nolock(std::string cid);
     bool is_file_dup_nolock(std::string cid, size_t &pos);
-    void add_sealed_file_nolock(json::JSON file);
-    void add_sealed_file_nolock(json::JSON file, size_t pos);
-    void del_sealed_file_nolock(std::string cid);
-    void del_sealed_file_nolock(size_t pos);
+    void add_file_info_nolock(json::JSON file);
+    void add_file_info_nolock(json::JSON file, size_t pos);
+    void del_file_info_nolock(std::string cid);
+    void del_file_info_nolock(size_t pos);
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_file_spec()
