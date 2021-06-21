@@ -28,7 +28,9 @@ public:
     void set_upgrade_status(upgrade_status_t status);
     void set_workreport(const uint8_t *data, size_t data_size);
     std::string get_workreport();
-    // Sealed information
+    void set_srd_complete(long num);
+    json::JSON get_free_space();
+    // File information
     void add_file_info(const std::string &cid, std::string type, std::string info);
     std::string get_file_info(std::string cid);
     void change_file_type(const std::string &cid, std::string old_type, std::string new_type);
@@ -61,7 +63,8 @@ private:
         : enclave_id_info("")
         , enclave_workload("")
         , upgrade_data("")
-        , upgrade_status(UPGRADE_STATUS_NONE) {}
+        , upgrade_status(UPGRADE_STATUS_NONE) 
+        , srd_complete(0) {}
 
     std::string get_file_info_item(json::JSON &info, bool raw);
 
@@ -77,6 +80,9 @@ private:
     // Upgrade status
     upgrade_status_t upgrade_status;
     std::mutex upgrade_status_mutex;
+    // Srd complete
+    long srd_complete;
+    std::mutex srd_complete_mutex;
     // Sealed file map
     std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
     std::mutex sealed_file_mutex;

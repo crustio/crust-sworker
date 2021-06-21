@@ -686,3 +686,40 @@ bool EnclaveData::is_uuid_exist(std::string uuid)
     sl.lock();
     return this->uuid_to_disk_path.find(uuid) != this->uuid_to_disk_path.end();
 }
+
+/**
+ * @description: Set srd complete
+ * @param num -> Srd changed number
+ */
+void EnclaveData::set_srd_complete(long num)
+{
+    this->srd_complete_mutex.lock();
+    this->srd_complete += num;
+    this->srd_complete_mutex.unlock();
+}
+
+/**
+ * @description: Get free space
+ * @return: Free space information
+ */
+json::JSON EnclaveData::get_free_space()
+{
+    json::JSON ans;
+
+    // Srd complete
+    this->srd_complete_mutex.lock();
+    ans[WL_SRD_COMPLETE] = this->srd_complete;
+    this->srd_complete_mutex.unlock();
+
+    // System disk available
+    ans[WL_SYS_DISK_AVAILABLE] = get_avail_space_under_dir_g(Config::get_instance()->base_path);
+
+    // All disk available
+    json::JSON disk_json = get_disk_info();
+    for (auto info : disk_json.ArrayRange())
+    {
+        ans[WL_DISK_AVAILABLE].AddNum(info[WL_DISK_AVAILABLE].ToInt());
+    }
+
+    return ans;
+}

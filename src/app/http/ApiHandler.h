@@ -240,6 +240,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto getcleanup;
         }
 
+        // ----- Get free space ----- //
+        cur_path = urlendpoint.base + "/free_space";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            res.result(200);
+            res.body() = EnclaveData::get_instance()->get_free_space().dump();
+            goto getcleanup;
+        }
+
         // ----- Stop sworker ----- //
         cur_path = urlendpoint.base + "/stop";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
