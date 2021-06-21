@@ -81,6 +81,7 @@ private:
     };
     const std::set<std::string> http_mute_req_s = {
         "/workload",
+        "/free_space",
         "/enclave/id_info",
         "/storage/seal",
         "/storage/unseal",
