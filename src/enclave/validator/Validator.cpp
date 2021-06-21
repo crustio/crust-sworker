@@ -383,12 +383,13 @@ void validate_meaningful_file()
     sgx_thread_mutex_unlock(&g_changed_files_v_mutex);
     if (tmp_changed_files_v.size() > 0)
     {
-        sgx_thread_mutex_lock(&wl->file_mutex);
+        SafeLock sl(wl->file_mutex);
+        sl.lock();
         for (auto file : tmp_changed_files_v)
         {
             std::string cid = (*file)[FILE_CID].ToString();
             size_t index = 0;
-            if(wl->is_file_dup(cid, index))
+            if(wl->is_file_dup_nolock(cid, index))
             {
                 long cur_block_num = wl->sealed_files[index][CHAIN_BLOCK_NUMBER].ToInt();
                 long val_block_num = g_validate_files_m[cid][CHAIN_BLOCK_NUMBER].ToInt();
@@ -440,7 +441,6 @@ void validate_meaningful_file()
                 log_err("Deal with bad file(%s) failed!\n", cid.c_str());
             }
         }
-        sgx_thread_mutex_unlock(&wl->file_mutex);
     }
 }
 

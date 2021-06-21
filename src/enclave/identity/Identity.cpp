@@ -1068,7 +1068,11 @@ crust_status_t id_restore_from_upgrade(const uint8_t *data, size_t data_size)
     log_debug("Restore file data successfully!\n");
 
     // ----- Verify workload signature ----- //
-    json::JSON wl_info = wl->gen_workload_info();
+    json::JSON wl_info = wl->gen_workload_info(&crust_status);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return crust_status;
+    }
     std::string wl_sig = upgrade_json[UPGRADE_SIG].ToString();
     std::vector<uint8_t> sig_buffer;
     // A's public key

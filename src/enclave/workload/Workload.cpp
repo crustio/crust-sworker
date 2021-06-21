@@ -96,10 +96,13 @@ void Workload::clean_srd()
 
 /**
  * @description: Generate workload info
+ * @param status -> Pointer to result status
  * @return: Workload info in json format
  */
-json::JSON Workload::gen_workload_info()
+json::JSON Workload::gen_workload_info(crust_status_t *status)
 {
+    *status = CRUST_SUCCESS;
+
     // Generate srd information
     sgx_sha256_hash_t srd_root;
     json::JSON ans;
@@ -117,6 +120,7 @@ json::JSON Workload::gen_workload_info()
         if (srds_data == NULL)
         {
             log_err("Generate srd info failed due to malloc failed!\n");
+            *status = CRUST_MALLOC_FAILED;
             return ans;
         }
         Defer Def_srds_data([&srds_data](void) { free(srds_data); });
@@ -142,20 +146,21 @@ json::JSON Workload::gen_workload_info()
     }
     else
     {
-        size_t f_hashs_len = this->sealed_files.size() * HASH_LENGTH;
-        uint8_t *f_hashs = (uint8_t *)enc_malloc(f_hashs_len);
-        if (f_hashs == NULL)
-        {
-            log_err("Generate sealed files info failed due to malloc failed!\n");
-            return ans;
-        }
-        Defer def_f_hashs([&f_hashs](void) { free(f_hashs); });
-        memset(f_hashs, 0, f_hashs_len);
+        std::vector<uint8_t> file_buffer;
         for (size_t i = 0; i < this->sealed_files.size(); i++)
         {
-            memcpy(f_hashs + i * HASH_LENGTH, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
+            // Do not calculate pending status file
+            if (FILE_STATUS_PENDING == this->sealed_files[i][FILE_STATUS].get_char(CURRENT_STATUS))
+            {
+                continue;
+            }
+            *status = vector_end_insert(file_buffer, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH);
+            if (CRUST_SUCCESS != *status)
+            {
+                return ans;
+            }
         }
-        sgx_sha256_msg(f_hashs, (uint32_t)f_hashs_len, &file_root);
+        sgx_sha256_msg(file_buffer.data(), file_buffer.size(), &file_root);
         ans[WL_FILE_ROOT_HASH] = reinterpret_cast<uint8_t *>(&file_root);
     }
     sl_file.unlock();
@@ -176,7 +181,7 @@ std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status)
     sgx_thread_mutex_unlock(&this->srd_mutex);
 
     // Get srd buffer
-    crust_status_t crust_status = CRUST_SUCCESS;
+    *status = CRUST_SUCCESS;
     std::vector<uint8_t> srd_buffer;
     srd_buffer.push_back('[');
     for (size_t i = 0; i < srd_hashs.size(); i++)
@@ -186,9 +191,8 @@ std::vector<uint8_t> Workload::serialize_srd(crust_status_t *status)
         {
             tmp.append(",");
         }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(srd_buffer, tmp)))
+        if (CRUST_SUCCESS != (*status = vector_end_insert(srd_buffer, tmp)))
         {
-            *status = crust_status;
             return srd_buffer;
         }
     }
@@ -208,7 +212,7 @@ std::vector<uint8_t> Workload::get_upgrade_srd_info(crust_status_t *status, uint
     SafeLock sl(this->srd_mutex);
     sl.lock();
 
-    crust_status_t crust_status = CRUST_SUCCESS;
+    *status = CRUST_SUCCESS;
     std::vector<uint8_t> srd_buffer;
 
     // Get srd root hash
@@ -261,9 +265,8 @@ std::vector<uint8_t> Workload::get_upgrade_srd_info(crust_status_t *status, uint
         {
             tmp.append(",");
         }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(srd_buffer, tmp)))
+        if (CRUST_SUCCESS != (*status = vector_end_insert(srd_buffer, tmp)))
         {
-            *status = crust_status;
             return srd_buffer;
         }
     }
@@ -285,7 +288,7 @@ std::vector<uint8_t> Workload::serialize_file(crust_status_t *status)
     sgx_thread_mutex_unlock(&this->file_mutex);
 
     // Get file buffer
-    crust_status_t crust_status = CRUST_SUCCESS;
+    *status = CRUST_SUCCESS;
     std::vector<uint8_t> file_buffer;
     file_buffer.push_back('[');
     for (size_t i = 0; i < sealed_files.size(); i++)
@@ -305,9 +308,8 @@ std::vector<uint8_t> Workload::serialize_file(crust_status_t *status)
         {
             file_str.append(",");
         }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_buffer, file_str)))
+        if (CRUST_SUCCESS != (*status = vector_end_insert(file_buffer, file_str)))
         {
-            *status = crust_status;
             return file_buffer;
         }
     }
@@ -327,7 +329,7 @@ std::vector<uint8_t> Workload::get_upgrade_file_info(crust_status_t *status, uin
     SafeLock sl(this->file_mutex);
     sl.lock();
 
-    crust_status_t crust_status = CRUST_SUCCESS;
+    *status = CRUST_SUCCESS;
     std::vector<uint8_t> file_buffer;
     // Generate file information
     sgx_sha256_hash_t file_root;
@@ -358,9 +360,8 @@ std::vector<uint8_t> Workload::get_upgrade_file_info(crust_status_t *status, uin
             {
                 continue;
             }
-            if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_hashs, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH)))
+            if (CRUST_SUCCESS != (*status = vector_end_insert(file_hashs, this->sealed_files[i][FILE_HASH].ToBytes(), HASH_LENGTH)))
             {
-                *status = crust_status;
                 return file_buffer;
             }
         }
@@ -385,9 +386,8 @@ std::vector<uint8_t> Workload::get_upgrade_file_info(crust_status_t *status, uin
         {
             file_str.append(",");
         }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(file_buffer, file_str)))
+        if (CRUST_SUCCESS != (*status = vector_end_insert(file_buffer, file_str)))
         {
-            *status = crust_status;
             return file_buffer;
         }
     }
@@ -519,10 +519,9 @@ void Workload::set_report_file_flag(bool flag)
  */
 bool Workload::get_report_file_flag()
 {
-    sgx_thread_mutex_lock(&g_report_flag_mutex);
-    bool flag = this->report_files;
-    sgx_thread_mutex_unlock(&g_report_flag_mutex);
-    return flag;
+    SafeLock sl(g_report_flag_mutex);
+    sl.lock();
+    return this->report_files;
 }
 
 /**
@@ -644,11 +643,9 @@ void Workload::set_upgrade_status(enc_upgrade_status_t status)
  */
 enc_upgrade_status_t Workload::get_upgrade_status()
 {
-    enc_upgrade_status_t status = ENC_UPGRADE_STATUS_NONE;
-    sgx_thread_mutex_lock(&g_upgrade_status_mutex);
-    status = this->upgrade_status;
-    sgx_thread_mutex_unlock(&g_upgrade_status_mutex);
-    return status;
+    SafeLock sl(g_upgrade_status_mutex);
+    sl.lock();
+    return this->upgrade_status;
 }
 
 /**
@@ -662,7 +659,7 @@ void Workload::handle_report_result()
     for (auto cid : this->reported_files_idx)
     {
         size_t pos = 0;
-        if (this->is_file_dup(cid, pos))
+        if (this->is_file_dup_nolock(cid, pos))
         {
             auto status = &this->sealed_files[pos][FILE_STATUS];
             status->set_char(ORIGIN_STATUS, status->get_char(WAITING_STATUS));
@@ -829,7 +826,9 @@ const sgx_measurement_t &Workload::get_mr_enclave()
  */
 void Workload::set_report_height(size_t height)
 {
+    sgx_thread_mutex_lock(&this->report_height_mutex);
     this->report_height = height;
+    sgx_thread_mutex_unlock(&this->report_height_mutex);
 }
 
 /**
@@ -838,6 +837,8 @@ void Workload::set_report_height(size_t height)
  */
 size_t Workload::get_report_height()
 {
+    SafeLock sl(this->report_height_mutex);
+    sl.lock();
     return this->report_height;
 }
 
@@ -974,11 +975,9 @@ bool Workload::add_srd_to_deleted_buffer(uint32_t index)
  */
 bool Workload::is_srd_in_deleted_buffer(uint32_t index)
 {
-    sgx_thread_mutex_lock(&this->srd_del_idx_mutex);
-    bool ret = (this->srd_del_idx_s.find(index) != this->srd_del_idx_s.end());
-    sgx_thread_mutex_unlock(&this->srd_del_idx_mutex);
-
-    return ret;
+    SafeLock sl(this->srd_del_idx_mutex);
+    sl.lock();
+    return (this->srd_del_idx_s.find(index) != this->srd_del_idx_s.end());
 }
 
 /**
@@ -1030,11 +1029,9 @@ bool Workload::add_to_deleted_file_buffer(std::string cid)
  */
 bool Workload::is_in_deleted_file_buffer(std::string cid)
 {
-    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
-    bool ret = (this->file_del_cid_s.find(cid) != this->file_del_cid_s.end());
-    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
-
-    return ret;
+    SafeLock sl(this->file_del_idx_mutex);
+    sl.lock();
+    return (this->file_del_cid_s.find(cid) != this->file_del_cid_s.end());
 }
 
 /**
@@ -1065,7 +1062,7 @@ void Workload::deal_deleted_file()
     for (auto cid : tmp_del_cid_s)
     {
         size_t pos = 0;
-        if (this->is_file_dup(cid, pos))
+        if (this->is_file_dup_nolock(cid, pos))
         {
             std::string status = this->sealed_files[pos][FILE_STATUS].ToString();
             if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
@@ -1084,10 +1081,10 @@ void Workload::deal_deleted_file()
  * @param cid -> File's content id
  * @return: File duplicated or not
  */
-bool Workload::is_file_dup(std::string cid)
+bool Workload::is_file_dup_nolock(std::string cid)
 {
     size_t pos = 0;
-    return is_file_dup(cid, pos);
+    return is_file_dup_nolock(cid, pos);
 }
 
 /**
@@ -1096,7 +1093,7 @@ bool Workload::is_file_dup(std::string cid)
  * @param pos -> Duplicated file's position
  * @return: Duplicated or not
  */
-bool Workload::is_file_dup(std::string cid, size_t &pos)
+bool Workload::is_file_dup_nolock(std::string cid, size_t &pos)
 {
     long spos = 0;
     long epos = this->sealed_files.size();
@@ -1133,7 +1130,7 @@ bool Workload::is_file_dup(std::string cid, size_t &pos)
  * @param file -> File content
  * @param pos -> Inserted position
  */
-void Workload::add_sealed_file(json::JSON file, size_t pos)
+void Workload::add_sealed_file_nolock(json::JSON file, size_t pos)
 {
     if (pos <= this->sealed_files.size())
     {
@@ -1145,10 +1142,10 @@ void Workload::add_sealed_file(json::JSON file, size_t pos)
  * @description: Add sealed file, must hold file_mutex before invoked
  * @param file -> File content
  */
-void Workload::add_sealed_file(json::JSON file)
+void Workload::add_sealed_file_nolock(json::JSON file)
 {
     size_t pos = 0;
-    if (is_file_dup(file[FILE_CID].ToString(), pos))
+    if (is_file_dup_nolock(file[FILE_CID].ToString(), pos))
     {
         return;
     }
@@ -1160,10 +1157,10 @@ void Workload::add_sealed_file(json::JSON file)
  * @description: Delete sealed file, must hold file_mutex before invoked
  * @param cid -> File content id
  */
-void Workload::del_sealed_file(std::string cid)
+void Workload::del_sealed_file_nolock(std::string cid)
 {
     size_t pos = 0;
-    if (this->is_file_dup(cid, pos))
+    if (this->is_file_dup_nolock(cid, pos))
     {
         this->sealed_files.erase(this->sealed_files.begin() + pos);
     }
@@ -1173,7 +1170,7 @@ void Workload::del_sealed_file(std::string cid)
  * @description: Delete sealed file, must hold file_mutex before invoked
  * @param pos -> Deleted file position
  */
-void Workload::del_sealed_file(size_t pos)
+void Workload::del_sealed_file_nolock(size_t pos)
 {
     if (pos < this->sealed_files.size())
     {

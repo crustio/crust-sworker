@@ -30,7 +30,6 @@ public:
     std::string get_workreport();
     // Sealed information
     void add_sealed_file_info(const std::string &cid, std::string type, std::string info);
-    std::string get_sealed_file_info_item(json::JSON &info, bool raw);
     std::string get_sealed_file_info(std::string cid);
     void change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type);
     std::string get_sealed_file_info_all();
@@ -61,6 +60,8 @@ private:
         , enclave_workload("")
         , upgrade_data("")
         , upgrade_status(UPGRADE_STATUS_NONE) {}
+
+    std::string get_sealed_file_info_item(json::JSON &info, bool raw);
 
     // Store enclave identity information
     std::string enclave_id_info;

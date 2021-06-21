@@ -27,6 +27,17 @@ EnclaveData *EnclaveData::get_instance()
 }
 
 /**
+ * @description: Set enclave identity information
+ * @param id_info -> Identity information
+ */
+void EnclaveData::set_enclave_id_info(std::string id_info)
+{
+    this->enclave_id_info_mutex.lock();
+    enclave_id_info = id_info;
+    this->enclave_id_info_mutex.unlock();
+}
+
+/**
  * @description: Get enclave identity information
  * @return: Enclave information
  */
@@ -45,14 +56,26 @@ std::string EnclaveData::get_enclave_id_info()
 }
 
 /**
- * @description: Set enclave identity information
- * @param id_info -> Identity information
+ * @description: Store workreport
+ * @param data -> Pointer to workreport data
+ * @param data_size -> Workreport data size
  */
-void EnclaveData::set_enclave_id_info(std::string id_info)
+void EnclaveData::set_workreport(const uint8_t *data, size_t data_size)
 {
-    SafeLock sl(this->enclave_id_info_mutex);
+    workreport_mutex.lock();
+    this->workreport = std::string(reinterpret_cast<const char *>(data), data_size);
+    workreport_mutex.unlock();
+}
+
+/**
+ * @description: Get workreport
+ * @return: Workreport
+ */
+std::string EnclaveData::get_workreport()
+{
+    SafeLock sl(workreport_mutex);
     sl.lock();
-    enclave_id_info = id_info;
+    return this->workreport;
 }
 
 /**
@@ -72,9 +95,32 @@ std::string EnclaveData::get_enclave_workload()
  */
 void EnclaveData::set_enclave_workload(std::string workload)
 {
-    SafeLock sl(this->enclave_workload_mutex);
-    sl.lock();
+    this->enclave_workload_mutex.lock();
     enclave_workload = workload;
+    this->enclave_workload_mutex.unlock();
+}
+
+/**
+ * @description: Set srd information
+ * @param data -> Pointer to srd info data
+ * @param data_size -> Srd info data size
+ */
+void EnclaveData::set_srd_info(const uint8_t *data, size_t data_size)
+{
+    this->srd_info_mutex.lock();
+    this->srd_info = json::JSON::Load(data, data_size);
+    this->srd_info_mutex.unlock();
+}
+
+/**
+ * @description: Get srd information
+ * @return: Srd information
+ */
+json::JSON EnclaveData::get_srd_info()
+{
+    SafeLock sl(this->srd_info_mutex);
+    sl.lock();
+    return this->srd_info;
 }
 
 /**
@@ -97,19 +143,6 @@ void EnclaveData::set_upgrade_data(std::string data)
     this->upgrade_data_mutex.lock();
     this->upgrade_data = data;
     this->upgrade_data_mutex.unlock();
-}
-
-/**
- * @description: Get upgrade status
- * @return: Upgrade status
- */
-upgrade_status_t EnclaveData::get_upgrade_status()
-{
-    upgrade_status_mutex.lock();
-    upgrade_status_t status = upgrade_status;
-    upgrade_status_mutex.unlock();
-
-    return status;
 }
 
 /**
@@ -157,26 +190,14 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
 }
 
 /**
- * @description: Store workreport
- * @param data -> Pointer to workreport data
- * @param data_size -> Workreport data size
+ * @description: Get upgrade status
+ * @return: Upgrade status
  */
-void EnclaveData::set_workreport(const uint8_t *data, size_t data_size)
+upgrade_status_t EnclaveData::get_upgrade_status()
 {
-    workreport_mutex.lock();
-    this->workreport = std::string(reinterpret_cast<const char *>(data), data_size);
-    workreport_mutex.unlock();
-}
-
-/**
- * @description: Get workreport
- * @return: Workreport
- */
-std::string EnclaveData::get_workreport()
-{
-    SafeLock sl(workreport_mutex);
+    SafeLock sl(upgrade_status_mutex);
     sl.lock();
-    return this->workreport;
+    return upgrade_status;
 }
 
 /**
@@ -459,29 +480,6 @@ void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size
             this->sealed_file[it.first][f_it.ObjectRange().begin()->first] = f_it;
         }
     }
-}
-
-/**
- * @description: Set srd information
- * @param data -> Pointer to srd info data
- * @param data_size -> Srd info data size
- */
-void EnclaveData::set_srd_info(const uint8_t *data, size_t data_size)
-{
-    this->srd_info_mutex.lock();
-    this->srd_info = json::JSON::Load(data, data_size);
-    this->srd_info_mutex.unlock();
-}
-
-/**
- * @description: Get srd information
- * @return: Srd information
- */
-json::JSON EnclaveData::get_srd_info()
-{
-    SafeLock sl(this->srd_info_mutex);
-    sl.lock();
-    return this->srd_info;
 }
 
 /**

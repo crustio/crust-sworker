@@ -53,7 +53,7 @@ public:
     std::string get_workload(void);
     void set_srd_info(const char *uuid, long change);
     json::JSON get_srd_info();
-    json::JSON gen_workload_info();
+    json::JSON gen_workload_info(crust_status_t *status);
     crust_status_t restore_pre_pub_key(json::JSON &meta);
     void clean_all();
 
@@ -152,12 +152,12 @@ public:
     bool is_in_deleted_file_buffer(std::string cid);
     void recover_from_deleted_file_buffer(std::string cid);
     void deal_deleted_file();
-    bool is_file_dup(std::string cid);
-    bool is_file_dup(std::string cid, size_t &pos);
-    void add_sealed_file(json::JSON file);
-    void add_sealed_file(json::JSON file, size_t pos);
-    void del_sealed_file(std::string cid);
-    void del_sealed_file(size_t pos);
+    bool is_file_dup_nolock(std::string cid);
+    bool is_file_dup_nolock(std::string cid, size_t &pos);
+    void add_sealed_file_nolock(json::JSON file);
+    void add_sealed_file_nolock(json::JSON file, size_t pos);
+    void del_sealed_file_nolock(std::string cid);
+    void del_sealed_file_nolock(size_t pos);
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_file_spec()
@@ -183,6 +183,7 @@ private:
     bool is_set_key_pair = false; // Check if key pair has been generated
     sgx_measurement_t mr_enclave; // Enclave code measurement
     size_t report_height = 0; // Identity report height, Used to check current block head out-of-date
+    sgx_thread_mutex_t report_height_mutex = SGX_THREAD_MUTEX_INITIALIZER;
     int restart_flag = 0;// Used to indicate whether it is the first report after restart
 
     int validated_srd_proof = 0; // Generating workreport will decrease this value, while validating will increase it
