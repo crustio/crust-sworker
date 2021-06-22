@@ -37,8 +37,6 @@ sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, con
 
 sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid);
 
-sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid);
-
 sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
 sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid);
 sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);

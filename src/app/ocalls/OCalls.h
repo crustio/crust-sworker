@@ -55,7 +55,6 @@ extern "C"
 
     // For enclave data to app
     void ocall_store_enclave_id_info(const char *info);
-    void ocall_store_workload(const char *data, size_t data_size);
     crust_status_t ocall_store_workreport(const uint8_t *data, size_t data_size);
     crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size);
 

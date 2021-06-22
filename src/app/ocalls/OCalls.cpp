@@ -198,16 +198,6 @@ void ocall_store_enclave_id_info(const char *info)
 }
 
 /**
- * @description: Store enclave workload
- * @param data (in) -> Workload information
- * @param data_size -> Workload size
- */
-void ocall_store_workload(const char *data, size_t data_size)
-{
-    EnclaveData::get_instance()->set_enclave_workload(std::string(data, data_size));
-}
-
-/**
  * @description: Store upgrade data
  * @param data (in) -> Upgrade data
  * @param data_size -> Upgrade data size

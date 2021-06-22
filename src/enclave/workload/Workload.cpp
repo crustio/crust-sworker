@@ -52,31 +52,6 @@ Workload::~Workload()
 }
 
 /**
- * @description: Print work report
- * @return: Generated workload
- */
-std::string Workload::get_workload(void)
-{
-    json::JSON wl_json;
-
-    // File info
-    wl_json[WL_FILES] = this->get_file_spec();
-    // Srd info
-    json::JSON srd_info = this->get_srd_info();
-    wl_json[WL_SRD][WL_SRD_COMPLETE] = srd_info[WL_SRD_COMPLETE].ToInt();
-    wl_json[WL_SRD][WL_SRD_REMAINING_TASK] = get_srd_task();
-    wl_json[WL_SRD][WL_SRD_DETAIL] = srd_info[WL_SRD_DETAIL];
-
-    std::string wl_str = wl_json.dump();
-    remove_char(wl_str, '\n');
-    remove_char(wl_str, '\\');
-    remove_char(wl_str, ' ');
-    ocall_store_workload(wl_str.c_str(), wl_str.size());
-
-    return wl_str;
-}
-
-/**
  * @description: Clean up work report data
  */
 void Workload::clean_srd()

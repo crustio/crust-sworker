@@ -375,19 +375,6 @@ void ecall_id_get_info()
 }
 
 /**
- * @description: Get workload
- */
-void ecall_get_workload()
-{
-    if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
-    {
-        return;
-    }
-
-    Workload::get_instance()->get_workload();
-}
-
-/**
  * @description: Ecall save big data
  * @param t -> Store function type
  * @param data (in) -> Pointer to data

@@ -20,8 +20,6 @@ public:
 
     std::string get_enclave_id_info();
     void set_enclave_id_info(std::string id_info);
-    std::string get_enclave_workload();
-    void set_enclave_workload(std::string workload);
     std::string get_upgrade_data();
     void set_upgrade_data(std::string data);
     upgrade_status_t get_upgrade_status();
@@ -61,19 +59,23 @@ private:
     static EnclaveData *enclavedata;
     EnclaveData()
         : enclave_id_info("")
-        , enclave_workload("")
         , upgrade_data("")
         , upgrade_status(UPGRADE_STATUS_NONE) 
-        , srd_complete(0) {}
+        , srd_complete(0) 
+    {
+        file_info[FILE_TYPE_LOST]["num"] = 0;
+        file_info[FILE_TYPE_LOST]["size"] = 0;
+        file_info[FILE_TYPE_VALID]["num"] = 0;
+        file_info[FILE_TYPE_VALID]["size"] = 0;
+        file_info[FILE_TYPE_PENDING]["num"] = 0;
+        file_info[FILE_TYPE_PENDING]["size"] = 0;
+    }
 
     std::string get_file_info_item(json::JSON &info, bool raw);
 
     // Store enclave identity information
     std::string enclave_id_info;
     std::mutex enclave_id_info_mutex;
-    // Store enclave workload information
-    std::string enclave_workload;
-    std::mutex enclave_workload_mutex;
     // Upgrade data
     std::string upgrade_data;
     std::mutex upgrade_data_mutex;
@@ -86,6 +88,9 @@ private:
     // Sealed file map
     std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
     std::mutex sealed_file_mutex;
+    // File spec info
+    json::JSON file_info;
+    std::mutex file_info_mutex;
     // Srd info
     json::JSON srd_info;
     std::mutex srd_info_mutex;

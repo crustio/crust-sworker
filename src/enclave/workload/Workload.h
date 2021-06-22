@@ -50,7 +50,6 @@ public:
     static Workload *workload;
     static Workload *get_instance();
     ~Workload();
-    std::string get_workload(void);
     void set_srd_info(const char *uuid, long change);
     json::JSON get_srd_info();
     json::JSON gen_workload_info(crust_status_t *status);

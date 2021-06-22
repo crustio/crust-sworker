@@ -562,26 +562,6 @@ sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid)
 }
 
 /**
- * @description: Get workload
- * @param eid -> Enclave id
- * @return: Invoking ecall return status
- */
-sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid)
-{
-    sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
-    {
-        return ret;
-    }
-
-    ret = ecall_get_workload(eid);
-
-    eq->free_enclave(__FUNCTION__);
-
-    return ret;
-}
-
-/**
  * @description: Safe store large data to enclave
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to result status

@@ -79,28 +79,6 @@ std::string EnclaveData::get_workreport()
 }
 
 /**
- * @description: Get workload
- * @return: Workload
- */
-std::string EnclaveData::get_enclave_workload()
-{
-    SafeLock sl(this->enclave_workload_mutex);
-    sl.lock();
-    return enclave_workload;
-}
-
-/**
- * @description: Set workload
- * @param workload -> Sworker workload
- */
-void EnclaveData::set_enclave_workload(std::string workload)
-{
-    this->enclave_workload_mutex.lock();
-    enclave_workload = workload;
-    this->enclave_workload_mutex.unlock();
-}
-
-/**
  * @description: Set srd information
  * @param data -> Pointer to srd info data
  * @param data_size -> Srd info data size
@@ -224,6 +202,21 @@ void EnclaveData::add_file_info(const std::string &cid, std::string type, std::s
     }
 
     this->sealed_file[type][cid] = file_json;
+    sl.unlock();
+
+    // Update file info
+    this->file_info_mutex.lock();
+    remove_char(info, '\\');
+    json::JSON info_json = json::JSON::Load(info);
+    size_t file_size = (type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json[FILE_SIZE].ToInt();
+    if (type.compare(FILE_TYPE_VALID) == 0)
+    {
+        this->file_info[FILE_TYPE_PENDING]["num"].AddNum(-1);
+        this->file_info[FILE_TYPE_PENDING]["size"].AddNum(-1);
+    }
+    this->file_info[type]["num"].AddNum(1);
+    this->file_info[type]["size"].AddNum(file_size);
+    this->file_info_mutex.unlock();
 }
 
 /**
@@ -314,9 +307,23 @@ void EnclaveData::change_file_type(const std::string &cid, std::string old_type,
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
+    std::string info = this->sealed_file[old_type][cid].ToString();
     this->sealed_file[new_type][cid] = this->sealed_file[old_type][cid];
     this->sealed_file[old_type].erase(cid);
     sl.unlock();
+
+    remove_char(info, '\\');
+    json::JSON info_json = json::JSON::Load(info);
+    long new_size = (new_type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    long old_size = (old_type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+
+    // Update file info
+    this->file_info_mutex.lock();
+    this->file_info[new_type]["num"].AddNum(1);
+    this->file_info[new_type]["size"].AddNum(new_size);
+    this->file_info[old_type]["num"].AddNum(-1);
+    this->file_info[old_type]["size"].AddNum(-old_size);
+    this->file_info_mutex.unlock();
 }
 
 /**
@@ -461,10 +468,24 @@ void EnclaveData::del_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
+    std::string info;
+    std::string type;
     for (auto it = this->sealed_file.begin(); it != this->sealed_file.end(); it++)
     {
+        type = it->first;
+        info = it->second[cid].ToString();
         it->second.erase(cid);
     }
+    sl.unlock();
+
+    // Update file info
+    remove_char(info, '\\');
+    json::JSON info_json = json::JSON::Load(info);
+    long file_size = (type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    this->file_info_mutex.lock();
+    this->file_info[type]["num"].AddNum(-1);
+    this->file_info[type]["size"].AddNum(-file_size);
+    this->file_info_mutex.unlock();
 }
 
 /**
@@ -476,7 +497,18 @@ void EnclaveData::del_file_info(std::string cid, std::string type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
+    std::string info = this->sealed_file[type][cid].ToString();
     this->sealed_file[type].erase(cid);
+    sl.unlock();
+
+    // Update file info
+    remove_char(info, '\\');
+    json::JSON info_json = json::JSON::Load(info);
+    long file_size = (type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    this->file_info_mutex.lock();
+    this->file_info[type]["num"].AddNum(-1);
+    this->file_info[type]["size"].AddNum(-file_size);
+    this->file_info_mutex.unlock();
 }
 
 /**
@@ -527,18 +559,10 @@ std::string EnclaveData::gen_workload_str(long srd_task)
  */
 json::JSON EnclaveData::gen_workload_for_print(long srd_task)
 {
-    sgx_status_t sgx_status = SGX_SUCCESS;
     EnclaveData *ed = EnclaveData::get_instance();
     // Get srd info
-    if (SGX_SUCCESS != (sgx_status = Ecall_get_workload(global_eid)))
-    {
-        p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
-    }
-    json::JSON wl_json = json::JSON::Load(get_enclave_workload());
-    if (wl_json.size() == -1)
-    {
-        return "Get workload failed!";
-    }
+    json::JSON wl_json;
+    json::JSON srd_info = get_srd_info();
     json::JSON disk_json = get_disk_info();
     int disk_avail_for_srd = 0;
     int disk_avail = 0;
@@ -554,7 +578,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
         memset(buffer, 0, buffer_sz);
         sprintf(buffer, "  \"%s\" : { \"srd\" : %ld, \"srd_avail\" : %ld, \"avail\" : %ld, \"volumn\" : %ld }", 
                 disk_path.c_str(),
-                wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt(),
+                srd_info[WL_SRD_DETAIL][uuid].ToInt(),
                 disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                 disk_json[i][WL_DISK_AVAILABLE].ToInt(),
                 disk_json[i][WL_DISK_VOLUME].ToInt());
@@ -569,9 +593,9 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
         disk_volume += disk_json[i][WL_DISK_VOLUME].ToInt();
     }
     disk_info.append("}");
-    std::string srd_info;
-    srd_info.append("{\n")
-            .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
+    std::string srd_spec;
+    srd_spec.append("{\n")
+            .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(srd_info[WL_SRD_COMPLETE].ToInt())).append(",\n")
             .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_avail_for_srd)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_avail)).append(",\n")
@@ -579,9 +603,11 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
             .append("\"" WL_SYS_DISK_AVAILABLE "\" : ").append(std::to_string(get_avail_space_under_dir_g(Config::get_instance()->base_path))).append(",\n")
             .append("\"" WL_SRD_DETAIL "\" : ").append(disk_info).append("\n")
             .append("}");
-    wl_json[WL_SRD] = srd_info;
+    wl_json[WL_SRD] = srd_spec;
     // Get file info
-    json::JSON file_info = wl_json[WL_FILES];
+    this->file_info_mutex.lock();
+    json::JSON file_info = this->file_info;
+    this->file_info_mutex.unlock();
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;

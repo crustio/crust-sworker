@@ -93,10 +93,6 @@ void srd_change()
             sgx_thread_mutex_unlock(&g_srd_task_mutex);
         }
     }
-
-    // Update srd info
-    std::string srd_info_str = wl->get_srd_info().dump();
-    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
@@ -249,6 +245,10 @@ crust_status_t srd_increase(const char *uuid)
 
     // ----- Update srd info ----- //
     wl->set_srd_info(uuid, 1);
+
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 
     return CRUST_SUCCESS;
 }
