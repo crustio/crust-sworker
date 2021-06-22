@@ -500,6 +500,17 @@ bool Workload::get_report_file_flag()
 }
 
 /**
+ * @description: Set srd remaining task
+ * @param num -> Srd remaining task number
+ */
+void Workload::set_srd_remaining_task(long num)
+{
+    sgx_thread_mutex_lock(&this->srd_info_mutex);
+    this->srd_info_json[WL_SRD_REMAINING_TASK] = num;
+    sgx_thread_mutex_unlock(&this->srd_info_mutex);
+}
+
+/**
  * @description: Set srd info
  * @param uuid -> Disk path uuid
  * @param change -> Change number

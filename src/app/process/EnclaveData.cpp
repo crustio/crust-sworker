@@ -33,7 +33,7 @@ EnclaveData *EnclaveData::get_instance()
 void EnclaveData::set_enclave_id_info(std::string id_info)
 {
     this->enclave_id_info_mutex.lock();
-    enclave_id_info = id_info;
+    this->enclave_id_info = id_info;
     this->enclave_id_info_mutex.unlock();
 }
 
@@ -43,16 +43,21 @@ void EnclaveData::set_enclave_id_info(std::string id_info)
  */
 std::string EnclaveData::get_enclave_id_info()
 {
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    if (SGX_SUCCESS != (sgx_status = Ecall_id_get_info(global_eid)))
-    {
-        p_log->err("Get id info failed! Error code:%lx\n", sgx_status);
-        return "";
-    }
-
     SafeLock sl(this->enclave_id_info_mutex);
     sl.lock();
-    return enclave_id_info;
+    if (this->enclave_id_info.size() == 0)
+    {
+        sl.unlock();
+        if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
+        {
+            p_log->err("Get id info from enclave failed!\n");
+            return "";
+        }
+        sl.lock();
+        return this->enclave_id_info;
+    }
+
+    return this->enclave_id_info;
 }
 
 /**
@@ -647,7 +652,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     std::string srd_spec;
     srd_spec.append("{\n")
             .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(srd_info[WL_SRD_COMPLETE].ToInt())).append(",\n")
-            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
+            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(srd_info[WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_avail_for_srd)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_avail)).append(",\n")
             .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_volume)).append(",\n")

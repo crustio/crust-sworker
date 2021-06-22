@@ -79,6 +79,8 @@ void srd_change()
     {
         log_warn("Store srd remaining task failed!\n");
     }
+    // Set srd remaining task
+    wl->set_srd_remaining_task(g_srd_task);
     sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     // Do srd
@@ -298,6 +300,10 @@ size_t srd_decrease(size_t change)
         }
     }
 
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
+
     return change;
 }
 
@@ -349,6 +355,10 @@ void srd_remove_space(const char *data, size_t data_size)
             }
         }
     }
+
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
@@ -372,6 +382,7 @@ long get_srd_task()
  */
 crust_status_t change_srd_task(long change, long *real_change)
 {
+    Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     // Check if srd number exceeds upper limit
     if (change > 0)
@@ -404,9 +415,15 @@ crust_status_t change_srd_task(long change, long *real_change)
     {
         log_warn("Store srd remaining task failed!\n");
     }
+    // Set srd remaining task
+    wl->set_srd_remaining_task(g_srd_task);
     sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     *real_change = change;
+
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 
     return crust_status;
 }
