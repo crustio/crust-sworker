@@ -109,6 +109,7 @@ typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t 
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
 #define WL_FILE_ROOT_HASH "file_root_hash"
+#define WL_FILE_SPEC_INFO "file_spec"
 
 // For srd
 #define SRD_MAX_INC_PER_TURN 64

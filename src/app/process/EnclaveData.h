@@ -71,7 +71,7 @@ private:
         file_info[FILE_TYPE_PENDING]["size"] = 0;
     }
 
-    std::string get_file_info_item(json::JSON &info, bool raw);
+    std::string get_file_info_item(std::string cid, std::string &info, bool raw);
 
     // Store enclave identity information
     std::string enclave_id_info;
@@ -83,7 +83,7 @@ private:
     upgrade_status_t upgrade_status;
     std::mutex upgrade_status_mutex;
     // Sealed file map
-    std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
+    std::map<std::string, std::map<std::string, std::string>> sealed_file;
     std::mutex sealed_file_mutex;
     // File spec info
     json::JSON file_info;

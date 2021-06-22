@@ -1016,7 +1016,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             ret_code = 503;
                             break;
                         default:
-                            ret_info = "Seal file '" + cid + "' failed due to incomplete file blocks";
+                            ret_info = "Seal file '" + cid + "' unexpected due to incomplete file blocks";
                             p_log->info("%s\n", ret_info.c_str());
                             ret_code = 500;
                         }

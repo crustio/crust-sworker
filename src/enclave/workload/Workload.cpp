@@ -1189,12 +1189,16 @@ crust_status_t Workload::restore_file_info()
     // ----- Construct file information json string ----- //
     crust_status_t crust_status = CRUST_SUCCESS;
     std::vector<uint8_t> file_buffer;
+    json::JSON file_spec;
     file_buffer.push_back('{');
     for (auto it = g_file_spec_status.begin(); it != g_file_spec_status.end(); )
     {
-        vector_end_insert(file_buffer, std::string("\"" + it->second + "\":["));
+        std::string file_type = it->second;
+        vector_end_insert(file_buffer, std::string("\"" + file_type + "\":["));
         char s = it->first;
         bool has_pre = false;
+        long num = 0;
+        long size = 0;
         for (auto file : this->sealed_files)
         {
             if (s != file[FILE_STATUS].get_char(CURRENT_STATUS))
@@ -1205,6 +1209,8 @@ crust_status_t Workload::restore_file_info()
                 .append("\\\"" FILE_SIZE "\\\" : ").append(std::to_string(file[FILE_SIZE].ToInt())).append(" , ")
                 .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file[FILE_SEALED_SIZE].ToInt())).append(" , ")
                 .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt())).append(" }\"}");
+            num++;
+            size += file[FILE_SIZE].ToInt();
 
             if (has_pre)
                 file_buffer.push_back(',');
@@ -1219,7 +1225,17 @@ crust_status_t Workload::restore_file_info()
         {
             file_buffer.push_back(',');
         }
+        // Set file spec
+        file_spec[file_type]["num"].AddNum(num);
+        file_spec[file_type]["size"].AddNum(size);
     }
+    file_buffer.push_back(',');
+    std::string file_spec_str = file_spec.dump();
+    remove_char(file_spec_str, '\\');
+    remove_char(file_spec_str, '\n');
+    remove_char(file_spec_str, ' ');
+    file_spec_str = "\"" WL_FILE_SPEC_INFO "\":" + file_spec_str;
+    vector_end_insert(file_buffer, file_spec_str);
     file_buffer.push_back('}');
 
     // Store file information to app

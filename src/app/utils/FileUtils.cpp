@@ -627,7 +627,7 @@ size_t get_file_or_folder_size(std::string path)
             }
             catch(std::exception& e)
             {
-                p_log->warn("Get file:%s size failed! Error message:%s\n", file_path.c_str(), e.what());
+                p_log->debug("Get file:%s size failed! Error message:%s\n", file_path.c_str(), e.what());
             }
         }
     }
