@@ -330,15 +330,18 @@ void srd_remove_space(const char *data, size_t data_size)
     // Get change hashs
     // Note: Cannot push srd hash pointer to vector because it will be deleted later
     std::vector<std::string> del_srds;
-    for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
+    if (wl->srd_hashs.size() > 0)
     {
-        std::string uuid = hexstring_safe(wl->srd_hashs[i], UUID_LENGTH);
-        if (del_json[uuid].ToInt() > 0)
+        for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
         {
-            del_srds.push_back(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH));
-            wl->add_srd_to_deleted_buffer(i);
-            del_json[uuid].AddNum(-1);
-            change--;
+            std::string uuid = hexstring_safe(wl->srd_hashs[i], UUID_LENGTH);
+            if (del_json[uuid].ToInt() > 0)
+            {
+                del_srds.push_back(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH));
+                wl->add_srd_to_deleted_buffer(i);
+                del_json[uuid].AddNum(-1);
+                change--;
+            }
         }
     }
     sl.unlock();
