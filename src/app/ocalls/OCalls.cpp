@@ -213,6 +213,7 @@ crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size)
  * @description: Get chain block information
  * @param data (in, out) -> Pointer to file block information
  * @param data_size -> Pointer to file block data size
+ * @param real_size (out) -> Pointer to real file size
  * @return: Get result
  */
 crust_status_t ocall_chain_get_block_info(uint8_t *data, size_t data_size, size_t *real_size)

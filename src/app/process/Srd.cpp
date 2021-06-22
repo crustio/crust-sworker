@@ -187,7 +187,6 @@ crust_status_t srd_change(long change)
 {
     Config *p_config = Config::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
-    EnclaveData *ed = EnclaveData::get_instance();
 
     if (change > 0)
     {
@@ -259,8 +258,6 @@ crust_status_t srd_change(long change)
             {
                 if (CRUST_SUCCESS == it->get())
                 {
-                    // Set srd complete
-                    ed->set_srd_complete(1);
                     srd_success_num++;
                 }
             }
@@ -308,7 +305,6 @@ crust_status_t srd_change(long change)
         set_running_srd_task(change);
         Ecall_srd_decrease(global_eid, &true_decrease, (size_t)-change);
         set_running_srd_task(0);
-        ed->set_srd_complete(change);
         p_log->info("Decrease %luG srd successfully.\n", true_decrease);
     }
 
@@ -333,7 +329,6 @@ void srd_check_reserved(void)
             return;
         }
 
-        long del_srd_num = 0;
         long srd_reserved_space = get_reserved_space();
         // Lock srd_info
         EnclaveData *ed = EnclaveData::get_instance();
@@ -348,7 +343,6 @@ void srd_check_reserved(void)
                 std::string uuid = ed->get_uuid(path);
                 del_space = std::min((long)(srd_reserved_space - avail_space), (long)srd_info_json[WL_SRD_DETAIL][uuid].ToInt());
                 srd_del_json[uuid].AddNum(del_space);
-                del_srd_num += del_space;
             }
         }
 
@@ -362,10 +356,6 @@ void srd_check_reserved(void)
             if (SGX_SUCCESS != Ecall_srd_remove_space(global_eid, srd_del_str.c_str(), srd_del_str.size()))
             {
                 p_log->err("Invoke srd metadata failed! Error code:%lx\n", sgx_status);
-            }
-            else
-            {
-                EnclaveData::get_instance()->set_srd_complete(-del_srd_num);
             }
         }
 

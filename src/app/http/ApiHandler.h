@@ -81,7 +81,6 @@ private:
     };
     const std::set<std::string> http_mute_req_s = {
         "/workload",
-        "/free_space",
         "/enclave/id_info",
         "/storage/seal",
         "/storage/unseal",
@@ -238,15 +237,6 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             res.result(200);
             res.body() = EnclaveData::get_instance()->gen_workload_str();
-            goto getcleanup;
-        }
-
-        // ----- Get free space ----- //
-        cur_path = urlendpoint.base + "/free_space";
-        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
-        {
-            res.result(200);
-            res.body() = EnclaveData::get_instance()->get_free_space().dump();
             goto getcleanup;
         }
 

@@ -26,8 +26,6 @@ public:
     void set_upgrade_status(upgrade_status_t status);
     void set_workreport(const uint8_t *data, size_t data_size);
     std::string get_workreport();
-    void set_srd_complete(long num);
-    json::JSON get_free_space();
     // File information
     void add_file_info(const std::string &cid, std::string type, std::string info);
     std::string get_file_info(std::string cid);
@@ -42,6 +40,9 @@ public:
     bool find_file_type_nolock(std::string cid, std::string &type);
     void restore_file_info(const uint8_t *data, size_t data_size);
     void set_srd_info(const uint8_t *data, size_t data_size);
+    void add_pending_file_size(std::string cid, long size);
+    long get_pending_file_size(std::string cid);
+    void del_pending_file_size(std::string cid);
     json::JSON get_srd_info();
     // Get workload
     std::string gen_workload_str(long srd_task = 0);
@@ -61,7 +62,6 @@ private:
         : enclave_id_info("")
         , upgrade_data("")
         , upgrade_status(UPGRADE_STATUS_NONE) 
-        , srd_complete(0) 
     {
         file_info[FILE_TYPE_LOST]["num"] = 0;
         file_info[FILE_TYPE_LOST]["size"] = 0;
@@ -82,15 +82,15 @@ private:
     // Upgrade status
     upgrade_status_t upgrade_status;
     std::mutex upgrade_status_mutex;
-    // Srd complete
-    long srd_complete;
-    std::mutex srd_complete_mutex;
     // Sealed file map
     std::map<std::string, std::map<std::string, json::JSON>> sealed_file;
     std::mutex sealed_file_mutex;
     // File spec info
     json::JSON file_info;
     std::mutex file_info_mutex;
+    // Pending file
+    std::unordered_map<std::string, long> pending_file_size_um;
+    std::mutex pending_file_size_um_mutex;
     // Srd info
     json::JSON srd_info;
     std::mutex srd_info_mutex;

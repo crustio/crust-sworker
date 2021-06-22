@@ -102,6 +102,41 @@ json::JSON EnclaveData::get_srd_info()
 }
 
 /**
+ * @description: Add pending file size
+ * @param cid -> File content id
+ * @param size -> File size
+ */
+void EnclaveData::add_pending_file_size(std::string cid, long size)
+{
+    this->pending_file_size_um_mutex.lock();
+    this->pending_file_size_um[cid] += size;
+    this->pending_file_size_um_mutex.unlock();
+}
+
+/**
+ * @description: Get pending file size
+ * @param cid -> File content id
+ * @return: Pending file size
+ */
+long EnclaveData::get_pending_file_size(std::string cid)
+{
+    SafeLock sl(this->pending_file_size_um_mutex);
+    sl.lock();
+    return this->pending_file_size_um[cid];
+}
+
+/**
+ * @description: Delete pending file
+ * @param cid -> File content id
+ */
+void EnclaveData::del_pending_file_size(std::string cid)
+{
+    this->pending_file_size_um_mutex.lock();
+    this->pending_file_size_um.erase(cid);
+    this->pending_file_size_um_mutex.unlock();
+}
+
+/**
  * @description: Get upgrade data
  * @return: Upgrade data
  */
@@ -208,11 +243,11 @@ void EnclaveData::add_file_info(const std::string &cid, std::string type, std::s
     this->file_info_mutex.lock();
     remove_char(info, '\\');
     json::JSON info_json = json::JSON::Load(info);
-    size_t file_size = (type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json[FILE_SIZE].ToInt();
+    size_t file_size = 0;
     if (type.compare(FILE_TYPE_VALID) == 0)
     {
         this->file_info[FILE_TYPE_PENDING]["num"].AddNum(-1);
-        this->file_info[FILE_TYPE_PENDING]["size"].AddNum(-1);
+        file_size = info_json[FILE_SIZE].ToInt();
     }
     this->file_info[type]["num"].AddNum(1);
     this->file_info[type]["size"].AddNum(file_size);
@@ -241,7 +276,7 @@ std::string EnclaveData::get_file_info_item(json::JSON &info, bool raw)
         data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
             + get_time_diff_humanreadable(utime) + "\" , "
             + "\"" FILE_PENDING_SIZE "\" : \""
-            + get_file_size_humanreadable(get_file_size_by_cid(cid)) + "\""
+            + get_file_size_humanreadable(this->get_pending_file_size(cid)) + "\""
             + " }";
     }
 
@@ -268,7 +303,7 @@ size_t EnclaveData::get_files_size_by_type(const char *type)
 
     for (auto it : tmp_files)
     {
-        ans += get_file_size_by_cid(it.first);
+        ans += this->get_pending_file_size(it.first);
     }
 
     return ans;
@@ -314,8 +349,8 @@ void EnclaveData::change_file_type(const std::string &cid, std::string old_type,
 
     remove_char(info, '\\');
     json::JSON info_json = json::JSON::Load(info);
-    long new_size = (new_type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
-    long old_size = (old_type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    long new_size = (new_type.compare(FILE_TYPE_PENDING) == 0) ? 0 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    long old_size = (old_type.compare(FILE_TYPE_PENDING) == 0) ? 0 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
 
     // Update file info
     this->file_info_mutex.lock();
@@ -481,7 +516,15 @@ void EnclaveData::del_file_info(std::string cid)
     // Update file info
     remove_char(info, '\\');
     json::JSON info_json = json::JSON::Load(info);
-    long file_size = (type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    long file_size = 0;
+    if (type.compare(FILE_TYPE_PENDING) == 0) 
+    {
+        this->del_pending_file_size(cid);
+    }
+    else
+    {
+        info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    }
     this->file_info_mutex.lock();
     this->file_info[type]["num"].AddNum(-1);
     this->file_info[type]["size"].AddNum(-file_size);
@@ -504,7 +547,15 @@ void EnclaveData::del_file_info(std::string cid, std::string type)
     // Update file info
     remove_char(info, '\\');
     json::JSON info_json = json::JSON::Load(info);
-    long file_size = (type.compare(FILE_TYPE_PENDING) == 0) ? 1 : info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    long file_size = 0;
+    if (type.compare(FILE_TYPE_PENDING) == 0) 
+    {
+        this->del_pending_file_size(cid);
+    }
+    else
+    {
+        info_json.ObjectRange().begin()->second[FILE_SIZE].ToInt();
+    }
     this->file_info_mutex.lock();
     this->file_info[type]["num"].AddNum(-1);
     this->file_info[type]["size"].AddNum(-file_size);
@@ -611,6 +662,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
+    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_files_size_by_type(FILE_TYPE_PENDING));
     for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
     {
         space_num = std::max(space_num, (int)it->first.size());
@@ -711,41 +763,4 @@ bool EnclaveData::is_uuid_exist(std::string uuid)
     SafeLock sl(uuid_disk_path_map_mutex);
     sl.lock();
     return this->uuid_to_disk_path.find(uuid) != this->uuid_to_disk_path.end();
-}
-
-/**
- * @description: Set srd complete
- * @param num -> Srd changed number
- */
-void EnclaveData::set_srd_complete(long num)
-{
-    this->srd_complete_mutex.lock();
-    this->srd_complete += num;
-    this->srd_complete_mutex.unlock();
-}
-
-/**
- * @description: Get free space
- * @return: Free space information
- */
-json::JSON EnclaveData::get_free_space()
-{
-    json::JSON ans;
-
-    // Srd complete
-    this->srd_complete_mutex.lock();
-    ans[WL_SRD_COMPLETE] = this->srd_complete;
-    this->srd_complete_mutex.unlock();
-
-    // System disk available
-    ans[WL_SYS_DISK_AVAILABLE] = get_avail_space_under_dir_g(Config::get_instance()->base_path);
-
-    // All disk available
-    json::JSON disk_json = get_disk_info();
-    for (auto info : disk_json.ArrayRange())
-    {
-        ans[WL_DISK_AVAILABLE].AddNum(info[WL_DISK_AVAILABLE].ToInt());
-    }
-
-    return ans;
 }

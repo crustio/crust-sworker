@@ -49,6 +49,8 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
         return CRUST_UNEXPECTED_ERROR;
     }
 
+    EnclaveData *ed = EnclaveData::get_instance();
+
     // Choose disk
     std::string cid(path, CID_LENGTH);
     uint32_t start_index = 0;
@@ -75,6 +77,7 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
                 std::string file_path = get_real_path_by_type(tmp_path.c_str(), STORE_TYPE_FILE);
                 if (CRUST_SUCCESS == save_file_ex(file_path.c_str(), data, data_size, mode_t(0664), SF_CREATE_DIR))
                 {
+                    ed->add_pending_file_size(cid, data_size);
                     return CRUST_SUCCESS;
                 }
             }
