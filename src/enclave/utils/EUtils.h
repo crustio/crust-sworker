@@ -134,6 +134,27 @@ crust_status_t vector_end_insert(std::vector<T> &v, const T *data, size_t data_s
 template <class T>
 /**
  * @description: Insert data to vector end
+ * @param v -> Reference to destination vector
+ * @param s -> Reference to added vector
+ * @return: Insert result
+ */
+crust_status_t vector_end_insert(std::vector<T> &v, std::vector<T> &s)
+{
+    try
+    {
+        v.insert(v.end(), s.begin(), s.end());
+    }
+    catch (std::exception &e)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+template <class T>
+/**
+ * @description: Insert data to vector end
  * @param v -> Reference to vector
  * @param str -> String data
  * @return: Insert result

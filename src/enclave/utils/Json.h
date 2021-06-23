@@ -12,6 +12,7 @@
 #include <map>
 #include <type_traits>
 #include <initializer_list>
+#include <exception>
 #ifdef _CRUST_RESOURCE_H_
 #include <ostream>
 #include <iostream>
@@ -675,6 +676,141 @@ public:
         if (Type == Class::Array)
             return JSONConstWrapper<deque<JSON>>(Internal.List);
         return JSONConstWrapper<deque<JSON>>(nullptr);
+    }
+
+    crust_status_t Insert(vector<uint8_t> &v, string s)
+    {
+        try
+        {
+            v.insert(v.end(), s.c_str(), s.c_str() + s.size());
+        }
+        catch (std::exception &e)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+
+        return CRUST_SUCCESS;
+    }
+
+    crust_status_t Insert(vector<uint8_t> &v, vector<uint8_t> &s)
+    {
+        try
+        {
+            v.insert(v.end(), s.begin(), s.end());
+        }
+        catch (std::exception &e)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+
+        return CRUST_SUCCESS;
+    }
+
+    crust_status_t Insert(vector<uint8_t> &v, const uint8_t *data, size_t data_size)
+    {
+        try
+        {
+            v.insert(v.end(), data, data + data_size);
+        }
+        catch (std::exception &e)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+
+        return CRUST_SUCCESS;
+    }
+
+    vector<uint8_t> dump_vector(crust_status_t *status)
+    {
+        vector<uint8_t> v;
+        switch (Type)
+        {
+        case Class::Null:
+        {
+            string s = "null";
+            *status = Insert(v, s);
+            return v;
+        }
+        case Class::Object:
+        {
+            v.push_back('{');
+            bool skip = true;
+            for (auto &p : *Internal.Map)
+            {
+                if (!skip)
+                    v.push_back(',');
+                string s("\"" + p.first + "\":");
+                *status = Insert(v, s);
+                vector<uint8_t> sv = p.second.dump_vector(status);
+                if (CRUST_SUCCESS != *status)
+                {
+                    return v;
+                }
+                *status = Insert(v, sv);
+                skip = false;
+            }
+            v.push_back('}');
+            return v;
+        }
+        case Class::Array:
+        {
+            v.push_back('[');
+            bool skip = true;
+            for (auto &p : *Internal.List)
+            {
+                if (!skip)
+                    v.push_back(',');
+                vector<uint8_t> sv = p.dump_vector(status);
+                if (CRUST_SUCCESS != *status)
+                {
+                    return v;
+                }
+                *status = Insert(v, sv);
+                skip = false;
+            }
+            v.push_back(']');
+            return v;
+        }
+        case Class::Hash:
+        {
+            *status = Insert(v, "\"" HASH_TAG + _hexstring(Internal.HashList, _hash_length) + "\"");
+            return v;
+        }
+        case Class::Buffer:
+        {
+            string s("\"" HASH_TAG);
+            *status = Insert(v, s);
+            *status = Insert(v, *Internal.BufferList);
+            v.push_back('"');
+            return v;
+        }
+        case Class::String:
+        {
+            string s = "\"" + json_escape(*Internal.String) + "\"";
+            *status = Insert(v, s);
+            return v;
+        }
+        case Class::Floating:
+        {
+            *status = Insert(v, std::to_string(Internal.Float));
+            return v;
+        }
+        case Class::Integral:
+        {
+            *status = Insert(v, std::to_string(Internal.Int));
+            return v;
+        }
+        case Class::Boolean:
+        {
+            *status = Insert(v, Internal.Bool ? "true" : "false");
+            return v;
+        }
+        default:
+        {
+            return v;
+        }
+        }
+        return v;
     }
 
     string dump(int depth = 1, string tab = "  ") const
@@ -1421,7 +1557,7 @@ JSON parse_null(crust_status_t *status, const string &str, size_t &offset)
 JSON parse_null(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON Null;
-    if (memcmp(p_data + offset, "null", 4) == 0)
+    if (memcmp(p_data + offset, "null", 4) != 0)
     {
 #ifdef _CRUST_RESOURCE_H_
         p_log->err("Error: Null: Expected 'null', found error\n");

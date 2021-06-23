@@ -126,13 +126,11 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     sealed_files_sl.lock();
     // Clear reported_files_idx
     wl->reported_files_idx.clear();
-    std::vector<uint8_t> added_files;
-    std::vector<uint8_t> deleted_files;
+    json::JSON added_files;
+    json::JSON deleted_files;
     size_t reported_files_acc = 0;
     long long files_size = 0;
     std::vector<size_t> report_valid_idx_v;
-    added_files.push_back('[');
-    deleted_files.push_back('[');
     for (uint32_t i = 0; i < wl->sealed_files.size(); i++)
     {
         // Get report information
@@ -166,31 +164,20 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
-                    std::string file_str;
-                    file_str.append("{\"").append(FILE_CID).append("\":")
-                        .append("\"").append(wl->sealed_files[i][FILE_CID].ToString()).append("\",");
-                    file_str.append("\"").append(FILE_SIZE).append("\":")
-                        .append(std::to_string(wl->sealed_files[i][FILE_SIZE].ToInt())).append(",");
-                    file_str.append("\"").append(FILE_CHAIN_BLOCK_NUM).append("\":")
-                        .append(std::to_string(wl->sealed_files[i][FILE_CHAIN_BLOCK_NUM].ToInt())).append("}");
+                    json::JSON file_json;
+                    file_json[FILE_CID] = wl->sealed_files[i][FILE_CID].ToString();
+                    file_json[FILE_SIZE] = wl->sealed_files[i][FILE_SIZE].ToInt();
+                    file_json[FILE_CHAIN_BLOCK_NUM] = wl->sealed_files[i][FILE_CHAIN_BLOCK_NUM].ToInt();
                     if (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED
                             || status->get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
                     {
-                        if (deleted_files.size() != 1)
-                        {
-                            deleted_files.push_back(',');
-                        }
-                        vector_end_insert(deleted_files, file_str);
+                        deleted_files.append(file_json);
                         // Update new files size
                         files_size -= wl->sealed_files[i][FILE_SIZE].ToInt();
                     }
                     else if (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID)
                     {
-                        if (added_files.size() != 1)
-                        {
-                            added_files.push_back(',');
-                        }
-                        vector_end_insert(added_files, file_str);
+                        added_files.append(file_json);
                         // Update new files size
                         files_size += wl->sealed_files[i][FILE_SIZE].ToInt();
                     }
@@ -200,8 +187,6 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
             }
         }
     }
-    added_files.push_back(']');
-    deleted_files.push_back(']');
     // Generate files information
     size_t files_root_buffer_len = report_valid_idx_v.size() * HASH_LENGTH;
     sgx_sha256_hash_t files_root;
@@ -270,9 +255,19 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     // Files root
     vector_end_insert(sig_buffer, files_root, sizeof(sgx_sha256_hash_t));
     // Added files
-    vector_end_insert(sig_buffer, added_files.data(), added_files.size());
+    do
+    {
+        crust_status_t ret = CRUST_SUCCESS;
+        std::vector<uint8_t> added_data = added_files.dump_vector(&ret);
+        vector_end_insert(sig_buffer, added_data.data(), added_data.size());
+    } while (0);
     // Deleted files
-    vector_end_insert(sig_buffer, deleted_files.data(), deleted_files.size());
+    do
+    {
+        crust_status_t ret = CRUST_SUCCESS;
+        std::vector<uint8_t> deleted_data = deleted_files.dump_vector(&ret);
+        vector_end_insert(sig_buffer, deleted_data.data(), deleted_data.size());
+    } while (0);
 
     // Sign work report
     sgx_ecc_state_handle_t ecc_state = NULL;
@@ -290,21 +285,27 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     }
 
     // Store workreport
-    std::vector<uint8_t> wr_buffer;
-    vector_end_insert(wr_buffer, "{\"" WORKREPORT_PUB_KEY "\":\"" + hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key)));
-    vector_end_insert(wr_buffer, "\",\"" WORKREPORT_PRE_PUB_KEY "\":\"" + pre_pub_key);
-    vector_end_insert(wr_buffer, "\",\"" WORKREPORT_BLOCK_HEIGHT "\":\"" + block_height_str);
-    vector_end_insert(wr_buffer, "\",\"" WORKREPORT_BLOCK_HASH "\":\"" + std::string(block_hash, HASH_LENGTH * 2));
-    vector_end_insert(wr_buffer, "\",\"" WORKREPORT_RESERVED "\":" + std::to_string(srd_workload));
-    vector_end_insert(wr_buffer, ",\"" WORKREPORT_FILES_SIZE "\":" + std::to_string(files_size));
-    vector_end_insert(wr_buffer, ",\"" WORKREPORT_RESERVED_ROOT "\":\"" + hexstring_safe(srd_root, HASH_LENGTH));
-    vector_end_insert(wr_buffer, "\",\"" WORKREPORT_FILES_ROOT "\":\"" + hexstring_safe(files_root, HASH_LENGTH));
-    vector_end_insert(wr_buffer, "\",\"" WORKREPORT_FILES_ADDED "\":");
-    vector_end_insert(wr_buffer, added_files.data(), added_files.size());
-    vector_end_insert(wr_buffer, ",\"" WORKREPORT_FILES_DELETED "\":");
-    vector_end_insert(wr_buffer, deleted_files.data(), deleted_files.size());
-    vector_end_insert(wr_buffer, ",\"" WORKREPORT_SIG "\":\"" + hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)).append("\"}"));
-    crust_status = safe_ocall_store2(OCALL_STORE_WORKREPORT, wr_buffer.data(), wr_buffer.size());
+    std::vector<uint8_t> wr_data;
+    do
+    {
+        json::JSON wr_json;
+        wr_json[WORKREPORT_PUB_KEY] = hexstring_safe(&id_key_pair.pub_key, sizeof(id_key_pair.pub_key));
+        wr_json[WORKREPORT_PRE_PUB_KEY] = pre_pub_key;
+        wr_json[WORKREPORT_BLOCK_HEIGHT] = block_height_str;
+        wr_json[WORKREPORT_BLOCK_HASH] = std::string(block_hash, HASH_LENGTH * 2);
+        wr_json[WORKREPORT_RESERVED] = std::to_string(srd_workload);
+        wr_json[WORKREPORT_FILES_SIZE] = std::to_string(files_size);
+        wr_json[WORKREPORT_RESERVED_ROOT] = hexstring_safe(srd_root, HASH_LENGTH);
+        wr_json[WORKREPORT_FILES_ROOT] = hexstring_safe(files_root, HASH_LENGTH);
+        wr_json[WORKREPORT_FILES_ADDED] = added_files;
+        wr_json[WORKREPORT_FILES_DELETED] = deleted_files;
+        wr_json[WORKREPORT_SIG] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)).append("\"}");
+        wr_data = wr_json.dump_vector(&crust_status);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return crust_status;
+        }
+    } while (0);
 
-    return crust_status;
+    return safe_ocall_store2(OCALL_STORE_WORKREPORT, wr_data.data(), wr_data.size());
 }

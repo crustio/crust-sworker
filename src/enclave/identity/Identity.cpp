@@ -673,49 +673,36 @@ crust_status_t id_store_metadata()
     std::vector<uint8_t> meta_buffer;
     // Append private data tag
     vector_end_insert(meta_buffer, reinterpret_cast<const uint8_t *>(SWORKER_PRIVATE_TAG), strlen(SWORKER_PRIVATE_TAG));
-    meta_buffer.push_back('{');
 
-    // Append srd
-    std::string wl_title("\"" ID_SRD "\":");
-    vector_end_insert(meta_buffer, wl_title);
+    std::vector<uint8_t> meta_data;
     do
     {
-        std::vector<uint8_t> srd_buffer = wl->serialize_srd(&crust_status);
+        json::JSON meta_json;
+        // Append id key pair
+        meta_json[ID_KEY_PAIR] = hex_id_key_str;
+        // Append report height
+        meta_json[ID_REPORT_HEIGHT] = std::to_string(wl->get_report_height());
+        // Append chain account id
+        meta_json[ID_CHAIN_ACCOUNT_ID] = wl->get_account_id();
+        // Append srd
+        meta_json[ID_SRD] = wl->serialize_srd();
+        // Append files
+        meta_json[ID_FILE] = wl->serialize_file();
+        // Append previous public key
+        if (wl->is_upgrade())
+        {
+            meta_json[ID_PRE_PUB_KEY] = hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key));
+        }
+        meta_data = meta_json.dump_vector(&crust_status);
         if (CRUST_SUCCESS != crust_status)
         {
             return crust_status;
         }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, srd_buffer.data(), srd_buffer.size())))
-        {
-            return crust_status;
-        }
     } while (0);
-    // Append id key pair
-    vector_end_insert(meta_buffer, ",\"" ID_KEY_PAIR "\":\"" + hex_id_key_str);
-    // Append report height
-    vector_end_insert(meta_buffer, "\",\"" ID_REPORT_HEIGHT "\":" + std::to_string(wl->get_report_height()));
-    // Append chain account id
-    vector_end_insert(meta_buffer, ",\"" ID_CHAIN_ACCOUNT_ID "\":\"" + wl->get_account_id());
-    // Append previous public key
-    if (wl->is_upgrade())
+    if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, meta_data)))
     {
-        vector_end_insert(meta_buffer, "\",\"" ID_PRE_PUB_KEY "\":\"" + hexstring_safe(&wl->pre_pub_key, sizeof(wl->pre_pub_key)));
+        return crust_status;
     }
-    // Append files
-    vector_end_insert(meta_buffer, std::string("\",\"" ID_FILE "\":"));
-    do
-    {
-        std::vector<uint8_t> file_buffer = wl->serialize_file(&crust_status);
-        if (CRUST_SUCCESS != crust_status)
-        {
-            return crust_status;
-        }
-        if (CRUST_SUCCESS != (crust_status = vector_end_insert(meta_buffer, file_buffer.data(), file_buffer.size())))
-        {
-            return crust_status;
-        }
-    } while (0);
-    meta_buffer.push_back('}');
 
     crust_status = persist_set(ID_METADATA, meta_buffer.data(), meta_buffer.size());
 
@@ -913,15 +900,13 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
             sgx_ecc256_close_context(ecc_state);
         }
     });
-    uint8_t *p_srd_root = NULL;
-    std::vector<uint8_t> srd_data = wl->get_upgrade_srd_info(&crust_status, &p_srd_root);
+    json::JSON srd_json = wl->get_upgrade_srd_info(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
     }
     log_debug("Serialize srd data successfully!\n");
-    uint8_t *p_file_root = NULL;
-    std::vector<uint8_t> file_data = wl->get_upgrade_file_info(&crust_status, &p_file_root);
+    json::JSON file_json = wl->get_upgrade_file_info(&crust_status);
     if (CRUST_SUCCESS != crust_status)
     {
         return crust_status;
@@ -930,30 +915,15 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     std::vector<uint8_t> sig_buffer;
     // Pub key
     const uint8_t *p_pub_key = reinterpret_cast<const uint8_t *>(&wl->get_pub_key());
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, p_pub_key, sizeof(sgx_ec256_public_t))))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, p_pub_key, sizeof(sgx_ec256_public_t));
     // Block height
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, report_height_str)))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, report_height_str);
     // Block hash
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, reinterpret_cast<uint8_t *>(report_hash), HASH_LENGTH * 2)))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, reinterpret_cast<uint8_t *>(report_hash), HASH_LENGTH * 2);
     // Srd root
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, p_srd_root, HASH_LENGTH)))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, srd_json[WL_SRD_ROOT_HASH].ToBytes(), HASH_LENGTH);
     // Files root
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, p_file_root, HASH_LENGTH)))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, file_json[WL_FILE_ROOT_HASH].ToBytes(), HASH_LENGTH);
     sgx_ec256_signature_t sgx_sig; 
     sgx_status = sgx_ecdsa_sign(sig_buffer.data(), sig_buffer.size(),
             const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &sgx_sig, ecc_state);
@@ -964,66 +934,39 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     log_debug("Generate upgrade signature successfully!\n");
 
     // ----- Get final upgrade data ----- //
-    std::vector<uint8_t> upgrade_buffer;
-    // Public key
-    std::string pubkey_data = "{\"" UPGRADE_PUBLIC_KEY "\":\"" + hexstring_safe(&wl->get_pub_key(), sizeof(sgx_ec256_public_t)) + "\"";
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, pubkey_data)))
+    std::vector<uint8_t> upgrade_data;
+    do
     {
-        return crust_status;
-    }
-    // BLock height
-    std::string block_height_data = ",\"" UPGRADE_BLOCK_HEIGHT "\":" + report_height_str;
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, block_height_data)))
-    {
-        return crust_status;
-    }
-    // Block hash
-    std::string block_hash_data = std::string(",\"" UPGRADE_BLOCK_HASH "\":") + "\"" + std::string(report_hash, HASH_LENGTH * 2) + "\"";
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, block_hash_data)))
-    {
-        return crust_status;
-    }
-    // Srd
-    std::string srd_title(",\"" UPGRADE_SRD "\":");
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_title)))
-    {
-        return crust_status;
-    }
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_data.data(), srd_data.size())))
-    {
-        return crust_status;
-    }
-    // Files
-    std::string files_title(",\"" UPGRADE_FILE "\":");
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, files_title)))
-    {
-        return crust_status;
-    }
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, file_data.data(), file_data.size())))
-    {
-        return crust_status;
-    }
-    // Srd root
-    std::string srd_root_data = ",\"" UPGRADE_SRD_ROOT "\":\"" + hexstring_safe(p_srd_root, HASH_LENGTH) + "\"";
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, srd_root_data)))
-    {
-        return crust_status;
-    }
-    // Files root
-    std::string files_root_data = ",\"" UPGRADE_FILE_ROOT "\":\"" + hexstring_safe(p_file_root, HASH_LENGTH) + "\"";
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, files_root_data)))
-    {
-        return crust_status;
-    }
-    // Signature
-    std::string sig_data = ",\"" UPGRADE_SIG "\":\"" + hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)) + "\"}";
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(upgrade_buffer, sig_data)))
-    {
-        return crust_status;
-    }
+        json::JSON upgrade_json;
+        // Public key
+        upgrade_json[UPGRADE_PUBLIC_KEY] = hexstring_safe(&wl->get_pub_key(), sizeof(sgx_ec256_public_t));
+        // BLock height
+        upgrade_json[UPGRADE_BLOCK_HEIGHT] = report_height_str;
+        // Block hash
+        upgrade_json[UPGRADE_BLOCK_HASH] = std::string(report_hash, HASH_LENGTH * 2);
+        // Srd
+        upgrade_json[UPGRADE_SRD] = srd_json[WL_SRD];
+        // Files
+        upgrade_json[UPGRADE_FILE] = file_json[WL_FILES];
+        // Srd root
+        upgrade_json[UPGRADE_SRD_ROOT] = srd_json[WL_SRD_ROOT_HASH].ToString();
+        // Files root
+        upgrade_json[UPGRADE_FILE_ROOT] = file_json[WL_FILE_ROOT_HASH].ToString();
+        // Signature
+        upgrade_json[UPGRADE_SIG] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
+        upgrade_data = upgrade_json.dump_vector(&crust_status);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            return crust_status;
+        }
+    } while (0);
 
     // Store upgrade data
-    safe_ocall_store2(OCALL_STORE_UPGRADE_DATA, upgrade_buffer.data(), upgrade_buffer.size());
+    crust_status = safe_ocall_store2(OCALL_STORE_UPGRADE_DATA, upgrade_data.data(), upgrade_data.size());
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return crust_status;
+    }
     log_debug("Store upgrade data successfully!\n");
 
     wl->set_upgrade_status(ENC_UPGRADE_STATUS_SUCCESS);
@@ -1086,32 +1029,15 @@ crust_status_t id_restore_from_upgrade(const uint8_t *data, size_t data_size)
     std::vector<uint8_t> sig_buffer;
     // A's public key
     const uint8_t *p_a_pub_key = reinterpret_cast<const uint8_t *>(&sgx_a_pub_key);
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, p_a_pub_key, sizeof(sgx_ec256_public_t))))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, p_a_pub_key, sizeof(sgx_ec256_public_t));
     // Block height
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, report_height_str)))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, report_height_str);
     // Block hash
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, report_hash_str)))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, report_hash_str);
     // Srd root
-    const uint8_t *p_srd_root = wl_info[WL_SRD_ROOT_HASH].ToBytes();
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, p_srd_root, wl_info[WL_SRD_ROOT_HASH].size())))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, wl_info[WL_SRD_ROOT_HASH].ToBytes(), wl_info[WL_SRD_ROOT_HASH].size());
     // Files root
-    const uint8_t *p_file_root = wl_info[WL_FILE_ROOT_HASH].ToBytes();
-    if (CRUST_SUCCESS != (crust_status = vector_end_insert(sig_buffer, p_file_root, wl_info[WL_FILE_ROOT_HASH].size())))
-    {
-        return crust_status;
-    }
+    vector_end_insert(sig_buffer, wl_info[WL_FILE_ROOT_HASH].ToBytes(), wl_info[WL_FILE_ROOT_HASH].size());
     // Verify signature
     sgx_ecc_state_handle_t ecc_state = NULL;
     sgx_status = sgx_ecc256_open_context(&ecc_state);

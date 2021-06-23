@@ -58,10 +58,10 @@ public:
     void clean_all();
 
     // For persistence
-    std::vector<uint8_t> serialize_srd(crust_status_t *status);
-    std::vector<uint8_t> serialize_file(crust_status_t *status);
-    std::vector<uint8_t> get_upgrade_srd_info(crust_status_t *status, uint8_t **p_root);
-    std::vector<uint8_t> get_upgrade_file_info(crust_status_t *status, uint8_t **p_root);
+    json::JSON serialize_srd();
+    json::JSON serialize_file();
+    json::JSON get_upgrade_srd_info(crust_status_t *status);
+    json::JSON get_upgrade_file_info(crust_status_t *status);
     crust_status_t restore_srd(json::JSON &g_hashs);
     crust_status_t restore_file(json::JSON &file_json);
     crust_status_t restore_file_info();
@@ -141,6 +141,10 @@ public:
                 del_num++;
             }
         }
+
+        // Update srd info
+        std::string srd_info_str = this->get_srd_info().dump();
+        ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 
         return del_num;
     }

@@ -554,7 +554,11 @@ void validate_meaningful_file_real()
     // Validate lost data if have
     if (status.get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
     {
-        block_idx_s.insert((*file)[FILE_LOST_INDEX].ToInt());
+        long lost_index = (*file)[FILE_LOST_INDEX].ToInt();
+        if (lost_index > 0 && lost_index < (*file)[FILE_BLOCK_NUM].ToInt())
+        {
+            block_idx_s.insert(lost_index);
+        }
     }
     // Do check
     for (auto check_block_idx : block_idx_s)
