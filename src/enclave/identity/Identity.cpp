@@ -860,12 +860,12 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
     {
         return CRUST_BLOCK_HEIGHT_EXPIRED;
     }
-    if (block_height - wl->get_report_height() < REPORT_SLOT)
+    if (block_height < REPORT_SLOT + wl->get_report_height())
     {
         return CRUST_UPGRADE_WAIT_FOR_NEXT_ERA;
     }
     size_t report_height = wl->get_report_height();
-    while (block_height - report_height > REPORT_SLOT)
+    while (block_height > REPORT_SLOT + report_height)
     {
         report_height += REPORT_SLOT;
     }

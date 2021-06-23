@@ -669,7 +669,7 @@ void Workload::handle_report_result()
  */
 crust_status_t Workload::can_report_work(size_t block_height)
 {
-    if (block_height == 0 || block_height - this->get_report_height() - WORKREPORT_REPORT_INTERVAL < REPORT_SLOT)
+    if (block_height == 0 || block_height < REPORT_SLOT + this->get_report_height() + WORKREPORT_REPORT_INTERVAL)
     {
         return CRUST_UPGRADE_BLOCK_EXPIRE;
     }
@@ -1221,15 +1221,11 @@ crust_status_t Workload::restore_file_info()
             has_pre = true;
         }
         file_buffer.push_back(']');
-        if (++it != g_file_spec_status.end())
-        {
-            file_buffer.push_back(',');
-        }
+        file_buffer.push_back(',');
         // Set file spec
         file_spec[file_type]["num"].AddNum(num);
         file_spec[file_type]["size"].AddNum(size);
     }
-    file_buffer.push_back(',');
     std::string file_spec_str = file_spec.dump();
     remove_char(file_spec_str, '\\');
     remove_char(file_spec_str, '\n');
