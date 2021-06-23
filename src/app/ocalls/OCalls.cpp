@@ -167,7 +167,13 @@ crust_status_t ocall_srd_change(long change)
  */
 crust_status_t ocall_upload_identity(const char *id)
 {
-    json::JSON entrance_info = json::JSON::Load(std::string(id));
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON entrance_info = json::JSON::Load(&crust_status, std::string(id));
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Parse identity failed! Error code:%lx\n", crust_status);
+        return crust_status;
+    }
     entrance_info["account_id"] = Config::get_instance()->chain_address;
     std::string sworker_identity = entrance_info.dump();
     p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());

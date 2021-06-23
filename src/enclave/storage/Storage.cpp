@@ -133,7 +133,11 @@ crust_status_t storage_seal_file(const char *root,
         // Get raw data
         uint8_t *p_sealed_data = NULL;
         size_t sealed_data_sz = 0;
-        json::JSON links_json = json::JSON::Load(p_plain_data, plain_data_sz);
+        json::JSON links_json = json::JSON::Load(&seal_ret, p_plain_data, plain_data_sz);
+        if (CRUST_SUCCESS != seal_ret)
+        {
+            return seal_ret;
+        }
         if (!(links_json.JSONType() == json::JSON::Class::Object 
                 && links_json.hasKey(IPFS_META)
                 && links_json[IPFS_META].JSONType() == json::JSON::Class::Array))
@@ -324,7 +328,7 @@ crust_status_t storage_seal_file_end(const char *root)
     crust_status = safe_ocall_get2(ocall_chain_get_block_info, block_info_buf, &info_buf_sz);
     if (CRUST_SUCCESS == crust_status)
     {
-        json::JSON binfo_json = json::JSON::Load(block_info_buf, info_buf_sz);
+        json::JSON binfo_json = json::JSON::Load_unsafe(block_info_buf, info_buf_sz);
         chain_block_num = binfo_json[CHAIN_BLOCK_NUMBER].ToInt();
     }
     else

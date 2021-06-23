@@ -296,7 +296,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                json::JSON id_json = json::JSON::Load(id_info_str);
+                json::JSON id_json = json::JSON::Load_unsafe(id_info_str);
                 id_json["account"] = p_config->chain_address;
                 id_json["version"] = VERSION;
                 id_json["sworker_version"] = SWORKER_VERSION;
@@ -313,7 +313,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "cid";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
             {
@@ -357,7 +357,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "type";
             bool bad_req = false;
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
@@ -506,7 +506,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 200;
             std::string ret_info;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "success";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::Boolean)
             {
@@ -599,7 +599,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             std::string ret_info;
             int ret_code = 400;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "debug";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::Boolean)
             {
@@ -627,7 +627,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         {
             int ret_code = 400;
             std::string ret_info;
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             json::JSON ret_body;
 
             if (!p_config->config_file_add_data_paths(req_json))
@@ -657,7 +657,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             // Check input parameters
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "change";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::Integral)
             {
@@ -754,7 +754,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             // Delete file
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "cid";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
             {
@@ -822,7 +822,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
             // Delete file
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "cid";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
             {
@@ -981,7 +981,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             crust_status_t crust_status = CRUST_SUCCESS;
             sgx_status_t sgx_status = SGX_SUCCESS;
             // Delete file
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "cid";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
             {
@@ -1045,7 +1045,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             //p_log->info("Dealing with unseal request...\n");
             // Parse parameters
-            json::JSON req_json = json::JSON::Load((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "path";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
             {

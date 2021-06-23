@@ -42,7 +42,12 @@ bool Config::init(std::string path)
     std::string config_str((std::istreambuf_iterator<char>(config_ifs)), std::istreambuf_iterator<char>());
 
     // Fill configurations
-    json::JSON config_value = json::JSON::Load(config_str);
+    json::JSON config_value = json::JSON::Load(&crust_status, config_str);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Parse configure json failed! Error code:%lx\n", crust_status);
+        return false;
+    }
 
     crust::Log *p_log = crust::Log::get_instance();
     // Base configurations
@@ -380,7 +385,12 @@ bool Config::config_file_add_data_paths(const json::JSON &paths)
         }
         else
         {
-            json::JSON config_json = json::JSON::Load(p_data, data_size);
+            json::JSON config_json = json::JSON::Load(&crust_status, p_data, data_size);
+            if (CRUST_SUCCESS != crust_status)
+            {
+                p_log->err("Parse configure file json failed! Error code:%lx\n", crust_status);
+                return false;
+            }
             free(p_data);
             if (config_json["data_path"].JSONType() != json::JSON::Class::Array)
             {

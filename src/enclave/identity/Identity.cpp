@@ -745,7 +745,12 @@ crust_status_t id_restore_metadata()
         return CRUST_UNEXPECTED_ERROR;
     }
     log_debug("Get metadata successfully!\n");
-    meta_json = json::JSON::Load(p_data + strlen(SWORKER_PRIVATE_TAG), data_len);
+    meta_json = json::JSON::Load(&crust_status, p_data + strlen(SWORKER_PRIVATE_TAG), data_len);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        log_err("Parse metadata failed! Error code:%lx\n", crust_status);
+        return crust_status;
+    }
     free(p_data);
     if (meta_json.size() == 0)
     {
@@ -1034,10 +1039,14 @@ crust_status_t id_gen_upgrade_data(size_t block_height)
  */
 crust_status_t id_restore_from_upgrade(const uint8_t *data, size_t data_size)
 {
-    json::JSON upgrade_json = json::JSON::Load(data, data_size);
-
     crust_status_t crust_status = CRUST_SUCCESS;
     sgx_status_t sgx_status = SGX_SUCCESS;
+    json::JSON upgrade_json = json::JSON::Load(&crust_status, data, data_size);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        log_err("Parse upgrade data failed! Error code:%lx\n", crust_status);
+        return crust_status;
+    }
     Workload *wl = Workload::get_instance();
     std::string report_height_str = upgrade_json[UPGRADE_BLOCK_HEIGHT].ToString();
     std::string report_hash_str = upgrade_json[UPGRADE_BLOCK_HASH].ToString();

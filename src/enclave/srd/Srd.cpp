@@ -316,7 +316,7 @@ void srd_remove_space(const char *data, size_t data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
-    json::JSON del_json = json::JSON::Load(reinterpret_cast<const uint8_t *>(data), data_size);
+    json::JSON del_json = json::JSON::Load_unsafe(reinterpret_cast<const uint8_t *>(data), data_size);
     long change = 0;
 
     for (auto item : del_json.ObjectRange())

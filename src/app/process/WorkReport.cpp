@@ -55,7 +55,7 @@ void work_report_loop(void)
     size_t wait_time = 0;
 
     // Set srand
-    json::JSON id_json = json::JSON::Load(ed->get_enclave_id_info());
+    json::JSON id_json = json::JSON::Load_unsafe(ed->get_enclave_id_info());
 
     // Generate target block height
     crust::BlockHeader block_header;
