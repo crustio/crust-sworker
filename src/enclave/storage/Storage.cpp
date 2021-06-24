@@ -302,7 +302,7 @@ crust_status_t storage_seal_file_end(const char *root)
     json::JSON file_json = wl->pending_files_um[rcid];
     sl.unlock();
     // Check if getting all blocks
-    for (auto m : *(file_json[FILE_BLOCKS].ObjectRange().object))
+    for (auto m : file_json[FILE_BLOCKS].ObjectRange())
     {
         if (m.second.ToInt() != 0)
         {

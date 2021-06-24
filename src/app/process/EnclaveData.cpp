@@ -237,6 +237,7 @@ void EnclaveData::add_file_info(const std::string &cid, std::string type, std::s
     if (type.compare(FILE_TYPE_VALID) == 0)
     {
         this->sealed_file[FILE_TYPE_PENDING].erase(cid);
+        this->del_pending_file_size(cid);
     }
 
     this->sealed_file[type][cid] = info;
@@ -246,13 +247,7 @@ void EnclaveData::add_file_info(const std::string &cid, std::string type, std::s
     SafeLock sl_file_info(this->file_info_mutex);
     sl_file_info.lock();
     remove_char(info, '\\');
-    crust_status_t crust_status = CRUST_SUCCESS;
-    json::JSON info_json = json::JSON::Load(&crust_status, info);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        p_log->debug("Parse adding file info failed! Error code:%lx\n", crust_status);
-        return;
-    }
+    json::JSON info_json = json::JSON::Load_unsafe(info);
     size_t file_size = 0;
     if (type.compare(FILE_TYPE_VALID) == 0)
     {
@@ -343,6 +338,10 @@ void EnclaveData::del_file_info(std::string cid)
         {
             file_size = info_json[FILE_SIZE].ToInt();
         }
+        else
+        {
+            this->del_pending_file_size(cid);
+        }
         this->file_info_mutex.lock();
         this->file_info[type]["num"].AddNum(-1);
         this->file_info[type]["size"].AddNum(-file_size);
@@ -379,6 +378,10 @@ void EnclaveData::del_file_info(std::string cid, std::string type)
         {
             file_size = info_json[FILE_SIZE].ToInt();
         }
+        else
+        {
+            this->del_pending_file_size(cid);
+        }
         this->file_info_mutex.lock();
         this->file_info[type]["num"].AddNum(-1);
         this->file_info[type]["size"].AddNum(-file_size);
@@ -397,28 +400,17 @@ void EnclaveData::restore_file_info(const uint8_t *data, size_t data_size)
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
     json::JSON sealed_files = json::JSON::Load_unsafe(data, data_size);
-    if (sealed_files.size() <= 0)
-    {
-        return;
-    }
     json::JSON file_spec = sealed_files[WL_FILE_SPEC_INFO];
-    if (sealed_files.JSONType() != json::JSON::Class::Object)
+    sealed_files.erase(WL_FILE_SPEC_INFO);
+    for (auto it : sealed_files.ObjectRange())
     {
-        p_log->err("Restore file info failed! Invalid json type, expected 'Object'");
-        return;
-    }
-    sealed_files.ObjectRange().object->erase(WL_FILE_SPEC_INFO);
-    for (auto it : *(sealed_files.ObjectRange().object))
-    {
-        if (it.second.JSONType() != json::JSON::Class::Array)
+        for (auto f_it : it.second.ArrayRange())
         {
-            p_log->err("Restore file info failed! Invalid json type, expected 'Array'");
-            return;
-        }
-        for (auto f_it : *(it.second.ArrayRange().object))
-        {
-            auto val = f_it.ObjectRange().begin();
-            this->sealed_file[it.first][val->first] = val->second.ToString();
+            if (f_it.JSONType() == json::JSON::Class::Object && f_it.size() > 0)
+            {
+                auto val = f_it.ObjectRange().begin();
+                this->sealed_file[it.first][val->first] = val->second.ToString();
+            }
         }
     }
     sl.unlock();
@@ -464,13 +456,12 @@ std::string EnclaveData::get_file_info_item(std::string cid, std::string &info, 
 
 /**
  * @description: Get pending files' size
- * @param type -> File type
  * @return: Pending files' size
  */
-size_t EnclaveData::get_files_size_by_type(const char *type)
+size_t EnclaveData::get_pending_files_size_all()
 {
     this->sealed_file_mutex.lock();
-    std::map<std::string, std::string> tmp_files = this->sealed_file[type];
+    std::map<std::string, std::string> tmp_files = this->sealed_file[FILE_TYPE_PENDING];
     this->sealed_file_mutex.unlock();
 
     size_t ans = 0;
@@ -716,17 +707,17 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
-    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_files_size_by_type(FILE_TYPE_PENDING));
-    for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_pending_files_size_all());
+    for (auto it : file_info.ObjectRange())
     {
-        space_num = std::max(space_num, (int)it->first.size());
+        space_num = std::max(space_num, (int)it.first.size());
     }
-    for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+    for (auto it : file_info.ObjectRange())
     {
         memset(buf, 0, sizeof(buf));
         sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
-                std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
-        n_file_info[it->first] = std::string(buf);
+                std::string(space_num - it.first.size(), ' ').c_str(), it.second["num"].ToInt(), it.second["size"].ToInt());
+        n_file_info[it.first] = std::string(buf);
     }
 
     wl_json[WL_FILES] = n_file_info;

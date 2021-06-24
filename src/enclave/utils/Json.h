@@ -183,9 +183,9 @@ public:
     template <typename Container>
     class JSONWrapper
     {
+        Container *object;
 
     public:
-        Container *object;
         JSONWrapper(Container *val) : object(val) {}
         JSONWrapper(std::nullptr_t) : object(nullptr) {}
 
@@ -541,6 +541,12 @@ public:
         if (Type == Class::Object)
             return Internal.Map->find(key) != Internal.Map->end();
         return false;
+    }
+
+    void erase(const string &key)
+    {
+        if (Type == Class::Object)
+            Internal.Map->erase(key);
     }
 
     long size() const

@@ -33,7 +33,7 @@ public:
     std::string get_file_info_all();
     std::string get_file_info_by_type(std::string type);
     std::string _get_file_info_by_type(std::string type, std::string pad, bool raw);
-    size_t get_files_size_by_type(const char *type);
+    size_t get_pending_files_size_all();
     void del_file_info(std::string cid);
     void del_file_info(std::string cid, std::string type);
     bool find_file_type(std::string cid, std::string &type);
