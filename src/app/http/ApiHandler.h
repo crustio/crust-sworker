@@ -948,6 +948,11 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         p_log->info("%s\n", ret_info.c_str());
                         ret_code = 503;
                         break;
+                    case CRUST_STORAGE_NEW_FILE_NOTFOUND:
+                        ret_info = "Seal file '" + cid + "' failed, file is not existed";
+                        p_log->debug("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
                     default:
                         ret_info = "Seal file '" + cid + "' failed! Unexpected error, error code:" + num_to_hexstring(crust_status);
                         p_log->err("%s\n", ret_info.c_str());

@@ -726,6 +726,12 @@ public:
         return CRUST_SUCCESS;
     }
 
+    vector<uint8_t> dump_vector_unsafe()
+    {
+        crust_status_t ret = CRUST_SUCCESS;
+        return dump_vector(&ret);
+    }
+
     vector<uint8_t> dump_vector(crust_status_t *status)
     {
         vector<uint8_t> v;

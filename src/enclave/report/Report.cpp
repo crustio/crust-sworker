@@ -257,15 +257,13 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     // Added files
     do
     {
-        crust_status_t ret = CRUST_SUCCESS;
-        std::vector<uint8_t> added_data = added_files.dump_vector(&ret);
+        std::vector<uint8_t> added_data = added_files.dump_vector_unsafe();
         vector_end_insert(sig_buffer, added_data.data(), added_data.size());
     } while (0);
     // Deleted files
     do
     {
-        crust_status_t ret = CRUST_SUCCESS;
-        std::vector<uint8_t> deleted_data = deleted_files.dump_vector(&ret);
+        std::vector<uint8_t> deleted_data = deleted_files.dump_vector_unsafe();
         vector_end_insert(sig_buffer, deleted_data.data(), deleted_data.size());
     } while (0);
 
