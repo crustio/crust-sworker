@@ -480,7 +480,7 @@ crust_status_t storage_delete_file(const char *cid)
     }
     else
     {
-        log_warn("Delete file:%s failed(not found)!\n", cid);
+        log_warn("Delete file:%s not found!\n", cid);
         crust_status = CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
 
