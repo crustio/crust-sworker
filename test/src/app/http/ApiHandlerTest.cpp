@@ -122,7 +122,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
                 {
                     // Send signed validation report to crust chain
                     p_log->info("Send work report successfully!\n");
-                    std::string work_str = edTest->get_enclave_workreport();
+                    std::string work_str = EnclaveData::get_instance()->get_workreport();
                     res_json[HTTP_MESSAGE] = work_str;
                     res_json[HTTP_STATUS_CODE] = 200;
                     goto getcleanup;
@@ -222,7 +222,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
         cur_path = urlendpoint.base + "/test/add_file";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             long file_num = req_json["file_num"].ToInt();
             Ecall_test_add_file(global_eid, file_num);
             res_json[HTTP_MESSAGE] = "Add file successfully!";
@@ -233,7 +233,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
         cur_path = urlendpoint.base + "/test/delete_file";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             uint32_t file_num = req_json["file_num"].ToInt();
             Ecall_test_delete_file(global_eid, file_num);
             res_json[HTTP_MESSAGE] = "Delete file successfully!";
@@ -244,10 +244,10 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
         cur_path = urlendpoint.base + "/test/delete_file_unsafe";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             uint32_t file_num = req_json["file_num"].ToInt();
             Ecall_test_delete_file_unsafe(global_eid, file_num);
-            EnclaveData::get_instance()->restore_sealed_file_info(reinterpret_cast<const uint8_t *>("{}"), 2);
+            EnclaveData::get_instance()->restore_file_info(reinterpret_cast<const uint8_t *>("{}"), 2);
             res_json[HTTP_MESSAGE] = "Delete file successfully!";
             res_json[HTTP_STATUS_CODE] = 200;
             goto getcleanup;
@@ -265,7 +265,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
         cur_path = urlendpoint.base + "/file_info";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             std::string hash = req_json["hash"].ToString();
             crust_status_t crust_status = CRUST_SUCCESS;
             Ecall_get_file_info(global_eid, &crust_status, hash.c_str());
@@ -296,7 +296,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             std::string ret_info;
             int ret_code = 400;
             // Delete file
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             std::string cid = req_json["cid"].ToString();
             // Check cid
             if (cid.size() != CID_LENGTH)
@@ -326,7 +326,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             }
             else
             {
-                EnclaveData::get_instance()->del_sealed_file_info(cid);
+                EnclaveData::get_instance()->del_file_info(cid);
                 p_log->info("Delete file(%s) successfully!\n", cid.c_str());
                 res_json[HTTP_STATUS_CODE] = 200;
                 res_json[HTTP_MESSAGE] = "Deleting file successfully!";
@@ -345,7 +345,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             int ret_code = 400;
             std::string ret_info;
             // Check input parameters
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             long change_srd_num = req_json["change"].ToInt();
 
             if (change_srd_num == 0)
@@ -380,7 +380,7 @@ json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)
             int ret_code = 400;
             std::string ret_info;
             // Check input parameters
-            json::JSON req_json = json::JSON::Load(req_body);
+            json::JSON req_json = json::JSON::Load_unsafe(req_body);
             long change_srd_num = req_json["change"].ToInt();
             crust_status_t crust_status = CRUST_SUCCESS;
 

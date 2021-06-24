@@ -1046,7 +1046,7 @@ bool Workload::is_file_dup_nolock(std::string cid, size_t &pos)
  * @param file -> File content
  * @param pos -> Inserted position
  */
-void Workload::add_file_info_nolock(json::JSON file, size_t pos)
+void Workload::add_file_nolock(json::JSON file, size_t pos)
 {
     if (pos <= this->sealed_files.size())
     {
@@ -1058,7 +1058,7 @@ void Workload::add_file_info_nolock(json::JSON file, size_t pos)
  * @description: Add sealed file, must hold file_mutex before invoked
  * @param file -> File content
  */
-void Workload::add_file_info_nolock(json::JSON file)
+void Workload::add_file_nolock(json::JSON file)
 {
     size_t pos = 0;
     if (is_file_dup_nolock(file[FILE_CID].ToString(), pos))
@@ -1073,7 +1073,7 @@ void Workload::add_file_info_nolock(json::JSON file)
  * @description: Delete sealed file, must hold file_mutex before invoked
  * @param cid -> File content id
  */
-void Workload::del_file_info_nolock(std::string cid)
+void Workload::del_file_nolock(std::string cid)
 {
     size_t pos = 0;
     if (this->is_file_dup_nolock(cid, pos))
@@ -1086,7 +1086,7 @@ void Workload::del_file_info_nolock(std::string cid)
  * @description: Delete sealed file, must hold file_mutex before invoked
  * @param pos -> Deleted file position
  */
-void Workload::del_file_info_nolock(size_t pos)
+void Workload::del_file_nolock(size_t pos)
 {
     if (pos < this->sealed_files.size())
     {
@@ -1116,7 +1116,7 @@ crust_status_t Workload::restore_file_info()
                 continue;
 
             json::JSON info;
-            info[file[FILE_CID].ToString()] = "{\"" FILE_SIZE "\" : " + std::to_string(file[FILE_SIZE].ToInt())
+            info[file[FILE_CID].ToString()] = "{ \"" FILE_SIZE "\" : " + std::to_string(file[FILE_SIZE].ToInt())
                 + " , \"" FILE_SEALED_SIZE "\" : " + std::to_string(file[FILE_SEALED_SIZE].ToInt())
                 + " , \"" FILE_CHAIN_BLOCK_NUM "\" : " + std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt()) + " }";
             num++;

@@ -160,10 +160,10 @@ public:
     void deal_deleted_file();
     bool is_file_dup_nolock(std::string cid);
     bool is_file_dup_nolock(std::string cid, size_t &pos);
-    void add_file_info_nolock(json::JSON file);
-    void add_file_info_nolock(json::JSON file, size_t pos);
-    void del_file_info_nolock(std::string cid);
-    void del_file_info_nolock(size_t pos);
+    void add_file_nolock(json::JSON file);
+    void add_file_nolock(json::JSON file, size_t pos);
+    void del_file_nolock(std::string cid);
+    void del_file_nolock(size_t pos);
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_file_spec()

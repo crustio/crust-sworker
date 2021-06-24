@@ -157,7 +157,7 @@ function srd()
 
 function validate_add_proof()
 {
-    curl -s $baseurl/validate/add_proof
+    curl -s $baseurl/validate/add_proof &>/dev/null
 }
 
 function validate_srd()
@@ -182,6 +182,7 @@ function validate_file_bench()
 
 function report_work()
 {
+    validate_add_proof
     local block_height=0
     if [ -s $reportheightfile ]; then
         block_height=$(cat $reportheightfile)

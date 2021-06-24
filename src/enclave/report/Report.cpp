@@ -126,8 +126,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
     sealed_files_sl.lock();
     // Clear reported_files_idx
     wl->reported_files_idx.clear();
-    json::JSON added_files;
-    json::JSON deleted_files;
+    json::JSON added_files = json::Array();
+    json::JSON deleted_files = json::Array();
     size_t reported_files_acc = 0;
     long long files_size = 0;
     std::vector<size_t> report_valid_idx_v;
@@ -293,8 +293,8 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         wr_json[WORKREPORT_PRE_PUB_KEY] = pre_pub_key;
         wr_json[WORKREPORT_BLOCK_HEIGHT] = block_height_str;
         wr_json[WORKREPORT_BLOCK_HASH] = std::string(block_hash, HASH_LENGTH * 2);
-        wr_json[WORKREPORT_RESERVED] = std::to_string(srd_workload);
-        wr_json[WORKREPORT_FILES_SIZE] = std::to_string(files_size);
+        wr_json[WORKREPORT_RESERVED] = srd_workload;
+        wr_json[WORKREPORT_FILES_SIZE] = files_size;
         wr_json[WORKREPORT_RESERVED_ROOT] = hexstring_safe(srd_root, HASH_LENGTH);
         wr_json[WORKREPORT_FILES_ROOT] = hexstring_safe(files_root, HASH_LENGTH);
         wr_json[WORKREPORT_FILES_ADDED] = added_files;

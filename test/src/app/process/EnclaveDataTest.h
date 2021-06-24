@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string>
 
+#include "EnclaveData.h"
+
 class EnclaveDataTest
 {
 public:
@@ -11,8 +13,6 @@ public:
     static EnclaveDataTest *get_instance();
 
     void set_file_info(std::string file_info);
-    void set_enclave_workreport(std::string report);
-    std::string get_enclave_workreport();
     std::string get_file_info();
     std::string g_file_info = "";
     std::string enclave_workreport = "";

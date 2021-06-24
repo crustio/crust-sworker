@@ -39,7 +39,6 @@ extern "C"
 void ocall_store_file_info_test(const char *info);
 crust_status_t ocall_get_file_bench(const char *file_path, unsigned char **p_file, size_t *len);
 crust_status_t ocall_get_file_block(const char *file_path, unsigned char **p_file, size_t *len);
-crust_status_t ocall_upload_workreport_test(const char *work_report);
 crust_status_t ocall_srd_change_test(long change);
 void ocall_recall_validate_file_bench();
 void ocall_recall_validate_srd_bench();

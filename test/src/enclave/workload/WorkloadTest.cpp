@@ -37,7 +37,7 @@ void WorkloadTest::test_add_file(long file_num)
         file_entry_json[FILE_STATUS] = "100000000000";
         free(p_cid_buffer);
         free(n_u);
-        wl->add_sealed_file(file_entry_json);
+        wl->add_file_nolock(file_entry_json);
         wl->set_file_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
 
         std::string file_info;

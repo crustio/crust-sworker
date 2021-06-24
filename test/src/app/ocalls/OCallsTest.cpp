@@ -91,20 +91,6 @@ crust_status_t ocall_get_file_block(const char *file_path, unsigned char **p_fil
     return CRUST_SUCCESS;
 }
 
-crust_status_t ocall_upload_workreport_test(const char *work_report)
-{
-    std::string work_str(work_report);
-    remove_char(work_str, '\\');
-    remove_char(work_str, '\n');
-    remove_char(work_str, ' ');
-    p_log->info("Sending work report:%s\n", work_str.c_str());
-    EnclaveDataTest::get_instance()->set_enclave_workreport(work_str);
-
-    p_log->info("Send work report to crust chain successfully!\n");
-
-    return CRUST_SUCCESS;
-}
-
 void ocall_recall_validate_file_bench()
 {
     validate_file_test();
