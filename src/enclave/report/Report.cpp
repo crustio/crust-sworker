@@ -164,7 +164,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_VALID && status->get_char(ORIGIN_STATUS) == FILE_STATUS_LOST)
                         || (status->get_char(CURRENT_STATUS) == FILE_STATUS_DELETED && status->get_char(ORIGIN_STATUS) == FILE_STATUS_VALID))
                 {
-                    json::JSON file_json;
+                    json::JSON file_json = json::FIOObject();
                     file_json[FILE_CID] = wl->sealed_files[i][FILE_CID].ToString();
                     file_json[FILE_SIZE] = wl->sealed_files[i][FILE_SIZE].ToInt();
                     file_json[FILE_CHAIN_BLOCK_NUM] = wl->sealed_files[i][FILE_CHAIN_BLOCK_NUM].ToInt();

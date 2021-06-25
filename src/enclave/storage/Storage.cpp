@@ -73,12 +73,18 @@ crust_status_t storage_seal_file(const char *root,
                                  char *path,
                                  size_t /*path_size*/)
 {
-    crust_status_t seal_ret = CRUST_UNEXPECTED_ERROR;
     Workload *wl = Workload::get_instance();
     std::string rcid(root);
     uint8_t *p_plain_data = const_cast<uint8_t *>(data);
     size_t plain_data_sz = data_size;
 
+    // If file transfer completed
+    if (p_plain_data == NULL || plain_data_sz == 0)
+    {
+        return CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
+    }
+
+    crust_status_t seal_ret = CRUST_UNEXPECTED_ERROR;
     Defer defer([&seal_ret, &wl, &rcid, &root](){
         if (CRUST_SUCCESS != seal_ret)
         {
@@ -97,6 +103,8 @@ crust_status_t storage_seal_file(const char *root,
                 if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
                 {
                     wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                    // Delete file info
+                    ocall_delete_file_info(root, FILE_TYPE_PENDING);
                     // Delete info in workload spec
                     wl->set_file_spec(FILE_STATUS_PENDING, -1);
                 }
@@ -108,12 +116,6 @@ crust_status_t storage_seal_file(const char *root,
     if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
-    }
-
-    // If file transfer completed
-    if (p_plain_data == NULL || plain_data_sz == 0)
-    {
-        return CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
     }
 
     // ----- Check file status ----- //

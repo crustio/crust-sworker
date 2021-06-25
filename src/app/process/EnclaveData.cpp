@@ -442,7 +442,7 @@ std::string EnclaveData::get_file_info_item(std::string cid, std::string &info, 
         data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
             + get_time_diff_humanreadable(utime) + "\" , "
             + "\"" FILE_PENDING_SIZE "\" : \""
-            + get_file_size_humanreadable(this->get_pending_file_size(cid)) + "\""
+            + std::to_string(this->get_pending_file_size(cid)) + "\""
             + " }";
     }
 

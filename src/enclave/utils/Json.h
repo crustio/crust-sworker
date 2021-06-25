@@ -23,6 +23,7 @@
 #include "EUtils.h"
 #endif
 #define HASH_TAG "$&JT&$"
+#define FIO_MAX_SIZE 999
 
 namespace json
 {
@@ -39,6 +40,8 @@ using std::map;
 using std::string;
 
 const uint32_t _hash_length = 32;
+const size_t FIO_SIZE = std::to_string(FIO_MAX_SIZE).size();
+const string FIO_INITAL_VAL(FIO_SIZE, '0');
 
 namespace
 {
@@ -145,6 +148,48 @@ std::string _hexstring(const void *vsrc, size_t len)
 
     return ans;
 }
+bool is_number(const string &s)
+{
+    if (s.size() == 0)
+        return false;
+
+    for (auto c : s)
+    {
+        if (!isdigit(c))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+template <typename... T>
+void print_info(T... args)
+{
+#ifdef _CRUST_RESOURCE_H_
+    p_log->info(args...);
+#else
+    log_info(args...);
+#endif
+}
+template <typename... T>
+void print_debug(T... args)
+{
+#ifdef _CRUST_RESOURCE_H_
+    p_log->debug(args...);
+#else
+    log_debug(args...);
+#endif
+}
+template <typename... T>
+void print_err(T... args)
+{
+#ifdef _CRUST_RESOURCE_H_
+    p_log->err(args...);
+#else
+    log_err(args...);
+#endif
+}
 } // namespace
 
 class JSON
@@ -171,6 +216,7 @@ public:
     {
         Null,
         Object,
+        FIOObject,
         Array,
         Hash,
         Buffer,
@@ -244,6 +290,11 @@ public:
                 new map<string, JSON>(other.Internal.Map->begin(),
                                       other.Internal.Map->end());
             break;
+        case Class::FIOObject:
+            Internal.Map =
+                new map<string, JSON>(other.Internal.Map->begin(),
+                                      other.Internal.Map->end());
+            break;
         case Class::Array:
             Internal.List =
                 new deque<JSON>(other.Internal.List->begin(),
@@ -274,6 +325,11 @@ public:
         switch (other.Type)
         {
         case Class::Object:
+            Internal.Map =
+                new map<string, JSON>(other.Internal.Map->begin(),
+                                      other.Internal.Map->end());
+            break;
+        case Class::FIOObject:
             Internal.Map =
                 new map<string, JSON>(other.Internal.Map->begin(),
                                       other.Internal.Map->end());
@@ -317,6 +373,9 @@ public:
             delete Internal.BufferList;
             break;
         case Class::Object:
+            delete Internal.Map;
+            break;
+        case Class::FIOObject:
             delete Internal.Map;
             break;
         case Class::String:
@@ -409,7 +468,34 @@ public:
 
     JSON &operator[](const string &key)
     {
-        SetType(Class::Object);
+        if (!(Type == Class::Object || Type == Class::FIOObject))
+            SetType(Class::Object);
+
+        if (Type == Class::FIOObject)
+        {
+            string rkey;
+            if (Internal.Map->find(key) != Internal.Map->end())
+            {
+                rkey = Internal.Map->operator[](key).ToString();
+            }
+            else
+            {
+                size_t index = Internal.Map->size() / 2;
+                if (index > FIO_MAX_SIZE)
+                {
+                    return Internal.Map->operator[](key);
+                }
+                string s = std::to_string(index);
+                rkey = FIO_INITAL_VAL;
+                for (long i = rkey.size() - 1, j = s.size() - 1; i >= 0 && j >= 0; i--, j--)
+                {
+                    rkey[i] = s[j];
+                }
+                rkey = rkey + "_" + key;
+                Internal.Map->operator[](key) = rkey;
+            }
+            return Internal.Map->operator[](rkey);
+        }
         return Internal.Map->operator[](key);
     }
 
@@ -540,18 +626,33 @@ public:
     {
         if (Type == Class::Object)
             return Internal.Map->find(key) != Internal.Map->end();
+        else if (Type == Class::FIOObject)
+            return Internal.Map->find(key) != Internal.Map->end();
         return false;
     }
 
     void erase(const string &key)
     {
         if (Type == Class::Object)
+        {
             Internal.Map->erase(key);
+        }
+        else if (Type == Class::FIOObject)
+        {
+            if (Internal.Map->find(key) != Internal.Map->end())
+            {
+                string rkey = Internal.Map->operator[](key).ToString();
+                Internal.Map->erase(key);
+                Internal.Map->erase(rkey);
+            }
+        }
     }
 
     long size() const
     {
         if (Type == Class::Object)
+            return (long)Internal.Map->size();
+        else if (Type == Class::FIOObject)
             return (long)Internal.Map->size();
         else if (Type == Class::Array)
             return (long)Internal.List->size();
@@ -764,6 +865,37 @@ public:
             v.push_back('}');
             return v;
         }
+        case Class::FIOObject:
+        {
+            v.push_back('{');
+            bool skip = true;
+            for (auto &p : *Internal.Map)
+            {
+                string key = p.first;
+                size_t pos = key.find_first_of("_");
+                string tag;
+                if (pos != key.npos && pos + 1 < key.size())
+                {
+                    tag = key.substr(0, pos);
+                    key = key.substr(pos + 1, key.size());
+                }
+                if (tag.size() != FIO_SIZE || !is_number(tag))
+                    continue;
+                if (!skip)
+                    v.push_back(',');
+                string s("\"" + key + "\":");
+                *status = Insert(v, s);
+                vector<uint8_t> sv = p.second.dump_vector(status);
+                if (CRUST_SUCCESS != *status)
+                {
+                    return v;
+                }
+                *status = Insert(v, sv);
+                skip = false;
+            }
+            v.push_back('}');
+            return v;
+        }
         case Class::Array:
         {
             v.push_back('[');
@@ -798,7 +930,7 @@ public:
         }
         case Class::String:
         {
-            string s = "\"" + json_escape(*Internal.String) + "\"";
+            string s = "\"" + *Internal.String + "\"";
             *status = Insert(v, s);
             return v;
         }
@@ -844,6 +976,30 @@ public:
                 if (!skip)
                     s += ",\n";
                 s += (pad + "\"" + p.first + "\" : " + p.second.dump(depth + 1, tab));
+                skip = false;
+            }
+            s += ("\n" + pad.erase(0, 2) + "}");
+            return s;
+        }
+        case Class::FIOObject:
+        {
+            string s = "{\n";
+            bool skip = true;
+            for (auto &p : *Internal.Map)
+            {
+                string key = p.first;
+                size_t pos = key.find_first_of("_");
+                string tag;
+                if (pos != key.npos && pos + 1 < key.size())
+                {
+                    tag = key.substr(0, pos);
+                    key = key.substr(pos + 1, key.size());
+                }
+                if (tag.size() != FIO_SIZE || !is_number(tag))
+                    continue;
+                if (!skip)
+                    s += ",\n";
+                s += (pad + "\"" + key + "\" : " + p.second.dump(depth + 1, tab));
                 skip = false;
             }
             s += ("\n" + pad.erase(0, 2) + "}");
@@ -903,6 +1059,9 @@ private:
         case Class::Object:
             Internal.Map = new map<string, JSON>();
             break;
+        case Class::FIOObject:
+            Internal.Map = new map<string, JSON>();
+            break;
         case Class::Array:
             Internal.List = new deque<JSON>();
             break;
@@ -941,6 +1100,9 @@ private:
         case Class::Object:
             delete Internal.Map;
             break;
+        case Class::FIOObject:
+            delete Internal.Map;
+            break;
         case Class::Array:
             delete Internal.List;
             break;
@@ -977,6 +1139,11 @@ JSON Array(T... args)
 JSON Object()
 {
     return std::move(JSON::Make(JSON::Class::Object));
+}
+
+JSON FIOObject()
+{
+    return std::move(JSON::Make(JSON::Class::FIOObject));
 }
 
 /*

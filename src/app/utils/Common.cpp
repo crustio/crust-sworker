@@ -233,9 +233,12 @@ std::string flat_urlformat(std::string &url)
  */
 bool is_number(const std::string &s)
 {
+    if (s.size() == 0)
+        return false;
+
     for (auto c : s)
     {
-        if (!isxdigit(c))
+        if (!isdigit(c))
         {
             return false;
         }
