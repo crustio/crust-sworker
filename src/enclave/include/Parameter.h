@@ -1,15 +1,17 @@
 #ifndef _ENCLAVE_RESOURCE_H_
 #define _ENCLAVE_RESOURCE_H_
 
+#include "CrustStatus.h"
+#include "sgx_error.h"
+
 // For ocall store
-typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
+typedef crust_status_t (*ocall_store2_f)(const uint8_t *u, size_t s);
+typedef crust_status_t (*ecall_store2_f)(const uint8_t *u, size_t s);
+typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t s, size_t *rs);
 
 // For all
 #define SWORKER_VERSION "0.10.0"
 #define LEAF_SEPARATOR  "+leaf+"
-
-// For persistence
-#define OCALL_STORE_THRESHOLD 4194304 /* 4*1024*1024 */
 
 // For enclave metadata
 #define ID_METADATA "metadata"
@@ -107,6 +109,7 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 #define WL_FILE_SEALED_SIZE "sealed_size"
 #define WL_FILE_STATUS "status"
 #define WL_FILE_ROOT_HASH "file_root_hash"
+#define WL_FILE_SPEC_INFO "file_spec"
 
 // For srd
 #define SRD_MAX_INC_PER_TURN 64
@@ -126,7 +129,7 @@ typedef void (*ocall_store2_f)(const uint8_t *u, size_t s);
 // For ocalls
 #define PERSIST_SUM "persist_sum"
 #define PERSIST_SIZE "persist_size"
-#define OCALL_STORE_THRESHOLD 4194304 /* 4*1024*1024 */
+#define BOUNDARY_SIZE_THRESHOLD 4194304 /* 4*1024*1024 */
 
 // Basic parameters
 #define HASH_LENGTH 32
@@ -164,7 +167,13 @@ typedef enum _store_type_t {
 } store_type_t;
 
 typedef enum _ocall_store_type_t {
-    OS_FILE_INFO_ALL,
+    OCALL_FILE_INFO_ALL,
+    OCALL_STORE_WORKREPORT,
+    OCALL_STORE_UPGRADE_DATA,
 } ocall_store_type_t;
+
+typedef enum _ecall_store_type_t {
+    ECALL_RESTORE_FROM_UPGRADE,
+} ecall_store_type_t;
 
 #endif /* !_ENCLAVE_RESOURCE_H_ */

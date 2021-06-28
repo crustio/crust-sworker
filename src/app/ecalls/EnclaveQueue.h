@@ -5,6 +5,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
@@ -38,6 +39,10 @@
 class EnclaveQueue
 {
 public:
+    std::map<ecall_store_type_t, std::string> ecall_store2_func_m = {
+        {ECALL_RESTORE_FROM_UPGRADE, "Ecall_restore_from_upgrade"},
+    };
+
     void increase_waiting_queue(std::string name);
     void decrease_waiting_queue(std::string name);
     void increase_running_queue(std::string name);
@@ -55,7 +60,7 @@ public:
     static EnclaveQueue *get_instance();
 
 private:
-    EnclaveQueue() {}
+    EnclaveQueue(): running_task_num(0) {}
     // Task priority map, lower number represents higher priority
     std::unordered_map<std::string, int> task_priority_um = {
         {"Ecall_restore_metadata", 0},
@@ -83,7 +88,6 @@ private:
         {"Ecall_change_srd_task", 1},
         {"Ecall_srd_increase", 2},
         {"Ecall_id_get_info", 2},
-        {"Ecall_get_workload", 3},
     };
     // Mapping of Enclave task to its block tasks, current task cannot run when there exists its block task
     std::unordered_map<std::string, std::unordered_set<std::string>> block_tasks_um = {

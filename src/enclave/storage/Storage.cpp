@@ -15,6 +15,11 @@ crust_status_t storage_seal_file_start(const char *root)
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string root_cid(root);
 
+    if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
+    {
+        return CRUST_UPGRADE_IS_UPGRADING;
+    }
+
     // Check if file number exceeds upper limit
     size_t file_num = 0;
     SafeLock sl_file(wl->file_mutex);
@@ -46,8 +51,7 @@ crust_status_t storage_seal_file_start(const char *root)
     wl->set_file_spec(FILE_STATUS_PENDING, 1);
 
     // Store file information
-    std::string file_info("{}");
-    ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_PENDING);
+    ocall_store_file_info(root, "{}", FILE_TYPE_PENDING);
 
     return CRUST_SUCCESS;
 }
@@ -69,12 +73,18 @@ crust_status_t storage_seal_file(const char *root,
                                  char *path,
                                  size_t /*path_size*/)
 {
-    crust_status_t seal_ret = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
     std::string rcid(root);
     uint8_t *p_plain_data = const_cast<uint8_t *>(data);
     size_t plain_data_sz = data_size;
 
+    // If file transfer completed
+    if (p_plain_data == NULL || plain_data_sz == 0)
+    {
+        return CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
+    }
+
+    crust_status_t seal_ret = CRUST_UNEXPECTED_ERROR;
     Defer defer([&seal_ret, &wl, &rcid, &root](){
         if (CRUST_SUCCESS != seal_ret)
         {
@@ -88,11 +98,13 @@ crust_status_t storage_seal_file(const char *root,
             SafeLock sl_file(wl->file_mutex);
             sl_file.lock();
             size_t pos = 0;
-            if (wl->is_file_dup(rcid, pos))
+            if (wl->is_file_dup_nolock(rcid, pos))
             {
                 if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
                 {
                     wl->sealed_files.erase(wl->sealed_files.begin() + pos);
+                    // Delete file info
+                    ocall_delete_file_info(root, FILE_TYPE_PENDING);
                     // Delete info in workload spec
                     wl->set_file_spec(FILE_STATUS_PENDING, -1);
                 }
@@ -103,13 +115,7 @@ crust_status_t storage_seal_file(const char *root,
 
     if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
     {
-        return seal_ret = CRUST_UPGRADE_IS_UPGRADING;
-    }
-
-    // If file transfer completed
-    if (p_plain_data == NULL || plain_data_sz == 0)
-    {
-        return CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     // ----- Check file status ----- //
@@ -129,12 +135,16 @@ crust_status_t storage_seal_file(const char *root,
         // Get raw data
         uint8_t *p_sealed_data = NULL;
         size_t sealed_data_sz = 0;
-        json::JSON links_json = json::JSON::Load(p_plain_data, plain_data_sz);
+        json::JSON links_json = json::JSON::Load(&seal_ret, p_plain_data, plain_data_sz);
+        if (CRUST_SUCCESS != seal_ret)
+        {
+            return seal_ret;
+        }
         if (!(links_json.JSONType() == json::JSON::Class::Object 
                 && links_json.hasKey(IPFS_META)
                 && links_json[IPFS_META].JSONType() == json::JSON::Class::Array))
         {
-            return seal_ret = CRUST_UNEXPECTED_ERROR;
+            return CRUST_UNEXPECTED_ERROR;
         }
         for (long i = 0; i < links_json.size(); i++)
         {
@@ -169,7 +179,7 @@ crust_status_t storage_seal_file(const char *root,
     sgx_sha256_hash_t cur_hash;
     sgx_sha256_msg(p_plain_data, plain_data_sz, &cur_hash);
     std::string cur_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&cur_hash));
-    log_debug("Dealing with cid '%s'\n", cur_cid.c_str());
+    //log_debug("Dealing with cid '%s'\n", cur_cid.c_str());
     wl->pending_files_um[rcid][FILE_BLOCKS][cur_cid].AddNum(-1);
     sl_files_info.unlock();
 
@@ -205,7 +215,7 @@ crust_status_t storage_seal_file(const char *root,
     char *uuid = (char *)enc_malloc(UUID_LENGTH * 2);
     if (uuid == NULL)
     {
-        return seal_ret = CRUST_MALLOC_FAILED;
+        return CRUST_MALLOC_FAILED;
     }
     Defer def_uuid([&uuid](void) { free(uuid); });
     memset(uuid, 0, UUID_LENGTH * 2);
@@ -218,7 +228,7 @@ crust_status_t storage_seal_file(const char *root,
     uint8_t *uuid_u = hex_string_to_bytes(uuid, UUID_LENGTH * 2);
     if (uuid_u == NULL)
     {
-        return seal_ret = CRUST_UNEXPECTED_ERROR;
+        return CRUST_UNEXPECTED_ERROR;
     }
     Defer def_uuid_u([&uuid_u](void) { free(uuid_u); });
 
@@ -234,7 +244,9 @@ crust_status_t storage_seal_file(const char *root,
     wl->pending_files_um[rcid][FILE_META][FILE_BLOCK_NUM].AddNum(1);
     sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
 
-    return CRUST_SUCCESS;
+    seal_ret = CRUST_SUCCESS;
+
+    return seal_ret;
 }
 
 /**
@@ -244,7 +256,7 @@ crust_status_t storage_seal_file(const char *root,
  */
 crust_status_t storage_seal_file_end(const char *root)
 {
-    crust_status_t crust_status = CRUST_SUCCESS;
+    crust_status_t crust_status = CRUST_UNEXPECTED_ERROR;
     std::string rcid(root);
     Workload *wl = Workload::get_instance();
 
@@ -262,13 +274,13 @@ crust_status_t storage_seal_file_end(const char *root)
         SafeLock sl(wl->file_mutex);
         sl.lock();
         size_t pos = 0;
-        if (wl->is_file_dup(root, pos))
+        if (wl->is_file_dup_nolock(root, pos))
         {
             if (FILE_STATUS_PENDING == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
             {
                 wl->sealed_files.erase(wl->sealed_files.begin() + pos);
                 // Delete file info
-                ocall_delete_sealed_file_info(root, FILE_TYPE_PENDING);
+                ocall_delete_file_info(root, FILE_TYPE_PENDING);
                 // Delete info in workload spec
                 wl->set_file_spec(FILE_STATUS_PENDING, -1);
             }
@@ -278,7 +290,7 @@ crust_status_t storage_seal_file_end(const char *root)
 
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
-        return crust_status = CRUST_UPGRADE_IS_UPGRADING;
+        return CRUST_UPGRADE_IS_UPGRADING;
     }
 
     // ----- Check if seal complete ----- //
@@ -287,16 +299,16 @@ crust_status_t storage_seal_file_end(const char *root)
     sl.lock();
     if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end())
     {
-        return crust_status = CRUST_STORAGE_NEW_FILE_NOTFOUND;
+        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
     json::JSON file_json = wl->pending_files_um[rcid];
     sl.unlock();
     // Check if getting all blocks
-    for (auto m : *(file_json[FILE_BLOCKS].ObjectRange().object))
+    for (auto m : file_json[FILE_BLOCKS].ObjectRange())
     {
         if (m.second.ToInt() != 0)
         {
-            return crust_status = CRUST_UNEXPECTED_ERROR;
+            return CRUST_UNEXPECTED_ERROR;
         }
     }
 
@@ -308,17 +320,17 @@ crust_status_t storage_seal_file_end(const char *root)
     size_t info_buf_sz = strlen(CHAIN_BLOCK_NUMBER) + 3 + HASH_LENGTH
                        + strlen(CHAIN_BLOCK_HASH) + 3 + HASH_LENGTH * 2 + 2
                        + HASH_LENGTH * 2;
-    char *block_info_buf = (char *)enc_malloc(info_buf_sz);
+    uint8_t *block_info_buf = (uint8_t *)enc_malloc(info_buf_sz);
     if (block_info_buf == NULL)
     {
-        return crust_status = CRUST_MALLOC_FAILED;
+        return CRUST_MALLOC_FAILED;
     }
     Defer def_blk_info([&block_info_buf](void) { free(block_info_buf); });
     memset(block_info_buf, 0, info_buf_sz);
-    ocall_chain_get_block_info(&crust_status, block_info_buf, info_buf_sz);
+    crust_status = safe_ocall_get2(ocall_chain_get_block_info, block_info_buf, &info_buf_sz);
     if (CRUST_SUCCESS == crust_status)
     {
-        json::JSON binfo_json = json::JSON::Load(std::string(block_info_buf));
+        json::JSON binfo_json = json::JSON::Load_unsafe(block_info_buf, info_buf_sz);
         chain_block_num = binfo_json[CHAIN_BLOCK_NUMBER].ToInt();
     }
     else
@@ -351,7 +363,7 @@ crust_status_t storage_seal_file_end(const char *root)
     // Add new file
     sgx_thread_mutex_lock(&wl->file_mutex);
     size_t pos = 0;
-    if (wl->is_file_dup(root, pos))
+    if (wl->is_file_dup_nolock(root, pos))
     {
         if (FILE_STATUS_DELETED == wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS))
         {
@@ -361,7 +373,7 @@ crust_status_t storage_seal_file_end(const char *root)
     }
     else
     {
-        wl->add_sealed_file(file_entry_json, pos);
+        wl->add_file_nolock(file_entry_json, pos);
     }
     // Delete info in workload spec
     wl->set_file_spec(FILE_STATUS_PENDING, -1);
@@ -377,7 +389,9 @@ crust_status_t storage_seal_file_end(const char *root)
         .append("\"" FILE_CHAIN_BLOCK_NUM "\" : ").append(std::to_string(chain_block_num)).append(" }");
     ocall_store_file_info(root, file_info.c_str(), FILE_TYPE_VALID);
 
-    return CRUST_SUCCESS;
+    crust_status = CRUST_SUCCESS;
+
+    return crust_status;
 }
 
 /**
@@ -442,7 +456,7 @@ crust_status_t storage_delete_file(const char *cid)
     SafeLock sf_lock(wl->file_mutex);
     sf_lock.lock();
     size_t pos = 0;
-    if (wl->is_file_dup(cid, pos))
+    if (wl->is_file_dup_nolock(cid, pos))
     {
         if (wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS) == FILE_STATUS_DELETED)
         {
@@ -468,7 +482,7 @@ crust_status_t storage_delete_file(const char *cid)
     }
     else
     {
-        log_warn("Delete file:%s failed(not found)!\n", cid);
+        log_warn("Delete file:%s not found!\n", cid);
         crust_status = CRUST_STORAGE_NEW_FILE_NOTFOUND;
     }
 
@@ -485,7 +499,7 @@ crust_status_t check_seal_file_dup(std::string cid)
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     size_t pos = 0;
-    if (wl->is_file_dup(cid, pos))
+    if (wl->is_file_dup_nolock(cid, pos))
     {
         crust_status = CRUST_STORAGE_FILE_DUP;
         char cur_s = wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS);
@@ -516,7 +530,7 @@ crust_status_t check_seal_file_dup(std::string cid)
         file_entry_json[FILE_CID] = cid;
         // Set file status to 'FILE_STATUS_PENDING,FILE_STATUS_UNVERIFIED,FILE_STATUS_UNVERIFIED'
         file_entry_json[FILE_STATUS].AppendChar(FILE_STATUS_PENDING).AppendChar(FILE_STATUS_UNVERIFIED).AppendChar(FILE_STATUS_UNVERIFIED);
-        wl->add_sealed_file(file_entry_json, pos);
+        wl->add_file_nolock(file_entry_json, pos);
     }
 
     return crust_status;

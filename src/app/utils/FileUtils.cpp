@@ -497,7 +497,7 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
     Defer def_r_path([&valid_path, &path](void) {
         if (!valid_path && std::strlen(path) != 0)
         {
-            p_log->warn("Invalid path:'%s', cannot get real path.\n", path);
+            p_log->debug("Invalid path:'%s', cannot get real path.\n", path);
         }
     });
     if (std::strlen(path) < UUID_LENGTH * 2)
@@ -509,7 +509,7 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
     std::string d_path = ed->get_disk_path(uuid);
     if (d_path.compare("") == 0)
     {
-        p_log->warn("Cannot find path for uuid:%s\n", uuid.c_str());
+        p_log->debug("Cannot find path for uuid:%s\n", uuid.c_str());
         valid_path = false;
         return "";
     }
@@ -627,7 +627,7 @@ size_t get_file_or_folder_size(std::string path)
             }
             catch(std::exception& e)
             {
-                p_log->warn("Get file:%s size failed! Error message:%s\n", file_path.c_str(), e.what());
+                p_log->debug("Get file:%s size failed! Error message:%s\n", file_path.c_str(), e.what());
             }
         }
     }

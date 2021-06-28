@@ -147,7 +147,7 @@ std::string Ipfs::add(unsigned char *p_data_in, size_t size)
         return "";
     }
 
-    json::JSON obj = json::JSON::Load(res.body());
+    json::JSON obj = json::JSON::Load_unsafe(res.body());
 
     return obj["Hash"].ToString();
 }

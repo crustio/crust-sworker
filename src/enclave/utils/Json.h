@@ -12,6 +12,7 @@
 #include <map>
 #include <type_traits>
 #include <initializer_list>
+#include <exception>
 #ifdef _CRUST_RESOURCE_H_
 #include <ostream>
 #include <iostream>
@@ -22,6 +23,7 @@
 #include "EUtils.h"
 #endif
 #define HASH_TAG "$&JT&$"
+#define FIO_MAX_SIZE 999
 
 namespace json
 {
@@ -38,6 +40,8 @@ using std::map;
 using std::string;
 
 const uint32_t _hash_length = 32;
+const size_t FIO_SIZE = std::to_string(FIO_MAX_SIZE).size();
+const string FIO_INITAL_VAL(FIO_SIZE, '0');
 
 namespace
 {
@@ -144,6 +148,48 @@ std::string _hexstring(const void *vsrc, size_t len)
 
     return ans;
 }
+bool is_number(const string &s)
+{
+    if (s.size() == 0)
+        return false;
+
+    for (auto c : s)
+    {
+        if (!isdigit(c))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+template <typename... T>
+void print_info(T... args)
+{
+#ifdef _CRUST_RESOURCE_H_
+    p_log->info(args...);
+#else
+    log_info(args...);
+#endif
+}
+template <typename... T>
+void print_debug(T... args)
+{
+#ifdef _CRUST_RESOURCE_H_
+    p_log->debug(args...);
+#else
+    log_debug(args...);
+#endif
+}
+template <typename... T>
+void print_err(T... args)
+{
+#ifdef _CRUST_RESOURCE_H_
+    p_log->err(args...);
+#else
+    log_err(args...);
+#endif
+}
 } // namespace
 
 class JSON
@@ -170,6 +216,7 @@ public:
     {
         Null,
         Object,
+        FIOObject,
         Array,
         Hash,
         Buffer,
@@ -182,9 +229,9 @@ public:
     template <typename Container>
     class JSONWrapper
     {
+        Container *object;
 
     public:
-        Container *object;
         JSONWrapper(Container *val) : object(val) {}
         JSONWrapper(std::nullptr_t) : object(nullptr) {}
 
@@ -243,6 +290,11 @@ public:
                 new map<string, JSON>(other.Internal.Map->begin(),
                                       other.Internal.Map->end());
             break;
+        case Class::FIOObject:
+            Internal.Map =
+                new map<string, JSON>(other.Internal.Map->begin(),
+                                      other.Internal.Map->end());
+            break;
         case Class::Array:
             Internal.List =
                 new deque<JSON>(other.Internal.List->begin(),
@@ -273,6 +325,11 @@ public:
         switch (other.Type)
         {
         case Class::Object:
+            Internal.Map =
+                new map<string, JSON>(other.Internal.Map->begin(),
+                                      other.Internal.Map->end());
+            break;
+        case Class::FIOObject:
             Internal.Map =
                 new map<string, JSON>(other.Internal.Map->begin(),
                                       other.Internal.Map->end());
@@ -318,6 +375,9 @@ public:
         case Class::Object:
             delete Internal.Map;
             break;
+        case Class::FIOObject:
+            delete Internal.Map;
+            break;
         case Class::String:
             delete Internal.String;
             break;
@@ -346,8 +406,10 @@ public:
         return ret;
     }
 
-    static JSON Load(const string &);
-    static JSON Load(const uint8_t *p_data, size_t data_size);
+    static JSON Load_unsafe(const string &);
+    static JSON Load_unsafe(const uint8_t *p_data, size_t data_size);
+    static JSON Load(crust_status_t *status, const string &);
+    static JSON Load(crust_status_t *status, const uint8_t *p_data, size_t data_size);
 
     template <typename T>
     void append(T arg)
@@ -406,7 +468,34 @@ public:
 
     JSON &operator[](const string &key)
     {
-        SetType(Class::Object);
+        if (!(Type == Class::Object || Type == Class::FIOObject))
+            SetType(Class::Object);
+
+        if (Type == Class::FIOObject)
+        {
+            string rkey;
+            if (Internal.Map->find(key) != Internal.Map->end())
+            {
+                rkey = Internal.Map->operator[](key).ToString();
+            }
+            else
+            {
+                size_t index = Internal.Map->size() / 2;
+                if (index > FIO_MAX_SIZE)
+                {
+                    return Internal.Map->operator[](key);
+                }
+                string s = std::to_string(index);
+                rkey = FIO_INITAL_VAL;
+                for (long i = rkey.size() - 1, j = s.size() - 1; i >= 0 && j >= 0; i--, j--)
+                {
+                    rkey[i] = s[j];
+                }
+                rkey = rkey + "_" + key;
+                Internal.Map->operator[](key) = rkey;
+            }
+            return Internal.Map->operator[](rkey);
+        }
         return Internal.Map->operator[](key);
     }
 
@@ -537,12 +626,33 @@ public:
     {
         if (Type == Class::Object)
             return Internal.Map->find(key) != Internal.Map->end();
+        else if (Type == Class::FIOObject)
+            return Internal.Map->find(key) != Internal.Map->end();
         return false;
+    }
+
+    void erase(const string &key)
+    {
+        if (Type == Class::Object)
+        {
+            Internal.Map->erase(key);
+        }
+        else if (Type == Class::FIOObject)
+        {
+            if (Internal.Map->find(key) != Internal.Map->end())
+            {
+                string rkey = Internal.Map->operator[](key).ToString();
+                Internal.Map->erase(key);
+                Internal.Map->erase(rkey);
+            }
+        }
     }
 
     long size() const
     {
         if (Type == Class::Object)
+            return (long)Internal.Map->size();
+        else if (Type == Class::FIOObject)
             return (long)Internal.Map->size();
         else if (Type == Class::Array)
             return (long)Internal.List->size();
@@ -675,6 +785,178 @@ public:
         return JSONConstWrapper<deque<JSON>>(nullptr);
     }
 
+    crust_status_t Insert(vector<uint8_t> &v, string s)
+    {
+        try
+        {
+            v.insert(v.end(), s.c_str(), s.c_str() + s.size());
+        }
+        catch (std::exception &e)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+
+        return CRUST_SUCCESS;
+    }
+
+    crust_status_t Insert(vector<uint8_t> &v, vector<uint8_t> &s)
+    {
+        try
+        {
+            v.insert(v.end(), s.begin(), s.end());
+        }
+        catch (std::exception &e)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+
+        return CRUST_SUCCESS;
+    }
+
+    crust_status_t Insert(vector<uint8_t> &v, const uint8_t *data, size_t data_size)
+    {
+        try
+        {
+            v.insert(v.end(), data, data + data_size);
+        }
+        catch (std::exception &e)
+        {
+            return CRUST_MALLOC_FAILED;
+        }
+
+        return CRUST_SUCCESS;
+    }
+
+    vector<uint8_t> dump_vector_unsafe()
+    {
+        crust_status_t ret = CRUST_SUCCESS;
+        return dump_vector(&ret);
+    }
+
+    vector<uint8_t> dump_vector(crust_status_t *status)
+    {
+        vector<uint8_t> v;
+        switch (Type)
+        {
+        case Class::Null:
+        {
+            string s = "null";
+            *status = Insert(v, s);
+            return v;
+        }
+        case Class::Object:
+        {
+            v.push_back('{');
+            bool skip = true;
+            for (auto &p : *Internal.Map)
+            {
+                if (!skip)
+                    v.push_back(',');
+                string s("\"" + p.first + "\":");
+                *status = Insert(v, s);
+                vector<uint8_t> sv = p.second.dump_vector(status);
+                if (CRUST_SUCCESS != *status)
+                {
+                    return v;
+                }
+                *status = Insert(v, sv);
+                skip = false;
+            }
+            v.push_back('}');
+            return v;
+        }
+        case Class::FIOObject:
+        {
+            v.push_back('{');
+            bool skip = true;
+            for (auto &p : *Internal.Map)
+            {
+                string key = p.first;
+                size_t pos = key.find_first_of("_");
+                string tag;
+                if (pos != key.npos && pos + 1 < key.size())
+                {
+                    tag = key.substr(0, pos);
+                    key = key.substr(pos + 1, key.size());
+                }
+                if (tag.size() != FIO_SIZE || !is_number(tag))
+                    continue;
+                if (!skip)
+                    v.push_back(',');
+                string s("\"" + key + "\":");
+                *status = Insert(v, s);
+                vector<uint8_t> sv = p.second.dump_vector(status);
+                if (CRUST_SUCCESS != *status)
+                {
+                    return v;
+                }
+                *status = Insert(v, sv);
+                skip = false;
+            }
+            v.push_back('}');
+            return v;
+        }
+        case Class::Array:
+        {
+            v.push_back('[');
+            bool skip = true;
+            for (auto &p : *Internal.List)
+            {
+                if (!skip)
+                    v.push_back(',');
+                vector<uint8_t> sv = p.dump_vector(status);
+                if (CRUST_SUCCESS != *status)
+                {
+                    return v;
+                }
+                *status = Insert(v, sv);
+                skip = false;
+            }
+            v.push_back(']');
+            return v;
+        }
+        case Class::Hash:
+        {
+            *status = Insert(v, "\"" HASH_TAG + _hexstring(Internal.HashList, _hash_length) + "\"");
+            return v;
+        }
+        case Class::Buffer:
+        {
+            string s("\"" HASH_TAG);
+            *status = Insert(v, s);
+            *status = Insert(v, *Internal.BufferList);
+            v.push_back('"');
+            return v;
+        }
+        case Class::String:
+        {
+            string s = "\"" + *Internal.String + "\"";
+            *status = Insert(v, s);
+            return v;
+        }
+        case Class::Floating:
+        {
+            *status = Insert(v, std::to_string(Internal.Float));
+            return v;
+        }
+        case Class::Integral:
+        {
+            *status = Insert(v, std::to_string(Internal.Int));
+            return v;
+        }
+        case Class::Boolean:
+        {
+            *status = Insert(v, Internal.Bool ? "true" : "false");
+            return v;
+        }
+        default:
+        {
+            return v;
+        }
+        }
+        return v;
+    }
+
     string dump(int depth = 1, string tab = "  ") const
     {
         string pad = "";
@@ -694,6 +976,30 @@ public:
                 if (!skip)
                     s += ",\n";
                 s += (pad + "\"" + p.first + "\" : " + p.second.dump(depth + 1, tab));
+                skip = false;
+            }
+            s += ("\n" + pad.erase(0, 2) + "}");
+            return s;
+        }
+        case Class::FIOObject:
+        {
+            string s = "{\n";
+            bool skip = true;
+            for (auto &p : *Internal.Map)
+            {
+                string key = p.first;
+                size_t pos = key.find_first_of("_");
+                string tag;
+                if (pos != key.npos && pos + 1 < key.size())
+                {
+                    tag = key.substr(0, pos);
+                    key = key.substr(pos + 1, key.size());
+                }
+                if (tag.size() != FIO_SIZE || !is_number(tag))
+                    continue;
+                if (!skip)
+                    s += ",\n";
+                s += (pad + "\"" + key + "\" : " + p.second.dump(depth + 1, tab));
                 skip = false;
             }
             s += ("\n" + pad.erase(0, 2) + "}");
@@ -753,6 +1059,9 @@ private:
         case Class::Object:
             Internal.Map = new map<string, JSON>();
             break;
+        case Class::FIOObject:
+            Internal.Map = new map<string, JSON>();
+            break;
         case Class::Array:
             Internal.List = new deque<JSON>();
             break;
@@ -789,6 +1098,9 @@ private:
         switch (Type)
         {
         case Class::Object:
+            delete Internal.Map;
+            break;
+        case Class::FIOObject:
             delete Internal.Map;
             break;
         case Class::Array:
@@ -829,6 +1141,11 @@ JSON Object()
     return std::move(JSON::Make(JSON::Class::Object));
 }
 
+JSON FIOObject()
+{
+    return std::move(JSON::Make(JSON::Class::FIOObject));
+}
+
 /*
 std::ostream &operator<<(std::ostream &os, const JSON &json)
 {
@@ -839,9 +1156,9 @@ std::ostream &operator<<(std::ostream &os, const JSON &json)
 
 namespace
 {
-JSON parse_next(const string &, size_t &);
+JSON parse_next(crust_status_t *status, const string &, size_t &);
 
-JSON parse_next(const uint8_t *p_data, size_t &offset);
+JSON parse_next(crust_status_t *status, const uint8_t *p_data, size_t &offset);
 
 void consume_ws(const string &str, size_t &offset)
 {
@@ -855,7 +1172,7 @@ void consume_ws(const uint8_t *p_data, size_t &offset)
         ++offset;
 }
 
-JSON parse_object(const string &str, size_t &offset)
+JSON parse_object(crust_status_t *status, const string &str, size_t &offset)
 {
     JSON Object = JSON::Make(JSON::Class::Object);
 
@@ -869,7 +1186,7 @@ JSON parse_object(const string &str, size_t &offset)
 
     while (true)
     {
-        JSON Key = parse_next(str, offset);
+        JSON Key = parse_next(status, str, offset);
         consume_ws(str, offset);
         if (str[offset] != ':')
         {
@@ -878,10 +1195,11 @@ JSON parse_object(const string &str, size_t &offset)
 #else
             log_err("Error: Object: Expected colon, found %c\n", str[offset]);
 #endif
+            *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
         consume_ws(str, ++offset);
-        JSON Value = parse_next(str, offset);
+        JSON Value = parse_next(status, str, offset);
         Object[Key.ToString()] = Value;
 
         consume_ws(str, offset);
@@ -902,6 +1220,7 @@ JSON parse_object(const string &str, size_t &offset)
 #else
             log_err("Error: Object: Expected comma, found %c\n", str[offset]);
 #endif
+            *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
     }
@@ -909,7 +1228,7 @@ JSON parse_object(const string &str, size_t &offset)
     return std::move(Object);
 }
 
-JSON parse_object(const uint8_t *p_data, size_t &offset)
+JSON parse_object(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON Object = JSON::Make(JSON::Class::Object);
 
@@ -923,7 +1242,7 @@ JSON parse_object(const uint8_t *p_data, size_t &offset)
 
     while (true)
     {
-        JSON Key = parse_next(p_data, offset);
+        JSON Key = parse_next(status, p_data, offset);
         consume_ws(p_data, offset);
         if (p_data[offset] != ':')
         {
@@ -932,10 +1251,11 @@ JSON parse_object(const uint8_t *p_data, size_t &offset)
 #else
             log_err("Error: Object: Expected colon, found %c\n", p_data[offset]);
 #endif
+            *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
         consume_ws(p_data, ++offset);
-        JSON Value = parse_next(p_data, offset);
+        JSON Value = parse_next(status, p_data, offset);
         Object[Key.ToString()] = Value;
 
         consume_ws(p_data, offset);
@@ -956,6 +1276,7 @@ JSON parse_object(const uint8_t *p_data, size_t &offset)
 #else
             log_err("Error: Object: Expected comma, found %c\n", p_data[offset]);
 #endif
+            *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
     }
@@ -963,7 +1284,7 @@ JSON parse_object(const uint8_t *p_data, size_t &offset)
     return std::move(Object);
 }
 
-JSON parse_array(const string &str, size_t &offset)
+JSON parse_array(crust_status_t *status, const string &str, size_t &offset)
 {
     JSON Array = JSON::Make(JSON::Class::Array);
     unsigned index = 0;
@@ -978,7 +1299,7 @@ JSON parse_array(const string &str, size_t &offset)
 
     while (true)
     {
-        Array[index++] = parse_next(str, offset);
+        Array[index++] = parse_next(status, str, offset);
         consume_ws(str, offset);
 
         if (str[offset] == ',')
@@ -998,6 +1319,7 @@ JSON parse_array(const string &str, size_t &offset)
 #else
             log_err("Error: Array: Expected  ',' or ']', found %c\n", str[offset]);
 #endif
+            *status = CRUST_JSON_ARRAY_ERROR;
             return std::move(JSON::Make(JSON::Class::Array));
         }
     }
@@ -1005,7 +1327,7 @@ JSON parse_array(const string &str, size_t &offset)
     return std::move(Array);
 }
 
-JSON parse_array(const uint8_t *p_data, size_t &offset)
+JSON parse_array(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON Array = JSON::Make(JSON::Class::Array);
     unsigned index = 0;
@@ -1020,7 +1342,7 @@ JSON parse_array(const uint8_t *p_data, size_t &offset)
 
     while (true)
     {
-        Array[index++] = parse_next(p_data, offset);
+        Array[index++] = parse_next(status, p_data, offset);
         consume_ws(p_data, offset);
 
         if (p_data[offset] == ',')
@@ -1040,6 +1362,7 @@ JSON parse_array(const uint8_t *p_data, size_t &offset)
 #else
             log_err("Error: Array: Expected  ',' or ']', found %c\n", p_data[offset]);
 #endif
+            *status = CRUST_JSON_ARRAY_ERROR;
             return std::move(JSON::Make(JSON::Class::Array));
         }
     }
@@ -1047,7 +1370,7 @@ JSON parse_array(const uint8_t *p_data, size_t &offset)
     return std::move(Array);
 }
 
-JSON parse_string(const string &str, size_t &offset)
+JSON parse_string(crust_status_t *status, const string &str, size_t &offset)
 {
     JSON ans;
     string val;
@@ -1096,6 +1419,7 @@ JSON parse_string(const string &str, size_t &offset)
 #else
                         log_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
 #endif
+                        *status = CRUST_JSON_STRING_ERROR;
                         return std::move(JSON::Make(JSON::Class::String));
                     }
                 }
@@ -1126,7 +1450,7 @@ JSON parse_string(const string &str, size_t &offset)
     return std::move(ans);
 }
 
-JSON parse_string(const uint8_t *p_data, size_t &offset)
+JSON parse_string(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON ans;
     string val;
@@ -1175,6 +1499,7 @@ JSON parse_string(const uint8_t *p_data, size_t &offset)
 #else
                         log_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
 #endif
+                        *status = CRUST_JSON_STRING_ERROR;
                         return std::move(JSON::Make(JSON::Class::String));
                     }
                 }
@@ -1205,7 +1530,7 @@ JSON parse_string(const uint8_t *p_data, size_t &offset)
     return std::move(ans);
 }
 
-JSON parse_number(const string &str, size_t &offset)
+JSON parse_number(crust_status_t *status, const string &str, size_t &offset)
 {
     JSON Number;
     string val, exp_str;
@@ -1245,6 +1570,7 @@ JSON parse_number(const string &str, size_t &offset)
 #else
                 log_err("Error: Number: Expected a number for exponent, found %c\n", c);
 #endif
+                *status = CRUST_JSON_NUMBER_ERROR;
                 return std::move(JSON::Make(JSON::Class::Null));
             }
             else
@@ -1259,6 +1585,7 @@ JSON parse_number(const string &str, size_t &offset)
 #else
         log_err("Error: Number: unexpected character %c\n", c);
 #endif
+        *status = CRUST_JSON_NUMBER_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
     --offset;
@@ -1275,7 +1602,7 @@ JSON parse_number(const string &str, size_t &offset)
     return std::move(Number);
 }
 
-JSON parse_number(const uint8_t *p_data, size_t &offset)
+JSON parse_number(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON Number;
     string val, exp_str;
@@ -1315,6 +1642,7 @@ JSON parse_number(const uint8_t *p_data, size_t &offset)
 #else
                 log_err("Error: Number: Expected a number for exponent, found %c\n", c);
 #endif
+                *status = CRUST_JSON_NUMBER_ERROR;
                 return std::move(JSON::Make(JSON::Class::Null));
             }
             else
@@ -1329,6 +1657,7 @@ JSON parse_number(const uint8_t *p_data, size_t &offset)
 #else
         log_err("Error: Number: unexpected character %c\n", c);
 #endif
+        *status = CRUST_JSON_NUMBER_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
     --offset;
@@ -1345,7 +1674,7 @@ JSON parse_number(const uint8_t *p_data, size_t &offset)
     return std::move(Number);
 }
 
-JSON parse_bool(const string &str, size_t &offset)
+JSON parse_bool(crust_status_t *status, const string &str, size_t &offset)
 {
     JSON Bool;
     if (str.substr(offset, 4) == "true")
@@ -1359,13 +1688,14 @@ JSON parse_bool(const string &str, size_t &offset)
 #else
         log_err("Error: Bool: Expected 'true' or 'false', found %s\n", str.substr(offset, 5));
 #endif
+        *status = CRUST_JSON_BOOL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
     offset += (Bool.ToBool() ? 4 : 5);
     return std::move(Bool);
 }
 
-JSON parse_bool(const uint8_t *p_data, size_t &offset)
+JSON parse_bool(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON Bool;
     if (memcmp(p_data + offset, "true", 4) == 0)
@@ -1379,13 +1709,14 @@ JSON parse_bool(const uint8_t *p_data, size_t &offset)
 #else
         log_err("Error: Bool: Expected 'true' or 'false', found error\n");
 #endif
+        *status = CRUST_JSON_BOOL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
     offset += (Bool.ToBool() ? 4 : 5);
     return std::move(Bool);
 }
 
-JSON parse_null(const string &str, size_t &offset)
+JSON parse_null(crust_status_t *status, const string &str, size_t &offset)
 {
     JSON Null;
     if (str.substr(offset, 4) != "null")
@@ -1395,29 +1726,31 @@ JSON parse_null(const string &str, size_t &offset)
 #else
         log_err("Error: Null: Expected 'null', found %s\n", str.substr(offset, 4));
 #endif
+        *status = CRUST_JSON_NULL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
     offset += 4;
     return std::move(Null);
 }
 
-JSON parse_null(const uint8_t *p_data, size_t &offset)
+JSON parse_null(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     JSON Null;
-    if (memcmp(p_data + offset, "null", 4) == 0)
+    if (memcmp(p_data + offset, "null", 4) != 0)
     {
 #ifdef _CRUST_RESOURCE_H_
         p_log->err("Error: Null: Expected 'null', found error\n");
 #else
         log_err("Error: Null: Expected 'null', found error\n");
 #endif
+        *status = CRUST_JSON_NULL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
     offset += 4;
     return std::move(Null);
 }
 
-JSON parse_next(const string &str, size_t &offset)
+JSON parse_next(crust_status_t *status, const string &str, size_t &offset)
 {
     char value;
     consume_ws(str, offset);
@@ -1425,29 +1758,30 @@ JSON parse_next(const string &str, size_t &offset)
     switch (value)
     {
     case '[':
-        return std::move(parse_array(str, offset));
+        return std::move(parse_array(status, str, offset));
     case '{':
-        return std::move(parse_object(str, offset));
+        return std::move(parse_object(status, str, offset));
     case '\"':
-        return std::move(parse_string(str, offset));
+        return std::move(parse_string(status, str, offset));
     case 't':
     case 'f':
-        return std::move(parse_bool(str, offset));
+        return std::move(parse_bool(status, str, offset));
     case 'n':
-        return std::move(parse_null(str, offset));
+        return std::move(parse_null(status, str, offset));
     default:
         if ((value <= '9' && value >= '0') || value == '-')
-            return std::move(parse_number(str, offset));
+            return std::move(parse_number(status, str, offset));
     }
 #ifdef _CRUST_RESOURCE_H_
     p_log->err("Error: Parse: Unknown starting character %c\n", value);
 #else
     log_err("Error: Parse: Unknown starting character %c\n", value);
 #endif
+    *status = CRUST_JSON_STARTING_ERROR;
     return JSON();
 }
 
-JSON parse_next(const uint8_t *p_data, size_t &offset)
+JSON parse_next(crust_status_t *status, const uint8_t *p_data, size_t &offset)
 {
     char value;
     consume_ws(p_data, offset);
@@ -1455,41 +1789,54 @@ JSON parse_next(const uint8_t *p_data, size_t &offset)
     switch (value)
     {
     case '[':
-        return std::move(parse_array(p_data, offset));
+        return std::move(parse_array(status, p_data, offset));
     case '{':
-        return std::move(parse_object(p_data, offset));
+        return std::move(parse_object(status, p_data, offset));
     case '\"':
-        return std::move(parse_string(p_data, offset));
+        return std::move(parse_string(status, p_data, offset));
     case 't':
     case 'f':
-        return std::move(parse_bool(p_data, offset));
+        return std::move(parse_bool(status, p_data, offset));
     case 'n':
-        return std::move(parse_null(p_data, offset));
+        return std::move(parse_null(status, p_data, offset));
     default:
         if ((value <= '9' && value >= '0') || value == '-')
-            return std::move(parse_number(p_data, offset));
+            return std::move(parse_number(status, p_data, offset));
     }
 #ifdef _CRUST_RESOURCE_H_
     p_log->err("Error: Parse: Unknown starting character %c\n", value);
 #else
     log_err("Error: Parse: Unknown starting character %c\n", value);
 #endif
+    *status = CRUST_JSON_STARTING_ERROR;
     return JSON();
 }
 } // namespace
 
-JSON JSON::Load(const string &str)
+JSON JSON::Load_unsafe(const string &str)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    return Load(&crust_status, str);
+}
+
+JSON JSON::Load_unsafe(const uint8_t *p_data, size_t data_size)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    return Load(&crust_status, p_data, data_size);
+}
+
+JSON JSON::Load(crust_status_t *status, const string &str)
 {
     if (str.size() == 0) return json::JSON();
     size_t offset = 0;
-    return std::move(parse_next(str, offset));
+    return std::move(parse_next(status, str, offset));
 }
 
-JSON JSON::Load(const uint8_t *p_data, size_t data_size)
+JSON JSON::Load(crust_status_t *status, const uint8_t *p_data, size_t data_size)
 {
     if (data_size == 0) return json::JSON();
     size_t offset = 0;
-    return std::move(parse_next(p_data, offset));
+    return std::move(parse_next(status, p_data, offset));
 }
 
 } // End Namespace json

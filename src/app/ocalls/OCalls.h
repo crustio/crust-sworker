@@ -43,9 +43,9 @@ extern "C"
     void ocall_log_debug(const char *str);
 
     // For file
-    crust_status_t ocall_chain_get_block_info(char *data, size_t data_size);
+    crust_status_t ocall_chain_get_block_info(uint8_t *data, size_t data_size, size_t *real_size);
     void ocall_store_file_info(const char* cid, const char *data, const char *type);
-    void ocall_store_file_info_all(const uint8_t *data, size_t data_size);
+    crust_status_t ocall_store_file_info_all(const uint8_t *data, size_t data_size);
     
     void ocall_usleep(int u);
     crust_status_t ocall_free_outer_buffer(uint8_t **value);
@@ -55,20 +55,20 @@ extern "C"
 
     // For enclave data to app
     void ocall_store_enclave_id_info(const char *info);
-    void ocall_store_workload(const char *data, size_t data_size, bool cover = true);
-    void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover = true);
+    crust_status_t ocall_store_workreport(const uint8_t *data, size_t data_size);
+    crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size);
 
     // For upgrade
     crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size);
-    crust_status_t ocall_upload_workreport(const char *work_report);
+    crust_status_t ocall_upload_workreport();
     crust_status_t ocall_upload_identity(const char *id);
     crust_status_t ocall_entry_network();
 
     void ocall_recall_validate_file();
     void ocall_recall_validate_srd();
 
-    void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type);
-    void ocall_delete_sealed_file_info(const char *cid, const char *type);
+    void ocall_change_file_type(const char *cid, const char *old_type, const char *new_type);
+    void ocall_delete_file_info(const char *cid, const char *type);
 
     crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
 

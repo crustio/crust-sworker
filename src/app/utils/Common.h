@@ -17,7 +17,11 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include <sgx_eid.h>
+#include <sgx_error.h>
+
 #include "Resource.h"
+#include "CrustStatus.h"
 #include "FormatUtils.h"
 #include "MerkleTree.h"
 #include "Log.h"
@@ -54,6 +58,7 @@ extern "C"
     decltype(seconds_t().count()) get_seconds_since_epoch();
     std::string get_time_diff_humanreadable(long time);
     std::string get_file_size_humanreadable(size_t size);
+    sgx_status_t safe_ecall_store2(sgx_enclave_id_t eid, crust_status_t *status, ecall_store_type_t t, const uint8_t *u, size_t s);
 
 #if defined(__cplusplus)
 }

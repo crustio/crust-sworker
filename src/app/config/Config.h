@@ -57,9 +57,8 @@ public:
     void show(void);
     static Config *get_instance();
     std::string get_config_path();
-    bool unique_paths();
     bool is_valid_or_normal_disk(const std::string &path);
-    bool is_valid_data_path(const std::string &path, bool lock = true);
+    void refresh_data_paths();
     std::vector<std::string> get_data_paths();
     bool config_file_add_data_paths(const json::JSON &paths);
 
@@ -67,12 +66,17 @@ private:
     static Config *config;
     Config() {}
     Config(const Config &);
+    bool unique_paths();
     bool init(std::string path);
     void sort_data_paths();
+    bool is_valid_data_path(const std::string &path);
     Config& operator = (const Config &);
+
     std::string sys_fsid;
     std::vector<std::string> data_paths;   /* data path */
     std::mutex data_paths_mutex;
+    std::vector<std::string> org_data_paths;
+    std::mutex org_data_paths_mutex;
 };
 
 #endif /* !_CRUST_CONFIG_H_ */

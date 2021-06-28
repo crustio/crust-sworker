@@ -24,10 +24,10 @@ void srd_change_test(long change, bool real)
     {
         // Get real srd space
         long srd_change_num = 0;
-        if (tmp_g_srd_task > SRD_MAX_PER_TURN)
+        if (tmp_g_srd_task > SRD_MAX_INC_PER_TURN)
         {
-            srd_change_num = SRD_MAX_PER_TURN;
-            tmp_g_srd_task -= SRD_MAX_PER_TURN;
+            srd_change_num = SRD_MAX_INC_PER_TURN;
+            tmp_g_srd_task -= SRD_MAX_INC_PER_TURN;
         }
         else
         {
@@ -126,7 +126,7 @@ size_t srd_decrease_test(size_t change)
     // ----- Choose to be deleted hash ----- //
     SafeLock sl(wl->srd_mutex);
     sl.lock();
-    wl->deal_deleted_srd(false);
+    wl->deal_deleted_srd_nolock();
     // Get real change
     change = std::min(change, wl->srd_hashs.size());
     if (change <= 0)

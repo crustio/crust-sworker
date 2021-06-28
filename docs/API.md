@@ -11,8 +11,9 @@ Output:
 ```
 {
   "files" : {
-    "lost" :  {  "num" : 1     , "size" : 6548  },
-    "valid" : {  "num" : 1     , "size" : 4  }
+    "lost" :    {  "num" : 1     , "size" : 6548  },
+    "pending" : {  "num" : 1     , "size" : 1  },
+    "valid" :   {  "num" : 1     , "size" : 4  }
   },
   "srd" : {
     "srd_complete" : 1,
@@ -20,6 +21,7 @@ Output:
     "disk_available_for_srd" : 772,
     "disk_available" : 872,
     "disk_volume" : 1372,
+    "sys_disk_available" : 300,
     "srd_detail" : {
       "/disk1" : { "srd" : 1, "srd_avail" : 666, "avail" : 716, "volumn" : 916 },
       "/disk2" : { "srd" : 0, "srd_avail" : 106, "avail" : 156, "volumn" : 456 }
@@ -348,7 +350,7 @@ Output (500, failed):
 ```
 {
   "message" : "Seal file 'xxx' failed! No more file can be sealed! File number reachs the upper limit",  
-  "status_code" : 4038
+  "status_code" : 4020
 }
 ```
 

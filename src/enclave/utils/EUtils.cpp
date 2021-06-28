@@ -688,36 +688,6 @@ void replace(std::string &data, std::string org_str, std::string det_str)
 }
 
 /**
- * @description: Store large data
- * @param data -> To be stored data
- * @param data_size -> To be stored data size
- * @param p_func -> Store function
- * @param mutex -> Mutex lock to sync data
- */
-void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex)
-{
-    sgx_thread_mutex_lock(&mutex);
-    if (data_size > OCALL_STORE_THRESHOLD)
-    {
-        size_t offset = 0;
-        size_t part_size = 0;
-        bool cover = true;
-        while (data_size > offset)
-        {
-            part_size = std::min(data_size - offset, (size_t)OCALL_STORE_THRESHOLD);
-            p_func(reinterpret_cast<const char *>(data + offset), part_size, cover);
-            offset += part_size;
-            cover = false;
-        }
-    }
-    else
-    {
-        p_func(reinterpret_cast<const char *>(data), data_size, true);
-    }
-    sgx_thread_mutex_unlock(&mutex);
-}
-
-/**
  * @description: base64 decode function
  * @param msg -> To be decoded message
  * @param sz -> Message size
@@ -915,7 +885,7 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
     sgx_read_rand(reinterpret_cast<uint8_t *>(&buffer_key), sizeof(buffer_key));
     while (s > offset)
     {
-        size_t partial_size = std::min(s - offset, (size_t)OCALL_STORE_THRESHOLD);
+        size_t partial_size = std::min(s - offset, (size_t)BOUNDARY_SIZE_THRESHOLD);
         ret = ocall_safe_store2(&crust_status,
                                 t,
                                 u + offset,
@@ -925,7 +895,7 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
                                 buffer_key);
         if (SGX_SUCCESS != ret)
         {
-            return CRUST_UNEXPECTED_ERROR;
+            return CRUST_SGX_FAILED;
         }
         if (CRUST_SUCCESS != crust_status)
         {
@@ -935,4 +905,51 @@ crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t 
     }
 
     return crust_status;
+}
+
+/**
+ * @description: Get data from outside using enclave buffer
+ * @param f -> Getting data ocall function
+ * @param u -> Pointer to allocated buffer
+ * @param s -> Pointer to allocated buffer size
+ * @return: Get result
+ */
+crust_status_t safe_ocall_get2(ocall_get2_f f, uint8_t *u, size_t *s)
+{
+    if (u == NULL || *s == 0)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    size_t os = *s;
+    crust_status_t c_ret = CRUST_SUCCESS;
+    sgx_status_t s_ret = f(&c_ret, u, os, s);
+    if (SGX_SUCCESS != s_ret)
+    {
+        return CRUST_SGX_FAILED;
+    }
+
+    if (CRUST_SUCCESS != c_ret)
+    {
+        if (CRUST_OCALL_NO_ENOUGH_BUFFER == c_ret)
+        {
+            free (u);
+            if (os == *s)
+            {
+                *s = *s * 2;
+            }
+            u = (uint8_t *)enc_malloc(*s);
+            if (u == NULL)
+            {
+                return CRUST_MALLOC_FAILED;
+            }
+            s_ret = f(&c_ret, u, *s, s);
+            if (SGX_SUCCESS != s_ret)
+            {
+                return CRUST_SGX_FAILED;
+            }
+        }
+    }
+
+    return c_ret;
 }

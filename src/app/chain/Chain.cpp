@@ -84,7 +84,7 @@ bool Chain::get_block_header(BlockHeader &block_header)
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
     {
-        json::JSON block_header_json = json::JSON::Load(res.body());
+        json::JSON block_header_json = json::JSON::Load_unsafe(res.body());
         block_header.hash = block_header_json["hash"].ToString().erase(0,2);
         block_header.number = block_header_json["number"].ToInt();
         return true;
@@ -209,7 +209,7 @@ bool Chain::is_syncing(void)
     http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
     if ((int)res.result() == 200)
     {
-        json::JSON system_health_json = json::JSON::Load(res.body());
+        json::JSON system_health_json = json::JSON::Load_unsafe(res.body());
         return system_health_json["isSyncing"].ToBool();
     }
 
@@ -313,7 +313,13 @@ bool Chain::post_sworker_identity(std::string identity)
         std::string path = this->url + "/swork/identity";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        json::JSON obj = json::JSON::Load(identity);
+        crust_status_t crust_status = CRUST_SUCCESS;
+        json::JSON obj = json::JSON::Load(&crust_status, identity);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            p_log->err("Parse sworker identity failed! Error code:%lx\n", crust_status);
+            return false;
+        }
         obj["backup"] = this->backup;
         http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
 
@@ -354,7 +360,13 @@ bool Chain::post_sworker_work_report(std::string work_report)
         std::string path = this->url + "/swork/workreport";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
-        json::JSON obj = json::JSON::Load(work_report);
+        crust_status_t crust_status = CRUST_SUCCESS;
+        json::JSON obj = json::JSON::Load(&crust_status, work_report);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            p_log->err("Parse sworker workreport failed! Error code:%lx\n", crust_status);
+            return false;
+        }
         obj["backup"] = this->backup;
         http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
 
@@ -365,7 +377,7 @@ bool Chain::post_sworker_work_report(std::string work_report)
 
         if (res.body().size() != 0)
         {
-            json::JSON res_json = json::JSON::Load(res.body());
+            json::JSON res_json = json::JSON::Load_unsafe(res.body());
             std::string msg = res_json["message"].ToString();
             if (msg == "swork.InvalidReportTime")
             {

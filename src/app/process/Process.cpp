@@ -73,6 +73,7 @@ bool initialize_enclave()
             return false;
         }
     }
+    p_log->debug("Your machine can support SGX!\n");
 
     // ----- Launch the enclave ----- //
     uint8_t *p_wl_data = NULL;
@@ -102,6 +103,7 @@ bool initialize_enclave()
         }
         return false;
     }
+    p_log->info("Initial enclave successfully!Enclave id:%d\n", global_eid);
 
     // ----- Generate code measurement ----- //
     if (SGX_SUCCESS != Ecall_gen_sgx_measurement(global_eid, &ret))
@@ -109,8 +111,7 @@ bool initialize_enclave()
         p_log->err("Generate code measurement failed!error code:%lx\n", ret);
         return false;
     }
-
-    p_log->info("Initial enclave successfully!Enclave id:%d\n", global_eid);
+    p_log->debug("Generate code measurement successfully!\n");
 
     return true;
 }
@@ -242,24 +243,17 @@ restore_try_again:
 
     // Restore workload and report old version's work report
     crust_status_t crust_status = CRUST_SUCCESS;
-    size_t meta_offset = 0;
     size_t meta_size = res_meta.body().size();
     const char *p_meta = res_meta.body().c_str();
-    while (meta_size > meta_offset)
+    sgx_status = safe_ecall_store2(global_eid, &crust_status, ECALL_RESTORE_FROM_UPGRADE, reinterpret_cast<const uint8_t *>(p_meta), meta_size);
+    if (SGX_SUCCESS != sgx_status)
     {
-        size_t partial_size = std::min(meta_size - meta_offset, (size_t)OCALL_STORE_THRESHOLD);
-        bool transfer_end = (meta_offset + partial_size >= meta_size);
-        sgx_status = Ecall_restore_from_upgrade(global_eid, &crust_status, p_meta + meta_offset, partial_size, meta_size, transfer_end);
-        if (SGX_SUCCESS != sgx_status)
-        {
-            p_log->err("Invoke SGX API failed!Error code:%lx.\n", sgx_status);
-            return false;
-        }
-        else if (CRUST_SUCCESS == crust_status)
-        {
-            break;
-        }
-        else if (CRUST_INIT_QUOTE_FAILED == crust_status)
+        p_log->err("Invoke SGX API failed!Error code:%lx.\n", sgx_status);
+        return false;
+    }
+    if (CRUST_SUCCESS != crust_status)
+    {
+        if (CRUST_INIT_QUOTE_FAILED == crust_status)
         {
             if (--restore_tryout > 0)
             {
@@ -267,20 +261,9 @@ restore_try_again:
                 sleep(60);
                 goto restore_try_again;
             }
-            else
-            {
-                return false;
-            }
         }
-        else if (CRUST_UPGRADE_NEED_LEFT_DATA == crust_status)
-        {
-            meta_offset += partial_size;
-        }
-        else
-        {
-            p_log->err("Restore workload from upgrade data failed!Error code:%lx.\n", crust_status);
-            return false;
-        }
+        p_log->err("Restore workload from upgrade data failed!Error code:%lx.\n", crust_status);
+        return false;
     }
     p_log->info("Restore workload from upgrade data successfully!\n");
 
@@ -503,14 +486,6 @@ entry_network_flag:
                 goto cleanup;
             }
             p_log->info("Generate key pair successfully!\n");
-
-            // Get id info
-            if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
-            {
-                p_log->err("Get id info from enclave failed!\n");
-                return_status = -1;
-                goto cleanup;
-            }
 
             // Entry network
             if (!offline_chain_mode)

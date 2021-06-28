@@ -40,12 +40,13 @@ enclave {
         public void ecall_validate_srd();
 
         public crust_status_t ecall_gen_upgrade_data(size_t block_height);
-        public crust_status_t ecall_restore_from_upgrade([in, size=meta_len] const char *meta, size_t meta_len, size_t total_size, bool transfer_end);
+        public crust_status_t ecall_restore_from_upgrade([in, size=data_size] const uint8_t *data, size_t data_size);
         public crust_status_t ecall_enable_upgrade(size_t block_height);
         public void ecall_disable_upgrade();
 
         public void ecall_id_get_info();
-        public void ecall_get_workload();
+
+        public crust_status_t ecall_safe_store2(ecall_store_type_t t, [in, size=partial_size] const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
     };
 
     untrusted {
@@ -63,7 +64,7 @@ enclave {
         crust_status_t ocall_delete_ipfs_file([in, string] const char *cid);
         crust_status_t ocall_get_file([in, string] const char *file_path, [out] uint8_t **p_file, [out] size_t *len, store_type_t type);
         void ocall_usleep(int u);
-        crust_status_t ocall_chain_get_block_info([in, out, size=data_size] char *data, size_t data_size);
+        crust_status_t ocall_chain_get_block_info([in, out, size=data_size] uint8_t *data, size_t data_size, [out] size_t *real_size);
 
         bool ocall_ipfs_online();
         crust_status_t ocall_ipfs_get_block([in, string] const char *cid, [out] uint8_t **p_data, [out] size_t *data_size);
@@ -80,7 +81,7 @@ enclave {
         crust_status_t ocall_srd_change(long change)
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_change_srd_task);
 
-        crust_status_t ocall_upload_workreport([in, string] const char *data);
+        crust_status_t ocall_upload_workreport();
         crust_status_t ocall_upload_identity([in, string] const char *id)
             allow(ecall_id_get_info);
         crust_status_t ocall_entry_network()
@@ -89,17 +90,16 @@ enclave {
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
 
         void ocall_store_enclave_id_info([in, string] const char *info);
-        void ocall_store_workload([in, size=data_size] const char *data, size_t data_size, bool cover);
-        void ocall_store_upgrade_data([in, size=data_size] const char *data, size_t data_size, bool cover);
+        crust_status_t ocall_store_upgrade_data([in, size=data_size] const uint8_t *data, size_t data_size);
+        crust_status_t ocall_store_file_info_all([in, size=data_size] const uint8_t *data, size_t data_size);
         void ocall_store_file_info([in, string] const char* cid, [in, string] const char *data, [in, string] const char *type);
-        void ocall_store_file_info_all([in, size=data_size] const uint8_t *data, size_t data_size);
         void ocall_set_srd_info([in, size=data_size] const uint8_t *data, size_t data_size);
 
         void ocall_recall_validate_file();
         void ocall_recall_validate_srd();
 
-        void ocall_change_sealed_file_type([in, string] const char *cid, [in, string] const char *old_type, [in, string] const char *new_type);
-        void ocall_delete_sealed_file_info([in, string] const char *cid, [in, string] const char *type);
+        void ocall_change_file_type([in, string] const char *cid, [in, string] const char *old_type, [in, string] const char *new_type);
+        void ocall_delete_file_info([in, string] const char *cid, [in, string] const char *type);
 
         crust_status_t ocall_safe_store2(ocall_store_type_t t, [in, size=partial_size] const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
     };

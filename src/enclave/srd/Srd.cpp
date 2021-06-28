@@ -79,6 +79,8 @@ void srd_change()
     {
         log_warn("Store srd remaining task failed!\n");
     }
+    // Set srd remaining task
+    wl->set_srd_remaining_task(g_srd_task);
     sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     // Do srd
@@ -93,10 +95,6 @@ void srd_change()
             sgx_thread_mutex_unlock(&g_srd_task_mutex);
         }
     }
-
-    // Update srd info
-    std::string srd_info_str = wl->get_srd_info().dump();
-    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
@@ -250,6 +248,10 @@ crust_status_t srd_increase(const char *uuid)
     // ----- Update srd info ----- //
     wl->set_srd_info(uuid, 1);
 
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
+
     return CRUST_SUCCESS;
 }
 
@@ -266,7 +268,7 @@ size_t srd_decrease(size_t change)
     // ----- Choose to be deleted hash ----- //
     SafeLock sl(wl->srd_mutex);
     sl.lock();
-    wl->deal_deleted_srd(false);
+    wl->deal_deleted_srd_nolock();
     // Get real change
     change = std::min(change, wl->srd_hashs.size());
     if (change <= 0)
@@ -298,6 +300,10 @@ size_t srd_decrease(size_t change)
         }
     }
 
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
+
     return change;
 }
 
@@ -310,7 +316,7 @@ void srd_remove_space(const char *data, size_t data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     Workload *wl = Workload::get_instance();
-    json::JSON del_json = json::JSON::Load(reinterpret_cast<const uint8_t *>(data), data_size);
+    json::JSON del_json = json::JSON::Load_unsafe(reinterpret_cast<const uint8_t *>(data), data_size);
     long change = 0;
 
     for (auto item : del_json.ObjectRange())
@@ -324,15 +330,18 @@ void srd_remove_space(const char *data, size_t data_size)
     // Get change hashs
     // Note: Cannot push srd hash pointer to vector because it will be deleted later
     std::vector<std::string> del_srds;
-    for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
+    if (wl->srd_hashs.size() > 0)
     {
-        std::string uuid = hexstring_safe(wl->srd_hashs[i], UUID_LENGTH);
-        if (del_json[uuid].ToInt() > 0)
+        for (size_t i = wl->srd_hashs.size() - 1; i >= 0 && change > 0; i--)
         {
-            del_srds.push_back(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH));
-            wl->add_srd_to_deleted_buffer(i);
-            del_json[uuid].AddNum(-1);
-            change--;
+            std::string uuid = hexstring_safe(wl->srd_hashs[i], UUID_LENGTH);
+            if (del_json[uuid].ToInt() > 0)
+            {
+                del_srds.push_back(hexstring_safe(wl->srd_hashs[i], SRD_LENGTH));
+                wl->add_srd_to_deleted_buffer(i);
+                del_json[uuid].AddNum(-1);
+                change--;
+            }
         }
     }
     sl.unlock();
@@ -349,6 +358,10 @@ void srd_remove_space(const char *data, size_t data_size)
             }
         }
     }
+
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 }
 
 /**
@@ -372,6 +385,7 @@ long get_srd_task()
  */
 crust_status_t change_srd_task(long change, long *real_change)
 {
+    Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     // Check if srd number exceeds upper limit
     if (change > 0)
@@ -404,9 +418,15 @@ crust_status_t change_srd_task(long change, long *real_change)
     {
         log_warn("Store srd remaining task failed!\n");
     }
+    // Set srd remaining task
+    wl->set_srd_remaining_task(g_srd_task);
     sgx_thread_mutex_unlock(&g_srd_task_mutex);
 
     *real_change = change;
+
+    // Update srd info
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
 
     return crust_status;
 }

@@ -1,4 +1,5 @@
 #include "Common.h"
+#include "ECalls.h"
 
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -232,9 +233,12 @@ std::string flat_urlformat(std::string &url)
  */
 bool is_number(const std::string &s)
 {
+    if (s.size() == 0)
+        return false;
+
     for (auto c : s)
     {
-        if (!isxdigit(c))
+        if (!isdigit(c))
         {
             return false;
         }
@@ -472,4 +476,44 @@ std::string get_file_size_humanreadable(size_t size)
     }
 
     return std::to_string(file_size) + left + tag;
+}
+
+/**
+ * @description: Safe store data inside enclave
+ * @param eid -> Enclave id
+ * @param status -> Ecall function return status
+ * @param t -> Ecall function type
+ * @param u -> Pointer to data
+ * @param s -> Data length
+ * @return: Ocall result
+ */
+sgx_status_t safe_ecall_store2(sgx_enclave_id_t eid, crust_status_t *status, ecall_store_type_t t, const uint8_t *u, size_t s)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    size_t offset = 0;
+    uint32_t buffer_key = 0;
+    read_rand(reinterpret_cast<uint8_t *>(&buffer_key), sizeof(buffer_key));
+    while (s > offset)
+    {
+        size_t partial_size = std::min(s - offset, (size_t)BOUNDARY_SIZE_THRESHOLD);
+        ret = Ecall_safe_store2(eid,
+                                status,
+                                t,
+                                u + offset,
+                                s,
+                                partial_size,
+                                offset,
+                                buffer_key);
+        if (SGX_SUCCESS != ret)
+        {
+            return ret;
+        }
+        if (CRUST_SUCCESS != *status)
+        {
+            return ret;
+        }
+        offset += partial_size;
+    }
+
+    return ret;
 }

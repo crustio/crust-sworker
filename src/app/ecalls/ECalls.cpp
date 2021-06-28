@@ -440,13 +440,11 @@ sgx_status_t Ecall_gen_upgrade_data(sgx_enclave_id_t eid, crust_status_t *status
  * @description: Generate upgrade metadata
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to result status
- * @param meta (in) -> Pointer to metadata
- * @param meta_len -> Meta length
- * @param total_size -> Metadata total size
- * @param transfer_end -> Indicate transfer end or not
+ * @param data (in) -> Pointer to metadata
+ * @param data_size -> Meta length
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const char *meta, size_t meta_len, size_t total_size, bool transfer_end)
+sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *status, const uint8_t *data, size_t data_size)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -454,7 +452,7 @@ sgx_status_t Ecall_restore_from_upgrade(sgx_enclave_id_t eid, crust_status_t *st
         return ret;
     }
 
-    ret = ecall_restore_from_upgrade(eid, status, meta, meta_len, total_size, transfer_end);
+    ret = ecall_restore_from_upgrade(eid, status, data, data_size);
 
     eq->free_enclave(__FUNCTION__);
 
@@ -564,21 +562,36 @@ sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid)
 }
 
 /**
- * @description: Get workload
+ * @description: Safe store large data to enclave
  * @param eid -> Enclave id
+ * @param status (out) -> Pointer to result status
+ * @param t -> Ecall store function type
+ * @param data (in) -> Pointer to data
+ * @param total_size -> Total data size
+ * @param partial_size -> Current store data size
+ * @param offset -> Offset in total data
+ * @param buffer_key -> Session key for this time enclave data store
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_get_workload(sgx_enclave_id_t eid)
+sgx_status_t Ecall_safe_store2(sgx_enclave_id_t eid,
+                               crust_status_t *status,
+                               ecall_store_type_t t,
+                               const uint8_t *data,
+                               size_t total_size,
+                               size_t partial_size,
+                               size_t offset,
+                               uint32_t buffer_key)
 {
     sgx_status_t ret = SGX_SUCCESS;
-    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    std::string func = eq->ecall_store2_func_m[t];
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(func.c_str())))
     {
         return ret;
     }
 
-    ret = ecall_get_workload(eid);
+    ret = ecall_safe_store2(eid, status, t, data, total_size, partial_size, offset, buffer_key);
 
-    eq->free_enclave(__FUNCTION__);
+    eq->free_enclave(func.c_str());
 
     return ret;
 }

@@ -383,12 +383,13 @@ void validate_meaningful_file()
     sgx_thread_mutex_unlock(&g_changed_files_v_mutex);
     if (tmp_changed_files_v.size() > 0)
     {
-        sgx_thread_mutex_lock(&wl->file_mutex);
+        SafeLock sl(wl->file_mutex);
+        sl.lock();
         for (auto file : tmp_changed_files_v)
         {
             std::string cid = (*file)[FILE_CID].ToString();
             size_t index = 0;
-            if(wl->is_file_dup(cid, index))
+            if(wl->is_file_dup_nolock(cid, index))
             {
                 long cur_block_num = wl->sealed_files[index][CHAIN_BLOCK_NUMBER].ToInt();
                 long val_block_num = g_validate_files_m[cid][CHAIN_BLOCK_NUMBER].ToInt();
@@ -432,7 +433,7 @@ void validate_meaningful_file()
                     wl->set_file_spec(new_status, g_validate_files_m[cid][FILE_SIZE].ToInt());
                     wl->set_file_spec(old_status, -g_validate_files_m[cid][FILE_SIZE].ToInt());
                     // Sync with APP sealed file info
-                    ocall_change_sealed_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
+                    ocall_change_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
                 }
             }
             else
@@ -440,7 +441,6 @@ void validate_meaningful_file()
                 log_err("Deal with bad file(%s) failed!\n", cid.c_str());
             }
         }
-        sgx_thread_mutex_unlock(&wl->file_mutex);
     }
 }
 
@@ -554,7 +554,11 @@ void validate_meaningful_file_real()
     // Validate lost data if have
     if (status.get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
     {
-        block_idx_s.insert((*file)[FILE_LOST_INDEX].ToInt());
+        long lost_index = (*file)[FILE_LOST_INDEX].ToInt();
+        if (lost_index > 0 && lost_index < (*file)[FILE_BLOCK_NUM].ToInt())
+        {
+            block_idx_s.insert(lost_index);
+        }
     }
     // Do check
     for (auto check_block_idx : block_idx_s)

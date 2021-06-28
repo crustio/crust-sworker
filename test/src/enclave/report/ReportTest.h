@@ -13,10 +13,9 @@
 #include <openssl/x509v3.h>
 
 #include "Workload.h"
+#include "Report.h"
 #include "EUtils.h"
 
 crust_status_t gen_and_upload_work_report_test(const char *block_hash, size_t block_height, long wait_time, bool is_upgrading, bool locked =true);
-crust_status_t gen_work_report_test(const char *block_hash, size_t block_height, bool is_upgrading);
-std::string get_generated_work_report_test();
 
 #endif /* !_CRUST_REPORT_TEST_H_ */

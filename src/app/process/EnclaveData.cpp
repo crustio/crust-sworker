@@ -27,54 +27,118 @@ EnclaveData *EnclaveData::get_instance()
 }
 
 /**
- * @description: Get enclave identity information
- * @return: Enclave information
- */
-std::string EnclaveData::get_enclave_id_info()
-{
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    if (SGX_SUCCESS != (sgx_status = Ecall_id_get_info(global_eid)))
-    {
-        p_log->err("Get id info failed! Error code:%lx\n", sgx_status);
-        return "";
-    }
-
-    SafeLock sl(this->enclave_id_info_mutex);
-    sl.lock();
-    return enclave_id_info;
-}
-
-/**
  * @description: Set enclave identity information
  * @param id_info -> Identity information
  */
 void EnclaveData::set_enclave_id_info(std::string id_info)
 {
+    this->enclave_id_info_mutex.lock();
+    this->enclave_id_info = id_info;
+    this->enclave_id_info_mutex.unlock();
+}
+
+/**
+ * @description: Get enclave identity information
+ * @return: Enclave information
+ */
+std::string EnclaveData::get_enclave_id_info()
+{
     SafeLock sl(this->enclave_id_info_mutex);
     sl.lock();
-    enclave_id_info = id_info;
+    if (this->enclave_id_info.size() == 0)
+    {
+        sl.unlock();
+        if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
+        {
+            p_log->err("Get id info from enclave failed!\n");
+            return "";
+        }
+        sl.lock();
+        return this->enclave_id_info;
+    }
+
+    return this->enclave_id_info;
 }
 
 /**
- * @description: Get workload
- * @return: Workload
+ * @description: Store workreport
+ * @param data -> Pointer to workreport data
+ * @param data_size -> Workreport data size
  */
-std::string EnclaveData::get_enclave_workload()
+void EnclaveData::set_workreport(const uint8_t *data, size_t data_size)
 {
-    SafeLock sl(this->enclave_workload_mutex);
-    sl.lock();
-    return enclave_workload;
+    workreport_mutex.lock();
+    this->workreport = std::string(reinterpret_cast<const char *>(data), data_size);
+    workreport_mutex.unlock();
 }
 
 /**
- * @description: Set workload
- * @param workload -> Sworker workload
+ * @description: Get workreport
+ * @return: Workreport
  */
-void EnclaveData::set_enclave_workload(std::string workload)
+std::string EnclaveData::get_workreport()
 {
-    SafeLock sl(this->enclave_workload_mutex);
+    SafeLock sl(workreport_mutex);
     sl.lock();
-    enclave_workload = workload;
+    return this->workreport;
+}
+
+/**
+ * @description: Set srd information
+ * @param data -> Pointer to srd info data
+ * @param data_size -> Srd info data size
+ */
+void EnclaveData::set_srd_info(const uint8_t *data, size_t data_size)
+{
+    this->srd_info_mutex.lock();
+    this->srd_info = json::JSON::Load_unsafe(data, data_size);
+    this->srd_info_mutex.unlock();
+}
+
+/**
+ * @description: Get srd information
+ * @return: Srd information
+ */
+json::JSON EnclaveData::get_srd_info()
+{
+    SafeLock sl(this->srd_info_mutex);
+    sl.lock();
+    return this->srd_info;
+}
+
+/**
+ * @description: Add pending file size
+ * @param cid -> File content id
+ * @param size -> File size
+ */
+void EnclaveData::add_pending_file_size(std::string cid, long size)
+{
+    this->pending_file_size_um_mutex.lock();
+    this->pending_file_size_um[cid] += size;
+    this->pending_file_size_um_mutex.unlock();
+}
+
+/**
+ * @description: Get pending file size
+ * @param cid -> File content id
+ * @return: Pending file size
+ */
+long EnclaveData::get_pending_file_size(std::string cid)
+{
+    SafeLock sl(this->pending_file_size_um_mutex);
+    sl.lock();
+    return this->pending_file_size_um[cid];
+}
+
+/**
+ * @description: Delete pending file
+ * @param cid -> File content id
+ */
+void EnclaveData::del_pending_file_size(std::string cid)
+{
+    this->pending_file_size_um_mutex.lock();
+    this->pending_file_size_um.erase(cid);
+    this->pending_file_size_um_mutex.unlock();
 }
 
 /**
@@ -83,6 +147,8 @@ void EnclaveData::set_enclave_workload(std::string workload)
  */
 std::string EnclaveData::get_upgrade_data()
 {
+    SafeLock sl(this->upgrade_data_mutex);
+    sl.lock();
     return upgrade_data;
 }
 
@@ -92,20 +158,9 @@ std::string EnclaveData::get_upgrade_data()
  */
 void EnclaveData::set_upgrade_data(std::string data)
 {
-    upgrade_data = data;
-}
-
-/**
- * @description: Get upgrade status
- * @return: Upgrade status
- */
-upgrade_status_t EnclaveData::get_upgrade_status()
-{
-    upgrade_status_mutex.lock();
-    upgrade_status_t status = upgrade_status;
-    upgrade_status_mutex.unlock();
-
-    return status;
+    this->upgrade_data_mutex.lock();
+    this->upgrade_data = data;
+    this->upgrade_data_mutex.unlock();
 }
 
 /**
@@ -153,12 +208,23 @@ void EnclaveData::set_upgrade_status(upgrade_status_t status)
 }
 
 /**
+ * @description: Get upgrade status
+ * @return: Upgrade status
+ */
+upgrade_status_t EnclaveData::get_upgrade_status()
+{
+    SafeLock sl(upgrade_status_mutex);
+    sl.lock();
+    return upgrade_status;
+}
+
+/**
  * @description: Add sealed file info
  * @param cid -> IPFS content id
  * @param type -> File type
  * @param info -> Related file info
  */
-void EnclaveData::add_sealed_file_info(const std::string &cid, std::string type, std::string info)
+void EnclaveData::add_file_info(const std::string &cid, std::string type, std::string info)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
@@ -168,29 +234,205 @@ void EnclaveData::add_sealed_file_info(const std::string &cid, std::string type,
         info = "{ \"" FILE_PENDING_STIME "\" : " + std::to_string(get_seconds_since_epoch()) + " }";
     }
 
-    json::JSON file_json;
-    file_json[cid] = info;
     if (type.compare(FILE_TYPE_VALID) == 0)
     {
         this->sealed_file[FILE_TYPE_PENDING].erase(cid);
+        this->del_pending_file_size(cid);
     }
 
-    this->sealed_file[type][cid] = file_json;
+    this->sealed_file[type][cid] = info;
+    sl.unlock();
+
+    // Update file info
+    SafeLock sl_file_info(this->file_info_mutex);
+    sl_file_info.lock();
+    remove_char(info, '\\');
+    json::JSON info_json = json::JSON::Load_unsafe(info);
+    size_t file_size = 0;
+    if (type.compare(FILE_TYPE_VALID) == 0)
+    {
+        this->file_info[FILE_TYPE_PENDING]["num"].AddNum(-1);
+        file_size = info_json[FILE_SIZE].ToInt();
+    }
+    this->file_info[type]["num"].AddNum(1);
+    this->file_info[type]["size"].AddNum(file_size);
+}
+
+/**
+ * @description: Change sealed file info from old type to new type
+ * @param cid -> File root cid
+ * @param old_type -> Old file type
+ * @param new_type -> New file type
+ */
+void EnclaveData::change_file_type(const std::string &cid, std::string old_type, std::string new_type)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    if (this->sealed_file.find(old_type) == this->sealed_file.end())
+    {
+        p_log->warn("Old type:%s no found!\n", old_type.c_str());
+        return;
+    }
+    if (this->sealed_file[old_type].find(cid) == this->sealed_file[old_type].end())
+    {
+        p_log->warn("Old type:%s cid:%s not found!\n", old_type.c_str(), cid.c_str());
+        return;
+    }
+    std::string info = this->sealed_file[old_type][cid];
+    this->sealed_file[new_type][cid] = this->sealed_file[old_type][cid];
+    this->sealed_file[old_type].erase(cid);
+    sl.unlock();
+
+    remove_char(info, '\\');
+    json::JSON info_json = json::JSON::Load_unsafe(info);
+    long new_size = 0;
+    long old_size = 0;
+    if (new_type.compare(FILE_TYPE_PENDING) != 0)
+    {
+        new_size = info_json[FILE_SIZE].ToInt();
+    }
+    if (old_type.compare(FILE_TYPE_PENDING) != 0)
+    {
+        old_size = info_json[FILE_SIZE].ToInt();
+    }
+
+    // Update file info
+    this->file_info_mutex.lock();
+    this->file_info[new_type]["num"].AddNum(1);
+    this->file_info[new_type]["size"].AddNum(new_size);
+    this->file_info[old_type]["num"].AddNum(-1);
+    this->file_info[old_type]["size"].AddNum(-old_size);
+    this->file_info_mutex.unlock();
+}
+
+/**
+ * @description: Delete sealed file information
+ * @param cid -> IPFS content id
+ */
+void EnclaveData::del_file_info(std::string cid)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    std::string info;
+    std::string type;
+    bool deleted = false;
+    for (auto it = this->sealed_file.begin(); it != this->sealed_file.end(); it++)
+    {
+        if (it->second.find(cid) != it->second.end())
+        {
+            type = it->first;
+            info = it->second[cid];
+            it->second.erase(cid);
+            deleted = true;
+        }
+    }
+    sl.unlock();
+
+    // Update file info
+    if (deleted)
+    {
+        remove_char(info, '\\');
+        json::JSON info_json = json::JSON::Load_unsafe(info);
+        long file_size = 0;
+        if (type.compare(FILE_TYPE_PENDING) != 0)
+        {
+            file_size = info_json[FILE_SIZE].ToInt();
+        }
+        else
+        {
+            this->del_pending_file_size(cid);
+        }
+        this->file_info_mutex.lock();
+        this->file_info[type]["num"].AddNum(-1);
+        this->file_info[type]["size"].AddNum(-file_size);
+        this->file_info_mutex.unlock();
+    }
+}
+
+/**
+ * @description: Delete sealed file information
+ * @param cid -> IPFS content id
+ * @param type -> File type
+ */
+void EnclaveData::del_file_info(std::string cid, std::string type)
+{
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    bool deleted = false;
+    std::string info;
+    if (this->sealed_file[type].find(cid) != this->sealed_file[type].end())
+    {
+        info = this->sealed_file[type][cid];
+        this->sealed_file[type].erase(cid);
+        deleted = true;
+    }
+    sl.unlock();
+
+    // Update file info
+    if (deleted)
+    {
+        remove_char(info, '\\');
+        json::JSON info_json = json::JSON::Load_unsafe(info);
+        long file_size = 0;
+        if (type.compare(FILE_TYPE_PENDING) != 0)
+        {
+            file_size = info_json[FILE_SIZE].ToInt();
+        }
+        else
+        {
+            this->del_pending_file_size(cid);
+        }
+        this->file_info_mutex.lock();
+        this->file_info[type]["num"].AddNum(-1);
+        this->file_info[type]["size"].AddNum(-file_size);
+        this->file_info_mutex.unlock();
+    }
+}
+
+/**
+ * @description: Restore sealed file information
+ * @param data -> All file information
+ * @param data_size -> All file information size
+ */
+void EnclaveData::restore_file_info(const uint8_t *data, size_t data_size)
+{
+    // Restore file information
+    SafeLock sl(this->sealed_file_mutex);
+    sl.lock();
+    json::JSON sealed_files = json::JSON::Load_unsafe(data, data_size);
+    json::JSON file_spec = sealed_files[WL_FILE_SPEC_INFO];
+    sealed_files.erase(WL_FILE_SPEC_INFO);
+    for (auto it : sealed_files.ObjectRange())
+    {
+        for (auto f_it : it.second.ArrayRange())
+        {
+            if (f_it.JSONType() == json::JSON::Class::Object && f_it.size() > 0)
+            {
+                auto val = f_it.ObjectRange().begin();
+                this->sealed_file[it.first][val->first] = val->second.ToString();
+            }
+        }
+    }
+    sl.unlock();
+
+    this->file_info_mutex.lock();
+    this->file_info = file_spec;
+    this->file_info_mutex.unlock();
 }
 
 /**
  * @description: Get sealed file item
+ * @param cid -> File content id
  * @param info -> Reference to file item
  * @param raw -> Return raw data or a json
  * @return: File data
  */
-std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
+std::string EnclaveData::get_file_info_item(std::string cid, std::string &info, bool raw)
 {
-    std::string cid = info.ObjectRange().begin()->first;
     std::string ans;
-    std::string data = info[cid].ToString();
+    std::string data = info;
     remove_char(data, '\\');
-    json::JSON data_json = json::JSON::Load(data);
+    json::JSON data_json = json::JSON::Load_unsafe(data);
 
     if(data_json.hasKey(FILE_PENDING_STIME))
     {
@@ -200,7 +442,7 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
         data = "{ \"" FILE_PENDING_DOWNLOAD_TIME "\" : \"" 
             + get_time_diff_humanreadable(utime) + "\" , "
             + "\"" FILE_PENDING_SIZE "\" : \""
-            + get_file_size_humanreadable(get_file_size_by_cid(cid)) + "\""
+            + std::to_string(this->get_pending_file_size(cid)) + "\""
             + " }";
     }
 
@@ -214,20 +456,19 @@ std::string EnclaveData::get_sealed_file_info_item(json::JSON &info, bool raw)
 
 /**
  * @description: Get pending files' size
- * @param type -> File type
  * @return: Pending files' size
  */
-size_t EnclaveData::get_files_size_by_type(const char *type)
+size_t EnclaveData::get_pending_files_size_all()
 {
     this->sealed_file_mutex.lock();
-    std::map<std::string, json::JSON> tmp_files = this->sealed_file[type];
+    std::map<std::string, std::string> tmp_files = this->sealed_file[FILE_TYPE_PENDING];
     this->sealed_file_mutex.unlock();
 
     size_t ans = 0;
 
     for (auto it : tmp_files)
     {
-        ans += get_file_size_by_cid(it.first);
+        ans += this->get_pending_file_size(it.first);
     }
 
     return ans;
@@ -238,17 +479,17 @@ size_t EnclaveData::get_files_size_by_type(const char *type)
  * @param cid -> IPFS content id
  * @return: Sealed file information
  */
-std::string EnclaveData::get_sealed_file_info(std::string cid)
+std::string EnclaveData::get_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
     std::string type;
-    if (!find_file_type(cid, type))
+    if (!find_file_type_nolock(cid, type))
     {
         return "";
     }
 
-    json::JSON file = json::JSON::Load(get_sealed_file_info_item(this->sealed_file[type][cid], false));
+    json::JSON file = json::JSON::Load_unsafe(get_file_info_item(cid, this->sealed_file[type][cid], false));
     file[cid]["type"] = type;
     std::string file_str = file.dump();
     remove_char(file_str, '\\');
@@ -257,28 +498,13 @@ std::string EnclaveData::get_sealed_file_info(std::string cid)
 }
 
 /**
- * @description: Change sealed file info from old type to new type
- * @param cid -> File root cid
- * @param old_type -> Old file type
- * @param new_type -> New file type
- */
-void EnclaveData::change_sealed_file_type(const std::string &cid, std::string old_type, std::string new_type)
-{
-    SafeLock sl(this->sealed_file_mutex);
-    sl.lock();
-    this->sealed_file[new_type][cid] = this->sealed_file[old_type][cid];
-    this->sealed_file[old_type].erase(cid);
-    sl.unlock();
-}
-
-/**
  * @description: Get all sealed file information
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_all()
+std::string EnclaveData::get_file_info_all()
 {
     this->sealed_file_mutex.lock();
-    std::map<std::string, std::map<std::string, json::JSON>> tmp_sealed_file = this->sealed_file;
+    std::map<std::string, std::map<std::string, std::string>> tmp_sealed_file = this->sealed_file;
     this->sealed_file_mutex.unlock();
 
     std::string ans = "{";
@@ -286,7 +512,7 @@ std::string EnclaveData::get_sealed_file_info_all()
     std::string tag;
     for (auto it = tmp_sealed_file.begin(); it != tmp_sealed_file.end(); it++)
     {
-        std::string info = get_sealed_file_info_by_type(it->first, pad + "  ", true, false);
+        std::string info = _get_file_info_by_type(it->first, pad + "  ", true);
         if (info.size() != 0)
         {
             ans += tag + "\n" + pad + "\"" + it->first + "\" : {\n" + info + "\n" + pad + "}";
@@ -303,24 +529,27 @@ std::string EnclaveData::get_sealed_file_info_all()
 }
 
 /**
+ * @description: Get file info by type
+ * @param type -> File type
+ * @return: Result
+ */
+std::string EnclaveData::get_file_info_by_type(std::string type)
+{
+    return _get_file_info_by_type(type, "", false);
+}
+
+/**
  * @description: Get sealed file information by type
  * @param type -> File type
  * @param pad -> Space pad
  * @param raw -> Is raw data or not
- * @param locked -> Lock sealed_file or not
  * @return: All sealed file information
  */
-std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::string pad, bool raw, bool locked)
+std::string EnclaveData::_get_file_info_by_type(std::string type, std::string pad, bool raw)
 {
-    if (locked)
-    {
-        this->sealed_file_mutex.lock();
-    }
-    std::map<std::string, std::map<std::string, json::JSON>> tmp_sealed_file = this->sealed_file;
-    if (locked)
-    {
-        this->sealed_file_mutex.unlock();
-    }
+    this->sealed_file_mutex.lock();
+    std::map<std::string, std::map<std::string, std::string>> tmp_sealed_file = this->sealed_file;
+    this->sealed_file_mutex.unlock();
 
     std::string ans;
     std::string pad2;
@@ -339,7 +568,7 @@ std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::str
         {
             ans += "\n";
         }
-        ans += pad2 + get_sealed_file_info_item(it->second, true);
+        ans += pad2 + get_file_info_item(it->first, it->second, true);
         auto iit = it;
         iit++;
         if (iit != tmp_sealed_file[type].end())
@@ -362,21 +591,10 @@ std::string EnclaveData::get_sealed_file_info_by_type(std::string type, std::str
 /**
  * @description: Check if file is duplicated
  * @param cid -> IPFS content id
- * @return: Duplicated or not
- */
-bool EnclaveData::is_file_exist(std::string cid)
-{
-    std::string type;
-    return find_file_type(cid, type);
-}
-
-/**
- * @description: Check if file is duplicated
- * @param cid -> IPFS content id
  * @param type -> Reference to file status type
  * @return: Duplicated or not
  */
-bool EnclaveData::find_file_type(std::string cid, std::string &type)
+bool EnclaveData::find_file_type_nolock(std::string cid, std::string &type)
 {
     for (auto item : this->sealed_file)
     {
@@ -391,76 +609,26 @@ bool EnclaveData::find_file_type(std::string cid, std::string &type)
 }
 
 /**
- * @description: Delete sealed file information
+ * @description: Check if file is duplicated
  * @param cid -> IPFS content id
+ * @param type -> Reference to file status type
+ * @return: Duplicated or not
  */
-void EnclaveData::del_sealed_file_info(std::string cid)
+bool EnclaveData::find_file_type(std::string cid, std::string &type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    for (auto it = this->sealed_file.begin(); it != this->sealed_file.end(); it++)
-    {
-        it->second.erase(cid);
-    }
-}
 
-/**
- * @description: Delete sealed file information
- * @param cid -> IPFS content id
- * @param type -> File type
- */
-void EnclaveData::del_sealed_file_info(std::string cid, std::string type)
-{
-    SafeLock sl(this->sealed_file_mutex);
-    sl.lock();
-    this->sealed_file[type].erase(cid);
-}
-
-/**
- * @description: Restore sealed file information
- * @param data -> All file information
- * @param data_size -> All file information size
- */
-void EnclaveData::restore_sealed_file_info(const uint8_t *data, size_t data_size)
-{
-    // Restore file information
-    SafeLock sl(this->sealed_file_mutex);
-    sl.lock();
-    json::JSON sealed_files = json::JSON::Load(data, data_size);
-    if (sealed_files.size() <= 0)
+    for (auto item : this->sealed_file)
     {
-        return;
-    }
-    for (auto it : *(sealed_files.ObjectRange().object))
-    {
-        for (auto f_it : *(it.second.ArrayRange().object))
+        if (item.second.find(cid) != item.second.end())
         {
-            this->sealed_file[it.first][f_it.ObjectRange().begin()->first] = f_it;
+            type = item.first;
+            return true;
         }
     }
-}
 
-/**
- * @description: Set srd information
- * @param data -> Pointer to srd info data
- * @param data_size -> Srd info data size
- */
-void EnclaveData::set_srd_info(const uint8_t *data, size_t data_size)
-{
-    this->srd_info_mutex.lock();
-    this->srd_info = json::JSON::Load(data, data_size);
-    this->srd_info_mutex.unlock();
-}
-
-/**
- * @description: Get srd information
- * @return: Srd information
- */
-json::JSON EnclaveData::get_srd_info()
-{
-    SafeLock sl(this->srd_info_mutex);
-    sl.lock();
-    return this->srd_info;
+    return false;
 }
 
 /**
@@ -487,18 +655,10 @@ std::string EnclaveData::gen_workload_str(long srd_task)
  */
 json::JSON EnclaveData::gen_workload_for_print(long srd_task)
 {
-    sgx_status_t sgx_status = SGX_SUCCESS;
     EnclaveData *ed = EnclaveData::get_instance();
     // Get srd info
-    if (SGX_SUCCESS != (sgx_status = Ecall_get_workload(global_eid)))
-    {
-        p_log->warn("Get workload failed! Error code:%lx\n", sgx_status);
-    }
-    json::JSON wl_json = json::JSON::Load(get_enclave_workload());
-    if (wl_json.size() == -1)
-    {
-        return "Get workload failed!";
-    }
+    json::JSON wl_json;
+    json::JSON srd_info = get_srd_info();
     json::JSON disk_json = get_disk_info();
     int disk_avail_for_srd = 0;
     int disk_avail = 0;
@@ -514,7 +674,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
         memset(buffer, 0, buffer_sz);
         sprintf(buffer, "  \"%s\" : { \"srd\" : %ld, \"srd_avail\" : %ld, \"avail\" : %ld, \"volumn\" : %ld }", 
                 disk_path.c_str(),
-                wl_json[WL_SRD][WL_SRD_DETAIL][uuid].ToInt(),
+                srd_info[WL_SRD_DETAIL][uuid].ToInt(),
                 disk_json[i][WL_DISK_AVAILABLE_FOR_SRD].ToInt(),
                 disk_json[i][WL_DISK_AVAILABLE].ToInt(),
                 disk_json[i][WL_DISK_VOLUME].ToInt());
@@ -529,33 +689,35 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
         disk_volume += disk_json[i][WL_DISK_VOLUME].ToInt();
     }
     disk_info.append("}");
-    std::string srd_info;
-    srd_info.append("{\n")
-            .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_COMPLETE].ToInt())).append(",\n")
-            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(wl_json[WL_SRD][WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
+    std::string srd_spec;
+    srd_spec.append("{\n")
+            .append("\"" WL_SRD_COMPLETE "\" : ").append(std::to_string(srd_info[WL_SRD_COMPLETE].ToInt())).append(",\n")
+            .append("\"" WL_SRD_REMAINING_TASK "\" : ").append(std::to_string(srd_info[WL_SRD_REMAINING_TASK].ToInt() + srd_task)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE_FOR_SRD "\" : ").append(std::to_string(disk_avail_for_srd)).append(",\n")
             .append("\"" WL_DISK_AVAILABLE "\" : ").append(std::to_string(disk_avail)).append(",\n")
             .append("\"" WL_DISK_VOLUME "\" : ").append(std::to_string(disk_volume)).append(",\n")
             .append("\"" WL_SYS_DISK_AVAILABLE "\" : ").append(std::to_string(get_avail_space_under_dir_g(Config::get_instance()->base_path))).append(",\n")
             .append("\"" WL_SRD_DETAIL "\" : ").append(disk_info).append("\n")
             .append("}");
-    wl_json[WL_SRD] = srd_info;
+    wl_json[WL_SRD] = srd_spec;
     // Get file info
-    json::JSON file_info = wl_json[WL_FILES];
+    this->file_info_mutex.lock();
+    json::JSON file_info = this->file_info;
+    this->file_info_mutex.unlock();
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
-    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_files_size_by_type(FILE_TYPE_PENDING));
-    for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+    file_info[FILE_TYPE_PENDING]["size"].AddNum(this->get_pending_files_size_all());
+    for (auto it : file_info.ObjectRange())
     {
-        space_num = std::max(space_num, (int)it->first.size());
+        space_num = std::max(space_num, (int)it.first.size());
     }
-    for (auto it = file_info.ObjectRange().begin(); it != file_info.ObjectRange().end(); it++)
+    for (auto it : file_info.ObjectRange())
     {
         memset(buf, 0, sizeof(buf));
         sprintf(buf, "%s{  \"num\" : %-6ld, \"size\" : %ld  }",
-                std::string(space_num - it->first.size(), ' ').c_str(), it->second["num"].ToInt(), it->second["size"].ToInt());
-        n_file_info[it->first] = std::string(buf);
+                std::string(space_num - it.first.size(), ' ').c_str(), it.second["num"].ToInt(), it.second["size"].ToInt());
+        n_file_info[it.first] = std::string(buf);
     }
 
     wl_json[WL_FILES] = n_file_info;
@@ -569,7 +731,7 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
  */
 json::JSON EnclaveData::gen_workload(long srd_task)
 {
-    return json::JSON::Load(gen_workload_str(srd_task));
+    return json::JSON::Load_unsafe(gen_workload_str(srd_task));
 }
 
 /**

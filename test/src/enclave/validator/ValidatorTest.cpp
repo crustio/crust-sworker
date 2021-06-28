@@ -286,7 +286,7 @@ void validate_meaningful_file_bench()
         }
     }
     size_t file_idx = 0;
-    wl->is_file_dup(oneg_cid, file_idx);
+    wl->is_file_dup_nolock(oneg_cid, file_idx);
     oneg_file = wl->sealed_files[file_idx];
     std::map<std::string, json::JSON> tmp_validate_files_m;
     sgx_thread_mutex_lock(&wl->file_mutex);
@@ -388,7 +388,7 @@ void validate_meaningful_file_bench()
         {
             std::string cid = (*file)[FILE_CID].ToString();
             size_t index = 0;
-            if(wl->is_file_dup(cid, index))
+            if(wl->is_file_dup_nolock(cid, index))
             {
                 long cur_block_num = wl->sealed_files[index][CHAIN_BLOCK_NUMBER].ToInt();
                 long val_block_num = g_validate_files_m[cid][CHAIN_BLOCK_NUMBER].ToInt();
@@ -432,7 +432,7 @@ void validate_meaningful_file_bench()
                     wl->set_file_spec(new_status, g_validate_files_m[cid][FILE_SIZE].ToInt());
                     wl->set_file_spec(old_status, -g_validate_files_m[cid][FILE_SIZE].ToInt());
                     // Sync with APP sealed file info
-                    ocall_change_sealed_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
+                    ocall_change_file_type(cid.c_str(), old_status_ptr, new_status_ptr);
                 }
             }
             else

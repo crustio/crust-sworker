@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <exception>
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -22,6 +23,7 @@
 #include "sgx_trts.h"
 
 #include "Parameter.h"
+#include "CrustStatus.h"
 #include "Enclave_t.h"
 #include "Defer.h"
 
@@ -97,14 +99,78 @@ void *enc_realloc(void *p, size_t size);
 void *enc_crealloc(void *p, size_t old_size, size_t new_size);
 void remove_char(std::string &data, char c);
 void replace(std::string &data, std::string org_str, std::string det_str);
-void store_large_data(const uint8_t *data, size_t data_size, p_ocall_store p_func, sgx_thread_mutex_t &mutex);
 char *base64_decode(const char *msg, size_t *sz);
 std::string base58_encode(const uint8_t *input, size_t len);
 std::string hash_to_cid(const uint8_t *hash);
 crust_status_t safe_ocall_store2(ocall_store_type_t t, const uint8_t *u, size_t s);
+crust_status_t safe_ocall_get2(ocall_get2_f f, uint8_t *u, size_t *s);
 
 #if defined(__cplusplus)
 }
 #endif
+
+template <class T>
+/**
+ * @description: Insert data to vector end
+ * @param v -> Reference to vector
+ * @param data -> Pointer to data
+ * @param data_size -> Data size
+ * @return: Insert result
+ */
+crust_status_t vector_end_insert(std::vector<T> &v, const T *data, size_t data_size)
+{
+    try
+    {
+        v.insert(v.end(), data, data + data_size);
+    }
+    catch (std::exception &e)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+template <class T>
+/**
+ * @description: Insert data to vector end
+ * @param v -> Reference to destination vector
+ * @param s -> Reference to added vector
+ * @return: Insert result
+ */
+crust_status_t vector_end_insert(std::vector<T> &v, std::vector<T> &s)
+{
+    try
+    {
+        v.insert(v.end(), s.begin(), s.end());
+    }
+    catch (std::exception &e)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
+
+template <class T>
+/**
+ * @description: Insert data to vector end
+ * @param v -> Reference to vector
+ * @param str -> String data
+ * @return: Insert result
+ */
+crust_status_t vector_end_insert(std::vector<T> &v, std::string str)
+{
+    try
+    {
+        v.insert(v.end(), str.c_str(), str.c_str() + str.size());
+    }
+    catch (std::exception &e)
+    {
+        return CRUST_MALLOC_FAILED;
+    }
+
+    return CRUST_SUCCESS;
+}
 
 #endif /* !_CRUST_E_UTILS_H_ */

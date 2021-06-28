@@ -4,7 +4,9 @@ crust::Log *p_log = crust::Log::get_instance();
 std::map<uint32_t, uint8_t *> g_ocall_buffer_pool;
 std::mutex g_ocall_buffer_pool_mutex;
 std::map<ocall_store_type_t, ocall_store2_f> g_ocall_store2_func_m = {
-    {OS_FILE_INFO_ALL, ocall_store_file_info_all},
+    {OCALL_FILE_INFO_ALL, ocall_store_file_info_all},
+    {OCALL_STORE_WORKREPORT, ocall_store_workreport},
+    {OCALL_STORE_UPGRADE_DATA, ocall_store_upgrade_data},
 };
 
 // Used to store ocall file data
@@ -118,12 +120,11 @@ crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_
 
 /**
  * @description: For upgrade, send work report
- * @param work_report (in) -> Work report
  * @return: Send result
  */
-crust_status_t ocall_upload_workreport(const char *work_report)
+crust_status_t ocall_upload_workreport()
 {
-    std::string work_str(work_report);
+    std::string work_str = EnclaveData::get_instance()->get_workreport();
     remove_char(work_str, '\\');
     remove_char(work_str, '\n');
     remove_char(work_str, ' ');
@@ -166,7 +167,13 @@ crust_status_t ocall_srd_change(long change)
  */
 crust_status_t ocall_upload_identity(const char *id)
 {
-    json::JSON entrance_info = json::JSON::Load(std::string(id));
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON entrance_info = json::JSON::Load(&crust_status, std::string(id));
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Parse identity failed! Error code:%lx\n", crust_status);
+        return crust_status;
+    }
     entrance_info["account_id"] = Config::get_instance()->chain_address;
     std::string sworker_identity = entrance_info.dump();
     p_log->info("Generate identity successfully! Sworker identity: %s\n", sworker_identity.c_str());
@@ -197,52 +204,25 @@ void ocall_store_enclave_id_info(const char *info)
 }
 
 /**
- * @description: Store enclave workload
- * @param data (in) -> Workload information
- * @param data_size -> Workload size
- * @param cover -> Cover old data or not
- */
-void ocall_store_workload(const char *data, size_t data_size, bool cover /*=true*/)
-{
-    if (cover)
-    {
-        EnclaveData::get_instance()->set_enclave_workload(std::string(data, data_size));
-    }
-    else
-    {
-        std::string str = EnclaveData::get_instance()->get_enclave_workload();
-        str.append(data, data_size);
-        EnclaveData::get_instance()->set_enclave_workload(str);
-    }
-}
-
-/**
  * @description: Store upgrade data
  * @param data (in) -> Upgrade data
  * @param data_size -> Upgrade data size
- * @param cover -> Cover old upgrade data or not
+ * @return: Store status 
  */
-void ocall_store_upgrade_data(const char *data, size_t data_size, bool cover)
+crust_status_t ocall_store_upgrade_data(const uint8_t *data, size_t data_size)
 {
-    if (cover)
-    {
-        EnclaveData::get_instance()->set_upgrade_data(std::string(data, data_size));
-    }
-    else
-    {
-        std::string str = EnclaveData::get_instance()->get_upgrade_data();
-        str.append(data, data_size);
-        EnclaveData::get_instance()->set_upgrade_data(str);
-    }
+    EnclaveData::get_instance()->set_upgrade_data(std::string(reinterpret_cast<const char *>(data), data_size));
+    return CRUST_SUCCESS;
 }
 
 /**
  * @description: Get chain block information
  * @param data (in, out) -> Pointer to file block information
  * @param data_size -> Pointer to file block data size
+ * @param real_size (out) -> Pointer to real file size
  * @return: Get result
  */
-crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
+crust_status_t ocall_chain_get_block_info(uint8_t *data, size_t data_size, size_t *real_size)
 {
     crust::BlockHeader block_header;
     if (!crust::Chain::get_instance()->get_block_header(block_header))
@@ -259,6 +239,12 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
     remove_char(bh_str, '\\');
     remove_char(bh_str, ' ');
 
+    *real_size = bh_str.size();
+    if (*real_size > data_size)
+    {
+        return CRUST_OCALL_NO_ENOUGH_BUFFER;
+    }
+
     memcpy(data, bh_str.c_str(), bh_str.size());
 
     return CRUST_SUCCESS;
@@ -272,23 +258,37 @@ crust_status_t ocall_chain_get_block_info(char *data, size_t /*data_size*/)
  */
 void ocall_store_file_info(const char* cid, const char *data, const char *type)
 {
-    EnclaveData::get_instance()->add_sealed_file_info(cid, type, data);
+    EnclaveData::get_instance()->add_file_info(cid, type, data);
 }
 
 /**
  * @description: Restore sealed file information
- * @param data -> All file information
+ * @param data (in) -> All file information
  * @param data_size -> All file information size
+ * @return: Store status
  */
-void ocall_store_file_info_all(const uint8_t *data, size_t data_size)
+crust_status_t ocall_store_file_info_all(const uint8_t *data, size_t data_size)
 {
-    EnclaveData::get_instance()->restore_sealed_file_info(data, data_size);
+    EnclaveData::get_instance()->restore_file_info(data, data_size);
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Store workreport
+ * @param data (in) -> Pointer to workreport data
+ * @param data_size -> Workreport data size
+ * @return: Store status
+ */
+crust_status_t ocall_store_workreport(const uint8_t *data, size_t data_size)
+{
+    EnclaveData::get_instance()->set_workreport(data, data_size);
+    return CRUST_SUCCESS;
 }
 
 /**
  * @description: Ocall save big data
  * @param t -> Store function type
- * @param data -> Pointer to data
+ * @param data (in) -> Pointer to data
  * @param total_size -> Total data size
  * @param partial_size -> Current store data size
  * @param offset -> Offset in total data
@@ -362,21 +362,21 @@ void ocall_recall_validate_srd()
 
 /**
  * @description: Change sealed file info from old type to new type
- * @param cid -> File root cid
- * @param old_type -> Old file type
- * @param new_type -> New file type
+ * @param cid (in) -> File root cid
+ * @param old_type (in) -> Old file type
+ * @param new_type (in) -> New file type
  */
-void ocall_change_sealed_file_type(const char *cid, const char *old_type, const char *new_type)
+void ocall_change_file_type(const char *cid, const char *old_type, const char *new_type)
 {
-    EnclaveData::get_instance()->change_sealed_file_type(cid, old_type, new_type);
+    EnclaveData::get_instance()->change_file_type(cid, old_type, new_type);
 }
 
 /**
  * @description: Delete cid by type
- * @param cid -> File root cid
- * @param type -> File type
+ * @param cid (in) -> File root cid
+ * @param type (in) -> File type
  */
-void ocall_delete_sealed_file_info(const char *cid, const char *type)
+void ocall_delete_file_info(const char *cid, const char *type)
 {
-    EnclaveData::get_instance()->del_sealed_file_info(cid, type);
+    EnclaveData::get_instance()->del_file_info(cid, type);
 }

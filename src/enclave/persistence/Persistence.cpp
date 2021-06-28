@@ -62,13 +62,13 @@ crust_status_t persist_set(std::string key, const uint8_t *value, size_t value_l
 
     uint8_t *store_buf = NULL;
     size_t offset = 0;
-    if (sealed_data_size > OCALL_STORE_THRESHOLD)
+    if (sealed_data_size > BOUNDARY_SIZE_THRESHOLD)
     {
         // Data size larger than default size
         uint32_t part_size = 0;
         while (sealed_data_size > offset)
         {
-            part_size = std::min((uint32_t)(sealed_data_size - offset), (uint32_t)OCALL_STORE_THRESHOLD);
+            part_size = std::min((uint32_t)(sealed_data_size - offset), (uint32_t)BOUNDARY_SIZE_THRESHOLD);
             ocall_persist_set(&crust_status, key.c_str(), p_sealed_data_u + offset, part_size, 
                     sealed_data_size, &store_buf, offset);
             if (CRUST_SUCCESS != crust_status)
@@ -109,13 +109,13 @@ crust_status_t persist_set_unsafe(std::string key, const uint8_t *value, size_t 
 
     uint8_t *store_buf = NULL;
     size_t offset = 0;
-    if (value_len > OCALL_STORE_THRESHOLD)
+    if (value_len > BOUNDARY_SIZE_THRESHOLD)
     {
         // Data size larger than default size
         uint32_t part_size = 0;
         while (value_len > offset)
         {
-            part_size = std::min((uint32_t)(value_len - offset), (uint32_t)OCALL_STORE_THRESHOLD);
+            part_size = std::min((uint32_t)(value_len - offset), (uint32_t)BOUNDARY_SIZE_THRESHOLD);
             ocall_persist_set(&crust_status, key.c_str(), value + offset, part_size, 
                     value_len, &store_buf, offset);
             if (CRUST_SUCCESS != crust_status)

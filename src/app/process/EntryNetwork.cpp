@@ -30,6 +30,7 @@ crust_status_t entry_network()
     from_hexstring((unsigned char *)spid, IAS_SPID, strlen(IAS_SPID));
     int i = 0;
     int common_tryout = 5;
+    crust_status_t crust_status = CRUST_SUCCESS;
 
     // ----- get nonce ----- //
     for (i = 0; i < 2; ++i)
@@ -213,7 +214,7 @@ crust_status_t entry_network()
     ias_report.push_back(ias_quote_body.c_str());
 
     p_log->debug("\n\n----------IAS Report - JSON - Required Fields----------\n\n");
-    json::JSON ias_body_json = json::JSON::Load(ias_res.body());
+    json::JSON ias_body_json = json::JSON::Load_unsafe(ias_res.body());
     int version = IAS_API_DEF_VERSION;
     if (version >= 3)
     {
@@ -255,7 +256,6 @@ crust_status_t entry_network()
                 std::string(ias_res["epidPseudonym"]).c_str());
 
     // Verify and upload IAS report
-    crust_status_t crust_status;
     sgx_status_t status_ret = Ecall_verify_and_upload_identity(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
     if (SGX_SUCCESS == status_ret)
     {

@@ -81,7 +81,7 @@ crust_status_t ocall_get_file(const char *path, unsigned char **p_file, size_t *
 
 /**
  * @description: Set srd information
- * @param data -> Pointer to srd info data
+ * @param data (in) -> Pointer to srd info data
  * @param data_size -> Srd info data size
  */
 void ocall_set_srd_info(const uint8_t *data, size_t data_size)
