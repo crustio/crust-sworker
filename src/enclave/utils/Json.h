@@ -1200,11 +1200,7 @@ JSON parse_object(crust_status_t *status, const string &str, size_t &offset)
         consume_ws(str, offset);
         if (str[offset] != ':')
         {
-#ifdef _CRUST_RESOURCE_H_
-            p_log->err("Error: Object: Expected colon, found %c\n", str[offset]);
-#else
-            log_err("Error: Object: Expected colon, found %c\n", str[offset]);
-#endif
+            print_err("Error: Object: Expected colon, found %c\n", str[offset]);
             *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
@@ -1225,11 +1221,7 @@ JSON parse_object(crust_status_t *status, const string &str, size_t &offset)
         }
         else
         {
-#ifdef _CRUST_RESOURCE_H_
-            p_log->err("Error: Object: Expected comma, found %c\n", str[offset]);
-#else
-            log_err("Error: Object: Expected comma, found %c\n", str[offset]);
-#endif
+            print_err("Error: Object: Expected comma, found %c\n", str[offset]);
             *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
@@ -1256,11 +1248,7 @@ JSON parse_object(crust_status_t *status, const uint8_t *p_data, size_t &offset)
         consume_ws(p_data, offset);
         if (p_data[offset] != ':')
         {
-#ifdef _CRUST_RESOURCE_H_
-            p_log->err("Error: Object: Expected colon, found %c\n", p_data[offset]);
-#else
-            log_err("Error: Object: Expected colon, found %c\n", p_data[offset]);
-#endif
+            print_err("Error: Object: Expected colon, found %c\n", p_data[offset]);
             *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
@@ -1281,11 +1269,7 @@ JSON parse_object(crust_status_t *status, const uint8_t *p_data, size_t &offset)
         }
         else
         {
-#ifdef _CRUST_RESOURCE_H_
-            p_log->err("Error: Object: Expected comma, found %c\n", p_data[offset]);
-#else
-            log_err("Error: Object: Expected comma, found %c\n", p_data[offset]);
-#endif
+            print_err("Error: Object: Expected comma, found %c\n", p_data[offset]);
             *status = CRUST_JSON_OBJECT_ERROR;
             break;
         }
@@ -1324,11 +1308,7 @@ JSON parse_array(crust_status_t *status, const string &str, size_t &offset)
         }
         else
         {
-#ifdef _CRUST_RESOURCE_H_
-            p_log->err("Error: Array: Expected  ',' or ']', found %c\n", str[offset]);
-#else
-            log_err("Error: Array: Expected  ',' or ']', found %c\n", str[offset]);
-#endif
+            print_err("Error: Array: Expected  ',' or ']', found %c\n", str[offset]);
             *status = CRUST_JSON_ARRAY_ERROR;
             return std::move(JSON::Make(JSON::Class::Array));
         }
@@ -1367,11 +1347,7 @@ JSON parse_array(crust_status_t *status, const uint8_t *p_data, size_t &offset)
         }
         else
         {
-#ifdef _CRUST_RESOURCE_H_
-            p_log->err("Error: Array: Expected  ',' or ']', found %c\n", p_data[offset]);
-#else
-            log_err("Error: Array: Expected  ',' or ']', found %c\n", p_data[offset]);
-#endif
+            print_err("Error: Array: Expected  ',' or ']', found %c\n", p_data[offset]);
             *status = CRUST_JSON_ARRAY_ERROR;
             return std::move(JSON::Make(JSON::Class::Array));
         }
@@ -1424,11 +1400,7 @@ JSON parse_string(crust_status_t *status, const string &str, size_t &offset)
                         val += c;
                     else
                     {
-#ifdef _CRUST_RESOURCE_H_
-                        p_log->err("Error: String: Expected hex character in unicode escape, found %c\n", c);
-#else
-                        log_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
-#endif
+                        print_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
                         *status = CRUST_JSON_STRING_ERROR;
                         return std::move(JSON::Make(JSON::Class::String));
                     }
@@ -1504,11 +1476,7 @@ JSON parse_string(crust_status_t *status, const uint8_t *p_data, size_t &offset)
                         val += c;
                     else
                     {
-#ifdef _CRUST_RESOURCE_H_
-                        p_log->err("Error: String: Expected hex character in unicode escape, found %c\n", c);
-#else
-                        log_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
-#endif
+                        print_err("Error: String: Expected hex character in unicode escape, found %c\n", c);
                         *status = CRUST_JSON_STRING_ERROR;
                         return std::move(JSON::Make(JSON::Class::String));
                     }
@@ -1575,11 +1543,7 @@ JSON parse_number(crust_status_t *status, const string &str, size_t &offset)
                 exp_str += c;
             else if (!isspace(c) && c != ',' && c != ']' && c != '}')
             {
-#ifdef _CRUST_RESOURCE_H_
-                p_log->err("Error: Number: Expected a number for exponent, found %c\n", c);
-#else
-                log_err("Error: Number: Expected a number for exponent, found %c\n", c);
-#endif
+                print_err("Error: Number: Expected a number for exponent, found %c\n", c);
                 *status = CRUST_JSON_NUMBER_ERROR;
                 return std::move(JSON::Make(JSON::Class::Null));
             }
@@ -1590,11 +1554,7 @@ JSON parse_number(crust_status_t *status, const string &str, size_t &offset)
     }
     else if (!isspace(c) && c != ',' && c != ']' && c != '}')
     {
-#ifdef _CRUST_RESOURCE_H_
-        p_log->err("Error: Number: unexpected character %c\n", c);
-#else
-        log_err("Error: Number: unexpected character %c\n", c);
-#endif
+        print_err("Error: Number: unexpected character %c\n", c);
         *status = CRUST_JSON_NUMBER_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
@@ -1647,11 +1607,7 @@ JSON parse_number(crust_status_t *status, const uint8_t *p_data, size_t &offset)
                 exp_str += c;
             else if (!isspace(c) && c != ',' && c != ']' && c != '}')
             {
-#ifdef _CRUST_RESOURCE_H_
-                p_log->err("Error: Number: Expected a number for exponent, found %c\n", c);
-#else
-                log_err("Error: Number: Expected a number for exponent, found %c\n", c);
-#endif
+                print_err("Error: Number: Expected a number for exponent, found %c\n", c);
                 *status = CRUST_JSON_NUMBER_ERROR;
                 return std::move(JSON::Make(JSON::Class::Null));
             }
@@ -1662,11 +1618,7 @@ JSON parse_number(crust_status_t *status, const uint8_t *p_data, size_t &offset)
     }
     else if (!isspace(c) && c != ',' && c != ']' && c != '}')
     {
-#ifdef _CRUST_RESOURCE_H_
-        p_log->err("Error: Number: unexpected character %c\n", c);
-#else
-        log_err("Error: Number: unexpected character %c\n", c);
-#endif
+        print_err("Error: Number: unexpected character %c\n", c);
         *status = CRUST_JSON_NUMBER_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
@@ -1693,11 +1645,7 @@ JSON parse_bool(crust_status_t *status, const string &str, size_t &offset)
         Bool = false;
     else
     {
-#ifdef _CRUST_RESOURCE_H_
-        p_log->err("Error: Bool: Expected 'true' or 'false', found %s\n", str.substr(offset, 5));
-#else
-        log_err("Error: Bool: Expected 'true' or 'false', found %s\n", str.substr(offset, 5));
-#endif
+        print_err("Error: Bool: Expected 'true' or 'false', found %s\n", str.substr(offset, 5));
         *status = CRUST_JSON_BOOL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
@@ -1714,11 +1662,7 @@ JSON parse_bool(crust_status_t *status, const uint8_t *p_data, size_t &offset)
         Bool = false;
     else
     {
-#ifdef _CRUST_RESOURCE_H_
-        p_log->err("Error: Bool: Expected 'true' or 'false', found error\n");
-#else
-        log_err("Error: Bool: Expected 'true' or 'false', found error\n");
-#endif
+        print_err("Error: Bool: Expected 'true' or 'false', found error\n");
         *status = CRUST_JSON_BOOL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
@@ -1731,11 +1675,7 @@ JSON parse_null(crust_status_t *status, const string &str, size_t &offset)
     JSON Null;
     if (str.substr(offset, 4) != "null")
     {
-#ifdef _CRUST_RESOURCE_H_
-        p_log->err("Error: Null: Expected 'null', found %s\n", str.substr(offset, 4));
-#else
-        log_err("Error: Null: Expected 'null', found %s\n", str.substr(offset, 4));
-#endif
+        print_err("Error: Null: Expected 'null', found %s\n", str.substr(offset, 4));
         *status = CRUST_JSON_NULL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
@@ -1748,11 +1688,7 @@ JSON parse_null(crust_status_t *status, const uint8_t *p_data, size_t &offset)
     JSON Null;
     if (memcmp(p_data + offset, "null", 4) != 0)
     {
-#ifdef _CRUST_RESOURCE_H_
-        p_log->err("Error: Null: Expected 'null', found error\n");
-#else
-        log_err("Error: Null: Expected 'null', found error\n");
-#endif
+        print_err("Error: Null: Expected 'null', found error\n");
         *status = CRUST_JSON_NULL_ERROR;
         return std::move(JSON::Make(JSON::Class::Null));
     }
@@ -1782,11 +1718,7 @@ JSON parse_next(crust_status_t *status, const string &str, size_t &offset)
         if ((value <= '9' && value >= '0') || value == '-')
             return std::move(parse_number(status, str, offset));
     }
-#ifdef _CRUST_RESOURCE_H_
-    p_log->err("Error: Parse: Unknown starting character %c\n", value);
-#else
-    log_err("Error: Parse: Unknown starting character %c\n", value);
-#endif
+    print_err("Error: Parse: Unknown starting character %c\n", value);
     *status = CRUST_JSON_STARTING_ERROR;
     return JSON();
 }
@@ -1813,11 +1745,7 @@ JSON parse_next(crust_status_t *status, const uint8_t *p_data, size_t &offset)
         if ((value <= '9' && value >= '0') || value == '-')
             return std::move(parse_number(status, p_data, offset));
     }
-#ifdef _CRUST_RESOURCE_H_
-    p_log->err("Error: Parse: Unknown starting character %c\n", value);
-#else
-    log_err("Error: Parse: Unknown starting character %c\n", value);
-#endif
+    print_err("Error: Parse: Unknown starting character %c\n", value);
     *status = CRUST_JSON_STARTING_ERROR;
     return JSON();
 }
