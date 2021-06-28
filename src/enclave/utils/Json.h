@@ -23,7 +23,6 @@
 #include "EUtils.h"
 #endif
 #define HASH_TAG "$&JT&$"
-#define FIO_MAX_SIZE 999
 
 namespace json
 {
@@ -40,8 +39,7 @@ using std::map;
 using std::string;
 
 const uint32_t _hash_length = 32;
-const size_t FIO_SIZE = std::to_string(FIO_MAX_SIZE).size();
-const string FIO_INITAL_VAL(FIO_SIZE, '0');
+const string FIO_SEPARATER = "-";
 
 namespace
 {
@@ -480,18 +478,30 @@ public:
             }
             else
             {
-                size_t index = Internal.Map->size() / 2;
-                if (index > FIO_MAX_SIZE)
+                rkey = "0" + FIO_SEPARATER + key;
+                for (auto rit = Internal.Map->rbegin(); rit != Internal.Map->rend(); rit++)
                 {
-                    return Internal.Map->operator[](key);
+                    string tkey = rit->first;
+                    size_t spos = tkey.find_first_of(FIO_SEPARATER);
+                    if (spos != tkey.npos)
+                    {
+                        string tag = tkey.substr(0, spos);
+                        if (is_number(tag))
+                        {
+                            size_t lpos = tag.length() - 1;
+                            if (tag[lpos] >= '9')
+                            {
+                                tag.append("0");
+                            }
+                            else
+                            {
+                                tag[lpos] = tag[lpos] + 1;
+                            }
+                            rkey = tag + FIO_SEPARATER + key;
+                            break;
+                        }
+                    }
                 }
-                string s = std::to_string(index);
-                rkey = FIO_INITAL_VAL;
-                for (long i = rkey.size() - 1, j = s.size() - 1; i >= 0 && j >= 0; i--, j--)
-                {
-                    rkey[i] = s[j];
-                }
-                rkey = rkey + "_" + key;
                 Internal.Map->operator[](key) = rkey;
             }
             return Internal.Map->operator[](rkey);
@@ -872,14 +882,14 @@ public:
             for (auto &p : *Internal.Map)
             {
                 string key = p.first;
-                size_t pos = key.find_first_of("_");
+                size_t pos = key.find_first_of(FIO_SEPARATER);
                 string tag;
                 if (pos != key.npos && pos + 1 < key.size())
                 {
                     tag = key.substr(0, pos);
                     key = key.substr(pos + 1, key.size());
                 }
-                if (tag.size() != FIO_SIZE || !is_number(tag))
+                if (!is_number(tag))
                     continue;
                 if (!skip)
                     v.push_back(',');
@@ -930,7 +940,7 @@ public:
         }
         case Class::String:
         {
-            string s = "\"" + *Internal.String + "\"";
+            string s = "\"" + json_escape(*Internal.String) + "\"";
             *status = Insert(v, s);
             return v;
         }
@@ -988,14 +998,14 @@ public:
             for (auto &p : *Internal.Map)
             {
                 string key = p.first;
-                size_t pos = key.find_first_of("_");
+                size_t pos = key.find_first_of(FIO_SEPARATER);
                 string tag;
                 if (pos != key.npos && pos + 1 < key.size())
                 {
                     tag = key.substr(0, pos);
                     key = key.substr(pos + 1, key.size());
                 }
-                if (tag.size() != FIO_SIZE || !is_number(tag))
+                if (!is_number(tag))
                     continue;
                 if (!skip)
                     s += ",\n";
