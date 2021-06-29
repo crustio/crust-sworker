@@ -2,8 +2,6 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
-std::mutex g_mkdir_mutex;
-
 /**
  * @description: Get all files' name in directory
  * @param path -> the directory path
@@ -289,7 +287,7 @@ crust_status_t create_directory(const std::string &path)
             sub_paths.pop();
             if (!sub_paths.empty())
             {
-                if (mkdir_sync(sub_paths.top().c_str(), 0775) == -1)
+                if (system((std::string("timeout 60 mkdir -p ") + sub_paths.top()).c_str()) != 0)
                 {
                     return CRUST_MKDIR_FAILED;
                 }
@@ -579,24 +577,6 @@ bool is_file_exist(const char *path, store_type_t type)
     }
 
     return false;
-}
-
-/**
- * @description: Create directory sync
- * @param path -> Directory path
- * @param mode -> Directory mode
- * @return: Create result
- */
-int mkdir_sync(const char *path, mode_t mode)
-{
-    SafeLock sl(g_mkdir_mutex);
-    sl.lock();
-    if (access(path, R_OK) == -1)
-    {
-        return mkdir(path, mode);
-    }
-
-    return 0;
 }
 
 /**

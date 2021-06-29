@@ -60,7 +60,7 @@ bool check_or_init_disk(std::string path)
             crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
             if (CRUST_SUCCESS != crust_status)
             {
-                p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+                p_log->err("Save uuid file to path:'%s' failed! Error code:%lx\n", path.c_str(), crust_status);
                 return false;
             }
             // Set uuid to data path information
@@ -73,7 +73,7 @@ bool check_or_init_disk(std::string path)
             crust_status = save_file_ex(uuid_file.c_str(), reinterpret_cast<const uint8_t *>(uuid.c_str()), uuid.size(), 0444, SF_CREATE_DIR);
             if (CRUST_SUCCESS != crust_status)
             {
-                p_log->err("Save uuid file failed! Error code:%lx\n", crust_status);
+                p_log->err("Save uuid file to path:'%s' failed! Error code:%lx\n", path.c_str(), crust_status);
                 return false;
             }
         }
