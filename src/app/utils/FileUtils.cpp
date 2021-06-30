@@ -7,7 +7,21 @@ crust::Log *p_log = crust::Log::get_instance();
  * @param path -> the directory path
  * @return: File's name vector
  */
-std::vector<std::string> get_files_under_path(std::string path)
+std::vector<std::string> get_files_under_path(const std::string &path)
+{
+    std::future<std::vector<std::string>> f = std::async(_get_files_under_path, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return std::vector<std::string>();
+
+    return f.get();
+}
+
+/**
+ * @description: Get all files' name in directory
+ * @param path -> the directory path
+ * @return: File's name vector
+ */
+std::vector<std::string> _get_files_under_path(const std::string &path)
 {
     std::vector<std::string> files;
     DIR *dir;
@@ -40,7 +54,21 @@ std::vector<std::string> get_files_under_path(std::string path)
  * @param path -> the directory path
  * @return: Folder's name vector
  */
-std::vector<std::string> get_folders_under_path(std::string path)
+std::vector<std::string> get_folders_under_path(const std::string &path)
+{
+    std::future<std::vector<std::string>> f = std::async(_get_folders_under_path, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return std::vector<std::string>();
+
+    return f.get();
+}
+
+/**
+ * @description: Get all folders' name in directory
+ * @param path -> the directory path
+ * @return: Folder's name vector
+ */
+std::vector<std::string> _get_folders_under_path(const std::string &path)
 {
     std::vector<std::string> folders;
     DIR *dir;
@@ -74,7 +102,21 @@ std::vector<std::string> get_folders_under_path(std::string path)
  * @param dir_full_path -> the directory path
  * @return: 0 for successed, -1 for falied
  */
-int rm_dir(std::string dir_full_path)
+int rm_dir(const std::string &dir_full_path)
+{
+    std::future<int> f = std::async(_rm_dir, dir_full_path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return -1;
+
+    return f.get();
+}
+
+/**
+ * @description: Recursively delete all the file in the directory
+ * @param dir_full_path -> the directory path
+ * @return: 0 for successed, -1 for falied
+ */
+int _rm_dir(const std::string &dir_full_path)
 {
     DIR *dirp = opendir(dir_full_path.c_str());
     if (!dirp)
@@ -126,7 +168,21 @@ int rm_dir(std::string dir_full_path)
  * @param path -> the directory path or filepath
  * @return: 0 for successed, -1 for falied
  */
-int rm(std::string path)
+int rm(const std::string &path)
+{
+    std::future<int> f = std::async(_rm, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return -1;
+
+    return f.get();
+}
+
+/**
+ * @description: Recursively delete all the file in the directory or delete file
+ * @param path -> the directory path or filepath
+ * @return: 0 for successed, -1 for falied
+ */
+int _rm(const std::string &path)
 {
     std::string file_path = path;
     struct stat st;
@@ -161,7 +217,22 @@ int rm(std::string path)
  * @param unit -> Used to indicate KB, MB and GB
  * @return: Free space size (M)
  */
-size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
+size_t get_total_space_under_dir_r(const std::string &path, uint32_t unit)
+{
+    std::future<size_t> f = std::async(_get_total_space_under_dir_r, path, unit);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return 0;
+
+    return f.get();
+}
+
+/**
+ * @description: Get free space under directory
+ * @param path -> the directory path
+ * @param unit -> Used to indicate KB, MB and GB
+ * @return: Free space size (M)
+ */
+size_t _get_total_space_under_dir_r(const std::string &path, uint32_t unit)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
@@ -177,7 +248,7 @@ size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
  * @param path -> Checked path
  * @return: Free space calculated as KB
  */
-size_t get_total_space_under_dir_k(std::string path)
+size_t get_total_space_under_dir_k(const std::string &path)
 {
     return get_total_space_under_dir_r(path, 10);
 }
@@ -187,7 +258,7 @@ size_t get_total_space_under_dir_k(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as MB
  */
-size_t get_total_space_under_dir_m(std::string path)
+size_t get_total_space_under_dir_m(const std::string &path)
 {
     return get_total_space_under_dir_r(path, 20);
 }
@@ -197,7 +268,7 @@ size_t get_total_space_under_dir_m(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as GB
  */
-size_t get_total_space_under_dir_g(std::string path)
+size_t get_total_space_under_dir_g(const std::string &path)
 {
     return get_total_space_under_dir_r(path, 30);
 }
@@ -208,7 +279,22 @@ size_t get_total_space_under_dir_g(std::string path)
  * @param unit -> Used to indicate KB, MB and GB
  * @return: Free space size (M)
  */
-size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
+size_t get_avail_space_under_dir_r(const std::string &path, uint32_t unit)
+{
+    std::future<size_t> f = std::async(_get_avail_space_under_dir_r, path, unit);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return 0;
+
+    return f.get();
+}
+
+/**
+ * @description: Get free space under directory
+ * @param path -> the directory path
+ * @param unit -> Used to indicate KB, MB and GB
+ * @return: Free space size (M)
+ */
+size_t _get_avail_space_under_dir_r(const std::string &path, uint32_t unit)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
@@ -224,7 +310,7 @@ size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
  * @param path -> Checked path
  * @return: Free space calculated as KB
  */
-size_t get_avail_space_under_dir_k(std::string path)
+size_t get_avail_space_under_dir_k(const std::string &path)
 {
     return get_avail_space_under_dir_r(path, 10);
 }
@@ -234,7 +320,7 @@ size_t get_avail_space_under_dir_k(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as MB
  */
-size_t get_avail_space_under_dir_m(std::string path)
+size_t get_avail_space_under_dir_m(const std::string &path)
 {
     return get_avail_space_under_dir_r(path, 20);
 }
@@ -244,7 +330,7 @@ size_t get_avail_space_under_dir_m(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as GB
  */
-size_t get_avail_space_under_dir_g(std::string path)
+size_t get_avail_space_under_dir_g(const std::string &path)
 {
     return get_avail_space_under_dir_r(path, 30);
 }
@@ -254,7 +340,21 @@ size_t get_avail_space_under_dir_g(std::string path)
  * @param path -> the directory path
  * @return: Free space size (M)
  */
-size_t get_free_space_under_directory(std::string path)
+size_t get_free_space_under_directory(const std::string &path)
+{
+    std::future<size_t> f = std::async(_get_free_space_under_directory, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return 0;
+
+    return f.get();
+}
+
+/**
+ * @description: Get free space under directory
+ * @param path -> the directory path
+ * @return: Free space size (M)
+ */
+size_t _get_free_space_under_directory(const std::string &path)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
@@ -272,6 +372,20 @@ size_t get_free_space_under_directory(std::string path)
  * @return: Create status
  */
 crust_status_t create_directory(const std::string &path)
+{
+    std::future<crust_status_t> f = std::async(_create_directory, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return CRUST_TIMEOUT;
+
+    return f.get();
+}
+
+/**
+ * @description: Create directory
+ * @param path -> the directory path
+ * @return: Create status
+ */
+crust_status_t _create_directory(const std::string &path)
 {
     if (path.size() == 0)
     {
@@ -313,7 +427,22 @@ crust_status_t create_directory(const std::string &path)
  * @param new_path -> New path
  * @return: Rename result
  */
-crust_status_t rename_dir(std::string old_path, std::string new_path)
+crust_status_t rename_dir(const std::string &old_path, const std::string &new_path)
+{
+    std::future<crust_status_t> f = std::async(_rename_dir, old_path, new_path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return CRUST_TIMEOUT;
+
+    return f.get();
+}
+
+/**
+ * @description: Rename old_path to new_path
+ * @param old_path -> Old path
+ * @param new_path -> New path
+ * @return: Rename result
+ */
+crust_status_t _rename_dir(const std::string &old_path, const std::string &new_path)
 {
     if (access(old_path.c_str(), 0) == -1)
     {
@@ -335,6 +464,20 @@ crust_status_t rename_dir(std::string old_path, std::string new_path)
  * @return: Array of sub folders and files
  */
 std::vector<std::string> get_sub_folders_and_files(const char *path)
+{
+    std::future<std::vector<std::string>> f = std::async(_get_sub_folders_and_files, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return std::vector<std::string>();
+
+    return f.get();
+}
+
+/**
+ * @description: Get sub folders and files in indicated path
+ * @param path -> Indicated path
+ * @return: Array of sub folders and files
+ */
+std::vector<std::string> _get_sub_folders_and_files(const char *path)
 {
     DIR *dir;
     struct dirent *ent;
@@ -362,6 +505,22 @@ std::vector<std::string> get_sub_folders_and_files(const char *path)
  * @return: Getting result status
  */
 crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size)
+{
+    std::future<crust_status_t> f = std::async(_get_file, path, p_data, data_size);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return CRUST_TIMEOUT;
+
+    return f.get();
+}
+
+/**
+ * @description: Get file content
+ * @param path -> Pointer to file path
+ * @param p_data -> Pointer to pointer to file data
+ * @param data_size -> Pointer to file data size
+ * @return: Getting result status
+ */
+crust_status_t _get_file(const char *path, uint8_t **p_data, size_t *data_size)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
 
@@ -428,6 +587,25 @@ crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size
  * @return: Store result
  */
 crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_size, mode_t mode, save_file_type_t type)
+{
+    std::future<crust_status_t> f = std::async(_save_file, path, data, data_size, mode, type);
+
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return CRUST_TIMEOUT;
+
+    return f.get();
+}
+
+/**
+ * @description: Store file to given path and create related directory
+ * @param path -> Pointer to stored path
+ * @param data -> Pointer to stored data
+ * @param data_size -> Stored data size
+ * @param mode -> File mode
+ * @param type -> Safe file type
+ * @return: Store result
+ */
+crust_status_t _save_file(const char *path, const uint8_t *data, size_t data_size, mode_t mode, save_file_type_t type)
 {
     if (SF_CREATE_DIR == type)
     {
@@ -556,6 +734,21 @@ std::string get_real_path_by_type(const char *path, store_type_t type)
  */
 long get_file_size(const char *path, store_type_t type)
 {
+    std::future<long> f = std::async(_get_file_size, path, type);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return 0;
+
+    return f.get();
+}
+
+/**
+ * @description: Get file path by given path
+ * @param path -> Pointer to file path
+ * @param type -> File type
+ * @return: File size
+ */
+long _get_file_size(const char *path, store_type_t type)
+{
     std::string r_path = get_real_path_by_type(path, type);
     struct stat stat_buf;
     int ret = stat(r_path.c_str(), &stat_buf);
@@ -569,6 +762,21 @@ long get_file_size(const char *path, store_type_t type)
  * @return: Exists or not
  */
 bool is_file_exist(const char *path, store_type_t type)
+{
+    std::future<bool> f = std::async(_is_file_exist, path, type);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return false;
+
+    return f.get();
+}
+
+/**
+ * @description: Check if file exists by given path
+ * @param path -> Pointer to file path
+ * @param type -> File type
+ * @return: Exists or not
+ */
+bool _is_file_exist(const char *path, store_type_t type)
 {
     std::string r_path = get_real_path_by_type(path, type);
     if (access(r_path.c_str(), R_OK) != -1)
@@ -584,7 +792,21 @@ bool is_file_exist(const char *path, store_type_t type)
  * @param path -> File or folder path
  * @return: File or folder size
  */
-size_t get_file_or_folder_size(std::string path)
+size_t get_file_or_folder_size(const std::string &path)
+{
+    std::future<size_t> f = std::async(_get_file_or_folder_size, path);
+    if (f.wait_for(RW_TIMEOUT) == std::future_status::timeout)
+        return 0;
+
+    return f.get();
+}
+
+/**
+ * @description: Get file or folder size
+ * @param path -> File or folder path
+ * @return: File or folder size
+ */
+size_t _get_file_or_folder_size(const std::string &path)
 {
     namespace fs = std::experimental::filesystem;
     size_t file_size = 0;
@@ -620,7 +842,7 @@ size_t get_file_or_folder_size(std::string path)
  * @param cid -> File content id
  * @return: File size
  */
-size_t get_file_size_by_cid(std::string cid)
+size_t get_file_size_by_cid(const std::string &cid)
 {
     size_t file_size = 0;
     std::string path_post = std::string(DISK_FILE_DIR) + "/" + cid.substr(2,2) + "/" + cid.substr(4,2) + "/" + cid;

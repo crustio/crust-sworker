@@ -20,27 +20,46 @@
 #include "Config.h"
 #include "DataBase.h"
 
-std::vector<std::string> get_files_under_path(std::string path);
-std::vector<std::string> get_folders_under_path(std::string path);
-int rm_dir(std::string dir_full_path);
-int rm(std::string path);
-size_t get_free_space_under_directory(std::string path);
-crust_status_t rename_dir(std::string old_path, std::string new_path);
+const std::chrono::milliseconds RW_TIMEOUT(60000000);
+
+std::vector<std::string> get_files_under_path(const std::string &path);
+std::vector<std::string> _get_files_under_path(const std::string &path);
+std::vector<std::string> get_folders_under_path(const std::string &path);
+std::vector<std::string> _get_folders_under_path(const std::string &path);
+int rm_dir(const std::string &dir_full_path);
+int _rm_dir(const std::string &dir_full_path);
+int rm(const std::string &path);
+int _rm(const std::string &path);
+size_t _get_free_space_under_directory(const std::string &path);
+size_t get_free_space_under_directory(const std::string &path);
+crust_status_t rename_dir(const std::string &old_path, const std::string &new_path);
+crust_status_t _rename_dir(const std::string &old_path, const std::string &new_path);
 crust_status_t create_directory(const std::string &path);
+crust_status_t _create_directory(const std::string &path);
 std::vector<std::string> get_sub_folders_and_files(const char *path);
+std::vector<std::string> _get_sub_folders_and_files(const char *path);
 crust_status_t get_file(const char *path, uint8_t **p_data, size_t *data_size);
+crust_status_t _get_file(const char *path, uint8_t **p_data, size_t *data_size);
 long get_file_size(const char *path, store_type_t type);
+long _get_file_size(const char *path, store_type_t type);
 bool is_file_exist(const char *path, store_type_t type);
+bool _is_file_exist(const char *path, store_type_t type);
 std::string get_real_path_by_type(const char *path, store_type_t type);
 crust_status_t save_file(const char *path, const uint8_t *data, size_t data_size);
 crust_status_t save_file_ex(const char *path, const uint8_t *data, size_t data_size, mode_t mode, save_file_type_t type);
-size_t get_total_space_under_dir_k(std::string path);
-size_t get_total_space_under_dir_m(std::string path);
-size_t get_total_space_under_dir_g(std::string path);
-size_t get_avail_space_under_dir_k(std::string path);
-size_t get_avail_space_under_dir_m(std::string path);
-size_t get_avail_space_under_dir_g(std::string path);
-size_t get_file_or_folder_size(std::string path);
-size_t get_file_size_by_cid(std::string cid);
+crust_status_t _save_file(const char *path, const uint8_t *data, size_t data_size, mode_t mode, save_file_type_t type);
+size_t _get_total_space_under_dir_r(const std::string &path, uint32_t unit);
+size_t get_total_space_under_dir_r(const std::string &path, uint32_t unit);
+size_t get_total_space_under_dir_k(const std::string &path);
+size_t get_total_space_under_dir_m(const std::string &path);
+size_t get_total_space_under_dir_g(const std::string &path);
+size_t _get_avail_space_under_dir_r(const std::string &path, uint32_t unit);
+size_t get_avail_space_under_dir_r(const std::string &path, uint32_t unit);
+size_t get_avail_space_under_dir_k(const std::string &path);
+size_t get_avail_space_under_dir_m(const std::string &path);
+size_t get_avail_space_under_dir_g(const std::string &path);
+size_t _get_file_or_folder_size(const std::string &path);
+size_t get_file_or_folder_size(const std::string &path);
+size_t get_file_size_by_cid(const std::string &cid);
 
 #endif /* !_CRUST_FILE_UTILS_H_ */
