@@ -503,9 +503,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 200;
             std::string ret_info;
             json::JSON ret_body;
+			json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "success";
-            std::string argument = params_m[param_name];
-            if (params_m.find(param_name) == params_m.end() || (argument != "true" && argument != "false"))
+            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::Boolean)
             {
                 ret_info = "Bad parameter! Need a boolean type parameter:'" + param_name + "'";
                 ret_code = 400;
@@ -516,7 +516,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                bool upgrade_ret = (params_m[param_name].compare("true") == 0 ? true : false);
+				bool upgrade_ret = req_json[param_name].ToBool();
                 crust_status_t crust_status = CRUST_SUCCESS;
                 if (!upgrade_ret)
                 {
