@@ -503,7 +503,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 200;
             std::string ret_info;
             json::JSON ret_body;
-			json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
+            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "success";
             if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::Boolean)
             {
@@ -516,7 +516,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-				bool upgrade_ret = req_json[param_name].ToBool();
+                bool upgrade_ret = req_json[param_name].ToBool();
                 crust_status_t crust_status = CRUST_SUCCESS;
                 if (!upgrade_ret)
                 {
