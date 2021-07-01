@@ -372,6 +372,16 @@ void main_loop(void)
  */
 bool start_task(task_func_t func)
 {
+    // Check if service is started
+    if (g_tasks_m.find(func) != g_tasks_m.end())
+    {
+        if (g_tasks_m[func]->wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        {
+            return true;
+        }
+    }
+
+    // Start service
     g_tasks_m[func] = std::make_shared<std::future<void>>(std::async(std::launch::async, func));
     if (func == start_webservice)
     {
@@ -469,6 +479,13 @@ entry_network_flag:
             goto cleanup;
         }
         p_log->info("Worker global eid: %d\n", global_eid);
+
+        // Start http service
+        if (!start_task(start_webservice))
+        {
+            p_log->err("Start web service failed!\n");
+            goto cleanup;
+        }
 
         // Start enclave
         if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)

@@ -2,14 +2,12 @@
 
 crust::Log *p_log = crust::Log::get_instance();
 
-std::mutex g_mkdir_mutex;
-
 /**
  * @description: Get all files' name in directory
  * @param path -> the directory path
  * @return: File's name vector
  */
-std::vector<std::string> get_files_under_path(std::string path)
+std::vector<std::string> get_files_under_path(const std::string &path)
 {
     std::vector<std::string> files;
     DIR *dir;
@@ -42,7 +40,7 @@ std::vector<std::string> get_files_under_path(std::string path)
  * @param path -> the directory path
  * @return: Folder's name vector
  */
-std::vector<std::string> get_folders_under_path(std::string path)
+std::vector<std::string> get_folders_under_path(const std::string &path)
 {
     std::vector<std::string> folders;
     DIR *dir;
@@ -76,7 +74,7 @@ std::vector<std::string> get_folders_under_path(std::string path)
  * @param dir_full_path -> the directory path
  * @return: 0 for successed, -1 for falied
  */
-int rm_dir(std::string dir_full_path)
+int rm_dir(const std::string &dir_full_path)
 {
     DIR *dirp = opendir(dir_full_path.c_str());
     if (!dirp)
@@ -128,7 +126,7 @@ int rm_dir(std::string dir_full_path)
  * @param path -> the directory path or filepath
  * @return: 0 for successed, -1 for falied
  */
-int rm(std::string path)
+int rm(const std::string &path)
 {
     std::string file_path = path;
     struct stat st;
@@ -163,7 +161,7 @@ int rm(std::string path)
  * @param unit -> Used to indicate KB, MB and GB
  * @return: Free space size (M)
  */
-size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
+size_t get_total_space_under_dir_r(const std::string &path, uint32_t unit)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
@@ -179,7 +177,7 @@ size_t get_total_space_under_dir_r(std::string path, uint32_t unit)
  * @param path -> Checked path
  * @return: Free space calculated as KB
  */
-size_t get_total_space_under_dir_k(std::string path)
+size_t get_total_space_under_dir_k(const std::string &path)
 {
     return get_total_space_under_dir_r(path, 10);
 }
@@ -189,7 +187,7 @@ size_t get_total_space_under_dir_k(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as MB
  */
-size_t get_total_space_under_dir_m(std::string path)
+size_t get_total_space_under_dir_m(const std::string &path)
 {
     return get_total_space_under_dir_r(path, 20);
 }
@@ -199,7 +197,7 @@ size_t get_total_space_under_dir_m(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as GB
  */
-size_t get_total_space_under_dir_g(std::string path)
+size_t get_total_space_under_dir_g(const std::string &path)
 {
     return get_total_space_under_dir_r(path, 30);
 }
@@ -210,7 +208,7 @@ size_t get_total_space_under_dir_g(std::string path)
  * @param unit -> Used to indicate KB, MB and GB
  * @return: Free space size (M)
  */
-size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
+size_t get_avail_space_under_dir_r(const std::string &path, uint32_t unit)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
@@ -226,7 +224,7 @@ size_t get_avail_space_under_dir_r(std::string path, uint32_t unit)
  * @param path -> Checked path
  * @return: Free space calculated as KB
  */
-size_t get_avail_space_under_dir_k(std::string path)
+size_t get_avail_space_under_dir_k(const std::string &path)
 {
     return get_avail_space_under_dir_r(path, 10);
 }
@@ -236,7 +234,7 @@ size_t get_avail_space_under_dir_k(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as MB
  */
-size_t get_avail_space_under_dir_m(std::string path)
+size_t get_avail_space_under_dir_m(const std::string &path)
 {
     return get_avail_space_under_dir_r(path, 20);
 }
@@ -246,7 +244,7 @@ size_t get_avail_space_under_dir_m(std::string path)
  * @param path -> Checked path
  * @return: Free space calculated as GB
  */
-size_t get_avail_space_under_dir_g(std::string path)
+size_t get_avail_space_under_dir_g(const std::string &path)
 {
     return get_avail_space_under_dir_r(path, 30);
 }
@@ -256,7 +254,7 @@ size_t get_avail_space_under_dir_g(std::string path)
  * @param path -> the directory path
  * @return: Free space size (M)
  */
-size_t get_free_space_under_directory(std::string path)
+size_t get_free_space_under_directory(const std::string &path)
 {
     struct statfs disk_info;
     if (statfs(path.c_str(), &disk_info) == -1)
@@ -289,7 +287,7 @@ crust_status_t create_directory(const std::string &path)
             sub_paths.pop();
             if (!sub_paths.empty())
             {
-                if (mkdir_sync(sub_paths.top().c_str(), 0775) == -1)
+                if (system((std::string("timeout 60 mkdir -p ") + sub_paths.top()).c_str()) != 0)
                 {
                     return CRUST_MKDIR_FAILED;
                 }
@@ -315,7 +313,7 @@ crust_status_t create_directory(const std::string &path)
  * @param new_path -> New path
  * @return: Rename result
  */
-crust_status_t rename_dir(std::string old_path, std::string new_path)
+crust_status_t rename_dir(const std::string &old_path, const std::string &new_path)
 {
     if (access(old_path.c_str(), 0) == -1)
     {
@@ -582,29 +580,11 @@ bool is_file_exist(const char *path, store_type_t type)
 }
 
 /**
- * @description: Create directory sync
- * @param path -> Directory path
- * @param mode -> Directory mode
- * @return: Create result
- */
-int mkdir_sync(const char *path, mode_t mode)
-{
-    SafeLock sl(g_mkdir_mutex);
-    sl.lock();
-    if (access(path, R_OK) == -1)
-    {
-        return mkdir(path, mode);
-    }
-
-    return 0;
-}
-
-/**
  * @description: Get file or folder size
  * @param path -> File or folder path
  * @return: File or folder size
  */
-size_t get_file_or_folder_size(std::string path)
+size_t get_file_or_folder_size(const std::string &path)
 {
     namespace fs = std::experimental::filesystem;
     size_t file_size = 0;
@@ -640,7 +620,7 @@ size_t get_file_or_folder_size(std::string path)
  * @param cid -> File content id
  * @return: File size
  */
-size_t get_file_size_by_cid(std::string cid)
+size_t get_file_size_by_cid(const std::string &cid)
 {
     size_t file_size = 0;
     std::string path_post = std::string(DISK_FILE_DIR) + "/" + cid.substr(2,2) + "/" + cid.substr(4,2) + "/" + cid;

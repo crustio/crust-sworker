@@ -91,7 +91,7 @@ testsrddir=$testmetadir/srd
 sworkerlog=$instdir/sworker.log
 benchmarkfile=$instdir/benchmark.report_$(date +%Y%m%d%H%M%S)
 testconfigfile=$testdir/etc/Config.json
-baseurl=$(cat $testconfigfile | jq ".base_url" | sed 's/"//g')
+baseurl=$(cat $testconfigfile | jq -r ".base_url")
 SYNCFILE=$basedir/SYNCFILE
 TMPFILE=$instdir/TMPFILE
 TMPFILE2=$instdir/TMPFILE2
@@ -160,9 +160,14 @@ fi
 
 ### Replace predefined parameter in configfile
 cp $configfileorg $configfile
-tmpstr=$(cat $testconfigfile | jq '.data_path' -r)
-tmpstr=$(echo $tmpstr)
-sed -i "/\"data_path\" : \"%SRDPATH%\",/ c \    \"data_path\" : $tmpstr," $configfile
+dataPath=$(cat $configfile | jq '.data_path')
+jq "(.data_path) |= $dataPath" $testconfigfile > $TMPFILE
+cp $TMPFILE $testconfigfile
+echo $dataPath | jq -r ".[]" | while read path; do
+    if [ x"$path" != x"" ]; then
+        rm -rf $path/sworker
+    fi
+done
 
 ### Select chose cases
 orgcase_arry=($(ls $casedir | sort))

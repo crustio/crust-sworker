@@ -74,7 +74,6 @@ private:
 
     // Upgrade block service set
     const std::set<std::string> upgrade_block_s = {
-        "/workload",
         "/srd/change",
         "/storage/delete",
         "/storage/seal_start",
