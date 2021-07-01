@@ -80,28 +80,6 @@ Output:
 }
 ```
 
-Use '/api/v0/file/info_all' to get all sealed file information
---------------------------------------------------------------
-```
-curl -XGET http://<url:port>/api/v0/file/info_all
-```
-
-Output:
-```
-{
-  "lost" : {
-    "Qmcs97Lqy6tqmztp2Q7RtzNnmwWFM4X9gH1VK8baUACuen" : { "size" : 16781194 , "s_size" : 16783146 , "c_block_num" : 0 }
-  },
-  "valid" : {
-    "QmaJ6kN9fW3TKpVkpf1NuW7cjhHjNp5Jwr3cQuHzsoZWkJ" : { "size" : 2323423 , "s_size" : 2323923 , "c_block_num" : 0 }
-  }
-}
-```
-Description:
-1. size: file real size
-1. s_size: sealed file size
-1. c_block_num: chain block number when sealing the file
-
 Use '/api/v0/debug' to set debug flag
 -------------------------------------
 ```
@@ -128,11 +106,40 @@ Output (400, failed):
 }
 ```
 
+Use '/api/v0/file/info_by_type' to get sealed file information by type
+----------------------------------------------------------------------
+```
+curl -XGET http://<url:port>/api/v0/file/info_by_type?type=xxx
+```
+
+Parameter:
+1. type: file type must be 'all', 'lost', 'pending' and 'valid'
+
+Output:
+```json
+{
+  "lost" : {
+    "QmZi65CMEgHQNACjo1b9hbRnjMBjEUadeosLm3wN5pmRU7" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 10 },
+  },
+  "pending" : {
+    "Qmb529vcV8PzhnSigcfGEXd22fyJZMKBKiP1owzNpDtD9H" : { "used_time" : "2s" , "sealed_size" : "24644877" }
+  },
+  "valid" : {
+    "QmRPpSrtgq7dKCMqeqjqnkjKfryMTBosAGRnxzRXTp8euE" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 5 },
+    "QmZPWWaP1vrJqWc7c2MCDMQENWjz4a2WvRJpRm1FigNvdt" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 5 },
+    "QmZi65CMEgHQNACjo1b9hbRnjMBjEUadeosLm3wN5pmRU6" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 10 },
+    "QmaUW39jT5Ty1vJiCXrjcwL6s9c5PoxzUHwM9ZaxD2qG2m" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 5 },
+    "Qmam2MemfT4vxSxfwE8eCTnaoj1x545S1gXdL997egxi6S" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 5 },
+    "QmbtuWfJKXrofeekRAG3ihSyCVHPtbMhoc6LeMW8ufpsPn" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 5 },
+    "QmduVEX5eJxASEtnfYbFk61Wnybs4LNkPDhAdjNq7sEcsK" : { "size" : 10488250 , "s_size" : 10511210 , "c_block_num" : 10 }
+  }
+}
+```
+
 Use '/api/v0/file/info' to get sealed file information by cid
 -------------------------------------------------------------
 ```
-curl -XPOST http://<url:port>/api/v0/file/info
---data-raw '{"cid": "xxx"}'
+curl -XPOST http://<url:port>/api/v0/file/info?cid=xxxx
 ```
 
 Parameter:
