@@ -221,34 +221,31 @@ crust_status_t srd_change(long change)
         ctpl::thread_pool pool(p_config->srd_thread_num);
         std::vector<std::shared_ptr<std::future<crust_status_t>>> tasks_v;
         long task = true_increase;
-        while (task > 0)
+        for (int i = 0; i < inc_srd_json.size() && task > 0; i++, task--)
         {
-            for (int i = 0; i < inc_srd_json.size() && task > 0; i++, task--)
-            {
-                sgx_enclave_id_t eid = global_eid;
-                std::string uuid = inc_srd_json[i][WL_DISK_UUID].ToString();
-                tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
-                    crust_status_t inc_crust_ret = CRUST_SUCCESS;
-                    sgx_status_t inc_sgx_ret = Ecall_srd_increase(eid, &inc_crust_ret, uuid.c_str());
-                    if (SGX_SUCCESS != inc_sgx_ret)
+            sgx_enclave_id_t eid = global_eid;
+            std::string uuid = inc_srd_json[i][WL_DISK_UUID].ToString();
+            tasks_v.push_back(std::make_shared<std::future<crust_status_t>>(pool.push([eid, uuid](int /*id*/){
+                crust_status_t inc_crust_ret = CRUST_SUCCESS;
+                sgx_status_t inc_sgx_ret = Ecall_srd_increase(eid, &inc_crust_ret, uuid.c_str());
+                if (SGX_SUCCESS != inc_sgx_ret)
+                {
+                    switch (inc_sgx_ret)
                     {
-                        switch (inc_sgx_ret)
-                        {
-                        case SGX_ERROR_SERVICE_TIMEOUT:
-                            p_log->warn("Srd task release resource for higher priority task.\n");
-                            break;
-                        default:
-                            p_log->err("Increase srd failed! Error code:%lx\n", inc_sgx_ret);
-                        }
-                        if (CRUST_SUCCESS == inc_crust_ret)
-                        {
-                            inc_crust_ret = CRUST_SGX_FAILED;
-                        }
+                    case SGX_ERROR_SERVICE_TIMEOUT:
+                        p_log->warn("Srd task release resource for higher priority task.\n");
+                        break;
+                    default:
+                        p_log->err("Increase srd failed! Error code:%lx\n", inc_sgx_ret);
                     }
-                    decrease_running_srd_task();
-                    return inc_crust_ret;
-                })));
-            }
+                    if (CRUST_SUCCESS == inc_crust_ret)
+                    {
+                        inc_crust_ret = CRUST_SGX_FAILED;
+                    }
+                }
+                decrease_running_srd_task();
+                return inc_crust_ret;
+            })));
         }
         // Wait for srd task
         size_t srd_success_num = 0;
