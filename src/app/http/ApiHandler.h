@@ -312,16 +312,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "cid";
-            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
+            if (params_m.find(param_name) == params_m.end())
             {
                 ret_info = "Bad parameter! Need a string type parameter:'" + param_name + "'";
                 ret_code = 400;
             }
             else
             {
-                std::string cid = req_json[param_name].ToString();
+                std::string cid = params_m[param_name];
                 json::JSON ret_body;
                 if (cid.size() != CID_LENGTH)
                 {
@@ -356,16 +355,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "type";
             bool bad_req = false;
-            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
+            if (params_m.find(param_name) == params_m.end())
             {
                 bad_req = true;
             }
             else
             {
-                std::string type = req_json[param_name].ToString();
+                std::string type = params_m[param_name];
                 if (sealed_file_types.find(type) == sealed_file_types.end())
                 {
                     bad_req = true;
@@ -505,9 +503,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 200;
             std::string ret_info;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "success";
-            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::Boolean)
+            std::string argument = params_m[param_name];
+            if (params_m.find(param_name) == params_m.end() || (argument != "true" && argument != "false"))
             {
                 ret_info = "Bad parameter! Need a boolean type parameter:'" + param_name + "'";
                 ret_code = 400;
@@ -518,7 +516,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             }
             else
             {
-                bool upgrade_ret = req_json[param_name].ToBool();
+                bool upgrade_ret = (params_m[param_name].compare("true") == 0 ? true : false);
                 crust_status_t crust_status = CRUST_SUCCESS;
                 if (!upgrade_ret)
                 {
