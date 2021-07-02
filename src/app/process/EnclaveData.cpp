@@ -402,14 +402,20 @@ void EnclaveData::restore_file_info(const uint8_t *data, size_t data_size)
     json::JSON sealed_files = json::JSON::Load_unsafe(data, data_size);
     json::JSON file_spec = sealed_files[WL_FILE_SPEC_INFO];
     sealed_files.erase(WL_FILE_SPEC_INFO);
-    for (auto it : sealed_files.ObjectRange())
+    if (sealed_files.JSONType() == json::JSON::Class::Object)
     {
-        for (auto f_it : it.second.ArrayRange())
+        for (auto it : sealed_files.ObjectRange())
         {
-            if (f_it.JSONType() == json::JSON::Class::Object && f_it.size() > 0)
+            if (it.second.JSONType() == json::JSON::Class::Array)
             {
-                auto val = f_it.ObjectRange().begin();
-                this->sealed_file[it.first][val->first] = val->second.ToString();
+                for (auto f_it : it.second.ArrayRange())
+                {
+                    if (f_it.JSONType() == json::JSON::Class::Object && f_it.size() > 0)
+                    {
+                        auto val = f_it.ObjectRange().begin();
+                        this->sealed_file[it.first][val->first] = val->second.ToString();
+                    }
+                }
             }
         }
     }
@@ -752,14 +758,14 @@ void EnclaveData::construct_uuid_disk_path_map()
  */
 void EnclaveData::set_uuid_disk_path_map(std::string uuid, std::string path)
 {
-    if (uuid.size() > UUID_LENGTH * 2)
+    if (uuid.size() >= UUID_LENGTH * 2)
     {
-        uuid = uuid.substr(0, UUID_LENGTH * 2);
+        std::string r_uuid = uuid.substr(0, UUID_LENGTH * 2);
+        uuid_disk_path_map_mutex.lock();
+        this->uuid_to_disk_path[r_uuid] = path;
+        this->disk_path_to_uuid[path] = r_uuid;
+        uuid_disk_path_map_mutex.unlock();
     }
-    uuid_disk_path_map_mutex.lock();
-    this->uuid_to_disk_path[uuid] = path;
-    this->disk_path_to_uuid[path] = uuid;
-    uuid_disk_path_map_mutex.unlock();
 }
 
 /**
@@ -771,7 +777,10 @@ std::string EnclaveData::get_uuid(std::string path)
 {
     SafeLock sl(uuid_disk_path_map_mutex);
     sl.lock();
-    return this->disk_path_to_uuid[path];
+    if (this->disk_path_to_uuid.find(path) != this->disk_path_to_uuid.end())
+        return this->disk_path_to_uuid[path];
+    else
+        return "";
 }
 
 /**
@@ -783,7 +792,10 @@ std::string EnclaveData::get_disk_path(std::string uuid)
 {
     SafeLock sl(uuid_disk_path_map_mutex);
     sl.lock();
-    return this->uuid_to_disk_path[uuid];
+    if (this->uuid_to_disk_path.find(uuid) != this->uuid_to_disk_path.end())
+        return this->uuid_to_disk_path[uuid];
+    else
+        return "";
 }
 
 /**

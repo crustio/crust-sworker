@@ -946,8 +946,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_code = 503;
                         break;
                     case CRUST_STORAGE_NEW_FILE_NOTFOUND:
-                        ret_info = "Seal file '" + cid + "' failed, file is not existed";
+                        ret_info = "Seal file '" + cid + "' failed, no request or file has been removed";
                         p_log->debug("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
+                    case CRUST_STORAGE_NO_ENOUGH_SPACE:
+                        ret_info = "Seal file '" + cid + "' failed, no enough space";
+                        p_log->err("%s\n", ret_info.c_str());
                         ret_code = 500;
                         break;
                     default:

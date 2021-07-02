@@ -41,6 +41,7 @@ bool check_or_init_disk(std::string path)
             }
             ed->set_uuid_disk_path_map(reinterpret_cast<const char *>(p_data), path);
             free(p_data);
+            p_log->debug("Restore uuid:'%s' to runtime env successfully!\n", uuid_file.c_str());
         }
         else
         {
@@ -65,6 +66,7 @@ bool check_or_init_disk(std::string path)
             }
             // Set uuid to data path information
             ed->set_uuid_disk_path_map(uuid, path);
+            p_log->debug("Save uuid:'%s' successfully!\n", uuid_file.c_str());
         }
         else
         {
@@ -76,6 +78,7 @@ bool check_or_init_disk(std::string path)
                 p_log->err("Save uuid file to path:'%s' failed! Error code:%lx\n", path.c_str(), crust_status);
                 return false;
             }
+            p_log->debug("Restore uuid:'%s' to file successfully!\n", uuid_file.c_str());
         }
     }
 
@@ -101,7 +104,7 @@ json::JSON get_increase_srd_info_r(long &change)
     // Get multi-disk info
     Config *p_config = Config::get_instance();
     EnclaveData *ed = EnclaveData::get_instance();
-    json::JSON disk_info_json;
+    json::JSON disk_info_json = json::Array();
 
     // Create path
     for (auto path : p_config->get_data_paths())
@@ -156,7 +159,7 @@ json::JSON get_increase_srd_info_r(long &change)
 json::JSON get_increase_srd_info(long &change)
 {
     json::JSON disk_json = get_increase_srd_info_r(change);
-    json::JSON srd_inc_json;
+    json::JSON srd_inc_json = json::Array();
     for (auto info : disk_json.ArrayRange())
     {
         if (info[WL_DISK_USE].ToInt() > 0)
