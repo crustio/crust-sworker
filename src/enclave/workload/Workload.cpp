@@ -973,6 +973,7 @@ void Workload::deal_deleted_file()
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     // Deleted invalid file item
+    std::set<std::string> left_del_cid_s = tmp_del_cid_s;
     SafeLock sealed_files_sl(this->file_mutex);
     sealed_files_sl.lock();
     for (auto cid : tmp_del_cid_s)
@@ -986,10 +987,16 @@ void Workload::deal_deleted_file()
                     || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
             {
                 this->sealed_files.erase(this->sealed_files.begin() + pos);
+                left_del_cid_s.erase(cid);
             }
         }
     }
     sealed_files_sl.unlock();
+
+    // Put left file to file deleted set
+    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    this->file_del_cid_s.insert(left_del_cid_s.begin(), left_del_cid_s.end());
+    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 }
 
 /**

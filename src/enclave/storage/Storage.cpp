@@ -494,6 +494,11 @@ crust_status_t storage_delete_file(const char *cid)
         ocall_ipfs_del_all(&del_ret, del_cid.c_str());
         // Update workload spec info
         wl->set_file_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
+        // Delete pending file
+        if (FILE_STATUS_PENDING == deleted_file[FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            storage_seal_file_end(cid);
+        }
         log_info("Delete file:%s successfully!\n", cid);
     }
     else
