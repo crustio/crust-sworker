@@ -20,7 +20,7 @@ crust_status_t storage_seal_file_start(const char *root)
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    // Check if file number exceeds upper limit
+    // Check if total file number exceeds upper limit
     size_t file_num = 0;
     SafeLock sl_file(wl->file_mutex);
     sl_file.lock();
@@ -29,7 +29,6 @@ crust_status_t storage_seal_file_start(const char *root)
     {
         return CRUST_FILE_NUMBER_EXCEED;
     }
-
     // Check if file is duplicated
     if (CRUST_SUCCESS != (crust_status = check_seal_file_dup(root_cid.c_str())))
     {
@@ -37,11 +36,23 @@ crust_status_t storage_seal_file_start(const char *root)
     }
     sl_file.unlock();
 
-    // Add file info
+    // Delete inserted pending file if reaching pending number limit
+    bool exceed_limit = false;
+    Defer def_del_pending([&wl, &root, &exceed_limit](void) {
+        if (exceed_limit)
+        {
+            sgx_thread_mutex_lock(&wl->file_mutex);
+            wl->del_file_nolock(root);
+            sgx_thread_mutex_unlock(&wl->file_mutex);
+        }
+    });
+
+    // Check if pending file number exceeds upper limit
     SafeLock sl(wl->pending_files_um_mutex);
     sl.lock();
     if (wl->pending_files_um.size() > FILE_PENDING_LIMIT)
     {
+        exceed_limit = true;
         return CRUST_FILE_NUMBER_EXCEED;
     }
     wl->pending_files_um[root_cid][FILE_BLOCKS][root_cid].AddNum(1);
