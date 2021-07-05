@@ -61,17 +61,16 @@ private:
     EnclaveData()
         : enclave_id_info("")
         , upgrade_data("")
-        , upgrade_status(UPGRADE_STATUS_NONE) 
-    {
-        file_info[FILE_TYPE_LOST]["num"] = 0;
-        file_info[FILE_TYPE_LOST]["size"] = 0;
-        file_info[FILE_TYPE_VALID]["num"] = 0;
-        file_info[FILE_TYPE_VALID]["size"] = 0;
-        file_info[FILE_TYPE_PENDING]["num"] = 0;
-        file_info[FILE_TYPE_PENDING]["size"] = 0;
-    }
+        , upgrade_status(UPGRADE_STATUS_NONE) {}
 
     std::string get_file_info_item(std::string cid, std::string &info, bool raw);
+
+    // Show information
+    std::set<std::string> file_spec_type = {
+        FILE_TYPE_PENDING,
+        FILE_TYPE_VALID,
+        FILE_TYPE_LOST,
+    };
 
     // Store enclave identity information
     std::string enclave_id_info;
@@ -85,9 +84,6 @@ private:
     // Sealed file map
     std::map<std::string, std::map<std::string, std::string>> sealed_file;
     std::mutex sealed_file_mutex;
-    // File spec info
-    json::JSON file_info;
-    std::mutex file_info_mutex;
     // Pending file
     std::unordered_map<std::string, long> pending_file_size_um;
     std::mutex pending_file_size_um_mutex;

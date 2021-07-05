@@ -242,20 +242,6 @@ void EnclaveData::add_file_info(const std::string &cid, std::string type, std::s
 
     this->sealed_file[type][cid] = info;
     sl.unlock();
-
-    // Update file info
-    SafeLock sl_file_info(this->file_info_mutex);
-    sl_file_info.lock();
-    remove_char(info, '\\');
-    json::JSON info_json = json::JSON::Load_unsafe(info);
-    size_t file_size = 0;
-    if (type.compare(FILE_TYPE_VALID) == 0)
-    {
-        this->file_info[FILE_TYPE_PENDING]["num"].AddNum(-1);
-        file_size = info_json[FILE_SIZE].ToInt();
-    }
-    this->file_info[type]["num"].AddNum(1);
-    this->file_info[type]["size"].AddNum(file_size);
 }
 
 /**
@@ -282,27 +268,6 @@ void EnclaveData::change_file_type(const std::string &cid, std::string old_type,
     this->sealed_file[new_type][cid] = this->sealed_file[old_type][cid];
     this->sealed_file[old_type].erase(cid);
     sl.unlock();
-
-    remove_char(info, '\\');
-    json::JSON info_json = json::JSON::Load_unsafe(info);
-    long new_size = 0;
-    long old_size = 0;
-    if (new_type.compare(FILE_TYPE_PENDING) != 0)
-    {
-        new_size = info_json[FILE_SIZE].ToInt();
-    }
-    if (old_type.compare(FILE_TYPE_PENDING) != 0)
-    {
-        old_size = info_json[FILE_SIZE].ToInt();
-    }
-
-    // Update file info
-    this->file_info_mutex.lock();
-    this->file_info[new_type]["num"].AddNum(1);
-    this->file_info[new_type]["size"].AddNum(new_size);
-    this->file_info[old_type]["num"].AddNum(-1);
-    this->file_info[old_type]["size"].AddNum(-old_size);
-    this->file_info_mutex.unlock();
 }
 
 /**
@@ -313,40 +278,19 @@ void EnclaveData::del_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    std::string info;
     std::string type;
-    bool deleted = false;
     for (auto it = this->sealed_file.begin(); it != this->sealed_file.end(); it++)
     {
         if (it->second.find(cid) != it->second.end())
         {
             type = it->first;
-            info = it->second[cid];
             it->second.erase(cid);
-            deleted = true;
         }
     }
     sl.unlock();
 
-    // Update file info
-    if (deleted)
-    {
-        remove_char(info, '\\');
-        json::JSON info_json = json::JSON::Load_unsafe(info);
-        long file_size = 0;
-        if (type.compare(FILE_TYPE_PENDING) != 0)
-        {
-            file_size = info_json[FILE_SIZE].ToInt();
-        }
-        else
-        {
-            this->del_pending_file_size(cid);
-        }
-        this->file_info_mutex.lock();
-        this->file_info[type]["num"].AddNum(-1);
-        this->file_info[type]["size"].AddNum(-file_size);
-        this->file_info_mutex.unlock();
-    }
+    if (type.compare(FILE_TYPE_PENDING) == 0)
+        this->del_pending_file_size(cid);
 }
 
 /**
@@ -358,35 +302,14 @@ void EnclaveData::del_file_info(std::string cid, std::string type)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    bool deleted = false;
-    std::string info;
     if (this->sealed_file[type].find(cid) != this->sealed_file[type].end())
     {
-        info = this->sealed_file[type][cid];
         this->sealed_file[type].erase(cid);
-        deleted = true;
     }
     sl.unlock();
 
-    // Update file info
-    if (deleted)
-    {
-        remove_char(info, '\\');
-        json::JSON info_json = json::JSON::Load_unsafe(info);
-        long file_size = 0;
-        if (type.compare(FILE_TYPE_PENDING) != 0)
-        {
-            file_size = info_json[FILE_SIZE].ToInt();
-        }
-        else
-        {
-            this->del_pending_file_size(cid);
-        }
-        this->file_info_mutex.lock();
-        this->file_info[type]["num"].AddNum(-1);
-        this->file_info[type]["size"].AddNum(-file_size);
-        this->file_info_mutex.unlock();
-    }
+    if (type.compare(FILE_TYPE_PENDING) == 0)
+        this->del_pending_file_size(cid);
 }
 
 /**
@@ -400,8 +323,6 @@ void EnclaveData::restore_file_info(const uint8_t *data, size_t data_size)
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
     json::JSON sealed_files = json::JSON::Load_unsafe(data, data_size);
-    json::JSON file_spec = sealed_files[WL_FILE_SPEC_INFO];
-    sealed_files.erase(WL_FILE_SPEC_INFO);
     if (sealed_files.JSONType() == json::JSON::Class::Object)
     {
         for (auto it : sealed_files.ObjectRange())
@@ -413,17 +334,15 @@ void EnclaveData::restore_file_info(const uint8_t *data, size_t data_size)
                     if (f_it.JSONType() == json::JSON::Class::Object && f_it.size() > 0)
                     {
                         auto val = f_it.ObjectRange().begin();
-                        this->sealed_file[it.first][val->first] = val->second.ToString();
+                        std::string info = val->second.ToString();
+                        remove_char(info, '\\');
+                        this->sealed_file[it.first][val->first] = info;
                     }
                 }
             }
         }
     }
     sl.unlock();
-
-    this->file_info_mutex.lock();
-    this->file_info = file_spec;
-    this->file_info_mutex.unlock();
 }
 
 /**
@@ -707,9 +626,21 @@ json::JSON EnclaveData::gen_workload_for_print(long srd_task)
             .append("}");
     wl_json[WL_SRD] = srd_spec;
     // Get file info
-    this->file_info_mutex.lock();
-    json::JSON file_info = this->file_info;
-    this->file_info_mutex.unlock();
+    this->sealed_file_mutex.lock();
+    std::map<std::string, std::map<std::string, std::string>> tmp_sealed_file = this->sealed_file;
+    this->sealed_file_mutex.unlock();
+    json::JSON file_info;
+    for (auto type : file_spec_type)
+    {
+        size_t size = 0;
+        for (auto file : tmp_sealed_file[type])
+        {
+            json::JSON file_json = json::JSON::Load_unsafe(file.second);
+            size += file_json[FILE_SIZE].ToInt();
+        }
+        file_info[type]["num"].AddNum(tmp_sealed_file[type].size());
+        file_info[type]["size"].AddNum(size);
+    }
     json::JSON n_file_info;
     char buf[128];
     int space_num = 0;
