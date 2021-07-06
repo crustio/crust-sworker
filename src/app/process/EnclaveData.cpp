@@ -278,18 +278,20 @@ void EnclaveData::del_file_info(std::string cid)
 {
     SafeLock sl(this->sealed_file_mutex);
     sl.lock();
-    std::string type;
+    bool is_pending_file = false;
     for (auto it = this->sealed_file.begin(); it != this->sealed_file.end(); it++)
     {
         if (it->second.find(cid) != it->second.end())
         {
-            type = it->first;
+            if (it->first.compare(FILE_TYPE_PENDING) == 0)
+                is_pending_file = true;
+
             it->second.erase(cid);
         }
     }
     sl.unlock();
 
-    if (type.compare(FILE_TYPE_PENDING) == 0)
+    if (is_pending_file)
         this->del_pending_file_size(cid);
 }
 

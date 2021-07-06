@@ -41,9 +41,9 @@ void WorkloadTest::test_add_file(long file_num)
         wl->set_file_spec(FILE_STATUS_VALID, file_entry_json[FILE_SEALED_SIZE].ToInt());
 
         std::string file_info;
-        file_info.append("{ \\\"" FILE_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_SEALED_SIZE "\\\" : ").append(std::to_string(file_entry_json[FILE_SEALED_SIZE].ToInt())).append(" , ")
-            .append("\\\"" FILE_CHAIN_BLOCK_NUM "\\\" : ").append(std::to_string(1111)).append(" }");
+        file_info.append("{ \"" FILE_SIZE "\" : ").append(std::to_string(file_entry_json[FILE_SIZE].ToInt())).append(" , ")
+            .append("\"" FILE_SEALED_SIZE "\" : ").append(std::to_string(file_entry_json[FILE_SEALED_SIZE].ToInt())).append(" , ")
+            .append("\"" FILE_CHAIN_BLOCK_NUM "\" : ").append(std::to_string(1111)).append(" }");
         ocall_store_file_info(cid.c_str(), file_info.c_str(), FILE_TYPE_VALID);
 
         acc++;
