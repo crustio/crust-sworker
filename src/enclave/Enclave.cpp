@@ -425,7 +425,7 @@ crust_status_t ecall_safe_store2(ecall_store_type_t t,
         return CRUST_SUCCESS;
     }
 
-    (g_ecall_store2_func_m[t])(g_ecall_buffer_pool[buffer_key], total_size);
+    crust_status = (g_ecall_store2_func_m[t])(g_ecall_buffer_pool[buffer_key], total_size);
 
 cleanup:
 

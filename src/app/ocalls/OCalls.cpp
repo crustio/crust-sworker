@@ -331,7 +331,7 @@ crust_status_t ocall_safe_store2(ocall_store_type_t t, const uint8_t *data, size
         return CRUST_SUCCESS;
     }
 
-    (g_ocall_store2_func_m[t])(g_ocall_buffer_pool[buffer_key], total_size);
+    crust_status = (g_ocall_store2_func_m[t])(g_ocall_buffer_pool[buffer_key], total_size);
 
 cleanup:
 
