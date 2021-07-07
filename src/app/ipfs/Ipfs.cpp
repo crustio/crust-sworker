@@ -8,6 +8,7 @@ std::mutex ipfs_mutex;
 const std::string block_get_timeout = "1s";
 const std::string cat_timeout = "6s";
 const std::string add_timeout = "600s";
+const std::string del_timeout = "60s";
 
 /**
  * @desination: single instance class function to get instance
@@ -84,7 +85,7 @@ size_t Ipfs::block_get(const char *cid, unsigned char **p_data_out)
         switch (res_code)
         {
             case 404:
-                //p_log->err("IPFS is offline! Please start it.\n");
+                p_log->debug("IPFS is offline! Please start it.\n");
                 break;
             case 500:
                 p_log->err("Get IPFS file block failed!\n");
@@ -159,7 +160,7 @@ std::string Ipfs::add(unsigned char *p_data_in, size_t size)
  */
 bool Ipfs::del(std::string cid)
 {
-    std::string path = this->url + "/pin/rm?arg=" + cid;
+    std::string path = this->url + "/pin/rm?arg=" + cid + "&timeout=" + del_timeout;
     http::response<http::string_body> res = ipfs_client->Post(path);
     int res_code = (int)res.result();
     if (res_code != 200)
@@ -167,10 +168,10 @@ bool Ipfs::del(std::string cid)
         switch (res_code)
         {
             case 404:
-                //p_log->err("IPFS is offline! Please start it.\n");
+                p_log->debug("IPFS is offline! Please start it.\n");
                 break;
             case 500:
-                //p_log->err("Cannot find IPFS file block!\n");
+                p_log->err("Cannot find IPFS file block!\n");
                 break;
             default:
                 p_log->err("Delete file error, code is: %d\n", res_code);

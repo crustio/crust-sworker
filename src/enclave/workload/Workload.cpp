@@ -973,6 +973,7 @@ void Workload::deal_deleted_file()
     sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 
     // Deleted invalid file item
+    std::set<std::string> left_del_cid_s = tmp_del_cid_s;
     SafeLock sealed_files_sl(this->file_mutex);
     sealed_files_sl.lock();
     for (auto cid : tmp_del_cid_s)
@@ -986,10 +987,16 @@ void Workload::deal_deleted_file()
                     || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
             {
                 this->sealed_files.erase(this->sealed_files.begin() + pos);
+                left_del_cid_s.erase(cid);
             }
         }
     }
     sealed_files_sl.unlock();
+
+    // Put left file to file deleted set
+    sgx_thread_mutex_lock(&this->file_del_idx_mutex);
+    this->file_del_cid_s.insert(left_del_cid_s.begin(), left_del_cid_s.end());
+    sgx_thread_mutex_unlock(&this->file_del_idx_mutex);
 }
 
 /**
@@ -1103,13 +1110,10 @@ crust_status_t Workload::restore_file_info()
     // ----- Construct file information json string ----- //
     crust_status_t crust_status = CRUST_SUCCESS;
     json::JSON file_buffer;
-    json::JSON file_spec;
     for (auto it = g_file_spec_status.begin(); it != g_file_spec_status.end(); it++)
     {
         std::string file_type = it->second;
         char s = it->first;
-        long num = 0;
-        long size = 0;
         for (auto file : this->sealed_files)
         {
             if (s != file[FILE_STATUS].get_char(CURRENT_STATUS))
@@ -1119,15 +1123,9 @@ crust_status_t Workload::restore_file_info()
             info[file[FILE_CID].ToString()] = "{ \"" FILE_SIZE "\" : " + std::to_string(file[FILE_SIZE].ToInt())
                 + " , \"" FILE_SEALED_SIZE "\" : " + std::to_string(file[FILE_SEALED_SIZE].ToInt())
                 + " , \"" FILE_CHAIN_BLOCK_NUM "\" : " + std::to_string(file[FILE_CHAIN_BLOCK_NUM].ToInt()) + " }";
-            num++;
-            size += file[FILE_SIZE].ToInt();
             file_buffer[file_type].append(info);
         }
-        // Set file spec
-        file_spec[file_type]["num"].AddNum(num);
-        file_spec[file_type]["size"].AddNum(size);
     }
-    file_buffer[WL_FILE_SPEC_INFO] = file_spec;
 
     // Store file information to app
     std::vector<uint8_t> file_data = file_buffer.dump_vector(&crust_status);

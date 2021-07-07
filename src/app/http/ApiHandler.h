@@ -312,16 +312,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             int ret_code = 400;
             std::string ret_info;
             json::JSON ret_body;
-            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "cid";
-            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
+            if (params_m.find(param_name) == params_m.end())
             {
                 ret_info = "Bad parameter! Need a string type parameter:'" + param_name + "'";
                 ret_code = 400;
             }
             else
             {
-                std::string cid = req_json[param_name].ToString();
+                std::string cid = params_m[param_name];
                 json::JSON ret_body;
                 if (cid.size() != CID_LENGTH)
                 {
@@ -356,16 +355,15 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
             res.result(200);
-            json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
             std::string param_name = "type";
             bool bad_req = false;
-            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
+            if (params_m.find(param_name) == params_m.end())
             {
                 bad_req = true;
             }
             else
             {
-                std::string type = req_json[param_name].ToString();
+                std::string type = params_m[param_name];
                 if (sealed_file_types.find(type) == sealed_file_types.end())
                 {
                     bad_req = true;
@@ -948,8 +946,13 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         ret_code = 503;
                         break;
                     case CRUST_STORAGE_NEW_FILE_NOTFOUND:
-                        ret_info = "Seal file '" + cid + "' failed, file is not existed";
+                        ret_info = "Seal file '" + cid + "' failed, no request or file has been removed";
                         p_log->debug("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                        break;
+                    case CRUST_STORAGE_NO_ENOUGH_SPACE:
+                        ret_info = "Seal file '" + cid + "' failed, no enough space";
+                        p_log->err("%s\n", ret_info.c_str());
                         ret_code = 500;
                         break;
                     default:

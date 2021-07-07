@@ -5,7 +5,6 @@ sgx_thread_mutex_t g_srd_task_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 uint8_t *g_base_rand_buffer = NULL;
 sgx_thread_mutex_t g_base_rand_buffer_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 
-// TODO: store in DB with bytes
 /**
  * @description: call ocall_save_file to save file
  * @param g_path -> g folder path
@@ -318,6 +317,9 @@ void srd_remove_space(const char *data, size_t data_size)
     Workload *wl = Workload::get_instance();
     json::JSON del_json = json::JSON::Load_unsafe(reinterpret_cast<const uint8_t *>(data), data_size);
     long change = 0;
+
+    if (del_json.JSONType() != json::JSON::Class::Object)
+        return;
 
     for (auto item : del_json.ObjectRange())
     {

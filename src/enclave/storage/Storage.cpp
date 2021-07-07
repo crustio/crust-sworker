@@ -20,7 +20,7 @@ crust_status_t storage_seal_file_start(const char *root)
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    // Check if file number exceeds upper limit
+    // Check if total file number exceeds upper limit
     size_t file_num = 0;
     SafeLock sl_file(wl->file_mutex);
     sl_file.lock();
@@ -29,7 +29,6 @@ crust_status_t storage_seal_file_start(const char *root)
     {
         return CRUST_FILE_NUMBER_EXCEED;
     }
-
     // Check if file is duplicated
     if (CRUST_SUCCESS != (crust_status = check_seal_file_dup(root_cid.c_str())))
     {
@@ -37,11 +36,23 @@ crust_status_t storage_seal_file_start(const char *root)
     }
     sl_file.unlock();
 
-    // Add file info
+    // Delete inserted pending file if reaching pending number limit
+    bool exceed_limit = false;
+    Defer def_del_pending([&wl, &root, &exceed_limit](void) {
+        if (exceed_limit)
+        {
+            sgx_thread_mutex_lock(&wl->file_mutex);
+            wl->del_file_nolock(root);
+            sgx_thread_mutex_unlock(&wl->file_mutex);
+        }
+    });
+
+    // Check if pending file number exceeds upper limit
     SafeLock sl(wl->pending_files_um_mutex);
     sl.lock();
     if (wl->pending_files_um.size() > FILE_PENDING_LIMIT)
     {
+        exceed_limit = true;
         return CRUST_FILE_NUMBER_EXCEED;
     }
     wl->pending_files_um[root_cid][FILE_BLOCKS][root_cid].AddNum(1);
@@ -190,14 +201,18 @@ crust_status_t storage_seal_file(const char *root,
     {
         return seal_ret;
     }
-    sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
+    sl_files_info.lock();
+    if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end()) 
+    {
+        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
+    }
     for (size_t i = 0; i < children_hashs.size(); i++)
     {
         std::string ccid = hash_to_cid(reinterpret_cast<const uint8_t *>(children_hashs[i]));
         wl->pending_files_um[rcid][FILE_BLOCKS][ccid].AddNum(1);
         free(children_hashs[i]);
     }
-    sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
+    sl_files_info.unlock();
 
     // ----- Seal data ----- //
     sgx_sealed_data_t *p_sealed_data = NULL;
@@ -236,13 +251,17 @@ crust_status_t storage_seal_file(const char *root,
     memcpy(path, sealed_path.c_str(), sealed_path.size());
 
     // Record file info
-    sgx_thread_mutex_lock(&wl->pending_files_um_mutex);
+    sl_files_info.lock();
+    if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end()) 
+    {
+        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
+    }
     wl->pending_files_um[rcid][FILE_META][FILE_HASH].AppendBuffer(uuid_u, UUID_LENGTH);
     wl->pending_files_um[rcid][FILE_META][FILE_HASH].AppendBuffer(sealed_hash, HASH_LENGTH);
     wl->pending_files_um[rcid][FILE_META][FILE_SIZE].AddNum(plain_data_sz);
     wl->pending_files_um[rcid][FILE_META][FILE_SEALED_SIZE].AddNum(sealed_data_sz);
     wl->pending_files_um[rcid][FILE_META][FILE_BLOCK_NUM].AddNum(1);
-    sgx_thread_mutex_unlock(&wl->pending_files_um_mutex);
+    sl_files_info.unlock();
 
     seal_ret = CRUST_SUCCESS;
 
@@ -304,6 +323,11 @@ crust_status_t storage_seal_file_end(const char *root)
     json::JSON file_json = wl->pending_files_um[rcid];
     sl.unlock();
     // Check if getting all blocks
+    if (file_json[FILE_BLOCKS].JSONType() != json::JSON::Class::Object)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
     for (auto m : file_json[FILE_BLOCKS].ObjectRange())
     {
         if (m.second.ToInt() != 0)
@@ -478,6 +502,11 @@ crust_status_t storage_delete_file(const char *cid)
         ocall_ipfs_del_all(&del_ret, del_cid.c_str());
         // Update workload spec info
         wl->set_file_spec(deleted_file[FILE_STATUS].get_char(CURRENT_STATUS), -deleted_file[FILE_SIZE].ToInt());
+        // Delete pending file
+        if (FILE_STATUS_PENDING == deleted_file[FILE_STATUS].get_char(CURRENT_STATUS))
+        {
+            storage_seal_file_end(cid);
+        }
         log_info("Delete file:%s successfully!\n", cid);
     }
     else
@@ -513,6 +542,7 @@ crust_status_t check_seal_file_dup(std::string cid)
             if (FILE_STATUS_DELETED == org_s || FILE_STATUS_UNVERIFIED == org_s)
             {
                 crust_status = CRUST_SUCCESS;
+                wl->del_file_nolock(pos);
             }
             else
             {

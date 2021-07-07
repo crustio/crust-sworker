@@ -469,6 +469,7 @@ public:
         if (!(Type == Class::Object || Type == Class::FIOObject))
             SetType(Class::Object);
 
+        // FIXME: key map and value map should be independent, but there is error when using two maps
         if (Type == Class::FIOObject)
         {
             string rkey;
@@ -1151,6 +1152,7 @@ JSON Object()
     return std::move(JSON::Make(JSON::Class::Object));
 }
 
+// First in order map
 JSON FIOObject()
 {
     return std::move(JSON::Make(JSON::Class::FIOObject));

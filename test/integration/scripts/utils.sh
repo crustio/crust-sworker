@@ -109,12 +109,12 @@ function delete_file_block_random()
 
 function get_file_info()
 {
-    curl -s -XPOST $baseurl/file/info --data-raw "{\"cid\":\"$1\"}"
+    curl -s -XPOST $baseurl/file/info?cid=$1
 }
 
 function get_file_info_valid()
 {
-    curl -s -XGET $baseurl/file/info_by_type --data-raw '{"type":"valid"}'
+    curl -s -XGET $baseurl/file/info_by_type?type=valid
 }
 
 function srd_real_async()
