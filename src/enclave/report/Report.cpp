@@ -297,7 +297,7 @@ crust_status_t gen_work_report(const char *block_hash, size_t block_height, bool
         wr_json[WORKREPORT_FILES_ROOT] = hexstring_safe(files_root, HASH_LENGTH);
         wr_json[WORKREPORT_FILES_ADDED] = added_files;
         wr_json[WORKREPORT_FILES_DELETED] = deleted_files;
-        wr_json[WORKREPORT_SIG] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t)).append("\"}");
+        wr_json[WORKREPORT_SIG] = hexstring_safe(&sgx_sig, sizeof(sgx_ec256_signature_t));
         wr_data = wr_json.dump_vector(&crust_status);
         if (CRUST_SUCCESS != crust_status)
         {
