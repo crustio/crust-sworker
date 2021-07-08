@@ -364,6 +364,17 @@ crust_status_t ecall_restore_from_upgrade(const uint8_t *data, size_t data_size)
     return id_restore_from_upgrade(data, data_size);
 }
 
+/**
+ * @description: Deal with file illegal transfer
+ * @param data (in) -> Pointer to recover data
+ * @param data_size -> Recover data size
+ * @return: Recover status
+ */
+crust_status_t ecall_recover_illegal_file(const uint8_t *data, size_t data_size)
+{
+    return Workload::get_instance()->recover_illegal_file(data, data_size);
+}
+
 /************************************Tools****************************************/
 
 /**

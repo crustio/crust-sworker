@@ -76,6 +76,7 @@ private:
         {"Ecall_restore_from_upgrade", 0},
         {"Ecall_enable_upgrade", 0},
         {"Ecall_disable_upgrade", 0},
+        {"Ecall_recover_illegal_file", 1},
         {"Ecall_delete_file",1},
         {"Ecall_validate_file", 1},
         {"Ecall_validate_srd", 1},

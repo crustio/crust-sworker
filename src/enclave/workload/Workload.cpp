@@ -1102,6 +1102,70 @@ void Workload::del_file_nolock(size_t pos)
 }
 
 /**
+ * @description: Deal with file illegal transfer
+ * @param data -> Pointer to recover data
+ * @param data_size -> Recover data size
+ * @return: Recover status
+ */
+crust_status_t Workload::recover_illegal_file(const uint8_t *data, size_t data_size)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON commit_file = json::JSON::Load(&crust_status, data, data_size);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return crust_status;
+    }
+
+    Workload *wl = Workload::get_instance();
+    SafeLock sl(wl->file_mutex);
+    sl.lock();
+    std::vector<std::string> file_tag = {WORKREPORT_FILES_ADDED, WORKREPORT_FILES_DELETED};
+    for (auto type : file_tag)
+    {
+        if (commit_file.hasKey(type))
+        {
+            if (commit_file[type].JSONType() == json::JSON::Class::Array)
+            {
+                for (auto file : commit_file[type].ArrayRange())
+                {
+                    size_t pos = 0;
+                    std::string cid = file.ToString();
+                    if (wl->is_file_dup_nolock(cid, pos))
+                    {
+                        if (type.compare(WORKREPORT_FILES_ADDED) == 0)
+                        {
+                            wl->sealed_files[pos][FILE_STATUS].set_char(ORIGIN_STATUS, FILE_STATUS_VALID);
+                        }
+                        else
+                        {
+                            char cur_status = wl->sealed_files[pos][FILE_STATUS].get_char(CURRENT_STATUS);
+                            char com_status = (FILE_STATUS_DELETED == cur_status ? FILE_STATUS_DELETED : FILE_STATUS_LOST);
+                            wl->sealed_files[pos][FILE_STATUS].set_char(ORIGIN_STATUS, com_status);
+                        }
+                        log_info("Recover illegal file:'%s' type:'%s' done\n", cid.c_str(), type.c_str());
+                    }
+                    else
+                    {
+                        log_warn("Recover illegal: cannot find file:'%s'\n", cid.c_str());
+                    }
+                }
+            }
+            else
+            {
+                log_err("Recover illegal: %s is not an array!\n", type.c_str());
+            }
+        }
+        else
+        {
+            log_debug("Recover illegal: no %s provided.\n", type.c_str());
+        }
+    }
+    sl.unlock();
+
+    return crust_status;
+}
+
+/**
  * @description: Restore file informatione
  * @return: Restore file information result
  */
