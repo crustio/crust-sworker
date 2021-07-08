@@ -36,6 +36,7 @@ sgx_status_t Ecall_unseal_file(sgx_enclave_id_t eid, crust_status_t *status, con
 sgx_status_t Ecall_delete_file(sgx_enclave_id_t eid, crust_status_t *status, const char *hash);
 
 sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid);
+sgx_status_t Ecall_recover_illegal_file(sgx_enclave_id_t eid, crust_status_t *status, const uint8_t *data, size_t data_size);
 
 sgx_status_t Ecall_enable_upgrade(sgx_enclave_id_t eid, crust_status_t *status, size_t block_height);
 sgx_status_t Ecall_disable_upgrade(sgx_enclave_id_t eid);

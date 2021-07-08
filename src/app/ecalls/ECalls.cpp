@@ -562,6 +562,29 @@ sgx_status_t Ecall_id_get_info(sgx_enclave_id_t eid)
 }
 
 /**
+ * @description: Enable upgrade
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to result status
+ * @param data (in) -> Pointer to recover data
+ * @param data_size -> Recover data size
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_recover_illegal_file(sgx_enclave_id_t eid, crust_status_t *status, const uint8_t *data, size_t data_size)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_recover_illegal_file(eid, status, data, data_size);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
  * @description: Safe store large data to enclave
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to result status

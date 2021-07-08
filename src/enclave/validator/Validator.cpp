@@ -120,6 +120,7 @@ void validate_srd()
         wait_time += wait_interval;
         if (wait_time > timeout)
         {
+            log_warn("Validate srd timeout which will lead to generating work report failed! Please check your hardware.\n");
             break;
         }
     }
@@ -371,6 +372,7 @@ void validate_meaningful_file()
         wait_time += wait_interval;
         if (wait_time > timeout)
         {
+            log_warn("Validate file timeout which will lead to generating work report failed! Please check your hardware.\n");
             break;
         }
     }

@@ -1149,6 +1149,65 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             goto postcleanup;
         }
 
+        // ----- Recover illegal file ----- //
+        cur_path = urlendpoint.base + "/file/recover_illegal";
+        if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
+        {
+            std::string ret_info;
+            int ret_code = 400;
+            sgx_status_t sgx_status = SGX_SUCCESS;
+            crust_status_t crust_status = CRUST_SUCCESS;
+            json::JSON req_json = json::JSON::Load(&crust_status, req.body().data(), req.body().size());
+            if (CRUST_SUCCESS != crust_status)
+            {
+                ret_info = "Invalid parameter! Need a json format parameter like:{\"added_files\":[\"Qmxxx\"],\"deleted_files\":[\"Qmxxx\"]}";
+                p_log->err("%\n", ret_info.c_str());
+                ret_code = 400;
+            }
+            else
+            {
+                if ((!req_json.hasKey(WORKREPORT_FILES_ADDED) && !req_json.hasKey(WORKREPORT_FILES_DELETED))
+                    || (req_json.hasKey(WORKREPORT_FILES_ADDED) && req_json[WORKREPORT_FILES_ADDED].JSONType() != json::JSON::Class::Array)
+                    || (req_json.hasKey(WORKREPORT_FILES_DELETED) && req_json[WORKREPORT_FILES_DELETED].JSONType() != json::JSON::Class::Array))
+                {
+                    ret_info = "Invalid parameter! Need a json format parameter like:{\"added_files\":[\"Qmxxx\"],\"deleted_files\":[\"Qmxxx\"]}";
+                    p_log->err("%\n", ret_info.c_str());
+                    ret_code = 400;
+                }
+                else
+                {
+                    if (SGX_SUCCESS != (sgx_status = Ecall_recover_illegal_file(global_eid, &crust_status, req.body().data(), req.body().size())))
+                    {
+                        ret_info = "Recover illegal file failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                        p_log->err("%s\n", ret_info.c_str());
+                        ret_code = 500;
+                    }
+                    else
+                    {
+                        if (CRUST_SUCCESS != crust_status)
+                        {
+                            ret_info = "Unexpected error:" + num_to_hexstring(crust_status);
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 500;
+                        }
+                        else
+                        {
+                            ret_info = "Recover illegal file done.";
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 200;
+                        }
+                    }
+                }
+            }
+            json::JSON ret_body;
+            ret_body[HTTP_STATUS_CODE] = ret_code;
+            ret_body[HTTP_MESSAGE] = ret_info;
+            res.result(ret_body[HTTP_STATUS_CODE].ToInt());
+            res.body() = ret_body.dump();
+
+            goto postcleanup;
+        }
+
 
     postcleanup:
         res.content_length(res.body().size());

@@ -46,6 +46,8 @@ enclave {
 
         public void ecall_id_get_info();
 
+        public crust_status_t ecall_recover_illegal_file([in, size=data_size] const uint8_t *data, size_t data_size);
+
         public crust_status_t ecall_safe_store2(ecall_store_type_t t, [in, size=partial_size] const uint8_t *data, size_t total_size, size_t partial_size, size_t offset, uint32_t buffer_key);
     };
 

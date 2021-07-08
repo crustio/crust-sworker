@@ -164,6 +164,7 @@ public:
     void add_file_nolock(json::JSON file, size_t pos);
     void del_file_nolock(std::string cid);
     void del_file_nolock(size_t pos);
+    crust_status_t recover_illegal_file(const uint8_t *data, size_t data_size);
 
 #ifdef _CRUST_TEST_FLAG_
     void clean_wl_file_spec()
