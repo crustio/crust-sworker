@@ -95,7 +95,7 @@ typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t 
 #define WORKREPORT_SIG "sig"
 #define WORKREPORT_FILE_LIMIT 1000
 #define WORKREPORT_REPORT_INTERVAL 10
-#define REPORT_SLOT 300
+#define REPORT_SLOT 600
 #define BLOCK_INTERVAL 6
 
 // For workload
