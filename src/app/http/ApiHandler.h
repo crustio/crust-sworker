@@ -102,7 +102,7 @@ extern sgx_enclave_id_t global_eid;
 long change_srd_num = 0;
 
 /**
- * @desination: Start rest service
+ * @description: Start rest service
  * @return: Start status
  */
 template<class Body, class Allocator, class Send>
@@ -1161,7 +1161,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             if (CRUST_SUCCESS != crust_status)
             {
                 ret_info = "Invalid parameter! Need a json format parameter like:{\"added_files\":[\"Qmxxx\"],\"deleted_files\":[\"Qmxxx\"]}";
-                p_log->err("%\n", ret_info.c_str());
+                p_log->err("%s\n", ret_info.c_str());
                 ret_code = 400;
             }
             else
@@ -1171,7 +1171,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     || (req_json.hasKey(WORKREPORT_FILES_DELETED) && req_json[WORKREPORT_FILES_DELETED].JSONType() != json::JSON::Class::Array))
                 {
                     ret_info = "Invalid parameter! Need a json format parameter like:{\"added_files\":[\"Qmxxx\"],\"deleted_files\":[\"Qmxxx\"]}";
-                    p_log->err("%\n", ret_info.c_str());
+                    p_log->err("%s\n", ret_info.c_str());
                     ret_code = 400;
                 }
                 else
@@ -1203,7 +1203,9 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             ret_body[HTTP_STATUS_CODE] = ret_code;
             ret_body[HTTP_MESSAGE] = ret_info;
             res.result(ret_body[HTTP_STATUS_CODE].ToInt());
-            res.body() = ret_body.dump();
+            std::string ret_str = ret_body.dump();
+            remove_char(ret_str, '\\');
+            res.body() = ret_str;
 
             goto postcleanup;
         }

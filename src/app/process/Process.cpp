@@ -420,7 +420,7 @@ bool restore_tasks()
 }
 
 /**
- * @desination: Main function to start application
+ * @description: Main function to start application
  * @return: Start status
  */
 int process_run()

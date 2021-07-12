@@ -8,7 +8,7 @@ crust::Log *p_log = crust::Log::get_instance();
 std::string config_file_path = CRUST_INST_DIR "/etc/Config.json";
 
 /**
- * @desination: Single instance class function to get instance
+ * @description: Single instance class function to get instance
  * @return: Configure instance
  */
 Config *Config::get_instance()

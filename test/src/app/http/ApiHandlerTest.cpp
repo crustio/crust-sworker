@@ -6,7 +6,7 @@ extern size_t g_block_height;
 extern sgx_enclave_id_t global_eid;
 
 /**
- * @desination: Start rest service
+ * @description: Start rest service
  * @return: Start status
  */
 json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req)

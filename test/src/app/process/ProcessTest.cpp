@@ -19,7 +19,7 @@ extern bool g_upgrade_flag;
 size_t g_block_height;
 
 /**
- * @desination: Main function to start application
+ * @description: Main function to start application
  * @return: Start status
  */
 int process_run_test()

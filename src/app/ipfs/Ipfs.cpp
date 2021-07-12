@@ -11,7 +11,7 @@ const std::string add_timeout = "600s";
 const std::string del_timeout = "60s";
 
 /**
- * @desination: single instance class function to get instance
+ * @description: single instance class function to get instance
  * @return: ipfs instance
  */
 Ipfs *Ipfs::get_instance()

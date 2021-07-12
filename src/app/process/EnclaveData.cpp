@@ -8,7 +8,7 @@ std::mutex enclavedata_mutex;
 extern sgx_enclave_id_t global_eid;
 
 /**
- * @desination: Single instance class function to get instance
+ * @description: Single instance class function to get instance
  * @return: Enclave data instance
  */
 EnclaveData *EnclaveData::get_instance()
