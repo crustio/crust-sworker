@@ -8,7 +8,7 @@ namespace crust
 Log *Log::log = NULL;
 
 /**
- * @desination: single instance class function to get instance
+ * @description: single instance class function to get instance
  * @return: log instance
  */
 Log *Log::get_instance()
@@ -27,7 +27,7 @@ Log *Log::get_instance()
 }
 
 /**
- * @desination: constructor
+ * @description: constructor
  */
 Log::Log()
 {
@@ -35,7 +35,7 @@ Log::Log()
 }
 
 /**
- * @desination: open debug mode
+ * @description: open debug mode
  */
 void Log::set_debug(bool flag)
 {

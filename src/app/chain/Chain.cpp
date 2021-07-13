@@ -11,7 +11,7 @@ Chain *Chain::chain = NULL;
 std::mutex chain_mutex;
 
 /**
- * @desination: single instance class function to get instance
+ * @description: single instance class function to get instance
  * @return: chain instance
  */
 Chain *Chain::get_instance()

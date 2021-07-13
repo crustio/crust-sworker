@@ -10,7 +10,7 @@ typedef crust_status_t (*ecall_store2_f)(const uint8_t *u, size_t s);
 typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t s, size_t *rs);
 
 // For all
-#define SWORKER_VERSION "0.10.0"
+#define SWORKER_VERSION "1.0.0"
 #define LEAF_SEPARATOR  "+leaf+"
 
 // For enclave metadata

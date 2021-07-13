@@ -7,7 +7,7 @@ sgx_thread_mutex_t g_upgrade_status_mutex = SGX_THREAD_MUTEX_INITIALIZER;
 Workload *Workload::workload = NULL;
 
 /**
- * @desination: Single instance class function to get instance
+ * @description: Single instance class function to get instance
  * @return: Workload instance
  */
 Workload *Workload::get_instance()

@@ -41,10 +41,6 @@
 #include "EnclaveDataTest.h"
 #include "Chain.h"
 
-/**
- * @desination: Start rest service
- * @return: Start status
- */
 json::JSON http_handler_test(UrlEndPoint urlendpoint, json::JSON req);
 
 #endif /* !_CRUST_API_HANDLER_TEST_H_ */
