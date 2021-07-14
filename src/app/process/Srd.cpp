@@ -355,7 +355,10 @@ void srd_check_reserved(void)
             {
                 std::string uuid = ed->get_uuid(path);
                 del_space = std::min((long)(srd_reserved_space - avail_space), (long)srd_info_json[WL_SRD_DETAIL][uuid].ToInt());
-                srd_del_json[uuid].AddNum(del_space);
+                if (del_space > 0)
+                {
+                    srd_del_json[uuid].AddNum(del_space);
+                }
             }
         }
 
