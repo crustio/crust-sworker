@@ -6,7 +6,7 @@ EnclaveQueue *eq = EnclaveQueue::get_instance();
  * @description: A wrapper function, seal one G srd files under directory, can be called from multiple threads
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to restore result status
- * @param uuid (in) -》 Pointer to disk uuid
+ * @param uuid (in) -> Pointer to disk uuid
  * @return: Invoking ecall return status
  */
 sgx_status_t Ecall_srd_increase(sgx_enclave_id_t eid, crust_status_t *status, const char *uuid)
