@@ -546,6 +546,14 @@ entry_network_flag:
                 goto cleanup;
             }
 
+            // Wait for chain running
+            if (!crust::Chain::get_instance()->wait_for_running())
+            {
+                p_log->err("Waiting for chain running error!\n");
+                return_status = -1;
+                goto cleanup;
+            }
+
             is_restart = true;
         }
     }
