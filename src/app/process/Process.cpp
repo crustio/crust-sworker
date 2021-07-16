@@ -73,7 +73,7 @@ bool initialize_enclave()
             return false;
         }
     }
-    p_log->debug("Your machine can support SGX!\n");
+    p_log->debug("Your machine can support SGX.\n");
 
     // ----- Launch the enclave ----- //
     uint8_t *p_wl_data = NULL;
