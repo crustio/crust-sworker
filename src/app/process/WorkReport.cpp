@@ -162,7 +162,7 @@ void work_report_loop(void)
                 p_log->warn("Can't generate work report for the first time after restart, please wait for next slot.\n");
                 break;
             case CRUST_SERVICE_UNAVAILABLE:
-                p_log->err("Can't generate work report! IPFS is offline, please check and restart ipfs.\n");
+                p_log->err("Can't generate work report! IPFS is offline, please check. If IPFS is stopped, please start it.\n");
                 break;
             case CRUST_UPGRADE_IS_UPGRADING:
                 p_log->info("Can't generate work report! Stop reporting work in this era, because of upgrading or exiting.\n");

@@ -308,7 +308,7 @@ bool Chain::post_sworker_identity(std::string identity)
         return true;
     }
 
-    for(int i = 0; i < 20; i++)
+    for (int i = 0; i < 20; i++)
     {
         std::string path = this->url + "/swork/identity";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
@@ -355,7 +355,7 @@ bool Chain::post_sworker_work_report(std::string work_report)
         return true;
     }
 
-    for(int i = 0; i < 20; i++)
+    for (int i = 0; i < 20; i++)
     {
         std::string path = this->url + "/swork/workreport";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
