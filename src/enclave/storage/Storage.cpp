@@ -591,7 +591,7 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
 
         // Get link size
         uint32_t link_size = 0;
-        for(uint8_t shift = 0;;shift += 7)
+        for (uint8_t shift = 0;;shift += 7)
         {
             if(shift >= 64)
             {

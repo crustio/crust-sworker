@@ -73,7 +73,7 @@ bool initialize_enclave()
             return false;
         }
     }
-    p_log->debug("Your machine can support SGX!\n");
+    p_log->debug("Your machine can support SGX.\n");
 
     // ----- Launch the enclave ----- //
     uint8_t *p_wl_data = NULL;
@@ -449,6 +449,9 @@ int process_run()
         goto cleanup;
     }
 
+    // Construct uuid to disk path map
+    ed->construct_uuid_disk_path_map();
+
     // There are three startup mode: upgrade, restore and normal
     // Upgrade mode will communicate with old version for data transferring.
     // Resotre mode will restore enclave data from database.
@@ -480,13 +483,6 @@ entry_network_flag:
         }
         p_log->info("Worker global eid: %d\n", global_eid);
 
-        // Start http service
-        if (!start_task(start_webservice))
-        {
-            p_log->err("Start web service failed!\n");
-            goto cleanup;
-        }
-
         // Start enclave
         if (SGX_SUCCESS != Ecall_restore_metadata(global_eid, &crust_status) || CRUST_SUCCESS != crust_status)
         {
@@ -503,6 +499,13 @@ entry_network_flag:
                 goto cleanup;
             }
             p_log->info("Generate key pair successfully!\n");
+
+            // Start http service
+            if (!start_task(start_webservice))
+            {
+                p_log->err("Start web service failed!\n");
+                goto cleanup;
+            }
 
             // Entry network
             if (!offline_chain_mode)
@@ -539,6 +542,14 @@ entry_network_flag:
                 || CRUST_SUCCESS != crust_status)
             {
                 p_log->err("Configure chain account id doesn't equal to recovered one!\n");
+                return_status = -1;
+                goto cleanup;
+            }
+
+            // Wait for chain running
+            if (!crust::Chain::get_instance()->wait_for_running())
+            {
+                p_log->err("Waiting for chain running error!\n");
                 return_status = -1;
                 goto cleanup;
             }
@@ -588,9 +599,6 @@ entry_network_flag:
             }
         }
     }
-
-    // Construct uuid to disk path map
-    ed->construct_uuid_disk_path_map();
 
     // Start http service
     if (!start_task(start_webservice))

@@ -866,7 +866,7 @@ void start_webservice(void)
     // Run the I/O service on the requested number of threads
     std::vector<std::thread> v;
     v.reserve(threads - 1);
-    for(auto i = threads - 1; i > 0; --i)
+    for (auto i = threads - 1; i > 0; --i)
     {
         v.emplace_back(
         [&ioc]
@@ -881,7 +881,7 @@ void start_webservice(void)
     // (If we get here, it means we got a SIGINT or SIGTERM)
     
     // Block until all the threads exit
-    for(auto& t : v)
+    for (auto& t : v)
         t.join();
 
 }

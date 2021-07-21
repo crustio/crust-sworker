@@ -61,10 +61,10 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 
     "chain" : {
         "base_url" : "http://127.0.0.1:56666/api/v1",
-        "address" : "5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX",  # the address of crust api
-        "account_id" : "a6efa374700f8640b777bc92c77d34447c5588d7eb7c4ec984323c7db0983009",
+        "address" : "cTGVGrFB8suPunnTNEYzDaRdQNPC9QeAGeJDHzs9KXWcM7Wkb",  # the address of crust api
+        "account_id" : "069686d23c8e0170553dddca0c36a659c6fc39fa0d5148f1ba1cc95ec4d4c414",
         "password" : "123456",
-        "backup" : "{\"address\":\"5FqazaU79hjpEMiWTWZx81VjsYFst15eBuSBKdQLgQibD7CX\",\"encoded\":\"0xc81537c9442bd1d3f4985531293d88f6d2a960969a88b1cf8413e7c9ec1d5f4955adf91d2d687d8493b70ef457532d505b9cee7a3d2b726a554242b75fb9bec7d4beab74da4bf65260e1d6f7a6b44af4505bf35aaae4cf95b1059ba0f03f1d63c5b7c3ccbacd6bd80577de71f35d0c4976b6e43fe0e1583530e773dfab3ab46c92ce3fa2168673ba52678407a3ef619b5e14155706d43bd329a5e72d36\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":\"xsalsa20-poly1305\",\"version\":\"2\"},\"meta\":{\"name\":\"Yang1\",\"tags\":[],\"whenCreated\":1580628430860}}"
+        "backup" : "{\"encoded\":\"G6l6RC1kWmpIPMgMiUNc9psNwdC7ej0AprgcK6MfJOUAgAAAAQAAAAgAAAD+yayzRW06k1rj4mdPq1KciRiXCItbJucJWanamLURB1PfIcOuxol6zZX6jaKjFFCPAjD6eriU1ZioVaji5KW5VLNRo4V6r03kFYp68tAX7EOl1X5O/sMyu/9+2n6/qMuilIF5knw6mgJC5ajCGmEbPIMVnOXytc//dgHN0z2sVhTtnKZxHYvKCk/143UFo0tv8dFh3oTXbZKR908A\",\"encoding\":{\"content\":[\"pkcs8\",\"sr25519\"],\"type\":[\"scrypt\",\"xsalsa20-poly1305\"],\"version\":\"3\"},\"address\":\"cTGVGrFB8suPunnTNEYzDaRdQNPC9QeAGeJDHzs9KXWcM7Wkb\",\"meta\":{\"genesisHash\":\"0x8b404e7ed8789d813982b9cb4c8b664c05b3fbf433309f603af014ec9ce56a8c\",\"isHardware\":false,\"name\":\"yo\",\"tags\":[],\"whenCreated\":1626234897533}}"
     }
 }
 ```

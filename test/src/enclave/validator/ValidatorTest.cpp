@@ -104,7 +104,7 @@ void validate_srd_bench()
     // Wait srd validation complete
     size_t wait_interval = 1000;
     size_t wait_time = 0;
-    size_t timeout = REPORT_SLOT * BLOCK_INTERVAL * 1000000;
+    size_t timeout = (size_t)REPORT_SLOT * BLOCK_INTERVAL * 1000000;
     while (true)
     {
         SafeLock sl(g_validated_srd_num_mutex);
@@ -355,7 +355,7 @@ void validate_meaningful_file_bench()
     // If report file flag is true, check if validating file is complete
     size_t wait_interval = 1000;
     size_t wait_time = 0;
-    size_t timeout = REPORT_SLOT * BLOCK_INTERVAL * 1000000;
+    size_t timeout = (size_t)REPORT_SLOT * BLOCK_INTERVAL * 1000000;
     while (true)
     {
         SafeLock sl(g_validated_files_num_mutex);

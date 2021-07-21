@@ -59,7 +59,7 @@ string url_decode(string str)
     size_t i;
     size_t len = str.length();
 
-    for (i = 0; i < len; ++i)
+    for (i = 0; i < len; i++)
     {
         if (str[i] == '+')
             decoded += ' ';
@@ -366,7 +366,7 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
     }
     count = certvec.size();
     Defer def_certvec([&certvec, &count](void) {
-        for (size_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; i++)
         {
             X509_free(certvec[i]);
         }
@@ -380,7 +380,7 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
     Defer def_certar([&certar](void) {
         free(certar);
     });
-    for (i = 0; i < count; ++i)
+    for (i = 0; i < count; i++)
         certar[i] = certvec[i];
     certar[count] = NULL;
 
