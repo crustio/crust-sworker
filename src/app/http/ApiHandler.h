@@ -443,7 +443,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     switch (crust_status)
                     {
                         case CRUST_UPGRADE_BLOCK_EXPIRE:
-                            ret_info = "Block expired!Wait for next report slot(300 blocks).";
+                            ret_info = "Block expired!Wait for next report slot(" + std::to_string(REPORT_SLOT) + " blocks).";
                             ret_code = 400;
                             break;
                         case CRUST_UPGRADE_NO_VALIDATE:
@@ -451,7 +451,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                             ret_code = 400;
                             break;
                         case CRUST_UPGRADE_RESTART:
-                            ret_info = "Cannot report due to restart!Wait for report slot(300 blocks).";
+                            ret_info = "Cannot report due to restart!Wait for report slot(" + std::to_string(REPORT_SLOT) + " blocks).";
                             ret_code = 400;
                             break;
                         case CRUST_UPGRADE_NO_FILE:
