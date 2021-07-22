@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [ master ]
+    branches: [ mainnet ]
   pull_request:
-    branches: [ master ]
+    branches: [ mainnet ]
 
 jobs:
   build:
