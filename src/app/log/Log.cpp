@@ -1,4 +1,5 @@
 #include "Log.h"
+#include "DataBase.h"
 
 std::mutex log_mutex;
 
@@ -42,6 +43,32 @@ void Log::set_debug(bool flag)
     this->debug_flag_mutex.lock();
     this->debug_flag = flag;
     this->debug_flag_mutex.unlock();
+
+    crust_status_t ret = crust::DataBase::get_instance()->set(DB_DEBUG, std::to_string(flag));
+    if (CRUST_SUCCESS != ret)
+    {
+        this->debug("Cannot store debug flag in db, code:%lx\n", ret);
+    }
+}
+
+/**
+ * @description: Restore debug flag
+ */
+void Log::restore_debug_flag()
+{
+    this->debug_flag_mutex.lock();
+    bool flag  = this->debug_flag;
+    this->debug_flag_mutex.unlock();
+
+    if (!flag)
+    {
+        std::string s;
+        if (CRUST_SUCCESS == crust::DataBase::get_instance()->get(DB_DEBUG, s))
+        {
+            std::stringstream(s) >> flag;
+            this->set_debug(flag);
+        }
+    }
 }
 
 /**

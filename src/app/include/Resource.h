@@ -12,6 +12,7 @@
 
 #define HTTP_BODY_LIMIT 524288000 /* 500*1024*1024 */
 #define WEB_TIMEOUT 7200
+#define DB_DEBUG "debug_flag"
 
 // For upgrade
 typedef enum _upgrade_status_t
