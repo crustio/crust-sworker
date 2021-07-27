@@ -20,6 +20,14 @@ DataBase *DataBase::get_instance()
     if (database == NULL)
     {
         database = new DataBase();
+        bool init_success = false;
+        Defer def([&init_success](void) {
+            if (!init_success)
+            {
+                delete database;
+                database = NULL;
+            }
+        });
 
         leveldb::Options options;
         options.create_if_missing = true;
@@ -34,6 +42,7 @@ DataBase *DataBase::get_instance()
             return NULL;
         }
         database->write_opt.sync = true;
+        init_success = true;
     }
 
     return database;
