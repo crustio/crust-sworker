@@ -31,6 +31,7 @@ public:
     void err(const char *format, ...);
     void debug(const char *format, ...);
     bool get_debug_flag();
+    void restore_debug_flag();
 
 private:
     void base_log(std::string log_data, std::string tag);

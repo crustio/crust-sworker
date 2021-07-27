@@ -32,7 +32,7 @@ void ecall_main_loop()
         }
 
         // ----- File validate ----- //
-        log_debug("Start validating meaningful file\n");
+        log_debug("Start validating meaningful files\n");
         validate_meaningful_file();
 
         // ----- SRD validate ----- //
@@ -40,7 +40,7 @@ void ecall_main_loop()
         validate_srd();
 
         // ----- SRD ----- //
-        log_debug("Start srd task\n");
+        log_debug("Start srd tasks\n");
         srd_change();
 
         // Wait

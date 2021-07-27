@@ -145,6 +145,9 @@ bool initialize_components(void)
         return false;
     }
 
+    // Restore debug flag
+    crust::Log::get_instance()->restore_debug_flag();
+
     p_log->info("Init components successfully!\n");
 
     return true;

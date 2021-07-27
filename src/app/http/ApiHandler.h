@@ -610,6 +610,12 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 ret_info = "Set debug flag successfully!";
                 p_log->info("%s %s debug.\n", ret_info.c_str(), debug_flag ? "Open" : "Close");
                 ret_code = 200;
+                // Store debug flag
+                crust_status_t ret = crust::DataBase::get_instance()->set(DB_DEBUG, std::to_string(debug_flag));
+                if (CRUST_SUCCESS != ret)
+                {
+                    p_log->debug("Cannot store debug flag in db, code:%lx\n", ret);
+                }
             }
             ret_body[HTTP_STATUS_CODE] = ret_code;
             ret_body[HTTP_MESSAGE] = ret_info;
