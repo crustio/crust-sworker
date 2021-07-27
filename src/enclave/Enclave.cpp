@@ -20,7 +20,7 @@ void ecall_main_loop()
     {
         if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
         {
-            log_info("Stop enclave main loop for exit...\n");
+            log_info("Stop main loop for exit...\n");
             return;
         }
 
@@ -48,7 +48,7 @@ void ecall_main_loop()
         {
             if (ENC_UPGRADE_STATUS_SUCCESS == wl->get_upgrade_status())
             {
-                log_info("Stop enclave main loop for exit...\n");
+                log_info("Stop main loop for exit...\n");
                 return;
             }
             ocall_usleep(1000000);
