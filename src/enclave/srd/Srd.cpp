@@ -54,7 +54,11 @@ void srd_change()
         return;
     }
 
-    sgx_thread_mutex_lock(&g_srd_task_mutex);
+    SafeLock sl_task(g_srd_task_mutex);
+    sl_task.lock();
+    if (0 == g_srd_task)
+        return;
+
     // Get real srd space
     long srd_change_num = 0;
     if (g_srd_task > SRD_MAX_INC_PER_TURN)
@@ -72,15 +76,7 @@ void srd_change()
         srd_change_num = std::max(g_srd_task, (long)-SRD_MAX_DEC_PER_TURN);
         g_srd_task -= srd_change_num;
     }
-    // Store remaining task
-    std::string srd_task_str = std::to_string(g_srd_task);
-    if (CRUST_SUCCESS != persist_set_unsafe(WL_SRD_REMAINING_TASK, reinterpret_cast<const uint8_t *>(srd_task_str.c_str()), srd_task_str.size()))
-    {
-        log_warn("Store srd remaining task failed!\n");
-    }
-    // Set srd remaining task
-    wl->set_srd_remaining_task(g_srd_task);
-    sgx_thread_mutex_unlock(&g_srd_task_mutex);
+    sl_task.unlock();
 
     // Do srd
     crust_status_t crust_status = CRUST_SUCCESS;
@@ -89,11 +85,26 @@ void srd_change()
         ocall_srd_change(&crust_status, srd_change_num);
         if (CRUST_SRD_NUMBER_EXCEED == crust_status)
         {
-            sgx_thread_mutex_lock(&g_srd_task_mutex);
+            sl_task.lock();
             g_srd_task = 0;
-            sgx_thread_mutex_unlock(&g_srd_task_mutex);
+            // Update srd info
+            wl->set_srd_remaining_task(g_srd_task);
+            std::string srd_info_str = wl->get_srd_info().dump();
+            ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
+            sl_task.unlock();
         }
     }
+
+    // Store remaining task
+    sl_task.lock();
+    std::string srd_task_str = std::to_string(g_srd_task);
+    if (CRUST_SUCCESS != persist_set_unsafe(WL_SRD_REMAINING_TASK, reinterpret_cast<const uint8_t *>(srd_task_str.c_str()), srd_task_str.size()))
+    {
+        log_warn("Store srd remaining task failed!\n");
+    }
+    // Set srd remaining task
+    wl->set_srd_remaining_task(g_srd_task);
+    sl_task.unlock();
 }
 
 /**

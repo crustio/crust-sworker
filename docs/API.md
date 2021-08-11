@@ -32,6 +32,7 @@ Output:
 Description:
 1. files: give meaningful file information
     1. lost: lost file information, includes 'num' and 'size'
+    1. pending: pending file information, includes 'num' and 'size'
     1. valid: valid file information, includes 'num' and 'size'
 1. srd: give srd information
     1. srd_complete: srded space volume
@@ -39,6 +40,7 @@ Description:
     1. disk_available_for_srd: available volume for srd in current disk
     1. disk_available: free space in current disk
     1. disk_volume: current disk total volume
+    1. sys_disk_available: free space of system disk
     1. srd_detail: show disks' detail information
 
 Use '/api/v0/stop' to stop sworker
@@ -139,7 +141,7 @@ Output:
 Use '/api/v0/file/info' to get sealed file information by cid
 -------------------------------------------------------------
 ```
-curl -XPOST http://<url:port>/api/v0/file/info?cid=xxxx
+curl -XPOST http://<url:port>/api/v0/file/info?cid=QmfSQ6hNXDT5Wx5agiqkfDHtF4D4p2P3hyb1bmEDnbWp3y
 ```
 
 Parameter:
@@ -148,15 +150,19 @@ Parameter:
 Output (200, success):
 ```
 {
-  "c_block_num" : 0,
-  "s_size" : 16783146,
-  "size" : 16781194
+  "QmfSQ6hNXDT5Wx5agiqkfDHtF4D4p2P3hyb1bmEDnbWp3y" : {
+    "c_block_num" : 110,
+    "s_size" : 5255889,
+    "size" : 5244129,
+    "type" : "valid"
+  }
 }
 ```
 Description:
 1. c_block_num: chain block number when sealing the file
 1. s_size: sealed file size
 1. size: file real size
+1. type: file status
 
 Output (400, failed):
 ```
