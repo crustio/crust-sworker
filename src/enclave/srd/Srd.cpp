@@ -87,10 +87,6 @@ void srd_change()
         {
             sl_task.lock();
             g_srd_task = 0;
-            // Update srd info
-            wl->set_srd_remaining_task(g_srd_task);
-            std::string srd_info_str = wl->get_srd_info().dump();
-            ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
             sl_task.unlock();
         }
     }
@@ -104,6 +100,8 @@ void srd_change()
     }
     // Set srd remaining task
     wl->set_srd_remaining_task(g_srd_task);
+    std::string srd_info_str = wl->get_srd_info().dump();
+    ocall_set_srd_info(reinterpret_cast<const uint8_t *>(srd_info_str.c_str()), srd_info_str.size());
     sl_task.unlock();
 }
 
