@@ -171,7 +171,7 @@ void work_report_loop(void)
                 p_log->err("Can't generate work report, SGX signed failed.");
                 break;
             case CRUST_WORK_REPORT_NOT_VALIDATED:
-                p_log->err("Can't generate work report! Hardware is too slow, validation has not been applied.\n");
+                p_log->err("Can't generate work report! Hardware or network is too slow, validation has not been applied.\n");
                 break;
             default:
                 p_log->err("Get work report or upload failed. Error code: %x SF:WRE\n", crust_status);
