@@ -279,6 +279,16 @@ crust_status_t storage_seal_file_end(const char *root)
     std::string rcid(root);
     Workload *wl = Workload::get_instance();
 
+    // Check if file exists
+    SafeLock sl(wl->pending_files_um_mutex);
+    sl.lock();
+    if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end())
+    {
+        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
+    }
+    json::JSON file_json = wl->pending_files_um[rcid];
+    sl.unlock();
+
     Defer defer([&crust_status, &root, &wl](void) {
         if (CRUST_SUCCESS != crust_status)
         {
@@ -313,15 +323,6 @@ crust_status_t storage_seal_file_end(const char *root)
     }
 
     // ----- Check if seal complete ----- //
-    // Check if file exists
-    SafeLock sl(wl->pending_files_um_mutex);
-    sl.lock();
-    if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end())
-    {
-        return CRUST_STORAGE_NEW_FILE_NOTFOUND;
-    }
-    json::JSON file_json = wl->pending_files_um[rcid];
-    sl.unlock();
     // Check if getting all blocks
     if (file_json[FILE_BLOCKS].JSONType() != json::JSON::Class::Object)
     {
@@ -332,7 +333,7 @@ crust_status_t storage_seal_file_end(const char *root)
     {
         if (m.second.ToInt() != 0)
         {
-            return CRUST_UNEXPECTED_ERROR;
+            return CRUST_STORAGE_INCOMPLETE_BLOCK;
         }
     }
 
