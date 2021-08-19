@@ -1031,7 +1031,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         case CRUST_STORAGE_NEW_FILE_NOTFOUND:
                             ret_info = "File '" + cid + "' is not being sealed";
                             p_log->info("%s\n", ret_info.c_str());
-                            ret_code = 500;
+                            ret_code = 404;
                             break;
                         case CRUST_STORAGE_INCOMPLETE_BLOCK:
                             ret_info = "Seal file '" + cid + "' failed due to incomplete file blocks";
