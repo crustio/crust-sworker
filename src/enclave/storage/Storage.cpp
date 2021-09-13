@@ -187,6 +187,8 @@ crust_status_t storage_seal_file(const char *root,
             free(p_plain_data);
         }
     });
+
+    // TODO
     sgx_sha256_hash_t cur_hash;
     sgx_sha256_msg(p_plain_data, plain_data_sz, &cur_hash);
     std::string cur_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&cur_hash));
@@ -588,9 +590,11 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
         {
             break;
         }
+
+        // Skip link header
         index++;
 
-        // Get link size
+        // Get all link size
         uint32_t link_size = 0;
         for (uint8_t shift = 0;;shift += 7)
         {
@@ -612,7 +616,35 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
                 break;
             }
         }
-        
+
+        size_t index_header = index; 
+
+        // Skip hash header
+        index++;
+
+        // Get link hash size
+        uint32_t hash_with_prefix_size = 0;
+        for (uint8_t shift = 0;;shift += 7)
+        {
+            if (shift >= 64)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+
+            if(index >= block_size)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+
+            uint8_t b = block_data[index];
+            index++;
+            hash_with_prefix_size |= uint32_t(b&0x7F) << shift;
+            if(b < 0x80)
+            {
+                break;
+            }
+		}
+
         uint8_t* hash = (uint8_t *)enc_malloc(HASH_LENGTH);
         if (hash == NULL)
         {
@@ -624,10 +656,10 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             return CRUST_MALLOC_FAILED;
         }
 
-        memcpy(hash, block_data + index + 4, HASH_LENGTH);
+        memcpy(hash, block_data + index + hash_with_prefix_size - HASH_LENGTH, HASH_LENGTH);
         hashs.push_back(hash);
 
-        index += link_size;
+        index = index_header + link_size;
     }
 
     return CRUST_SUCCESS;
