@@ -1045,7 +1045,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                     }
                     else
                     {
-                        std::string cid = cid_header.substr(UUID_LENGTH * 2, cid_header.size() - （UUID_LENGTH * 2));
+                        std::string cid = cid_header.substr(UUID_LENGTH * 2, cid_header.size() -（UUID_LENGTH * 2));
                         std::string type;
                         bool exist = ed->find_file_type(cid, type);
                         if (!exist || (exist && type.compare(FILE_TYPE_PENDING) == 0))
