@@ -14,7 +14,7 @@ crust_status_t storage_seal_file_start(const char *root, const char *root_b58)
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string root_cid(root);
-    std::string root_cid_b58(root_b58)
+    std::string root_cid_b58(root_b58);
 
     if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
     {
