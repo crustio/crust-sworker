@@ -9,11 +9,12 @@ crust_status_t check_seal_file_dup(std::string cid);
  * @param root -> File root cid
  * @return: Inform result
  */
-crust_status_t storage_seal_file_start(const char *root)
+crust_status_t storage_seal_file_start(const char *root, const char *root_b58)
 {
     Workload *wl = Workload::get_instance();
     crust_status_t crust_status = CRUST_SUCCESS;
     std::string root_cid(root);
+    std::string root_cid_b58(root_b58)
 
     if (ENC_UPGRADE_STATUS_NONE != wl->get_upgrade_status())
     {
@@ -55,7 +56,7 @@ crust_status_t storage_seal_file_start(const char *root)
         exceed_limit = true;
         return CRUST_FILE_NUMBER_EXCEED;
     }
-    wl->pending_files_um[root_cid][FILE_BLOCKS][root_cid].AddNum(1);
+    wl->pending_files_um[root_cid][FILE_BLOCKS][root_cid_b58].AddNum(1);
     sl.unlock();
 
     // Add info in workload spec

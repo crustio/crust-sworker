@@ -808,17 +808,22 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             sgx_status_t sgx_status = SGX_SUCCESS;
             // Delete file
             json::JSON req_json = json::JSON::Load_unsafe((const uint8_t *)req.body().data(), req.body().size());
-            std::string param_name = "cid";
-            if (!req_json.hasKey(param_name) || req_json[param_name].JSONType() != json::JSON::Class::String)
+            std::string param_cid_name = "cid";
+            std::string param_cid_b58_name = "cid_b58";
+            if (!req_json.hasKey(param_cid_name) 
+                || req_json[param_cid_name].JSONType() != json::JSON::Class::String 
+                || !req_json.hasKey(param_cid_b58_name) 
+                || req_json[param_cid_b58_name].JSONType() != json::JSON::Class::String)
             {
-                ret_info = "Bad parameter! Need a string type parameter:'" + param_name + "'";
+                ret_info = "Bad parameter! Need a string type parameter:'" + param_cid_name + "' or '" + param_cid_b58_name + "'";
                 ret_code = 400;
             }
             else
             {
-                std::string cid = req_json[param_name].ToString();
+                std::string cid = req_json[param_cid_name].ToString();
+                std::string cid_b58 = req_json[param_cid_name].ToString();
                 // Do start seal
-                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file_start(global_eid, &crust_status, cid.c_str())))
+                if (SGX_SUCCESS != (sgx_status = Ecall_seal_file_start(global_eid, &crust_status, cid.c_str(), cid_b58.c_str())))
                 {
                     ret_info = "Start seal file '%s' failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
                     p_log->err("%s\n", ret_info.c_str());
