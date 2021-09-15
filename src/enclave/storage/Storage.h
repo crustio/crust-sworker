@@ -24,7 +24,7 @@ extern "C"
 {
 #endif
 
-crust_status_t storage_seal_file_start(const char *root);
+crust_status_t storage_seal_file_start(const char *root, const char *root_b58);
 
 crust_status_t storage_seal_file_end(const char *root);
 
