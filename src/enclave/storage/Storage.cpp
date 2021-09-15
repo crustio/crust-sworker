@@ -189,7 +189,6 @@ crust_status_t storage_seal_file(const char *root,
         }
     });
 
-    // TODO
     sgx_sha256_hash_t cur_hash;
     sgx_sha256_msg(p_plain_data, plain_data_sz, &cur_hash);
     std::string cur_cid = hash_to_cid(reinterpret_cast<const uint8_t *>(&cur_hash));

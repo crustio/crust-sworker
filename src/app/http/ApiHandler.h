@@ -821,7 +821,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
             else
             {
                 std::string cid = req_json[param_cid_name].ToString();
-                std::string cid_b58 = req_json[param_cid_name].ToString();
+                std::string cid_b58 = req_json[param_cid_b58_name].ToString();
                 // Do start seal
                 if (SGX_SUCCESS != (sgx_status = Ecall_seal_file_start(global_eid, &crust_status, cid.c_str(), cid_b58.c_str())))
                 {
