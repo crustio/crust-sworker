@@ -236,7 +236,7 @@ crust_status_t storage_seal_file(const char *root,
     }
     Defer def_uuid([&uuid](void) { free(uuid); });
     memset(uuid, 0, UUID_LENGTH * 2);
-    ocall_save_ipfs_block(&seal_ret, sealed_path.c_str(), std::string(root).size(), <uint8_t *>(p_sealed_data), sealed_data_sz, uuid, UUID_LENGTH * 2);
+    ocall_save_ipfs_block(&seal_ret, sealed_path.c_str(), reinterpret_cast<uint8_t *>(p_sealed_data), sealed_data_sz, uuid, UUID_LENGTH * 2);
     if (CRUST_SUCCESS != seal_ret)
     {
         return seal_ret;
