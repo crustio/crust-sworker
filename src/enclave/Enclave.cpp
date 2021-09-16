@@ -218,16 +218,17 @@ crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
 /**
  * @description: IPFS informs sWorker to prepare for seal
  * @param root (in) -> File root cid
+ * @param root_b58 (in) -> File root b58 cid
  * @return: Inform result
  */
-crust_status_t ecall_seal_file_start(const char *root)
+crust_status_t ecall_seal_file_start(const char *root, const char *root_b58)
 {
     if (ENC_UPGRADE_STATUS_NONE != Workload::get_instance()->get_upgrade_status())
     {
         return CRUST_UPGRADE_IS_UPGRADING;
     }
 
-    crust_status_t ret = storage_seal_file_start(root);
+    crust_status_t ret = storage_seal_file_start(root, root_b58);
 
     return ret;
 }

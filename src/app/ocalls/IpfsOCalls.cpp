@@ -44,27 +44,42 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
 crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size_t data_size, char *uuid, size_t /*uuid_len*/)
 {
     json::JSON disk_json = get_disk_info();
-    if (disk_json.JSONType() != json::JSON::Class::Array || disk_json.size() <= 0)
+    std::string path_str(path);
+    const int choose_len = 40;
+    const int cid_len = path_str.find_last_of('/');
+    std::string cid(path, cid_len);
+
+    if (disk_json.JSONType() != json::JSON::Class::Array || disk_json.size() <= 0 || path_str.length() <= choose_len)
     {
         return CRUST_UNEXPECTED_ERROR;
     }
 
     EnclaveData *ed = EnclaveData::get_instance();
 
-    // Choose disk
-    std::string cid(path, CID_LENGTH);
+    // Choose a string of length 40
+    std::string for_choose = "";
+    
+    if (cid_len > choose_len)
+    {
+        for_choose = path_str.substr(cid_len - choose_len, choose_len);
+    }
+    else
+    {
+        for_choose = path_str.substr(0, choose_len);
+    }
+    
     uint32_t start_index = 0;
     read_rand(reinterpret_cast<uint8_t *>(&start_index), sizeof(start_index));
     start_index = start_index % FILE_DISK_LIMIT;
-    uint32_t end_index = (CID_LENGTH - 2) / 2;
     uint32_t ci = start_index;  // Current index
-    uint32_t oi = ci;           // Origin index
-    uint32_t loop_num = FILE_DISK_LIMIT;
-    const char *p_index_path = path + 2;
-    do
+
+    // Choose disk
+    for (size_t i = 0; i < choose_len/FILE_DISK_LIMIT;)
     {
-        uint32_t ii = ci * 2;
-        uint32_t di = (p_index_path[ii] + p_index_path[ii+1]) % disk_json.size();
+        uint32_t ii = ci + i*FILE_DISK_LIMIT;
+        uint32_t di = (for_choose[ii%choose_len] + for_choose[(ii+1)%choose_len] + for_choose[(ii+2)%choose_len] + for_choose[(ii+3)%choose_len]) % disk_json.size();
+        
+        // Check if there is enough space
         size_t reserved = disk_json[di][WL_DISK_AVAILABLE].ToInt() * 1024 * 1024 * 1024;
         if (reserved > data_size * 4)
         {
@@ -82,13 +97,13 @@ crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size
                 }
             }
         }
-        ci = (ci + 1) % loop_num;
-        if (ci == oi)
+
+        ci = (ci + 1) % FILE_DISK_LIMIT;
+        if (ci == start_index)
         {
-            ci = FILE_DISK_LIMIT;
-            loop_num = end_index + 1;
+            i++;
         }
-    } while (ci < end_index);
+    }
 
     return CRUST_STORAGE_NO_ENOUGH_SPACE;
 }

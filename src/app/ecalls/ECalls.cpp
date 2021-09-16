@@ -249,9 +249,10 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to seal result status
  * @param cid (in) -> Pointer to file root cid
+ * @param cid_b58 cid (in) -> root cid b58 format
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status, const char *cid)
+sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status, const char *cid, const char *cid_b58)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -259,7 +260,7 @@ sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status,
         return ret;
     }
 
-    ret = ecall_seal_file_start(eid, status, cid);
+    ret = ecall_seal_file_start(eid, status, cid, cid_b58);
 
     eq->free_enclave(__FUNCTION__);
 
