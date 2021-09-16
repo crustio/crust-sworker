@@ -1042,7 +1042,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 sgx_status_t sgx_status = SGX_SUCCESS;
                 if (!is_file_exist(index_path.c_str(), STORE_TYPE_FILE))
                 {
-                    std::string cid_header = index_path.substr(0, index_path.find('/'));
+                    std::string cid_header = index_path.substr(0, index_path.find_last_of('/'));
                     if (cid_header.size() < UUID_LENGTH * 2)
                     {
                         ret_info = "Malwared index path:" + index_path;
