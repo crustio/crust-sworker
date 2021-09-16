@@ -41,7 +41,7 @@ crust_status_t ocall_ipfs_get_block(const char *cid, uint8_t **p_data, size_t *d
  * @param uuid_len -> UUID length
  * @return: Save result
  */
-crust_status_t ocall_save_ipfs_block(const char *path, const size_t cid_len, const uint8_t *data, size_t data_size, char *uuid, size_t /*uuid_len*/)
+crust_status_t ocall_save_ipfs_block(const char *path, const uint8_t *data, size_t data_size, char *uuid, size_t /*uuid_len*/)
 {
     json::JSON disk_json = get_disk_info();
     std::string path_str(path);
@@ -72,7 +72,7 @@ crust_status_t ocall_save_ipfs_block(const char *path, const size_t cid_len, con
     read_rand(reinterpret_cast<uint8_t *>(&start_index), sizeof(start_index));
     start_index = start_index % FILE_DISK_LIMIT;
     uint32_t ci = start_index;  // Current index
-    
+
     // Choose disk
     for (size_t i = 0; i < choose_len/FILE_DISK_LIMIT;)
     {
