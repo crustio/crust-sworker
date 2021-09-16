@@ -1043,7 +1043,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 if (!is_file_exist(index_path.c_str(), STORE_TYPE_FILE))
                 {
                     std::string cid_header = index_path.substr(0, index_path.find_last_of('/'));
-                    if (cid_header.size() < UUID_LENGTH * 2)
+                    if (cid_header.size() <= UUID_LENGTH * 2)
                     {
                         ret_info = "Malwared index path:" + index_path;
                         ret_code = 404;
