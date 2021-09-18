@@ -586,12 +586,11 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
     size_t index = 0;
     while (index <= block_size)
     {
+        // Skip link header
         if (block_data[index] != 0x12)
         {
             break;
         }
-
-        // Skip link header
         index++;
 
         // Get all link size
@@ -617,9 +616,13 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             }
         }
 
-        size_t index_header = index; 
+        size_t index_header = index;
 
-        // Skip hash header
+        // Skip link hash header
+        if (block_data[index] != 0x0a)
+        {
+            break;
+        }
         index++;
 
         // Get link hash size
