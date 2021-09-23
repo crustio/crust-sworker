@@ -646,7 +646,7 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             {
                 break;
             }
-		}
+        }
 
         uint8_t* hash = (uint8_t *)enc_malloc(HASH_LENGTH);
         if (hash == NULL)
