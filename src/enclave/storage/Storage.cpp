@@ -584,7 +584,7 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
     }
 
     size_t index = 0;
-    while (index <= block_size)
+    while (index < block_size)
     {
         // Skip link header
         if (block_data[index] != 0x12)
@@ -616,6 +616,11 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             }
         }
 
+        if (index + link_size >= block_size)
+        {
+            break;
+        }
+        
         size_t index_header = index;
 
         // Skip link hash header
@@ -648,6 +653,11 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             }
         }
 
+        if (block_data[index + hash_with_prefix_size - HASH_LENGTH - 1] != 0x20 || block_data[index + hash_with_prefix_size - HASH_LENGTH - 2] != 0x12)
+        {
+            break;
+        }
+        
         uint8_t* hash = (uint8_t *)enc_malloc(HASH_LENGTH);
         if (hash == NULL)
         {
