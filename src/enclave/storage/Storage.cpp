@@ -662,6 +662,11 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
             }
         }
 
+        if (index + hash_with_prefix_size < HASH_LENGTH + 2)
+        {
+            break;
+        }
+
         if (block_data[index + hash_with_prefix_size - HASH_LENGTH - 1] != 0x20 || block_data[index + hash_with_prefix_size - HASH_LENGTH - 2] != 0x12)
         {
             break;
