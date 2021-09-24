@@ -12,6 +12,8 @@ typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t 
 // For all
 #define SWORKER_VERSION "1.1.0"
 #define LEAF_SEPARATOR  "+leaf+"
+#define EMPTY_BLOCK_CID "QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n"
+#define EMPTY_BLOCK_FLAG "empty"
 
 // For enclave metadata
 #define ID_METADATA "metadata"

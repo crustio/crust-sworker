@@ -93,7 +93,16 @@ crust_status_t storage_seal_file(const char *root,
     // If file transfer completed
     if (p_plain_data == NULL || plain_data_sz == 0)
     {
-        return CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
+        SafeLock sl_files_info(wl->pending_files_um_mutex);
+        sl_files_info.lock();
+        if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end()) 
+        {
+            return CRUST_STORAGE_NEW_FILE_NOTFOUND;
+        }
+        wl->pending_files_um[rcid][FILE_BLOCKS][EMPTY_BLOCK_CID].AddNum(-1);
+        sl_files_info.unlock();
+        memcpy(path, EMPTY_BLOCK_FLAG, std::strlen(EMPTY_BLOCK_FLAG));
+        return CRUST_SUCCESS;
     }
 
     crust_status_t seal_ret = CRUST_UNEXPECTED_ERROR;
