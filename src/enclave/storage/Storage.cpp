@@ -599,12 +599,12 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
         {
             if(shift >= 64)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                return CRUST_SUCCESS;
             }
 
             if(index >= block_size)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                return CRUST_SUCCESS;
             }
 
             uint8_t b = block_data[index];
@@ -636,12 +636,12 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
         {
             if (shift >= 64)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                return CRUST_SUCCESS;
             }
 
             if(index >= block_size)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                return CRUST_SUCCESS;
             }
 
             uint8_t b = block_data[index];
