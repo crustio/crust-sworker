@@ -1040,79 +1040,90 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 // ----- Unseal file ----- //
                 crust_status_t crust_status = CRUST_SUCCESS;
                 sgx_status_t sgx_status = SGX_SUCCESS;
-                if (!is_file_exist(index_path.c_str(), STORE_TYPE_FILE))
+                if (index_path == EMPTY_BLOCK_FLAG)
                 {
-                    std::string cid_header = index_path.substr(0, index_path.find_last_of('/'));
-                    if (cid_header.size() <= UUID_LENGTH * 2)
+                    ret_info = "Unseal data successfully!";
+                    ret_code = 200;
+                    res.body().clear();
+                    res.result(ret_code);
+                }
+                else
+                {
+                    if (!is_file_exist(index_path.c_str(), STORE_TYPE_FILE))
                     {
-                        ret_info = "Malwared index path:" + index_path;
-                        ret_code = 404;
-                    }
-                    else
-                    {
-                        std::string cid = cid_header.substr(UUID_LENGTH * 2, cid_header.size() - (UUID_LENGTH * 2));
-                        std::string type;
-                        bool exist = ed->find_file_type(cid, type);
-                        if (!exist || (exist && type.compare(FILE_TYPE_PENDING) == 0))
+                        std::string cid_header = index_path.substr(0, index_path.find_last_of('/'));
+                        if (cid_header.size() <= UUID_LENGTH * 2)
                         {
-                            ret_info = "Requested cid:'" + cid + "' is not existed.";
+                            ret_info = "Malwared index path:" + index_path;
                             ret_code = 404;
                         }
                         else
                         {
-                            ret_info = "File block:'" + index_path + "' is lost";
-                            ret_code = 410;
+                            std::string cid = cid_header.substr(UUID_LENGTH * 2, cid_header.size() - (UUID_LENGTH * 2));
+                            std::string type;
+                            bool exist = ed->find_file_type(cid, type);
+                            if (!exist || (exist && type.compare(FILE_TYPE_PENDING) == 0))
+                            {
+                                ret_info = "Requested cid:'" + cid + "' is not existed.";
+                                ret_code = 404;
+                            }
+                            else
+                            {
+                                ret_info = "File block:'" + index_path + "' is lost";
+                                ret_code = 410;
+                            }
                         }
-                    }
-                    p_log->debug("%s\n", ret_info.c_str());
-                }
-                else
-                {
-                    size_t decrypted_data_sz = get_file_size(index_path.c_str(), STORE_TYPE_FILE);
-                    uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_sz);
-                    size_t decrypted_data_sz_r = 0;
-                    memset(p_decrypted_data, 0, decrypted_data_sz);
-                    Defer def_decrypted_data([&p_decrypted_data](void) { free(p_decrypted_data); });
-                    if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, index_path.c_str(), p_decrypted_data, decrypted_data_sz, &decrypted_data_sz_r)))
-                    {
-                        ret_info = "Unseal failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
-                        p_log->err("%s\n", ret_info.c_str());
-                        ret_code = 500;
+                        p_log->debug("%s\n", ret_info.c_str());
                     }
                     else
                     {
-                        if (CRUST_SUCCESS == crust_status)
+                        size_t decrypted_data_sz = get_file_size(index_path.c_str(), STORE_TYPE_FILE);
+                        uint8_t *p_decrypted_data = (uint8_t *)malloc(decrypted_data_sz);
+                        size_t decrypted_data_sz_r = 0;
+                        memset(p_decrypted_data, 0, decrypted_data_sz);
+                        Defer def_decrypted_data([&p_decrypted_data](void) { free(p_decrypted_data); });
+                        if (SGX_SUCCESS != (sgx_status = Ecall_unseal_file(global_eid, &crust_status, index_path.c_str(), p_decrypted_data, decrypted_data_sz, &decrypted_data_sz_r)))
                         {
-                            ret_info = "Unseal data successfully!";
-                            ret_code = 200;
-                            //p_log->info("%s\n", ret_info.c_str());
-                            res.body().clear();
-                            res.body().append(reinterpret_cast<char *>(p_decrypted_data), decrypted_data_sz_r);
-                            res.result(ret_code);
+                            ret_info = "Unseal failed! Invoke SGX API failed! Error code:" + num_to_hexstring(sgx_status);
+                            p_log->err("%s\n", ret_info.c_str());
+                            ret_code = 500;
                         }
                         else
                         {
-                            switch (crust_status)
+                            if (CRUST_SUCCESS == crust_status)
                             {
-                            case CRUST_UNSEAL_DATA_FAILED:
-                                ret_info = "Unseal data failed! SGX unseal data failed!";
-                                p_log->err("%s\n", ret_info.c_str());
-                                ret_code = 400;
-                                break;
-                            case CRUST_UPGRADE_IS_UPGRADING:
-                                ret_info = "Unseal file stoped due to upgrading or exiting";
-                                p_log->info("%s\n", ret_info.c_str());
-                                ret_code = 503;
-                                break;
-                            default:
-                                ret_info = "Unseal data failed! Error code:" + num_to_hexstring(crust_status);
-                                p_log->err("%s\n", ret_info.c_str());
-                                ret_code = 404;
+                                ret_info = "Unseal data successfully!";
+                                ret_code = 200;
+                                //p_log->info("%s\n", ret_info.c_str());
+                                res.body().clear();
+                                res.body().append(reinterpret_cast<char *>(p_decrypted_data), decrypted_data_sz_r);
+                                res.result(ret_code);
+                            }
+                            else
+                            {
+                                switch (crust_status)
+                                {
+                                case CRUST_UNSEAL_DATA_FAILED:
+                                    ret_info = "Unseal data failed! SGX unseal data failed!";
+                                    p_log->err("%s\n", ret_info.c_str());
+                                    ret_code = 400;
+                                    break;
+                                case CRUST_UPGRADE_IS_UPGRADING:
+                                    ret_info = "Unseal file stoped due to upgrading or exiting";
+                                    p_log->info("%s\n", ret_info.c_str());
+                                    ret_code = 503;
+                                    break;
+                                default:
+                                    ret_info = "Unseal data failed! Error code:" + num_to_hexstring(crust_status);
+                                    p_log->err("%s\n", ret_info.c_str());
+                                    ret_code = 404;
+                                }
                             }
                         }
                     }
                 }
             }
+
             if (200 != ret_code)
             {
                 json::JSON ret_body;

@@ -93,7 +93,16 @@ crust_status_t storage_seal_file(const char *root,
     // If file transfer completed
     if (p_plain_data == NULL || plain_data_sz == 0)
     {
-        return CRUST_STORAGE_UNEXPECTED_FILE_BLOCK;
+        SafeLock sl_files_info(wl->pending_files_um_mutex);
+        sl_files_info.lock();
+        if (wl->pending_files_um.find(rcid) == wl->pending_files_um.end()) 
+        {
+            return CRUST_STORAGE_NEW_FILE_NOTFOUND;
+        }
+        wl->pending_files_um[rcid][FILE_BLOCKS][EMPTY_BLOCK_CID].AddNum(-1);
+        sl_files_info.unlock();
+        memcpy(path, EMPTY_BLOCK_FLAG, std::strlen(EMPTY_BLOCK_FLAG));
+        return CRUST_SUCCESS;
     }
 
     crust_status_t seal_ret = CRUST_UNEXPECTED_ERROR;
@@ -576,14 +585,28 @@ crust_status_t check_seal_file_dup(std::string cid)
  * @param hashs -> Return hashs, which need to be released when used up
  * @return: Status
  */
-crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size, std::vector<uint8_t *> &hashs)
+crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t bs, std::vector<uint8_t *> &hashs)
 {
-    if (block_data == NULL || block_size == 0)
+    if (block_data == NULL || bs == 0)
     {
-        return CRUST_STORAGE_EMPTY_BLOCK;
+        return CRUST_SUCCESS;
     }
 
-    size_t index = 0;
+    int block_size = int(bs);
+    int index = 0;
+    bool is_err = false;
+
+    Defer def_plain_data([&hashs, &is_err](void) {
+        if (is_err)
+        {
+            for (size_t i = 0; i < hashs.size(); i++)
+            {
+                free(hashs[i]);
+            }
+            hashs.clear();
+        }
+    });
+
     while (index < block_size)
     {
         // Skip link header
@@ -594,33 +617,35 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
         index++;
 
         // Get all link size
-        uint32_t link_size = 0;
+        int link_size = 0;
         for (uint8_t shift = 0;;shift += 7)
         {
             if(shift >= 64)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                is_err = true;
+                return CRUST_SUCCESS;
             }
 
             if(index >= block_size)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                is_err = true;
+                return CRUST_SUCCESS;
             }
 
             uint8_t b = block_data[index];
             index++;
-            link_size |= uint32_t(b&0x7F) << shift;
+            link_size |= int(b&0x7F) << shift;
             if(b < 0x80)
             {
                 break;
             }
         }
 
-        if (index + link_size >= block_size)
+        if (link_size < 0 || index + link_size < 0 || index + link_size >= block_size)
         {
+            is_err = true;
             break;
         }
-        
         size_t index_header = index;
 
         // Skip link hash header
@@ -631,41 +656,46 @@ crust_status_t get_hashs_from_block(const uint8_t *block_data, size_t block_size
         index++;
 
         // Get link hash size
-        uint32_t hash_with_prefix_size = 0;
+        int hash_with_prefix_size = 0;
         for (uint8_t shift = 0;;shift += 7)
         {
             if (shift >= 64)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                is_err = true;
+                return CRUST_SUCCESS;
             }
 
             if(index >= block_size)
             {
-                return CRUST_UNEXPECTED_ERROR;
+                is_err = true;
+                return CRUST_SUCCESS;
             }
 
             uint8_t b = block_data[index];
             index++;
-            hash_with_prefix_size |= uint32_t(b&0x7F) << shift;
+            hash_with_prefix_size |= int(b&0x7F) << shift;
             if(b < 0x80)
             {
                 break;
             }
         }
 
-        if (block_data[index + hash_with_prefix_size - HASH_LENGTH - 1] != 0x20 || block_data[index + hash_with_prefix_size - HASH_LENGTH - 2] != 0x12)
+        if (hash_with_prefix_size < 0 || index + hash_with_prefix_size < HASH_LENGTH + 2 || index + hash_with_prefix_size >= block_size)
         {
+            is_err = true;
             break;
         }
-        
+
+        if (block_data[index + hash_with_prefix_size - HASH_LENGTH - 1] != 0x20 || block_data[index + hash_with_prefix_size - HASH_LENGTH - 2] != 0x12)
+        {
+            is_err = true;
+            break;
+        }
+
         uint8_t* hash = (uint8_t *)enc_malloc(HASH_LENGTH);
         if (hash == NULL)
         {
-            for (size_t i = 0; i < hashs.size(); i++)
-            {
-                free(hashs[i]);
-            }
-            hashs.clear();
+            is_err = true;
             return CRUST_MALLOC_FAILED;
         }
 
