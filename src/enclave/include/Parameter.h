@@ -10,7 +10,7 @@ typedef crust_status_t (*ecall_store2_f)(const uint8_t *u, size_t s);
 typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t s, size_t *rs);
 
 // For all
-#define SWORKER_VERSION "1.1.0"
+#define SWORKER_VERSION "1.1.1"
 #define LEAF_SEPARATOR  "+leaf+"
 #define EMPTY_BLOCK_CID "QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n"
 #define EMPTY_BLOCK_FLAG "empty"
@@ -95,7 +95,7 @@ typedef sgx_status_t (*ocall_get2_f)(crust_status_t *status, uint8_t *u, size_t 
 #define WORKREPORT_FILES_ADDED "added_files"
 #define WORKREPORT_FILES_DELETED "deleted_files"
 #define WORKREPORT_SIG "sig"
-#define WORKREPORT_FILE_LIMIT 1000
+#define WORKREPORT_FILE_LIMIT 300
 #define REPORT_SLOT 600
 #define BLOCK_INTERVAL 6
 // REPORT_INTERVAL_BLCOK_NUMBER_UPPER_LIMIT < REPORT_SLOT
