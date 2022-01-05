@@ -557,7 +557,7 @@ void validate_meaningful_file_real()
     if (status.get_char(CURRENT_STATUS) == FILE_STATUS_LOST)
     {
         long lost_index = (*file)[FILE_LOST_INDEX].ToInt();
-        if (lost_index > 0 && lost_index < (*file)[FILE_BLOCK_NUM].ToInt())
+        if (lost_index >= 0 && lost_index < (*file)[FILE_BLOCK_NUM].ToInt())
         {
             block_idx_s.insert(lost_index);
         }
