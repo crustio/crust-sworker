@@ -208,11 +208,17 @@ bool upgrade_try_restore()
     {
         // Try to get metadata
         res_meta = client->Get(p_config->base_url + "/upgrade/metadata", "", headers);
-        if ((int)res_meta.result() != 200)
+        int res_code = (int)res_meta.result();
+        if (res_code != 200)
         {
-            if ((int)res_meta.result() == 404)
+            if (res_code == 404)
             {
                 p_log->err("Get upgrade data failed!Old sWorker is not running!\n");
+                return false;
+            }
+            if (res_code == 408)
+            {
+                p_log->err("Upgrade timeout for old sworker, will retry later.\n");
                 return false;
             }
             if (res_meta.body().compare(err_msg) != 0)

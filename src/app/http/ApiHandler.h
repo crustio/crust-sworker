@@ -468,11 +468,21 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
         cur_path = urlendpoint.base + "/upgrade/metadata";
         if (req_route.size() == cur_path.size() && req_route.compare(cur_path) == 0)
         {
-            if (UPGRADE_STATUS_COMPLETE != ed->get_upgrade_status())
+            upgrade_status_t upgrade_status = ed->get_upgrade_status();
+            if (UPGRADE_STATUS_COMPLETE != upgrade_status)
             {
                 json::JSON ret_body;
-                ret_body[HTTP_STATUS_CODE] = 502;
-                ret_body[HTTP_MESSAGE] = "Metadata is still collecting!";
+                if (UPGRADE_STATUS_NONE == upgrade_status)
+                {
+                    // Set timeout http status code
+                    ret_body[HTTP_STATUS_CODE] = 408;
+                    ret_body[HTTP_MESSAGE] = "Upgrade timeout for old sworker!";
+                }
+                else
+                {
+                    ret_body[HTTP_STATUS_CODE] = 502;
+                    ret_body[HTTP_MESSAGE] = "Metadata is still collecting!";
+                }
                 res.result(ret_body[HTTP_STATUS_CODE].ToInt());
                 res.body() = ret_body.dump();
             }
