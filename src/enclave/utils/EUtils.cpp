@@ -353,6 +353,7 @@ crust_status_t seal_data_mrenclave(const uint8_t *p_src, size_t src_len,
     {
         log_err("Seal data failed!Error code:%lx\n", sgx_status);
         crust_status = CRUST_SEAL_DATA_FAILED;
+        free(*p_sealed_data);
         *p_sealed_data = NULL;
     }
 
@@ -863,6 +864,7 @@ crust_status_t unseal_data_mrsigner(const sgx_sealed_data_t *data,
     if (SGX_SUCCESS != sgx_status)
     {
         log_err("SGX unseal failed! Internal error:%lx\n", sgx_status);
+        free(*p_decrypted_data);
         return CRUST_UNSEAL_DATA_FAILED;
     }
 

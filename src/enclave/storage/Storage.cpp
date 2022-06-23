@@ -59,6 +59,10 @@ crust_status_t storage_seal_file_start(const char *root, const char *root_b58)
     wl->pending_files_um[root_cid][FILE_BLOCKS][root_cid_b58].AddNum(1);
     sl.unlock();
 
+    // Delete previous left data
+    crust_status_t del_ret = CRUST_SUCCESS;
+    ocall_delete_ipfs_file(&del_ret, root);
+
     // Add info in workload spec
     wl->set_file_spec(FILE_STATUS_PENDING, 1);
 
