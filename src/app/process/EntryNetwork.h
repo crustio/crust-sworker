@@ -4,8 +4,19 @@
 #include <string>
 #include <stdlib.h>
 
+#include "Resource.h"
+#include "Chain.h"
+#include "Common.h"
+#include "Config.h"
+#include "Log.h"
+#include "SgxSupport.h"
+#include "FormatUtils.h"
+#include "CrustStatus.h"
+#include "EnclaveData.h"
+#include "HttpClient.h"
+
 // For EPID
-#ifdef SGX_EPID
+#ifdef SGX_TYPE_EPID
 #include <sgx_eid.h>
 #include <sgx_uae_launch.h>
 #include <sgx_uae_epid.h>
@@ -22,17 +33,6 @@
 #include "sgx_utils.h"
 #include "sgx_urts.h"
 #endif
-
-#include "Resource.h"
-#include "Chain.h"
-#include "Common.h"
-#include "Config.h"
-#include "Log.h"
-#include "SgxSupport.h"
-#include "FormatUtils.h"
-#include "CrustStatus.h"
-#include "EnclaveData.h"
-#include "HttpClient.h"
 
 #define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })

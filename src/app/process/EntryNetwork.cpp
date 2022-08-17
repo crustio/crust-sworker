@@ -6,7 +6,7 @@ namespace http = boost::beast::http;   // from <boost/beast/http.hpp>
 extern sgx_enclave_id_t global_eid;
 crust::Log *p_log = crust::Log::get_instance();
 
-#ifdef SGX_EPID
+#ifdef SGX_TYPE_EPID
 /**
  * @description: Entry network off-chain node sends quote to onchain node to verify identity, EPID mode
  * @return: Result status
