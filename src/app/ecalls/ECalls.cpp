@@ -229,7 +229,7 @@ sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *statu
  * @param len -> Count of Vector IASReport
  * @return: Invoking ecall return status
  */
-sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len)
+sgx_status_t Ecall_gen_upload_epid_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len)
 {
     sgx_status_t ret = SGX_SUCCESS;
     if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
@@ -237,7 +237,53 @@ sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status
         return ret;
     }
 
-    ret = ecall_verify_and_upload_identity(eid, status, IASReport, len);
+    ret = ecall_gen_upload_epid_identity(eid, status, IASReport, len);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: A wrapper function, Get ECDSA identity
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to verify result status
+ * @param p_quote (in) -> Pointer to quote buffer
+ * @param quote_size -> Quote buffer size
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_gen_upload_ecdsa_quote(sgx_enclave_id_t eid, crust_status_t *status, uint8_t *p_quote, uint32_t quote_size)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_gen_upload_ecdsa_quote(eid, status, p_quote, quote_size);
+
+    eq->free_enclave(__FUNCTION__);
+
+    return ret;
+}
+
+/**
+ * @description: A wrapper function, Get ECDSA identity
+ * @param eid -> Enclave id
+ * @param status (out) -> Pointer to verify result status
+ * @param p_quote (in) -> Pointer to quote buffer
+ * @param quote_size -> Quote buffer size
+ * @return: Invoking ecall return status
+ */
+sgx_status_t Ecall_gen_upload_ecdsa_identity(sgx_enclave_id_t eid, crust_status_t *status, const char *report, uint32_t size)
+{
+    sgx_status_t ret = SGX_SUCCESS;
+    if (SGX_SUCCESS != (ret = eq->try_get_enclave(__FUNCTION__)))
+    {
+        return ret;
+    }
+
+    ret = ecall_gen_upload_ecdsa_identity(eid, status, report, size);
 
     eq->free_enclave(__FUNCTION__);
 

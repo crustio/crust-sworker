@@ -301,7 +301,7 @@ bool Chain::wait_for_running(void)
  * @param identity -> sworker identity
  * @return: success or fail
  */
-bool Chain::post_sworker_identity(std::string identity)
+bool Chain::post_epid_identity(std::string identity)
 {
     if (this->is_offline)
     {
@@ -341,6 +341,145 @@ bool Chain::post_sworker_identity(std::string identity)
     }
 
     return false;
+}
+
+/**
+ * @description: post sworker quote to registry chain
+ * @param quote -> sworker quote
+ * @return: success or fail
+ */
+bool Chain::post_ecdsa_quote(std::string quote)
+{
+    if (this->is_offline)
+    {
+        return true;
+    }
+
+    p_log->info("id:%s\n", quote.c_str());
+    int wait_time = 10;
+    for (int i = 0; i < 20; i++)
+    {
+        std::string path = this->url + "/verifier/requestVerification";
+        ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
+
+        json::JSON obj;
+        obj["backup"] = this->backup;
+        obj["evidence"] = quote;
+        http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
+
+        if ((int)res.result() == 200)
+        {
+            return true;
+        }
+
+        if (res.body().size() != 0)
+        {
+            p_log->err("Chain result: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
+        }
+        else
+        {
+            p_log->err("Chain result: return body is null, wait %ds and try again\n", wait_time);
+        }
+
+        sleep(wait_time);
+    }
+
+    return false;
+}
+
+/**
+ * @description: Post sworker identity to crust chain
+ * @param identity -> sworker identity
+ * @return: success or fail
+ */
+bool Chain::post_ecdsa_identity(const std::string identity)
+{
+    if (this->is_offline)
+    {
+        return true;
+    }
+
+    p_log->debug("identity:%s\n", identity.c_str());
+    int wait_time = 10;
+    for (int i = 0; i < 20; i++)
+    {
+        std::string path = this->url + "/swork/registerWithDeauthChain";
+        ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
+
+        crust_status_t crust_status = CRUST_SUCCESS;
+        json::JSON obj = json::JSON::Load(&crust_status, identity);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            p_log->err("Parse sworker identity failed! Error code:%lx\n", crust_status);
+            return false;
+        }
+        obj["backup"] = this->backup;
+        http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
+
+        if ((int)res.result() == 200)
+        {
+            return true;
+        }
+
+        if (res.body().size() != 0)
+        {
+            p_log->err("Chain result: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
+        }
+        else
+        {
+            p_log->err("Chain result: return body is null, wait %ds and try again\n", wait_time);
+        }
+
+        sleep(wait_time);
+    }
+
+    return false;
+}
+
+/**
+ * @description: Get verification report from registry chain
+ * @return: Verification report
+ */
+std::string Chain::get_ecdsa_verify_result()
+{
+    if (this->is_offline)
+        return "";
+
+    std::string id_info = EnclaveData::get_instance()->get_enclave_id_info();
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON id_info_json = json::JSON::Load(&crust_status, id_info);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Get verification result failed due to get id info failed, error code:%lx\n", crust_status);
+        return "";
+    }
+
+    int wait_time = 30;
+    for (int i = 0; i < 20; i++)
+    {
+        std::string path = this->url 
+            + "/verifier/verificationResults?address=" + Config::get_instance()->chain_address
+            + "&pubKey=" + id_info_json["pub_key"].ToString();
+        http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
+
+        if ((int)res.result() == 200)
+        {
+            return res.body();
+        }
+
+        if (res.body().size() != 0)
+        {
+            p_log->err("Chain result: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
+        }
+        else
+        {
+            p_log->err("Chain result: return body is null, wait %ds and try again\n", wait_time);
+        }
+
+        sleep(wait_time);
+    }
+
+    return "";
 }
 
 /**

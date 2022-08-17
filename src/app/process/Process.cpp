@@ -287,7 +287,7 @@ void upgrade_try_complete(bool success)
 {
     std::shared_ptr<HttpClient> client(new HttpClient());
     ApiHeaders headers = {{"backup",p_config->chain_backup}};
-    p_log->info("Informing old version upgrade is successful...\n");
+    p_log->info("Informing old version upgrade result...\n");
     json::JSON upgrade_ret;
     upgrade_ret["success"] = success;
     int complete_wait_time = 1;

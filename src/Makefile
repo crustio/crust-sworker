@@ -11,6 +11,24 @@ define setMaxThreadNum
 	echo "SWORKER=$$sworker_version" >> ../VERSION
 endef
 
+define setSGXTYPE
+    sgx_type="ecdsa"; \
+    for el in $$(cpuid | grep -i "sgx2 supported" | awk '{print $$NF}'); do \
+        if [ x"$$el" != x"true" ]; then \
+            sgx_type="epid"; \
+            break; \
+        fi; \
+    done; \
+	if [ x"$$sgx_type" = x"ecdsa" ]; then \
+		resource_file="app/include/Resource.h"; \
+		if [ x"$$(lsmod | grep intel_sgx)" != x"" ]; then \
+			sed -i "/^#define SGX_EPID/c #define SGX_ECDSA" $$resource_file &>/dev/null; \
+		else \
+			echo "intel_sgx driver not found, please check and install."; \
+		fi; \
+	fi
+endef
+
 ifneq ($(TFLAG), 1)
 	Test_Target := 
 endif
@@ -52,6 +70,7 @@ endif
 
 app/Enclave_u.h: $(SGX_EDGER8R) enclave/Enclave.edl
 	@cd app && $(SGX_EDGER8R) --untrusted ../enclave/Enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCDIR)
+	@$(call setSGXTYPE)
 	@echo "GEN  =>  $@"
 
 app/Enclave_u.c: app/Enclave_u.h

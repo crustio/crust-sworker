@@ -61,7 +61,9 @@ extern "C"
     // For upgrade
     crust_status_t ocall_get_block_hash(size_t block_height, char *block_hash, size_t hash_size);
     crust_status_t ocall_upload_workreport();
-    crust_status_t ocall_upload_identity(const char *id);
+    crust_status_t ocall_upload_epid_identity(const char *id);
+    crust_status_t ocall_upload_ecdsa_quote(const char *id);
+    crust_status_t ocall_upload_ecdsa_identity(const char *id);
     crust_status_t ocall_entry_network();
 
     void ocall_recall_validate_file();

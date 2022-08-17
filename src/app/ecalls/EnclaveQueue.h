@@ -23,7 +23,7 @@
 
 // Max thread number.
 // Note: If you change this macro name, you should change corresponding name in Makefile
-#define ENC_MAX_THREAD_NUM  32
+#define ENC_MAX_THREAD_NUM  40
 // Reserved enclave resource for highest priority task
 #define ENC_RESERVED_THREAD_NUM  1
 // Threshold to trigger timeout mechanism
@@ -67,7 +67,10 @@ private:
         {"Ecall_gen_key_pair", 0},
         {"Ecall_cmp_chain_account_id", 0},
         {"Ecall_get_quote_report", 0},
-        {"Ecall_verify_and_upload_identity", 0},
+        {"Ecall_gen_upload_epid_identity", 0},
+        {"Ecall_gen_upload_ecdsa_quote", 0},
+        {"Ecall_gen_upload_ecdsa_identity", 0},
+        {"Ecall_get_ecdsa_identity", 0},
         {"Ecall_gen_sgx_measurement", 0},
         {"Ecall_main_loop", 0},
         {"Ecall_stop_all", 0},

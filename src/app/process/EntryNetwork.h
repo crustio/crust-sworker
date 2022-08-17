@@ -4,11 +4,27 @@
 #include <string>
 #include <stdlib.h>
 
+// For EPID
+#ifdef SGX_EPID
 #include <sgx_eid.h>
 #include <sgx_uae_launch.h>
 #include <sgx_uae_epid.h>
 #include <sgx_uae_quote_ex.h>
+#else
+// For ECDSA
+#include "sgx_report.h"
+#include "sgx_dcap_ql_wrapper.h"
+#include "sgx_pce.h"
+#include "sgx_error.h"
+#include "sgx_quote_3.h"
+#include "sgx_ql_quote.h"
+#include "sgx_dcap_quoteverify.h"
+#include "sgx_utils.h"
+#include "sgx_urts.h"
+#endif
 
+#include "Resource.h"
+#include "Chain.h"
 #include "Common.h"
 #include "Config.h"
 #include "Log.h"

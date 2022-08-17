@@ -14,40 +14,15 @@ function installPrerequisites()
     checkAndInstall "${othersprereq[*]}"
 }
 
-function installSGXSDK()
-{
-    # Check SGX SDK
-    verbose INFO "Checking SGX SDK..." h
-    if [ -d $sgxsdkdir ]; then
-        verbose INFO "yes" t
-        return 0
-    fi
-    verbose ERROR "no" t
-
-    # Install SGX SDK
-    local res=0
-    cd $rsrcdir
-    verbose INFO "Installing SGX SDK..." h
-    if [ -f "$inteldir/sgxsdk/uninstall.sh" ]; then
-        $inteldir/sgxsdk/uninstall.sh &>$ERRFILE
-        res=$(($?|$res))
-    fi
-    execWithExpect_sdk "" "$rsrcdir/$sdkpkg"
-    res=$(($?|$res))
-    cd - &>/dev/null
-    checkRes $res "quit" "success"
-}
-
-function installSGXPSW()
+function installEPIDSGXPSW()
 {
     # Check SGX PSW
-    verbose INFO "Checking SGX PSW..." h
+    verbose INFO "Checking SGX EPID PSW..." h
     local inst_pkg_num=0
-    for item in $(dpkg -l | grep sgx | awk '{print $3}'); do
-        if ! echo $item | grep "2.11.100" &>/dev/null && ! echo $item | grep "1.8.100" &>/dev/null; then
-            break
+    for lib in $(dpkg -l | grep sgx | awk '{print $2,"=",$3}' | sed 's/ //g'); do
+        if echo ${sgxpswlibs[@]} | grep $lib &>/dev/null; then
+            ((inst_pkg_num++))
         fi
-        ((inst_pkg_num++))
     done
     if [ $inst_pkg_num -lt ${#sgxpswlibs[@]} ]; then
         verbose ERROR "no" t
@@ -76,6 +51,82 @@ function installSGXPSW()
     checkRes $res "quit" "success" "$SYNCFILE"
 }
 
+function installECDSASGXPSW()
+{
+    # Update source
+    verbose INFO "Checking SGX ECDSA PSW..." h
+    local res=0
+    for lib in $(echo "${ecdsalibs[@]} ${ecdsadevlibs[@]}"); do
+        if ! dpkg -l | grep sgx | awk '{print $2}' | grep "\b${lib}\b" &>/dev/null; then
+            res=1
+            break
+        fi
+    done
+    if [ $res -eq 0 ]; then
+        verbose INFO "yes" t
+        return
+    else
+        verbose ERROR "no" t
+    fi
+
+    if ! grep "$(echo $sgx_repo | awk '{print $3}')" $sgx_repo_file &>/dev/null; then
+        verbose INFO "Adding resource list..." h
+        echo $sgx_repo | tee $sgx_repo_file &>>$ERRFILE
+        checkRes $? "quit" "success"
+        verbose INFO "Adding apt key..." h
+	    wget -qO - $sgx_apt_key | apt-key add - &>>$ERRFILE
+        checkRes $? "quit" "success"
+
+        > $SYNCFILE
+        setTimeWait "$(verbose INFO "Updating..." h)" $SYNCFILE &
+        toKillPID[${#toKillPID[*]}]=$!
+        apt-get update &>>$ERRFILE
+        checkRes $? "quit" "success" "$SYNCFILE"
+    fi
+
+    # PCCS service deps
+    checkAndInstall "${ecdsalibs[*]}"
+
+    # For dev
+    checkAndInstall "${ecdsadevlibs[*]}"
+}
+
+function installSGXPSW()
+{
+    if [ x"$sgx_enclave_mode" = x"epid" ]; then
+        installEPIDSGXPSW
+    elif [ x"$sgx_enclave_mode" = x"ecdsa" ]; then
+        installECDSASGXPSW
+    else
+        verbose ERROR "Unknown sgx enclave mode!"
+        exit 1
+    fi
+}
+
+function installSGXSDK()
+{
+    # Check SGX SDK
+    verbose INFO "Checking SGX SDK..." h
+    if [ -d $sgxsdkdir ]; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    # Install SGX SDK
+    local res=0
+    cd $rsrcdir
+    verbose INFO "Installing SGX SDK..." h
+    if [ -f "$inteldir/sgxsdk/uninstall.sh" ]; then
+        $inteldir/sgxsdk/uninstall.sh &>$ERRFILE
+        res=$(($?|$res))
+    fi
+    execWithExpect_sdk "" "$rsrcdir/$sdkpkg"
+    res=$(($?|$res))
+    cd - &>/dev/null
+    checkRes $res "quit" "success"
+}
+
 function installSGXDRIVER()
 {
     # Check SGX driver
@@ -90,6 +141,10 @@ function installSGXDRIVER()
     local res=0
     cd $rsrcdir
     verbose INFO "Installing SGX driver..." h
+    local driverpkg=$epiddriverpkg
+    if [ x"$sgx_enclave_mode" = x"ecdsa" ]; then
+        driverpkg=$ecdsadriverpkg
+    fi
     $rsrcdir/$driverpkg &>$ERRFILE
     res=$(($?|$res))
     cd - &>/dev/null
@@ -197,9 +252,12 @@ function checkAndInstall()
 {
     for dep in $1; do
         verbose INFO "Checking $dep..." h
-        dpkg -l | grep "\b$dep\b" &>/dev/null
-        checkRes $? "return" "yes"
-        if [ $? -ne 0 ]; then
+        #dpkg -l | grep "\b$dep\b" &>/dev/null
+        #checkRes $? "return" "yes"
+        if dpkg -l | grep "\b$dep\b" &>/dev/null; then
+            checkRes 0 "return" "yes"
+        else
+            checkRes 1 "return" "yes"
             > $SYNCFILE
             setTimeWait "$(verbose INFO "Installing $dep..." h)" $SYNCFILE &
             toKillPID[${#toKillPID[*]}]=$!
@@ -236,6 +294,18 @@ expect << EOF > $TMPFILE
 EOF
     cat $TMPFILE | grep successful &>/dev/null
     return $?
+}
+
+function getSGXENCLAVEMODE()
+{
+    local mode="ecdsa"
+    for el in $(cpuid | grep -i "sgx2 supported" | awk '{print $NF}'); do
+        if [ x"$el" != x"true" ]; then
+            mode="epid"
+            break
+        fi
+    done
+    echo $mode
 }
 
 function success_exit()
@@ -302,12 +372,16 @@ instTimeout=30
 toKillPID=()
 # Files
 sdkpkg=sgx_linux_x64_sdk_2.11.100.2.bin
-driverpkg=sgx_linux_x64_driver_2.6.0_b0a445b.bin
+epiddriverpkg=sgx_linux_x64_driver_2.6.0_b0a445b.bin
+ecdsadriverpkg=sgx_linux_x64_driver_1.33.2.bin
 sgxsslpkg=$rsrcdir/intel-sgx-ssl-master.zip
 opensslpkg=$rsrcdir/openssl-1.1.1g.tar.gz
 openssldir=$rsrcdir/$(echo openssl-1.1.1g.tar.gz | grep -Po ".*(?=\.tar)")
 boostpkg=$rsrcdir/boost_1_70_0.tar.gz
 # SGX PSW package
+sgx_repo='deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main'  
+sgx_repo_file=/etc/apt/sources.list.d/intel-sgx.list
+sgx_apt_key=https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key
 sgxpswlibs=(libsgx-ae-epid=2.11.100.2-bionic1 libsgx-ae-le=2.11.100.2-bionic1 \
 libsgx-ae-pce=2.11.100.2-bionic1 libsgx-ae-qe3=1.8.100.2-bionic1 libsgx-aesm-ecdsa-plugin=2.11.100.2-bionic1 \
 libsgx-aesm-epid-plugin=2.11.100.2-bionic1 libsgx-aesm-launch-plugin=2.11.100.2-bionic1 \
@@ -316,15 +390,21 @@ libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-l
 libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
 libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1)
 # SGX prerequisites
-basicsprereq=(expect kmod unzip linux-headers-`uname -r`)
+basicsprereq=(curl jq lsof expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
 sgxpswprereq=(libssl-dev libcurl4-openssl-dev libprotobuf-dev wget)
 othersprereq=(libboost-all-dev libleveldb-dev openssl)
+ecdsalibs=(libsgx-urts libsgx-dcap-ql libsgx-dcap-default-qpl libsgx-dcap-quote-verify)
+ecdsadevlibs=(libsgx-enclave-common-dev libsgx-dcap-ql-dev libsgx-dcap-default-qpl-dev libsgx-dcap-quote-verify-dev)
 # Crust related
 crust_env_file=$realsworkerdir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
+# Enclave mode
+sgx_enclave_mode=$(getSGXENCLAVEMODE)
 
 disown -r
+
+set -o pipefail
 
 . $scriptdir/utils.sh
 
