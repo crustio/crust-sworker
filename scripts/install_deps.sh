@@ -84,6 +84,24 @@ function installECDSASGXPSW()
         checkRes $? "quit" "success" "$SYNCFILE"
     fi
 
+    # Check node version
+    verbose INFO "Check nodejs..." h
+    local cur_nv=$(node --version 2>/dev/null)
+    local new_nv=$(echo -e "${node_lv}\n${cur_nv}" | sort -t . -n -k1 -k2 -k3 -r | head -n 1)
+    if [ x"$new_nv" = x"$node_lv" ]; then
+        verbose ERROR "no" t
+        verbose INFO "node version should be newer than $node_lv, would install node16"
+        > $SYNCFILE
+        setTimeWait "$(verbose INFO "Installing node16..." h)" $SYNCFILE &
+        toKillPID[${#toKillPID[*]}]=$!
+        apt-get install -y curl dirmngr apt-transport-https lsb-release ca-certificates &>>$ERRFILE
+        curl -sL https://deb.nodesource.com/setup_16.x | bash - &>>ERRFILE
+        apt-get install -y nodejs &>>$ERRFILE
+        checkRes $? "quit" "success" "$SYNCFILE"
+    else
+        verbose INFO "yes" t
+    fi
+
     # PCCS service deps
     checkAndInstall "${ecdsalibs[*]}"
 
@@ -149,6 +167,73 @@ function installSGXDRIVER()
     res=$(($?|$res))
     cd - &>/dev/null
     checkRes $res "quit" "success"
+}
+
+function installPCCS()
+{
+    verbose INFO "Checking PCCS..." h
+    service pccs start &>>$ERRFILE
+    if [ $? -eq 0 ]; then
+        verbose INFO "yes" t
+        return 0
+    fi
+    verbose ERROR "no" t
+
+    > $SYNCFILE
+    setTimeWait "$(verbose INFO "Installing PCCS..." h)" $SYNCFILE &
+    toKillPID[${#toKillPID[*]}]=$!
+    if [ x"$DOCKERMODLE" = x"1" ]; then
+        mkdir -p /etc/init
+    fi
+expect << EOF >> $ERRFILE
+    set timeout $pccsInstTimeout
+    spawn apt-get install -y $pccs_service
+    expect "install PCCS now? (Y/N)"          { send "Y\n" }
+    expect "Enter your http proxy server address"          { send "\n" }
+    expect "Enter your https proxy server address"          { send "\n" }
+    expect "configure PCCS now"          { send "Y\n" }
+    expect "Set HTTPS listening port"          { send "$pccs_port\n" }
+    expect "Set the PCCS service to accept local connections only"          { send "N\n" }
+    expect "Set your Intel PCS API key"          { send "$pcs_api_key\n" }
+    expect "Choose caching fill method"          { send "LAZY\n" }
+    expect "Set PCCS server administrator password"          { send "$pccs_passwd\n" }
+    expect "Re-enter administrator password"          { send "$pccs_passwd\n" }
+    expect "Set PCCS server user password"          { send "$pccs_passwd\n" }
+    expect "Re-enter user password"          { send "$pccs_passwd\n" }
+    expect "generate insecure HTTPS key and cert for PCCS service"          { send "Y\n" }
+    expect "Country Name"          { send "\n" }
+    expect "State or Province Name (full name)"          { send "\n" }
+    expect "Locality Name"          { send "\n" }
+    expect "Organization Name"          { send "\n" }
+    expect "Organizational Unit Name"          { send "\n" }
+    expect "Common Name"          { send "\n" }
+    expect "Email Address"          { send "\n" }
+    expect "A challenge password"          { send "Test1234\n" }
+    expect "An optional company name"          { send "crust\n" }
+    expect eof
+EOF
+    local res=0
+    if [ x"$DOCKERMODLE" != x"1" ]; then
+        sleep 3
+        lsof -i :$pccs_port &>>$ERRFILE
+        res=$?
+    fi
+    checkRes $res "quit" "success" "$SYNCFILE"
+
+    # Configure /etc/sgx_default_qcnl.conf
+    grep "^PCCS_URL=https://localhost:9999" $qcnl_conf &>/dev/null
+    res=$(($?|$res))
+    grep "^USE_SECURE_CERT=FALSE" $qcnl_conf &>/dev/null
+    res=$(($?|$res))
+    if [ x"$res" = x"1" ]; then
+        mv /etc/sgx_default_qcnl.conf /etc/sgx_default_qcnl.conf.bak
+cat << EOF > /etc/sgx_default_qcnl.conf
+# PCCS server address
+PCCS_URL=https://localhost:9999/sgx/certification/v3/
+# To accept insecure HTTPS cert, set this option to FALSE
+USE_SECURE_CERT=FALSE
+EOF
+    fi
 }
 
 function installSGXSSL()
@@ -399,6 +484,14 @@ ecdsadevlibs=(libsgx-enclave-common-dev libsgx-dcap-ql-dev libsgx-dcap-default-q
 # Crust related
 crust_env_file=$realsworkerdir/etc/environment
 sgx_env_file=/opt/intel/sgxsdk/environment
+# PCCS
+pccsInstTimeout=600
+pccs_service=sgx-dcap-pccs
+pcs_api_key=5e0d868dea9c450a886ce6c46913643e
+pccs_passwd=Test192837465?
+pccs_port=9999
+node_lv=v10.0.0
+qcnl_conf=/etc/sgx_default_qcnl.conf
 # Enclave mode
 sgx_enclave_mode=$(getSGXENCLAVEMODE)
 
@@ -444,6 +537,9 @@ installSGXDRIVER
 
 # Installing SGX PSW
 installSGXPSW
+
+# Installing SGX PCCS
+installPCCS
 
 # Installing SGX SSL
 installSGXSSL $UNTEST
