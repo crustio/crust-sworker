@@ -12,6 +12,9 @@ function installPrerequisites()
 
     # For others
     checkAndInstall "${othersprereq[*]}"
+
+    # Get SGX mode
+    sgx_enclave_mode=$(getSGXENCLAVEMODE)
 }
 
 function installEPIDSGXPSW()
@@ -453,7 +456,7 @@ crustldfile="/etc/ld.so.conf.d/crust.conf"
 uid=$(stat -c '%U' $scriptdir)
 coreNum=$(cat /proc/cpuinfo | grep processor | wc -l)
 # Control configuration
-instTimeout=30
+instTimeout=60
 toKillPID=()
 # Files
 sdkpkg=sgx_linux_x64_sdk_2.11.100.2.bin
@@ -475,7 +478,7 @@ libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-l
 libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
 libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1)
 # SGX prerequisites
-basicsprereq=(curl jq lsof expect kmod unzip linux-headers-`uname -r`)
+basicsprereq=(cpuid curl jq lsof expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
 sgxpswprereq=(libssl-dev libcurl4-openssl-dev libprotobuf-dev wget)
 othersprereq=(libboost-all-dev libleveldb-dev openssl)
@@ -493,7 +496,7 @@ pccs_port=9999
 node_lv=v10.0.0
 qcnl_conf=/etc/sgx_default_qcnl.conf
 # Enclave mode
-sgx_enclave_mode=$(getSGXENCLAVEMODE)
+sgx_enclave_mode="epid"
 
 disown -r
 
