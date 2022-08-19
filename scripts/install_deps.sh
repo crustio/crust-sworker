@@ -110,6 +110,9 @@ function installECDSASGXPSW()
 
     # For dev
     checkAndInstall "${ecdsadevlibs[*]}"
+
+    # Installing SGX PCCS
+    installPCCS
 }
 
 function installSGXPSW()
@@ -540,9 +543,6 @@ installSGXDRIVER
 
 # Installing SGX PSW
 installSGXPSW
-
-# Installing SGX PCCS
-installPCCS
 
 # Installing SGX SSL
 installSGXSSL $UNTEST
