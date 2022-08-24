@@ -89,10 +89,9 @@ enclave {
         crust_status_t ocall_upload_epid_identity([in, string] const char *id)
             allow(ecall_id_get_info);
         crust_status_t ocall_entry_network()
-            allow(ecall_get_quote_report, ecall_gen_upload_epid_identity);
+            allow(ecall_get_quote_report, ecall_gen_upload_epid_identity, ecall_gen_upload_ecdsa_quote, ecall_gen_upload_ecdsa_identity, ecall_id_get_info);
 
-        crust_status_t ocall_upload_ecdsa_quote([in, string] const char *id)
-            allow(ecall_gen_upload_ecdsa_identity);
+        crust_status_t ocall_upload_ecdsa_quote([in, string] const char *id);
         crust_status_t ocall_upload_ecdsa_identity([in, string] const char *id);
 
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);

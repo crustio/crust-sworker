@@ -271,8 +271,8 @@ sgx_status_t Ecall_gen_upload_ecdsa_quote(sgx_enclave_id_t eid, crust_status_t *
  * @description: A wrapper function, Get ECDSA identity
  * @param eid -> Enclave id
  * @param status (out) -> Pointer to verify result status
- * @param p_quote (in) -> Pointer to quote buffer
- * @param quote_size -> Quote buffer size
+ * @param report (in) -> Pointer to quote buffer
+ * @param size -> Quote buffer size
  * @return: Invoking ecall return status
  */
 sgx_status_t Ecall_gen_upload_ecdsa_identity(sgx_enclave_id_t eid, crust_status_t *status, const char *report, uint32_t size)
