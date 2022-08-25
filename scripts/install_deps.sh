@@ -37,14 +37,8 @@ function installEPIDSGXPSW()
     # Install SGX PSW
     local res=0
     > $SYNCFILE
-    setTimeWait "$(verbose INFO "Installing SGX PSW..." h)" $SYNCFILE &
+    setTimeWait "$(verbose INFO "Installing SGX EPID PSW..." h)" $SYNCFILE &
     toKillPID[${#toKillPID[*]}]=$!
-    echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | tee /etc/apt/sources.list.d/intel-sgx.list &>$ERRFILE
-    res=$(($?|$res))
-    wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - &>>$ERRFILE
-    res=$(($?|$res))
-    apt-get update &>>$ERRFILE
-    res=$(($?|$res))
     apt-get install -y --allow-downgrades ${sgxpswlibs[@]} &>>$ERRFILE
     res=$(($?|$res))
     /opt/intel/sgx-aesm-service/cleanup.sh &>>$ERRFILE
@@ -93,7 +87,7 @@ function installECDSASGXPSW()
     local new_nv=$(echo -e "${node_lv}\n${cur_nv}" | sort -t . -n -k1 -k2 -k3 -r | head -n 1)
     if [ x"$new_nv" = x"$node_lv" ]; then
         verbose ERROR "no" t
-        verbose INFO "node version should be newer than $node_lv, would install node16"
+        verbose WARN "node version should be newer than $node_lv, would install node16"
         > $SYNCFILE
         setTimeWait "$(verbose INFO "Installing node16..." h)" $SYNCFILE &
         toKillPID[${#toKillPID[*]}]=$!
@@ -104,6 +98,9 @@ function installECDSASGXPSW()
     else
         verbose INFO "yes" t
     fi
+
+    # PCCS service command deps
+    checkAndInstall "${ecdsacmds[*]}"
 
     # PCCS service deps
     checkAndInstall "${ecdsalibs[*]}"
@@ -117,6 +114,22 @@ function installECDSASGXPSW()
 
 function installSGXPSW()
 {
+    # Update source
+    if ! grep "$(echo $sgx_repo | awk '{print $3}')" $sgx_repo_file &>/dev/null; then
+        verbose INFO "Adding resource list..." h
+        echo $sgx_repo | tee $sgx_repo_file &>>$ERRFILE
+        checkRes $? "quit" "success"
+        verbose INFO "Adding apt key..." h
+	    wget -qO - $sgx_apt_key | apt-key add - &>>$ERRFILE
+        checkRes $? "quit" "success"
+
+        > $SYNCFILE
+        setTimeWait "$(verbose INFO "Updating..." h)" $SYNCFILE &
+        toKillPID[${#toKillPID[*]}]=$!
+        apt-get update &>>$ERRFILE
+        checkRes $? "quit" "success" "$SYNCFILE"
+    fi
+
     if [ x"$sgx_enclave_mode" = x"epid" ]; then
         installEPIDSGXPSW
     elif [ x"$sgx_enclave_mode" = x"ecdsa" ]; then
@@ -389,8 +402,9 @@ EOF
 
 function getSGXENCLAVEMODE()
 {
-    local mode="ecdsa"
+    local mode="epid"
     for el in $(cpuid | grep -i "sgx2 supported" | awk '{print $NF}'); do
+        mode="ecdsa"
         if [ x"$el" != x"true" ]; then
             mode="epid"
             break
@@ -415,6 +429,12 @@ function success_exit()
     # delete sgx ssl temp directory
     if [ x"$sgxssltmpdir" != x"" ] && [ x"$sgxssltmpdir" != x"/" ]; then
         rm -rf $sgxssltmpdir
+    fi
+
+    # Print error info in docker mode
+    if [ x"DOCKERMODLE" = x"1" ]; then
+        verbose "INFO: error info:"
+        cat $ERRFILE
     fi
 
     #kill -- -$selfPID
@@ -481,10 +501,11 @@ libsgx-enclave-common=2.11.100.2-bionic1 libsgx-epid=2.11.100.2-bionic1 libsgx-l
 libsgx-pce-logic=1.8.100.2-bionic1 libsgx-qe3-logic=1.8.100.2-bionic1 libsgx-quote-ex=2.11.100.2-bionic1 \
 libsgx-urts=2.11.100.2-bionic1 sgx-aesm-service=2.11.100.2-bionic1)
 # SGX prerequisites
-basicsprereq=(cpuid curl jq lsof expect kmod unzip linux-headers-`uname -r`)
+basicsprereq=(cpuid dkms apt-utils curl jq lsof expect kmod unzip linux-headers-`uname -r`)
 sgxsdkprereq=(build-essential python)
 sgxpswprereq=(libssl-dev libcurl4-openssl-dev libprotobuf-dev wget)
 othersprereq=(libboost-all-dev libleveldb-dev openssl)
+ecdsacmds=(cracklib-runtime systemd)
 ecdsalibs=(libsgx-urts libsgx-dcap-ql libsgx-dcap-default-qpl libsgx-dcap-quote-verify)
 ecdsadevlibs=(libsgx-enclave-common-dev libsgx-dcap-ql-dev libsgx-dcap-default-qpl-dev libsgx-dcap-quote-verify-dev)
 # Crust related
@@ -517,10 +538,17 @@ fi
 
 UNTEST=0
 
-while getopts ":hu" opt; do
+if [ x"$DOCKERMODLE" = x"" ]; then
+    DOCKERMODLE=0
+fi
+
+while getopts ":hdu" opt; do
     case ${opt} in 
         h)
             usage
+            ;;
+        d)
+            DOCKERMODLE=1
             ;;
         u)
             UNTEST=1
