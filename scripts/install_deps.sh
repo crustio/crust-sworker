@@ -130,14 +130,8 @@ function installSGXPSW()
         checkRes $? "quit" "success" "$SYNCFILE"
     fi
 
-    if [ x"$sgx_enclave_mode" = x"epid" ]; then
-        installEPIDSGXPSW
-    elif [ x"$sgx_enclave_mode" = x"ecdsa" ]; then
-        installECDSASGXPSW
-    else
-        verbose ERROR "Unknown sgx enclave mode!"
-        exit 1
-    fi
+    installEPIDSGXPSW
+    installECDSASGXPSW
 }
 
 function installSGXSDK()
@@ -175,17 +169,19 @@ function installSGXDRIVER()
     verbose ERROR "no" t
 
     # Install SGX driver
-    local res=0
-    cd $rsrcdir
-    verbose INFO "Installing SGX driver..." h
-    local driverpkg=$epiddriverpkg
-    if [ x"$sgx_enclave_mode" = x"ecdsa" ]; then
-        driverpkg=$ecdsadriverpkg
+    if [ x"$DOCKERMODLE" = x"0" ]; then
+        local res=0
+        cd $rsrcdir
+        verbose INFO "Installing SGX driver..." h
+        local driverpkg=$epiddriverpkg
+        if [ x"$sgx_enclave_mode" = x"ecdsa" ]; then
+            driverpkg=$ecdsadriverpkg
+        fi
+        $rsrcdir/$driverpkg &>$ERRFILE
+        res=$(($?|$res))
+        cd - &>/dev/null
+        checkRes $res "quit" "success"
     fi
-    $rsrcdir/$driverpkg &>$ERRFILE
-    res=$(($?|$res))
-    cd - &>/dev/null
-    checkRes $res "quit" "success"
 }
 
 function installPCCS()

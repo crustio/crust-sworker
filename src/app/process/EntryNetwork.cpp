@@ -4,14 +4,14 @@
 namespace http = boost::beast::http;   // from <boost/beast/http.hpp>
 
 extern sgx_enclave_id_t global_eid;
+extern bool is_ecdsa_mode;
 crust::Log *p_log = crust::Log::get_instance();
 
-#ifdef SGX_TYPE_EPID
 /**
  * @description: Entry network off-chain node sends quote to onchain node to verify identity, EPID mode
  * @return: Result status
  */
-crust_status_t entry_network()
+crust_status_t entry_network_epid()
 {
     p_log->info("Entrying network...\n");
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
@@ -326,12 +326,11 @@ crust_status_t entry_network()
     return crust_status;
 }
 
-#else
 /**
  * @description: Entry network with ECDSA off-chain node sends quote to onchain node to verify identity, ECDSA mode
  * @return: Result status
  */
-crust_status_t entry_network()
+crust_status_t entry_network_ecdsa()
 {
     p_log->info("Entrying network...\n");
     sgx_status_t sgxrv;
@@ -516,4 +515,12 @@ crust_status_t entry_network()
 
     return CRUST_SUCCESS;
 }
-#endif
+
+/**
+ * @description: Entry network
+ * @return: Result status
+ */
+crust_status_t entry_network()
+{
+    return is_ecdsa_mode ? entry_network_ecdsa() : entry_network_epid();
+}

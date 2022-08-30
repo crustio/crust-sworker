@@ -1,14 +1,5 @@
 ######## SGX SDK Settings ########
 
-getSGXTYPE := sgx_tag="intel_sgx"; \
-    for el in $$(cpuid | grep -i "sgx2 supported" | awk '{print $$NF}'); do \
-        if [ x"$$el" != x"true" ]; then \
-			sgx_tag="isgx"; \
-            break; \
-        fi; \
-    done; \
-	echo $$sgx_tag
-
 SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
@@ -24,11 +15,6 @@ DCAP_ENCLAVE_LINK_FLAG := -lsgx_dcap_tvl
 SGXSSL_CRYPTO_LIBRARY_NAME := sgx_tsgxssl_crypto
 SGXSSL_LINK_FLAGS :=  -L$(SGXSSL_LIBDIR) -Wl,--whole-archive -lsgx_tsgxssl -Wl,--no-whole-archive \
 	-lsgx_tsgxssl_crypto
-
-ifeq ($(shell $(getSGXTYPE)), isgx)
-	DCAP_APP_LINK_FLAG := 
-	DCAP_ENCLAVE_LINK_FLAG := 
-endif
 
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86

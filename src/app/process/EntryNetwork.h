@@ -16,12 +16,10 @@
 #include "HttpClient.h"
 
 // For EPID
-#ifdef SGX_TYPE_EPID
 #include <sgx_eid.h>
 #include <sgx_uae_launch.h>
 #include <sgx_uae_epid.h>
 #include <sgx_uae_quote_ex.h>
-#else
 // For ECDSA
 #include "sgx_report.h"
 #include "sgx_dcap_ql_wrapper.h"
@@ -32,7 +30,6 @@
 #include "sgx_dcap_quoteverify.h"
 #include "sgx_utils.h"
 #include "sgx_urts.h"
-#endif
 
 #define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })

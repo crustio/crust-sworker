@@ -2,6 +2,7 @@
 
 bool offline_chain_mode = false;
 bool g_upgrade_flag = false;
+bool is_ecdsa_mode = false;
 extern std::string config_file_path;
 crust::Log *p_log = crust::Log::get_instance();
 
@@ -25,12 +26,16 @@ int SGX_CDECL main(int argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                p_log->err("-c option needs configure file path as argument!\n");
+                p_log->err("-c|--config option needs configure file path as argument!\n");
                 return 1;
             }
             config_file_path = std::string(argv[i + 1]);
             is_set_config = true;
             i++;
+        }
+        else if (strcmp(argv[i], "--ecdsa") == 0)
+        {
+            is_ecdsa_mode = true;
         }
         else if (strcmp(argv[i], "--upgrade") == 0)
         {
@@ -79,6 +84,7 @@ show_help:
     printf("           --offline: add this flag, program will not interact with the chain. \n");
     printf("           --debug: add this flag, program will output debug logs. \n");
     printf("           --upgrade: used to upgrade.\n");
+    printf("           --ecdsa: run in SGX ECDSA mode.\n");
 
     return 0;
 }
