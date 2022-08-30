@@ -200,6 +200,8 @@ function installPCCS()
     if [ x"$DOCKERMODLE" = x"1" ]; then
         mkdir -p /etc/init
     fi
+    local retry=3
+    while [ $retry -gt 0 ]; do
 expect << EOF >> $ERRFILE
     set timeout $pccsInstTimeout
     spawn apt-get install -y $pccs_service
@@ -227,12 +229,20 @@ expect << EOF >> $ERRFILE
     expect "An optional company name"          { send "crust\n" }
     expect eof
 EOF
-    local res=0
-    if [ x"$DOCKERMODLE" != x"1" ]; then
-        sleep 3
-        lsof -i :$pccs_port &>>$ERRFILE
-        res=$?
-    fi
+        local res=0
+        if ! dpkg -l | grep $pccs_service &>/dev/null; then
+            res=1
+        fi
+        if [ x"$DOCKERMODLE" != x"1" ]; then
+            sleep 3
+            lsof -i :$pccs_port &>>$ERRFILE
+            res=$?
+        fi
+        if [ $res -eq 0 ]; then
+            break
+        fi
+        ((retry--))
+    done
     checkRes $res "quit" "success" "$SYNCFILE"
 
     # Configure /etc/sgx_default_qcnl.conf
@@ -480,7 +490,7 @@ toKillPID=()
 # Files
 sdkpkg=sgx_linux_x64_sdk_2.11.100.2.bin
 epiddriverpkg=sgx_linux_x64_driver_2.6.0_b0a445b.bin
-ecdsadriverpkg=sgx_linux_x64_driver_1.33.2.bin
+ecdsadriverpkg=sgx_linux_x64_driver_1.36.2.bin
 sgxsslpkg=$rsrcdir/intel-sgx-ssl-master.zip
 opensslpkg=$rsrcdir/openssl-1.1.1g.tar.gz
 openssldir=$rsrcdir/$(echo openssl-1.1.1g.tar.gz | grep -Po ".*(?=\.tar)")
