@@ -22,5 +22,14 @@ sleep $wait_time
 
 ps -ef | grep aesm
 
+SGXTYPE=""
+for el in $(cpuid | grep -i "sgx2 supported" | awk '{print $NF}'); do
+    SGXTYPE="--ecdsa"
+    if [ x"$el" != x"true" ]; then
+        SGXTYPE=""
+        break
+    fi
+done
+
 echo "Run sworker with arguments: $ARGS"
-/opt/crust/crust-sworker/$version/bin/crust-sworker $ARGS
+/opt/crust/crust-sworker/$version/bin/crust-sworker $SGXTYPE $ARGS

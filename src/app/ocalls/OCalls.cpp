@@ -165,7 +165,7 @@ crust_status_t ocall_srd_change(long change)
  * @param id (in) -> Pointer to identity
  * @return: Upload result
  */
-crust_status_t ocall_upload_identity(const char *id)
+crust_status_t ocall_upload_epid_identity(const char *id)
 {
     crust_status_t crust_status = CRUST_SUCCESS;
     json::JSON entrance_info = json::JSON::Load(&crust_status, std::string(id));
@@ -184,12 +184,54 @@ crust_status_t ocall_upload_identity(const char *id)
         return CRUST_UNEXPECTED_ERROR;
     }
 
-    if (!crust::Chain::get_instance()->post_sworker_identity(sworker_identity))
+    if (!crust::Chain::get_instance()->post_epid_identity(sworker_identity))
     {
         p_log->err("Send identity to crust chain failed!\n");
         return CRUST_UNEXPECTED_ERROR;
     }
     p_log->info("Send identity to crust chain successfully!\n");
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Store sworker identity
+ * @param id (in) -> Pointer to identity
+ * @return: Upload result
+ */
+crust_status_t ocall_upload_ecdsa_quote(const char *id)
+{
+    crust_status_t crust_status = CRUST_SUCCESS;
+
+    // Send identity to registry chain
+    if (!crust::Chain::get_instance()->wait_for_running())
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    crust::Chain *chain = crust::Chain::get_instance();
+    if (!chain->post_ecdsa_quote(std::string(id)))
+    {
+        p_log->err("Send identity to registry chain failed!\n");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    p_log->info("Send identity to registry chain successfully!\n");
+
+    return crust_status;
+}
+
+/**
+ * @description: Upload sworker identity to crust chain
+ * @param id (in) -> Pointer to identity
+ * @return: Upload result
+ */
+crust_status_t ocall_upload_ecdsa_identity(const char *id)
+{
+    if (!crust::Chain::get_instance()->post_ecdsa_identity(std::string(id)))
+    {
+        p_log->err("Upload sworker identity to crust chain failed!\n");
+        return CRUST_UNEXPECTED_ERROR;
+    }
 
     return CRUST_SUCCESS;
 }

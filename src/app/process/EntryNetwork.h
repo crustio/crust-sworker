@@ -4,11 +4,8 @@
 #include <string>
 #include <stdlib.h>
 
-#include <sgx_eid.h>
-#include <sgx_uae_launch.h>
-#include <sgx_uae_epid.h>
-#include <sgx_uae_quote_ex.h>
-
+#include "Resource.h"
+#include "Chain.h"
 #include "Common.h"
 #include "Config.h"
 #include "Log.h"
@@ -17,6 +14,22 @@
 #include "CrustStatus.h"
 #include "EnclaveData.h"
 #include "HttpClient.h"
+
+// For EPID
+#include <sgx_eid.h>
+#include <sgx_uae_launch.h>
+#include <sgx_uae_epid.h>
+#include <sgx_uae_quote_ex.h>
+// For ECDSA
+#include "sgx_report.h"
+#include "sgx_dcap_ql_wrapper.h"
+#include "sgx_pce.h"
+#include "sgx_error.h"
+#include "sgx_quote_3.h"
+#include "sgx_ql_quote.h"
+#include "sgx_dcap_quoteverify.h"
+#include "sgx_utils.h"
+#include "sgx_urts.h"
 
 #define OPT_ISSET(x, y) x &y
 #define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })

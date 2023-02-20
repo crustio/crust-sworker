@@ -208,9 +208,31 @@ sgx_status_t ecall_gen_sgx_measurement()
  * @param len -> Count of Vector IASReport
  * @return: Verify status
  */
-crust_status_t ecall_verify_and_upload_identity(char **IASReport, size_t len)
+crust_status_t ecall_gen_upload_epid_identity(char **IASReport, size_t len)
 {
-    return id_verify_and_upload_identity(IASReport, len);
+    return id_verify_upload_epid_identity(IASReport, len);
+}
+
+/**
+ * @description: Get ECDSA identity
+ * @param p_quote (in) -> Pointer to quote buffer
+ * @param quote_size -> Quote buffer size
+ * @return: Get result
+ */
+crust_status_t ecall_gen_upload_ecdsa_quote(uint8_t *p_quote, uint32_t quote_size)
+{
+    return id_gen_upload_ecdsa_quote(p_quote, quote_size);
+}
+
+/**
+ * @description: Generate and upload sworker identity to crust
+ * @param report (in) -> Report returned by registry chain
+ * @param size -> Size of report
+ * @return: Result status
+ */
+crust_status_t ecall_gen_upload_ecdsa_identity(const char *report, uint32_t size)
+{
+    return id_gen_upload_ecdsa_identity(report, size);
 }
 
 /************************************Files****************************************/

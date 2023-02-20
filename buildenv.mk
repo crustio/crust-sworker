@@ -9,6 +9,9 @@ SGXSSL_DIR := /opt/intel/sgxssl
 SGXSSL_INCDIR := $(SGXSSL_DIR)/include
 SGXSSL_LIBDIR := $(SGXSSL_DIR)/lib64
 
+DCAP_APP_LINK_FLAG := -lsgx_dcap_ql -lsgx_dcap_quoteverify
+DCAP_ENCLAVE_LINK_FLAG := -lsgx_dcap_tvl
+
 SGXSSL_CRYPTO_LIBRARY_NAME := sgx_tsgxssl_crypto
 SGXSSL_LINK_FLAGS :=  -L$(SGXSSL_LIBDIR) -Wl,--whole-archive -lsgx_tsgxssl -Wl,--no-whole-archive \
 	-lsgx_tsgxssl_crypto
@@ -89,7 +92,7 @@ App_Cpp_Flags := $(App_C_Flags)
 App_Link_Flags := -std=c++11 -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_LIBDIR) -l$(Urts_Library_Name) \
 	-lpthread -ldl -lboost_system -lssl -lcrypto -lleveldb -fopenmp -lstdc++fs -l:libsgx_usgxssl.a \
 	-l:libsgx_capable.a -l:libsgx_tservice.a -Xlinker -zmuldefs $(App_Include_Paths) \
-	-l:libsgx_tcrypto.a -lsgx_launch
+	-l:libsgx_tcrypto.a -lsgx_launch $(DCAP_APP_LINK_FLAG)
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
@@ -153,7 +156,7 @@ Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
 	-L$(SGXSSL_LIBDIR) $(SGXSSL_LINK_FLAGS) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_pthread -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_pthread -lsgx_tcxx $(DCAP_ENCLAVE_LINK_FLAG) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \

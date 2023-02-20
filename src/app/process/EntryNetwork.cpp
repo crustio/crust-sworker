@@ -4,13 +4,14 @@
 namespace http = boost::beast::http;   // from <boost/beast/http.hpp>
 
 extern sgx_enclave_id_t global_eid;
+extern bool is_ecdsa_mode;
 crust::Log *p_log = crust::Log::get_instance();
 
 /**
- * @description: Entry network off-chain node sends quote to onchain node to verify identity
+ * @description: Entry network off-chain node sends quote to onchain node to verify identity, EPID mode
  * @return: Result status
  */
-crust_status_t entry_network()
+crust_status_t entry_network_epid()
 {
     p_log->info("Entrying network...\n");
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
@@ -256,7 +257,7 @@ crust_status_t entry_network()
                 std::string(ias_res["epidPseudonym"]).c_str());
 
     // Verify and upload IAS report
-    sgx_status_t status_ret = Ecall_verify_and_upload_identity(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
+    sgx_status_t status_ret = Ecall_gen_upload_epid_identity(global_eid, &crust_status, const_cast<char**>(ias_report.data()), ias_report.size());
     if (SGX_SUCCESS == status_ret)
     {
         switch (crust_status)
@@ -323,4 +324,203 @@ crust_status_t entry_network()
     delete client;
 
     return crust_status;
+}
+
+/**
+ * @description: Entry network with ECDSA off-chain node sends quote to onchain node to verify identity, ECDSA mode
+ * @return: Result status
+ */
+crust_status_t entry_network_ecdsa()
+{
+    p_log->info("Entrying network...\n");
+    sgx_status_t sgxrv;
+    quote3_error_t status = SGX_QL_SUCCESS;
+    sgx_report_t report;
+    sgx_target_info_t target_info;
+    uint32_t quote_sz = 0;
+    sgx_quote_nonce_t nonce;
+    int common_tryout = 5;
+
+    // ----- get nonce ----- //
+    for (int i = 0; i < 2; ++i)
+    {
+        int retry = 10;
+        unsigned char ok = 0;
+        uint64_t *np = (uint64_t *)&nonce;
+        while (!ok && retry)
+            ok = _rdrand64_step(&np[i]);
+        if (ok == 0)
+        {
+            p_log->err("Nonce: RDRAND underflow\n");
+            return CRUST_UNEXPECTED_ERROR;
+        }
+    }
+
+    // ----- Get SGX quote ----- //
+    memset(&report, 0, sizeof(report));
+
+    int tryout = 1;
+    do
+    {
+        status = sgx_qe_get_target_info(&target_info);
+
+        if (SGX_QL_SUCCESS == status)
+            break;
+
+        switch (status)
+        {
+        case SGX_QL_ERROR_INVALID_PARAMETER:
+            p_log->err("p_target_info must not be NULL.\n");
+            break;
+        case SGX_QL_ERROR_UNEXPECTED:
+            p_log->err("Unexpected internal error occurred.\n");
+            break;
+        case SGX_QL_ENCLAVE_LOAD_ERROR:
+            p_log->err("Unable to load the enclaves required to initialize the attestation key. error or some other loading infrastructure errors.\n");
+            break;
+        case SGX_QL_ENCLAVE_LOST:
+            p_log->err("Enclave is lost after power transition or used in a child process created by linux:fork().\n");
+            break;
+        case SGX_QL_NO_PLATFORM_CERT_DATA:
+            p_log->err("The platform quote provider library doesn't have the platform certification data for this platform.\n");
+            break;
+        case SGX_QL_NO_DEVICE:
+            p_log->err("Can't open SGX device. This error happens only when running in out-of-process mode.\n");
+            break;
+        case SGX_QL_SERVICE_UNAVAILABLE:
+            p_log->err("Indicates AESM didn't respond or the requested service is not supported. This error happens only when running in out-of-process mode.\n");
+            break;
+        case SGX_QL_NETWORK_FAILURE:
+            p_log->err("Network connection or proxy setting issue is encountered. This error happens only when running in out-of-process mode.\n");
+            break;
+        case SGX_QL_SERVICE_TIMEOUT:
+            p_log->err("The request to out-of-process service has timed out. This error happens only when running in out- of-process mode.\n");
+            break;
+        case SGX_QL_ERROR_BUSY:
+            p_log->err("The requested service is temporarily not available. This error happens only when running in out- of-process mode.\n");
+            break;
+        case SGX_QL_UNSUPPORTED_ATT_KEY_ID:
+            p_log->err("Unsupported attestation key ID.\n");
+            break;
+        case SGX_QL_UNKNOWN_MESSAGE_RESPONSE:
+            p_log->err("Unexpected error from the attestation infrastructure while retrieving the platform data.\n");
+            break;
+        case SGX_QL_ERROR_MESSAGE_PARSING_ERROR:
+            p_log->err("Generic message parsing error from the attestation infrastructure while retrieving the platform data.\n");
+            break;
+        case SGX_QL_PLATFORM_UNKNOWN:
+            p_log->err("This platform is an unrecognized SGX platform.\n");
+            break;
+        default:
+            p_log->err("SGX init quote failed!Error code: %lx\n", status);
+            return CRUST_INIT_QUOTE_FAILED;
+        }
+
+        if (tryout > common_tryout)
+        {
+            p_log->err("Initialize sgx quote tryout!\n");
+            return CRUST_INIT_QUOTE_FAILED;
+        }
+
+        tryout++;
+        sleep(60);
+
+    } while (true);
+
+    sgx_status_t sgx_ret = Ecall_get_quote_report(global_eid, &sgxrv, &report, &target_info);
+    if (sgx_ret != SGX_SUCCESS)
+    {
+        p_log->err("get_report: %lx\n", sgx_ret);
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    if (sgxrv != SGX_SUCCESS)
+    {
+        p_log->err("sgx_create_report: %lx\n", sgxrv);
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    // sgx_get_quote_size() has been deprecated, but SGX PSW may be too old
+    // so use a wrapper function.
+    //if (!get_quote_size(&status, &quote_sz))
+    if (SGX_QL_SUCCESS != sgx_qe_get_quote_size(&quote_sz))
+    {
+        p_log->err("PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    if (status != SGX_QL_SUCCESS)
+    {
+        p_log->err("SGX error while getting quote size: %lx\n", status);
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    uint8_t *p_quote_buffer = (uint8_t *)malloc(quote_sz);
+    if (p_quote_buffer == NULL)
+    {
+        p_log->err("out of memory\n");
+        return CRUST_MALLOC_FAILED;
+    }
+    memset(p_quote_buffer, 0, quote_sz);
+
+    status = sgx_qe_get_quote(&report, quote_sz, p_quote_buffer);
+    if (status != SGX_QL_SUCCESS)
+    {
+        p_log->err("sgx_get_quote: %lx\n", status);
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    _sgx_quote3_t *quote = (_sgx_quote3_t*)p_quote_buffer;
+    uint8_t *p_pub_key = reinterpret_cast<uint8_t *>(&quote->report_body.report_data);
+    uint8_t *p_mr_enclave = reinterpret_cast<uint8_t *>(&quote->report_body.mr_enclave);
+
+    // ----- Print SGX quote ----- //
+    p_log->debug("quote info:\n");
+    p_log->debug("enclave public key:%s\n", hexstring_safe(p_pub_key, sizeof(sgx_ec256_public_t)).c_str());
+    p_log->debug("quote mrenclave   :%s\n", hexstring_safe(p_mr_enclave, sizeof(sgx_measurement_t)).c_str());
+
+    // ----- Entry network process ----- //
+    crust_status_t crust_status = CRUST_SUCCESS;
+    if (SGX_SUCCESS != (sgx_ret = Ecall_gen_upload_ecdsa_quote(global_eid, &crust_status, p_quote_buffer, quote_sz)))
+    {
+        p_log->err("Generate and upload quote to registry chain failed due to invoke SGX API failed, error code:%lx\n", sgx_ret);
+        return CRUST_SGX_FAILED;
+    }
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Generate and upload identity to registry chain failed, error code:%lx\n", crust_status);
+        return crust_status;
+    }
+    // Send quote to IAS service
+    p_log->info("Verify quote successfully!\n");
+
+    // Get verification result from registry chain
+    std::string res = crust::Chain::get_instance()->get_ecdsa_verify_result();
+    if (res.size() == 0)
+    {
+        p_log->err("Get ecdsa verify result failed!");
+        return CRUST_UNEXPECTED_ERROR;
+    }
+    p_log->info("Get result from registry chain successfully!\n");
+
+    // Upload final identity to crust chain
+    if (SGX_SUCCESS != (sgx_ret = Ecall_gen_upload_ecdsa_identity(global_eid, &crust_status, res.c_str(), res.size())))
+    {
+        p_log->err("Generate and upload identity to crust chain failed due to invoke SGX API failed, error code:%lx\n", sgx_ret);
+        return CRUST_SGX_FAILED;
+    }
+    if (CRUST_SUCCESS != crust_status)
+    {
+        p_log->err("Generate and upload identity to crust chain failed, error code:%lx\n", crust_status);
+        return crust_status;
+    }
+    p_log->info("Enter network successfully!\n");
+
+    return CRUST_SUCCESS;
+}
+
+/**
+ * @description: Entry network
+ * @return: Result status
+ */
+crust_status_t entry_network()
+{
+    return is_ecdsa_mode ? entry_network_ecdsa() : entry_network_epid();
 }

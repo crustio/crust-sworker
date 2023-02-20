@@ -1,5 +1,5 @@
 # crust sworker image
-FROM crustio/crust-sworker-env:0.6.0
+FROM crustio/crust-sworker-env:1.1.2
 
 ARG BUILD_MODE
 

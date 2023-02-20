@@ -49,7 +49,9 @@ int sha256_verify(const unsigned char *msg, size_t mlen, unsigned char *sig,
     size_t sigsz, EVP_PKEY *pkey, int *result);
 X509_STORE * cert_init_ca(X509 *cert);
 
-crust_status_t id_verify_and_upload_identity(char ** IASReport, size_t size);
+crust_status_t id_verify_upload_epid_identity(char ** IASReport, size_t size);
+crust_status_t id_gen_upload_ecdsa_quote(uint8_t *p_quote, uint32_t quote_size);
+crust_status_t id_gen_upload_ecdsa_identity(const char *report, uint32_t size);
 sgx_status_t id_gen_key_pair(const char *account_id, size_t len);
 sgx_status_t id_get_quote_report(sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t id_gen_sgx_measurement();

@@ -28,7 +28,9 @@ enclave {
         public sgx_status_t ecall_get_quote_report([out] sgx_report_t *report,[in] sgx_target_info_t *target_info);
         public sgx_status_t ecall_gen_sgx_measurement();
         public sgx_status_t ecall_gen_key_pair([in, size=len] const char *account_id, size_t len);
-        public crust_status_t ecall_verify_and_upload_identity([in, count=len] char ** IASReport, size_t len);
+        public crust_status_t ecall_gen_upload_epid_identity([in, count=len] char ** IASReport, size_t len);
+        public crust_status_t ecall_gen_upload_ecdsa_quote([in, size=quote_size] uint8_t *p_quote, uint32_t quote_size);
+        public crust_status_t ecall_gen_upload_ecdsa_identity([in, size=size] const char *report, uint32_t size);
 
         public crust_status_t ecall_seal_file_start([in, string] const char *root, [in, string] const char *root_b58);
         public crust_status_t ecall_seal_file([in, string] const char *root, [in, size=data_size] const uint8_t *data, size_t data_size, bool is_link, [in, out, size=path_size] char *path, size_t path_size);
@@ -84,10 +86,13 @@ enclave {
             allow(ecall_srd_increase, ecall_srd_decrease, ecall_change_srd_task);
 
         crust_status_t ocall_upload_workreport();
-        crust_status_t ocall_upload_identity([in, string] const char *id)
+        crust_status_t ocall_upload_epid_identity([in, string] const char *id)
             allow(ecall_id_get_info);
         crust_status_t ocall_entry_network()
-            allow(ecall_get_quote_report, ecall_verify_and_upload_identity);
+            allow(ecall_get_quote_report, ecall_gen_upload_epid_identity, ecall_gen_upload_ecdsa_quote, ecall_gen_upload_ecdsa_identity, ecall_id_get_info);
+
+        crust_status_t ocall_upload_ecdsa_quote([in, string] const char *id);
+        crust_status_t ocall_upload_ecdsa_identity([in, string] const char *id);
 
         crust_status_t ocall_get_block_hash(size_t report_height, [in, out, size=hash_len] char *report_hash, size_t hash_len);
 
