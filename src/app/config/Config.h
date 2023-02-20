@@ -23,12 +23,12 @@
 #define IAS_SPID "138D059F6C7587BAFFFA0961FFB38002"
 #define IAS_PRIMARY_SUBSCRIPTION_KEY "1217773e5a82410f98ee70aa1700f599"
 #define IAS_SECONDARY_SUBSCRIPTION_KEY "9fdebd5027cd4a57a1eb23d818e7b2e7"
-#define IAS_REPORT_PATH  "/sgx/dev/attestation/v3/report"
+#define IAS_REPORT_PATH  "/sgx/dev/attestation/v4/report"
 #else
 #define IAS_SPID "668D353F661978655C9D6820CF93B66B"
 #define IAS_PRIMARY_SUBSCRIPTION_KEY "80a0aa3b45124b8c8ba937ff9180a226"
 #define IAS_SECONDARY_SUBSCRIPTION_KEY "d9df4c30d1db412c9cff3823e30ebb80"
-#define IAS_REPORT_PATH  "/sgx/attestation/v3/report"
+#define IAS_REPORT_PATH  "/sgx/attestation/v4/report"
 #endif
 #define IAS_FLAGS 0
 #define IAS_API_DEF_VERSION 3
