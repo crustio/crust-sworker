@@ -60,7 +60,7 @@ int SGX_CDECL main(int argc, char *argv[])
     // Check if configure path has been indicated
     if (!is_set_config)
     {
-        p_log->info("-c argument is not provided, default config path: %s.json will be used.\n", config_file_path.c_str());
+        p_log->info("-c argument is not provided, default config path: %s will be used.\n", config_file_path.c_str());
     }
 
     // Main branch
