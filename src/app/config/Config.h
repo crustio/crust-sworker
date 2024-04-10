@@ -33,6 +33,9 @@
 #define IAS_FLAGS 0
 #define IAS_API_DEF_VERSION 3
 
+#define DCAP_BASE_URL "https://dcap.crust.network"
+#define DCAP_REPORT_PATH "/attestation/report"
+
 class Config
 {
 public:
@@ -53,6 +56,10 @@ public:
     std::string chain_account_id;   /* The account id(hex string) of crust chain account */
     std::string chain_password;     /* The password of crust chain account */
     std::string chain_backup;       /* The backup of crust chain account */
+
+    // crust dcap service
+    std::string dcap_base_url;      /* The Crust DCAP Attestation Service Base URL */
+    std::string dcap_report_path;   /* The Crust DCAP Attestation Service Report Path */
 
     void show(void);
     static Config *get_instance();
