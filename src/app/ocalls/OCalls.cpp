@@ -212,10 +212,10 @@ crust_status_t ocall_upload_ecdsa_quote(const char *id)
     crust::Chain *chain = crust::Chain::get_instance();
     if (!chain->post_ecdsa_quote(std::string(id)))
     {
-        p_log->err("Send identity to registry chain failed!\n");
+        p_log->err("DCAP quote upload failed!\n");
         return CRUST_UNEXPECTED_ERROR;
     }
-    p_log->info("Send identity to registry chain successfully!\n");
+    p_log->info("DCAP quote upload success!\n");
 
     return crust_status;
 }

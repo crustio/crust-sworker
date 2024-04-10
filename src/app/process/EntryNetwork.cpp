@@ -13,7 +13,7 @@ crust::Log *p_log = crust::Log::get_instance();
  */
 crust_status_t entry_network_epid()
 {
-    p_log->info("Entrying network...\n");
+    p_log->info("Entrying network epid...\n");
     sgx_quote_sign_type_t linkable = SGX_UNLINKABLE_SIGNATURE;
     sgx_status_t status, sgxrv;
     sgx_report_t report;
@@ -332,7 +332,7 @@ crust_status_t entry_network_epid()
  */
 crust_status_t entry_network_ecdsa()
 {
-    p_log->info("Entrying network...\n");
+    p_log->info("Entrying network ecdsa...\n");
     sgx_status_t sgxrv;
     quote3_error_t status = SGX_QL_SUCCESS;
     sgx_report_t report;
@@ -476,20 +476,21 @@ crust_status_t entry_network_ecdsa()
     p_log->debug("enclave public key:%s\n", hexstring_safe(p_pub_key, sizeof(sgx_ec256_public_t)).c_str());
     p_log->debug("quote mrenclave   :%s\n", hexstring_safe(p_mr_enclave, sizeof(sgx_measurement_t)).c_str());
 
-    // ----- Entry network process ----- //
+    // ----- Entry network process ----- //   
     crust_status_t crust_status = CRUST_SUCCESS;
+    // Generate the ecdsa quote inside enclave and upload the quote to Crust DCAP service
     if (SGX_SUCCESS != (sgx_ret = Ecall_gen_upload_ecdsa_quote(global_eid, &crust_status, p_quote_buffer, quote_sz)))
     {
-        p_log->err("Generate and upload quote to registry chain failed due to invoke SGX API failed, error code:%lx\n", sgx_ret);
+        p_log->err("Generate and upload ecdsa quote to dcap service failed due to invoke SGX API failed, error code:%lx\n", sgx_ret);
         return CRUST_SGX_FAILED;
     }
     if (CRUST_SUCCESS != crust_status)
     {
-        p_log->err("Generate and upload identity to registry chain failed, error code:%lx\n", crust_status);
+        p_log->err("Generate and upload identity to dcap service failed, error code:%lx\n", crust_status);
         return crust_status;
     }
-    // Send quote to IAS service
-    p_log->info("Verify quote successfully!\n");
+
+    p_log->info("Generate and upload ecdsa quote to dcap service successfully!\n");
 
     // Get verification result from registry chain
     std::string res = crust::Chain::get_instance()->get_ecdsa_verify_result();
@@ -498,10 +499,14 @@ crust_status_t entry_network_ecdsa()
         p_log->err("Get ecdsa verify result failed!");
         return CRUST_UNEXPECTED_ERROR;
     }
-    p_log->info("Get result from registry chain successfully!\n");
+    p_log->info("Get ecdsa verify result successfully!\n%s\n", res.c_str());
+
+    // Extract the report data from the result body
+    json::JSON dcap_body_json = json::JSON::Load_unsafe(res);
+    std::string dcap_report = dcap_body_json["report_body"].ToString();
 
     // Upload final identity to crust chain
-    if (SGX_SUCCESS != (sgx_ret = Ecall_gen_upload_ecdsa_identity(global_eid, &crust_status, res.c_str(), res.size())))
+    if (SGX_SUCCESS != (sgx_ret = Ecall_gen_upload_ecdsa_identity(global_eid, &crust_status, dcap_report.c_str(), dcap_report.size())))
     {
         p_log->err("Generate and upload identity to crust chain failed due to invoke SGX API failed, error code:%lx\n", sgx_ret);
         return CRUST_SGX_FAILED;

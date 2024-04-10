@@ -3,6 +3,7 @@
 crust::Log *p_log = crust::Log::get_instance();
 HttpClient *pri_chain_client = NULL;
 extern bool offline_chain_mode;
+std::string dcap_quote_report = "";
 
 namespace crust
 {
@@ -344,7 +345,7 @@ bool Chain::post_epid_identity(std::string identity)
 }
 
 /**
- * @description: post sworker quote to registry chain
+ * @description: post sworker ecdsa quote to Crust DCAP Service
  * @param quote -> sworker quote
  * @return: success or fail
  */
@@ -357,28 +358,35 @@ bool Chain::post_ecdsa_quote(std::string quote)
 
     p_log->info("id:%s\n", quote.c_str());
     int wait_time = 10;
+    dcap_quote_report = ""; // Clear the cached report first
     for (int i = 0; i < 20; i++)
     {
-        std::string path = this->url + "/verifier/requestVerification";
-        ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
+        std::string dcap_report_url(p_config->dcap_base_url);
+        dcap_report_url.append(p_config->dcap_report_path);
+        http::response<http::string_body> res;
 
-        json::JSON obj;
-        obj["backup"] = this->backup;
-        obj["evidence"] = quote;
-        http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
+        if (dcap_report_url.find("https://") == 0) 
+        {
+            res = pri_chain_client->SSLPost(dcap_report_url.c_str(), quote, "application/json", HTTP_REQ_INSECURE);
+        }
+        else 
+        {
+            res = pri_chain_client->Post(dcap_report_url.c_str(), quote, "application/json");
+        }
 
         if ((int)res.result() == 200)
         {
+            dcap_quote_report = res.body();
             return true;
         }
 
         if (res.body().size() != 0)
         {
-            p_log->err("Chain result: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
+            p_log->err("DCAP verification result failed: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
         }
         else
         {
-            p_log->err("Chain result: return body is null, wait %ds and try again\n", wait_time);
+            p_log->err("DCAP verification result failed: return body is null, wait %ds and try again\n", wait_time);
         }
 
         sleep(wait_time);
@@ -437,7 +445,7 @@ bool Chain::post_ecdsa_identity(const std::string identity)
 }
 
 /**
- * @description: Get verification report from registry chain
+ * @description: Get verification report from local cache which is set by post_ecdsa_quote()
  * @return: Verification report
  */
 std::string Chain::get_ecdsa_verify_result()
@@ -445,41 +453,7 @@ std::string Chain::get_ecdsa_verify_result()
     if (this->is_offline)
         return "";
 
-    std::string id_info = EnclaveData::get_instance()->get_enclave_id_info();
-    crust_status_t crust_status = CRUST_SUCCESS;
-    json::JSON id_info_json = json::JSON::Load(&crust_status, id_info);
-    if (CRUST_SUCCESS != crust_status)
-    {
-        p_log->err("Get verification result failed due to get id info failed, error code:%lx\n", crust_status);
-        return "";
-    }
-
-    int wait_time = 30;
-    for (int i = 0; i < 20; i++)
-    {
-        std::string path = this->url 
-            + "/verifier/verificationResults?address=" + Config::get_instance()->chain_address
-            + "&pubKey=" + id_info_json["pub_key"].ToString();
-        http::response<http::string_body> res = pri_chain_client->Get(path.c_str());
-
-        if ((int)res.result() == 200)
-        {
-            return res.body();
-        }
-
-        if (res.body().size() != 0)
-        {
-            p_log->err("Chain result: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
-        }
-        else
-        {
-            p_log->err("Chain result: return body is null, wait %ds and try again\n", wait_time);
-        }
-
-        sleep(wait_time);
-    }
-
-    return "";
+    return dcap_quote_report;
 }
 
 /**
