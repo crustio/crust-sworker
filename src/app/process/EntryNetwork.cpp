@@ -503,7 +503,7 @@ crust_status_t entry_network_ecdsa()
 
     // Extract the report data from the result body
     json::JSON dcap_body_json = json::JSON::Load_unsafe(res);
-    std::string dcap_report = dcap_body_json["report_body"].ToString();
+    std::string dcap_report = dcap_body_json["report_body"].dump();
 
     // Upload final identity to crust chain
     if (SGX_SUCCESS != (sgx_ret = Ecall_gen_upload_ecdsa_identity(global_eid, &crust_status, dcap_report.c_str(), dcap_report.size())))
