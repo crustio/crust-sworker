@@ -359,6 +359,7 @@ bool Chain::post_ecdsa_quote(std::string quote)
     p_log->info("id:%s\n", quote.c_str());
     int wait_time = 10;
     dcap_quote_report = ""; // Clear the cached report first
+    Config *p_config = Config::get_instance();
     for (int i = 0; i < 20; i++)
     {
         std::string dcap_report_url(p_config->dcap_base_url);
