@@ -983,7 +983,7 @@ void Workload::deal_deleted_file()
         {
             std::string status = this->sealed_files[pos][FILE_STATUS].ToString();
             if ((status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_DELETED)
-                    || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED)
+                    || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_UNVERIFIED && status[WAITING_STATUS] == FILE_STATUS_UNVERIFIED)
                     || (status[CURRENT_STATUS] == FILE_STATUS_DELETED && status[ORIGIN_STATUS] == FILE_STATUS_LOST))
             {
                 this->sealed_files.erase(this->sealed_files.begin() + pos);
