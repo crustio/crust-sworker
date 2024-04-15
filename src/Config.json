@@ -11,7 +11,7 @@
     "data_path" : ["/opt/crust/crust-sworker/<VERSION>/sworker_base_path/data"],
     "ipfs_url" :  "http://0.0.0.0:5001/api/v0",
     "dcap" : {
-        "base_url" : "https://dcap.crust.network",
+        "base_url" : "https://dcap-attestation.crust.network",
         "report_path" : "/attestation/report"
     }
 }
