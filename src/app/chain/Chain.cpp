@@ -412,7 +412,7 @@ bool Chain::post_ecdsa_identity(const std::string identity)
     int wait_time = 10;
     for (int i = 0; i < 20; i++)
     {
-        std::string path = this->url + "/swork/registerWithDeauthChain";
+        std::string path = this->url + "/swork/registerWithDCAP";
         ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
 
         crust_status_t crust_status = CRUST_SUCCESS;
