@@ -23,7 +23,7 @@ sleep $wait_time
 ps -ef | grep aesm
 
 SGXTYPE=""
-for el in $(cpuid | grep -i "sgx2 supported" | awk '{print $NF}'); do
+for el in $(cpuid | grep -i "SGX launch config" | awk '{print $NF}'); do
     SGXTYPE="--ecdsa"
     if [ x"$el" != x"true" ]; then
         SGXTYPE=""
