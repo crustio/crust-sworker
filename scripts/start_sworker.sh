@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
 
+# This script is used to start sworker locally for testing purpose
 basedir=$(cd `dirname $0`;pwd)
 
 . $basedir/utils.sh
@@ -25,4 +26,13 @@ sleep $wait_time
 
 ps -ef | grep aesm
 
-/opt/crust/crust-sworker/$version/bin/crust-sworker -c /opt/crust/crust-sworker/$version/etc/Config.json --ecdsa --debug
+SGXTYPE=""
+for el in $(cpuid | grep -i "SGX launch config" | awk '{print $NF}'); do
+    SGXTYPE="--ecdsa"
+    if [ x"$el" != x"true" ]; then
+        SGXTYPE=""
+        break
+    fi
+done
+
+/opt/crust/crust-sworker/$version/bin/crust-sworker -c /opt/crust/crust-sworker/$version/etc/Config.json $SGXTYPE --debug
