@@ -33,7 +33,7 @@
 #define IAS_FLAGS 0
 #define IAS_API_DEF_VERSION 3
 
-#define DCAP_BASE_URL "https://dcap.crust.network"
+#define DCAP_BASE_URL "https://dcap-attestation.crust.network"
 #define DCAP_REPORT_PATH "/attestation/report"
 
 class Config
