@@ -1190,7 +1190,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                         else
                         {
                             ret_info = "Recover illegal file done.";
-                            p_log->err("%s\n", ret_info.c_str());
+                            p_log->info("%s\n", ret_info.c_str());
                             ret_code = 200;
                         }
                     }

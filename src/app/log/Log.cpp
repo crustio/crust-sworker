@@ -37,6 +37,7 @@ Log::Log()
 
 /**
  * @description: open debug mode
+ * @param flag -> Show debug or not
  */
 void Log::set_debug(bool flag)
 {

@@ -48,9 +48,10 @@ std::string EnclaveData::get_enclave_id_info()
     if (this->enclave_id_info.size() == 0)
     {
         sl.unlock();
-        if (SGX_SUCCESS != Ecall_id_get_info(global_eid))
+        sgx_status_t ret = SGX_SUCCESS;
+        if (SGX_SUCCESS != (ret = Ecall_id_get_info(global_eid)))
         {
-            p_log->err("Get id info from enclave failed!\n");
+            p_log->err("Get id info from enclave failed! Error code:%lx\n", ret);
             return "";
         }
         sl.lock();

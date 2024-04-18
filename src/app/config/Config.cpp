@@ -149,6 +149,18 @@ bool Config::init(std::string path)
         return false;
     }
 
+    // Crust DCAP service 
+    this->dcap_base_url = config_value["dcap"]["base_url"].ToString();
+    if (this->dcap_base_url.compare("") == 0)
+    {
+        this->dcap_base_url = DCAP_BASE_URL;
+    }
+    this->dcap_report_path = config_value["dcap"]["report_path"].ToString();
+    if (this->dcap_report_path.compare("") == 0)
+    {
+        this->dcap_report_path = DCAP_REPORT_PATH;
+    }
+
     return true;
 }
 
@@ -188,6 +200,12 @@ void Config::show(void)
     printf("        'base url' : '%s',\n", IAS_BASE_URL);
     printf("        'report path' : '%s'\n", IAS_REPORT_PATH);
     //printf("        'flags' : '%d'\n", IAS_FLAGS);
+
+    printf("    'DCAP config' : {\n");
+    printf("        'base url' : %s,\n", this->dcap_base_url.c_str());
+    printf("        'report path' : %s,\n", this->dcap_report_path.c_str());
+    printf("    },\n");
+
     printf("    }\n");
     printf("}\n");
 }

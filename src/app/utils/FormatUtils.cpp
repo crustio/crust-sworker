@@ -28,7 +28,7 @@ int char_to_int(char input)
  */
 uint8_t *hex_string_to_bytes(const char *src, size_t len)
 {
-    if(len % 2 != 0)
+    if(len % 2 != 0 || 0 == len)
     {
         return NULL;
     }

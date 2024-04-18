@@ -1,12 +1,16 @@
 #! /usr/bin/env bash
 
+# This script is used to start sworker locally for testing purpose
+basedir=$(cd `dirname $0`;pwd)
+
+. $basedir/utils.sh
+
 crustdir=/opt/crust
-version=$(cat /crust-sworker/VERSION | head -n 1)
+version=$(getVERSION)
 crustsworkerdir=$crustdir/crust-sworker/$version
 crust_env_file=$crustsworkerdir/etc/environment
-inteldir=/opt/intel
 
-echo "Starting curst sworker $version"
+echo "Starting crust sworker $version"
 source $crust_env_file
 
 wait_time=10
@@ -31,5 +35,4 @@ for el in $(cpuid | grep -i "SGX launch config" | awk '{print $NF}'); do
     fi
 done
 
-echo "Run sworker with arguments: $ARGS"
-/opt/crust/crust-sworker/$version/bin/crust-sworker $SGXTYPE $ARGS
+/opt/crust/crust-sworker/$version/bin/crust-sworker -c /opt/crust/crust-sworker/$version/etc/Config.json $SGXTYPE --debug

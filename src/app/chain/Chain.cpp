@@ -3,6 +3,7 @@
 crust::Log *p_log = crust::Log::get_instance();
 HttpClient *pri_chain_client = NULL;
 extern bool offline_chain_mode;
+std::string dcap_quote_report = "";
 
 namespace crust
 {
@@ -301,7 +302,7 @@ bool Chain::wait_for_running(void)
  * @param identity -> sworker identity
  * @return: success or fail
  */
-bool Chain::post_sworker_identity(std::string identity)
+bool Chain::post_epid_identity(std::string identity)
 {
     if (this->is_offline)
     {
@@ -341,6 +342,119 @@ bool Chain::post_sworker_identity(std::string identity)
     }
 
     return false;
+}
+
+/**
+ * @description: post sworker ecdsa quote to Crust DCAP Service
+ * @param quote -> sworker quote
+ * @return: success or fail
+ */
+bool Chain::post_ecdsa_quote(std::string quote)
+{
+    if (this->is_offline)
+    {
+        return true;
+    }
+
+    p_log->info("id:%s\n", quote.c_str());
+    int wait_time = 10;
+    dcap_quote_report = ""; // Clear the cached report first
+    Config *p_config = Config::get_instance();
+    for (int i = 0; i < 20; i++)
+    {
+        std::string dcap_report_url(p_config->dcap_base_url);
+        dcap_report_url.append(p_config->dcap_report_path);
+        http::response<http::string_body> res;
+
+        if (dcap_report_url.find("https://") == 0) 
+        {
+            res = pri_chain_client->SSLPost(dcap_report_url.c_str(), quote, "application/json", HTTP_REQ_INSECURE);
+        }
+        else 
+        {
+            res = pri_chain_client->Post(dcap_report_url.c_str(), quote, "application/json");
+        }
+
+        if ((int)res.result() == 200)
+        {
+            dcap_quote_report = res.body();
+            return true;
+        }
+
+        if (res.body().size() != 0)
+        {
+            p_log->err("DCAP verification result failed: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
+        }
+        else
+        {
+            p_log->err("DCAP verification result failed: return body is null, wait %ds and try again\n", wait_time);
+        }
+
+        sleep(wait_time);
+    }
+
+    return false;
+}
+
+/**
+ * @description: Post sworker identity to crust chain
+ * @param identity -> sworker identity
+ * @return: success or fail
+ */
+bool Chain::post_ecdsa_identity(const std::string identity)
+{
+    if (this->is_offline)
+    {
+        return true;
+    }
+
+    p_log->debug("identity:%s\n", identity.c_str());
+    int wait_time = 10;
+    for (int i = 0; i < 20; i++)
+    {
+        std::string path = this->url + "/swork/registerWithDCAP";
+        ApiHeaders headers = {{"password", this->password}, {"Content-Type", "application/json"}};
+
+        crust_status_t crust_status = CRUST_SUCCESS;
+        json::JSON obj = json::JSON::Load(&crust_status, identity);
+        if (CRUST_SUCCESS != crust_status)
+        {
+            p_log->err("Parse sworker identity failed! Error code:%lx\n", crust_status);
+            return false;
+        }
+        obj["backup"] = this->backup;
+        http::response<http::string_body> res = pri_chain_client->Post(path.c_str(), obj.dump(), "application/json", headers);
+
+        if ((int)res.result() == 200)
+        {
+            return true;
+        }
+
+        if (res.body().size() != 0)
+        {
+            p_log->err("Chain result: %s, wait %ds and try again\n", res.body().c_str(), wait_time);
+        }
+        else
+        {
+            p_log->err("Chain result: return body is null, wait %ds and try again\n", wait_time);
+        }
+
+        sleep(wait_time);
+    }
+
+    return false;
+}
+
+/**
+ * @description: Get verification report from local cache which is set by post_ecdsa_quote()
+ * @return: Verification report
+ */
+std::string Chain::get_ecdsa_verify_result()
+{
+    if (this->is_offline)
+        return "";
+
+    return dcap_quote_report;
 }
 
 /**

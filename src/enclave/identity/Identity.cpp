@@ -288,7 +288,7 @@ X509_STORE *cert_init_ca(X509 *cert)
  * @param size -> Vector size
  * @return: Verify status
  */
-crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
+crust_status_t id_verify_upload_epid_identity(char **IASReport, size_t size)
 {
     string certchain_1;
     size_t cstart, cend, count, i;
@@ -541,9 +541,188 @@ crust_status_t id_verify_and_upload_identity(char **IASReport, size_t size)
     std::string id_str = id_json.dump();
 
     // Upload identity to chain
-    ocall_upload_identity(&status, id_str.c_str());
+    ocall_upload_epid_identity(&status, id_str.c_str());
 
     return status;
+}
+
+/**
+ * @description: Get and upload ECDSA identity
+ * @param p_quote -> Pointer to quote buffer
+ * @param quote_size -> Quote buffer size
+ * @return: Get result
+ */
+crust_status_t id_gen_upload_ecdsa_quote(uint8_t *p_quote, uint32_t quote_size)
+{
+    // Generate signature
+    Workload *wl = Workload::get_instance();
+    std::vector<uint8_t> sig_buffer;
+    vector_end_insert(sig_buffer, p_quote, quote_size);
+    vector_end_insert(sig_buffer, Workload::get_instance()->get_account_id());
+
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_status_t sgx_status = sgx_ecc256_open_context(&ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        return CRUST_SIGN_PUBKEY_FAILED;
+    }
+    Defer def_ecc_state([&ecc_state](void) {
+        sgx_ecc256_close_context(ecc_state);
+    });
+
+    sgx_ec256_signature_t ecc_signature;
+    sgx_status = sgx_ecdsa_sign(sig_buffer.data(), sig_buffer.size(),
+            const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &ecc_signature, ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        return CRUST_SIGN_PUBKEY_FAILED;
+    }
+
+    // Generate identity and upload
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON id_json;
+    id_json["quote"] = hexstring_safe(p_quote, quote_size);
+    id_json["account"] = Workload::get_instance()->get_account_id();
+    id_json["sig"] = hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
+    std::string id = id_json.dump();
+    remove_char(id, '\\');
+    remove_char(id, '\n');
+    remove_char(id, ' ');
+    ocall_upload_ecdsa_quote(&crust_status, id.c_str());
+
+    return crust_status;
+}
+
+/**
+ * @description: Generate and upload ECDSA identity to crust chain
+ * @param report -> Pointer to report buffer
+ * @param size -> Report size
+ * @return: Result status
+ */
+crust_status_t id_gen_upload_ecdsa_identity(const char *report, uint32_t size)
+{
+    log_debug("report:%s\n", report);
+    Workload *wl = Workload::get_instance();
+    crust_status_t crust_status = CRUST_SUCCESS;
+    json::JSON report_json = json::JSON::Load(&crust_status, reinterpret_cast<const uint8_t *>(report), size);
+    if (CRUST_SUCCESS != crust_status)
+    {
+        return crust_status;
+    }
+
+    if (report_json.JSONType() != json::JSON::Class::Array)
+    {
+        return CRUST_UNEXPECTED_ERROR;
+    }
+
+    // Generate identity
+    std::vector<uint8_t> sig_buffer;
+    std::string quote;
+    json::JSON id_json;
+    id_json["pubkeys"] = json::Array();
+    id_json["sigs"] = json::Array();
+    for (auto it : report_json.ArrayRange())
+    {
+        json::JSON quote_json;
+        quote_json["code"] = it["payload"]["code"];
+        quote_json["who"] = it["payload"]["who"];
+        quote_json["pubkey"] = it["payload"]["pubkey"];
+        std::string quote_str = quote_json.dump();
+        remove_char(quote_str, '\\');
+        remove_char(quote_str, '\n');
+        remove_char(quote_str, ' ');
+        if (quote.size() == 0)
+        {
+            std::string account = it["payload"]["who"].ToString();
+            std::string pubkey = it["payload"]["pubkey"].ToString();
+            std::string ePubkey = hexstring_safe(&wl->get_pub_key(), sizeof(sgx_ec256_public_t));
+            if (account.substr(2) != wl->get_account_id())
+            {
+                log_err("Quote verification error, enclave account:%s, report account:%s\n", wl->get_account_id().c_str(), account.c_str());
+                return CRUST_UNEXPECTED_ERROR;
+            }
+            if (pubkey.substr(2) != ePubkey)
+            {
+                log_err("Quote verification error, enclave pubkey:%s, report pubkey:%s\n", ePubkey.c_str(), pubkey.c_str());
+                return CRUST_UNEXPECTED_ERROR;
+            }
+            quote = quote_str;
+            std::string code = it["payload"]["code"].ToString();
+            id_json["code"] = code;
+            id_json["who"] = account;
+            id_json["pubkey"] = pubkey;
+            uint8_t *p_code_u = hex_string_to_bytes(code.substr(2).c_str(), code.size()-2);
+            if (p_code_u == NULL)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+            uint8_t *p_account_u = hex_string_to_bytes(account.substr(2).c_str(), account.size()-2);
+            if (p_account_u == NULL)
+            {
+                return CRUST_UNEXPECTED_ERROR;
+            }
+            vector_end_insert(sig_buffer, p_code_u, (code.size()-2)/2);
+            vector_end_insert(sig_buffer, p_account_u, (account.size()-2)/2);
+            vector_end_insert(sig_buffer, reinterpret_cast<const uint8_t *>(&wl->get_pub_key()), sizeof(sgx_ec256_public_t));
+        }
+        else
+        {
+            if (quote != quote_str)
+            {
+                log_err("Quote verification error, different quote found in report!\n");
+                return CRUST_UNEXPECTED_ERROR;
+            }
+        }
+        std::string pubkey_t = it["payload"]["public"]["sr25519"].ToString();
+        std::string sig_t = it["signature"]["sr25519"].ToString();
+        id_json["pubkeys"].append(pubkey_t);
+        id_json["sigs"].append(sig_t);
+        uint8_t *p_pubkey_t_u = hex_string_to_bytes(pubkey_t.substr(2).c_str(), pubkey_t.size()-2);
+        if (p_pubkey_t_u == NULL)
+        {
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        uint8_t *p_sig_t_u = hex_string_to_bytes(sig_t.substr(2).c_str(), sig_t.size()-2);
+        if (p_sig_t_u == NULL)
+        {
+            return CRUST_UNEXPECTED_ERROR;
+        }
+        vector_end_insert(sig_buffer, p_pubkey_t_u, (pubkey_t.size()-2)/2);
+        vector_end_insert(sig_buffer, p_sig_t_u, (sig_t.size()-2)/2);
+    }
+    std::string id = id_json.dump();
+    remove_char(id, '\\');
+    remove_char(id, '\n');
+    remove_char(id, ' ');
+
+    // Generate signature
+    sgx_ecc_state_handle_t ecc_state = NULL;
+    sgx_status_t sgx_status = sgx_ecc256_open_context(&ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        return CRUST_SIGN_PUBKEY_FAILED;
+    }
+    Defer def_ecc_state([&ecc_state](void) {
+        sgx_ecc256_close_context(ecc_state);
+    });
+
+    sgx_ec256_signature_t ecc_signature;
+    sgx_status = sgx_ecdsa_sign(sig_buffer.data(), sig_buffer.size(),
+            const_cast<sgx_ec256_private_t *>(&wl->get_pri_key()), &ecc_signature, ecc_state);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        return CRUST_SIGN_PUBKEY_FAILED;
+    }
+    id_json["sig"] = "0x" + hexstring_safe(&ecc_signature, sizeof(sgx_ec256_signature_t));
+
+    // Upload identity to crust chain
+    std::string entrance = id_json.dump();
+    remove_char(entrance, '\\');
+    remove_char(entrance, '\n');
+    remove_char(entrance, ' ');
+    ocall_upload_ecdsa_identity(&crust_status, entrance.c_str());
+
+    return crust_status;
 }
 
 /**

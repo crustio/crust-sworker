@@ -23,7 +23,9 @@ sgx_status_t Ecall_gen_key_pair(sgx_enclave_id_t eid, sgx_status_t *status, cons
 sgx_status_t Ecall_get_quote_report(sgx_enclave_id_t eid, sgx_status_t *status, sgx_report_t *report, sgx_target_info_t *target_info);
 sgx_status_t Ecall_gen_sgx_measurement(sgx_enclave_id_t eid, sgx_status_t *status);
 
-sgx_status_t Ecall_verify_and_upload_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
+sgx_status_t Ecall_gen_upload_epid_identity(sgx_enclave_id_t eid, crust_status_t *status, char **IASReport, size_t len);
+sgx_status_t Ecall_gen_upload_ecdsa_quote(sgx_enclave_id_t eid, crust_status_t *status, uint8_t *p_quote, uint32_t quote_size);
+sgx_status_t Ecall_gen_upload_ecdsa_identity(sgx_enclave_id_t eid, crust_status_t *status, const char *report, uint32_t size);
 
 sgx_status_t Ecall_seal_file_start(sgx_enclave_id_t eid, crust_status_t *status, const char *cid, const char *cid_b58);
 

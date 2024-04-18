@@ -32,7 +32,10 @@ public:
     bool get_block_header(BlockHeader &block_header);
     std::string get_block_hash(size_t block_number);
     std::string get_swork_code();
-    bool post_sworker_identity(std::string identity);
+    bool post_epid_identity(std::string identity);
+    bool post_ecdsa_quote(std::string quote);
+    bool post_ecdsa_identity(std::string identity);
+    std::string get_ecdsa_verify_result();
     bool post_sworker_work_report(std::string work_report);
     bool is_online(void);
     bool is_syncing(void);

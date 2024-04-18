@@ -7,6 +7,7 @@ crust_status_t check_seal_file_dup(std::string cid);
 /**
  * @description: IPFS informs sWorker to seal file
  * @param root -> File root cid
+ * @param root_b58 -> File root cid in base58 format
  * @return: Inform result
  */
 crust_status_t storage_seal_file_start(const char *root, const char *root_b58)
@@ -585,7 +586,7 @@ crust_status_t check_seal_file_dup(std::string cid)
 /**
  * @description: Get the hashs of links from ipfs block
  * @param block_data -> ipfs block data
- * @param block_size -> ipfs block size
+ * @param bs -> ipfs block size
  * @param hashs -> Return hashs, which need to be released when used up
  * @return: Status
  */
