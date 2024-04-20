@@ -5,6 +5,7 @@ version=$(cat /crust-sworker/VERSION | head -n 1)
 crustsworkerdir=$crustdir/crust-sworker/$version
 crust_env_file=$crustsworkerdir/etc/environment
 inteldir=/opt/intel
+pccs_port=9999
 
 echo "Starting curst sworker $version"
 source $crust_env_file
@@ -30,6 +31,21 @@ for el in $(cpuid | grep -i "SGX launch config" | awk '{print $NF}'); do
         break
     fi
 done
+
+if [ x"$SGXTYPE" = x"--ecdsa" ]; then
+    echo "Run pccs service under ECDSA mode. Wait $wait_time seconds for pccs service fully start"
+
+    cd /opt/intel/sgx-dcap-pccs
+    nohup node pccs_server.js &>/dev/null &
+    pid=$!
+    cd - &>/dev/null
+
+    sleep 10
+    if ! lsof -i :$pccs_port | grep $pid &>/dev/null; then
+        verbose ERROR "start pccs service failed! Please check if another process is occupying port $pccs_port"
+        exit 1
+    fi
+fi
 
 echo "Run sworker with arguments: $ARGS"
 /opt/crust/crust-sworker/$version/bin/crust-sworker $SGXTYPE $ARGS
