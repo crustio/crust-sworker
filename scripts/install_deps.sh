@@ -409,7 +409,7 @@ EOF
 function getSGXENCLAVEMODE()
 {
     local mode="epid"
-    for el in $(cpuid | grep -i "sgx2 supported" | awk '{print $NF}'); do
+    for el in $(cpuid | grep -i "SGX launch config" | awk '{print $NF}'); do
         mode="ecdsa"
         if [ x"$el" != x"true" ]; then
             mode="epid"
