@@ -78,7 +78,8 @@ Output:
   "mrenclave" : "cb8a24a6a971d738c6976269358e24bf2af578462fb92ead2d384b619fff6d4a",
   "pub_key" : "95178acfcb9f1406de8b14a5f81fa141a2934fcfc6fefa58077ff6a823711b0d5f884332b0b2a8699cd6ce901a7add1bef97365e3a73054cf383bb8bd3cc9460",
   "sworker_version" : "2.0.0",
-  "version" : "2.0.0"
+  "version" : "2.0.0",
+  "attestation_mode" : "epid"
 }
 ```
 

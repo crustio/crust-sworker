@@ -101,6 +101,8 @@ extern sgx_enclave_id_t global_eid;
 // Used to show validation status
 long change_srd_num = 0;
 
+extern bool is_ecdsa_mode;
+
 /**
  * @description: Start rest service
  * @return: Start status
@@ -299,6 +301,7 @@ void ApiHandler::http_handler(beast::string_view /*doc_root*/,
                 id_json["account"] = p_config->chain_address;
                 id_json["version"] = VERSION;
                 id_json["sworker_version"] = SWORKER_VERSION;
+                id_json["attestation_mode"] = is_ecdsa_mode ? "ecdsa" : "epid";
                 res.body() = id_json.dump();
                 res.result(200);
             }
