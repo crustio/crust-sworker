@@ -23,16 +23,7 @@ sleep $wait_time
 
 ps -ef | grep aesm
 
-SGXTYPE=""
-for el in $(cpuid | grep -i "SGX launch config" | awk '{print $NF}'); do
-    SGXTYPE="--ecdsa"
-    if [ x"$el" != x"true" ]; then
-        SGXTYPE=""
-        break
-    fi
-done
-
-if [ x"$SGXTYPE" = x"--ecdsa" ]; then
+if [[ $ARGS = *"--ecdsa"* ]]; then
     echo "Run pccs service under ECDSA mode. Wait $wait_time seconds for pccs service fully start"
 
     cd /opt/intel/sgx-dcap-pccs
@@ -48,4 +39,4 @@ if [ x"$SGXTYPE" = x"--ecdsa" ]; then
 fi
 
 echo "Run sworker with arguments: $ARGS"
-/opt/crust/crust-sworker/$version/bin/crust-sworker $SGXTYPE $ARGS
+/opt/crust/crust-sworker/$version/bin/crust-sworker $ARGS
