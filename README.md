@@ -58,8 +58,11 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
     "data_path" : ["/data1"],                                            # If this item is not set, srd and sealing function cannot be applied
     
     "ipfs_url" : "http://0.0.0.0:5001/api/v0",                           # the IPFS node url
-
-    "chain" : {
+    "dcap" : {
+        "base_url" : "https://dcap-attestation.crust.network",
+        "report_path" : "/attestation/report"
+    },
+    "chain" : {                 
         "base_url" : "http://127.0.0.1:56666/api/v1",
         "address" : "cTGVGrFB8suPunnTNEYzDaRdQNPC9QeAGeJDHzs9KXWcM7Wkb",  # the address of crust api
         "account_id" : "069686d23c8e0170553dddca0c36a659c6fc39fa0d5148f1ba1cc95ec4d4c414",
@@ -80,6 +83,7 @@ In /opt/crust/crust-sworker/etc/Config.json file you can configure your sworker 
 1. Run '**bin/crust-sworker -v, --version**', program will output version information. 
 1. Run '**bin/crust-sworker --offline**', program will not interact with the chain.
 1. Run '**bin/crust-sworker --debug**', program will output debug logs. 
+1. Run '**bin/crust-sworker --ecdsa**', program will use ECDSA DCAP attestation, default is EPID IAS attestation.
 
 ## APIs
 Crust sWorker provides plenty of getting and controlling interfaces, please refer to [Crust sWorker APIs](docs/API.md)
