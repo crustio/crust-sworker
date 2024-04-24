@@ -33,7 +33,7 @@ if [[ $ARGS = *"--ecdsa"* ]]; then
 
     sleep 10
     if ! lsof -i :$pccs_port | grep $pid &>/dev/null; then
-        verbose ERROR "start pccs service failed! Please check if another process is occupying port $pccs_port"
+        echo "[ERROR] Start pccs service failed! Please check if another process is occupying port $pccs_port"
         exit 1
     fi
 fi
