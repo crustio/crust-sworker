@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "Parameter.h"
 
-#define VERSION "2.0.0"
+#define VERSION "2.0.1"
 
 #define CRUST_INST_DIR      "/opt/crust/crust-sworker/" VERSION
 #define ENCLAVE_FILE_PATH   CRUST_INST_DIR "/etc/enclave.signed.so"
